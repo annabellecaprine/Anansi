@@ -866,6 +866,7 @@
       input.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
 
       chatCol.querySelector('#btn-clear-chat').onclick = () => {
+        const state = A.State.get();
         state.sim.history = [];
         A.State.notify();
         refreshChat();
@@ -1516,162 +1517,177 @@
 
   // --- CORE LOGIC: THE ROUND ---
   function processRound(userText, history) {
-    const state = A.State.get();
-    const logs = [];
+    try {
+      const state = A.State.get();
+      const logs = [];
 
-    // 1. ACTION 2: RESET WRITABLE FIELDS (Build Context from Source of Truth)
-    // Resolve Sources
-    const definedSources = state.strands && state.strands.sources ? state.strands.sources.items : {};
-    const rawSources = {};
+      // 1. ACTION 2: RESET WRITABLE FIELDS (Build Context from Source of Truth)
+      // Resolve Sources
+      const definedSources = (state.strands && state.strands.sources && state.strands.sources.items) ? state.strands.sources.items : {};
+      const rawSources = {};
 
-    // Merge keys
-    const allSourceKeys = new Set([
-      ...Object.keys(definedSources),
-      ...Object.keys(state.sim.simSources || {}),
-      'character.name', 'character.personality', 'character.scenario', 'user.name'
-    ]);
+      // Merge keys
+      const allSourceKeys = new Set([
+        ...Object.keys(definedSources),
+        ...Object.keys(state.sim.simSources || {}),
+        'character.name', 'character.personality', 'character.scenario', 'user.name'
+      ]);
 
-    allSourceKeys.forEach(key => {
-      const src = definedSources[key] || { id: key, defaultValue: '' };
-      let val = state.sim.simSources[key]; // Priority 1: Sim
+      allSourceKeys.forEach(key => {
+        const src = definedSources[key] || { id: key, defaultValue: '' };
+        let val = state.sim?.simSources?.[key]; // Priority 1: Sim
 
-      if (!val) { // Priority 2: Seed
-        if (key === 'character.name' || key === 'name') val = state.seed.name;
-        else if (key === 'character.personality' || key === 'personality') val = state.seed.persona;
-        else if (key === 'character.scenario' || key === 'scenario') val = state.seed.scenario;
-        else if (key === 'user.name') val = state.meta.author || 'User';
-      }
-      if (!val && val !== '') val = src.defaultValue; // Priority 3: Default
-      rawSources[key] = val || '';
-    });
-
-    // Construct Chat History with Legacy Support
-    const chatHistory = history.map(m => {
-      const txt = m.content || '';
-      return {
-        role: m.role,
-        content: txt,
-        mes: txt,      // Lorebook Legacy
-        message: txt,  // SBX Legacy
-        name: m.role === 'user' ? (rawSources['user.name'] || 'User') : (rawSources['character.name'] || 'Char')
-      };
-    });
-
-    // 3. Final Context Construction
-    const hybridChat = [...chatHistory];
-    hybridChat.last_messages = chatHistory;
-
-    const context = {
-      // Standard Aliases
-      chat: hybridChat,
-      messages: chatHistory,
-
-      // Flatten Sources
-      ...rawSources,
-      sources: rawSources,
-
-      // Shim for Character Object (Writable targets)
-      character: {
-        name: rawSources['character.name'] || rawSources.name || 'Unknown',
-        personality: rawSources['character.personality'] || rawSources.personality || '',
-        description: rawSources['character.description'] || rawSources.description || '',
-        scenario: rawSources['character.scenario'] || rawSources.scenario || '',
-        example: rawSources['character.exampleDialogs'] || rawSources.example || ''
-      },
-
-      tags: [...(state.sim.activeTags || [])],
-      // Inject Stats
-      stats: state.weaves?.stats?.values || {},
-      // Inject Locations
-      locations: state.weaves?.locations || [],
-      // Inject Actors
-      actors: [...(state.sim.actors || [])]
-    };
-
-    // Snapshot for Diffing
-    const snapshot = JSON.parse(JSON.stringify(context));
-
-    // NOTE: All rule evaluation (lorebook, microcues, voices, events, etc.)
-    // now happens inside the instrumented AURA script built by AuraSimBuilder.
-    // This ensures correct execution order (e.g., emotion signals available for lorebook).
-
-    // 2. ACTION 4: RUN SCRIPTS SEQUENTIALLY
-    let scripts = A.Scripts.getAll();
-    const executionOrder = ['sys_pulse', 'sys_intent', 'sys_eros', 'sys_aura'];
-    scripts.sort((a, b) => {
-      const aIdx = executionOrder.indexOf(a.id);
-      const bIdx = executionOrder.indexOf(b.id);
-      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-      if (aIdx !== -1) return -1;
-      if (bIdx !== -1) return 1;
-      return 0;
-    });
-
-    // Dynamic Stack Injection (sys_aura) - Use INSTRUMENTED SimBuilder for accurate logging
-    if (A.AuraSimBuilder) {
-      const auraScript = scripts.find(s => s.id === 'sys_aura');
-      if (auraScript && auraScript.enabled) {
-        try {
-          const dynamicCode = A.AuraSimBuilder.build(state);
-          scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
-          logs.push("AURA Stack Compiled (Instrumented)");
-        } catch (e) { logs.push("AURA SimBuild Failed: " + e.message); }
-      }
-    } else if (A.AuraBuilder) {
-      // Fallback to regular builder if SimBuilder not available
-      const auraScript = scripts.find(s => s.id === 'sys_aura');
-      if (auraScript && auraScript.enabled) {
-        try {
-          const dynamicCode = A.AuraBuilder.build(state);
-          scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
-          logs.push("AURA Stack Compiled");
-        } catch (e) { logs.push("AURA Build Failed: " + e.message); }
-      }
-    }
-
-    // Execute
-    const scriptLogs = [];
-
-    scripts.forEach(script => {
-      if (!script.enabled) return;
-      const logger = {
-        log: (...args) => scriptLogs.push(`[${script.name}] ${args.join(' ')}`),
-        warn: (...args) => scriptLogs.push(`[${script.name}] WARN: ${args.join(' ')}`),
-        error: (...args) => scriptLogs.push(`[${script.name}] ERROR: ${args.join(' ')}`),
-        info: (...args) => scriptLogs.push(`[${script.name}] INFO: ${args.join(' ')}`)
-      };
-      try {
-        const runFn = new Function('context', 'console', 'A', `
-                    "use strict";
-                    try { ${script.source.code} } 
-                    catch (e) { console.error(e.message); }
-                `);
-        runFn(context, logger, A);
-      } catch (err) {
-        scriptLogs.push(`[${script.name}] CRITICAL: ${err.message}`);
-      }
-    });
-
-    // Log script execution results
-    if (A.FlowLogger) {
-      scripts.forEach(script => {
-        A.FlowLogger.log({
-          name: script.name,
-          type: 'script',
-          passed: script.enabled,
-          reason: script.enabled ? 'Script executed' : 'Script disabled'
-        });
+        if (!val) { // Priority 2: Seed
+          if (!state.seed) state.seed = {}; // Safeguard
+          if (key === 'character.name' || key === 'name') val = state.seed.name;
+          else if (key === 'character.personality' || key === 'personality') val = state.seed.persona;
+          else if (key === 'character.scenario' || key === 'scenario') val = state.seed.scenario;
+          else if (key === 'user.name') val = state.meta?.author || 'User';
+        }
+        if (!val && val !== '') val = src.defaultValue; // Priority 3: Default
+        rawSources[key] = val || '';
       });
-      A.FlowLogger.endTurn();
-    }
 
-    // 3. ACTION 5: FINAL STATE ACHIEVED
-    return {
-      context: context,
-      logs: scriptLogs,
-      snapshot: snapshot,
-      diff: calculateDiff(snapshot, context)
-    };
+      // Construct Chat History with Legacy Support
+      const chatHistory = history.map(m => {
+        const txt = m.content || '';
+        return {
+          role: m.role,
+          content: txt,
+          mes: txt,      // Lorebook Legacy
+          message: txt,  // SBX Legacy
+          name: m.role === 'user' ? (rawSources['user.name'] || 'User') : (rawSources['character.name'] || 'Char')
+        };
+      });
+
+      // 3. Final Context Construction
+      const hybridChat = [...chatHistory];
+      hybridChat.last_messages = chatHistory;
+
+      const context = {
+        // Standard Aliases
+        chat: hybridChat,
+        messages: chatHistory,
+
+        // Flatten Sources
+        ...rawSources,
+        sources: rawSources,
+
+        // Shim for Character Object (Writable targets)
+        character: {
+          name: rawSources['character.name'] || rawSources.name || 'Unknown',
+          personality: rawSources['character.personality'] || rawSources.personality || '',
+          description: rawSources['character.description'] || rawSources.description || '',
+          scenario: rawSources['character.scenario'] || rawSources.scenario || '',
+          example: rawSources['character.exampleDialogs'] || rawSources.example || ''
+        },
+
+        tags: [...(state.sim?.activeTags || [])],
+        // Inject Stats
+        stats: state.weaves?.stats?.values || {},
+        // Inject Locations
+        locations: state.weaves?.locations || [],
+        // Inject Actors
+        actors: [...(state.sim?.actors || [])]
+      };
+
+      // Snapshot for Diffing
+      const snapshot = JSON.parse(JSON.stringify(context));
+
+      // NOTE: All rule evaluation (lorebook, microcues, voices, events, etc.)
+      // now happens inside the instrumented AURA script built by AuraSimBuilder.
+      // This ensures correct execution order (e.g., emotion signals available for lorebook).
+
+      // 2. ACTION 4: RUN SCRIPTS SEQUENTIALLY
+      let scripts = A.Scripts.getAll();
+      const executionOrder = ['sys_pulse', 'sys_intent', 'sys_eros', 'sys_aura'];
+
+      scripts.sort((a, b) => {
+        const aIdx = executionOrder.indexOf(a.id);
+        const bIdx = executionOrder.indexOf(b.id);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        return 0;
+      });
+
+      // Dynamic Stack Injection (sys_aura) - Use INSTRUMENTED SimBuilder for accurate logging
+      if (A.AuraSimBuilder) {
+        const auraScript = scripts.find(s => s.id === 'sys_aura');
+        if (auraScript && auraScript.enabled) {
+          try {
+            const dynamicCode = A.AuraSimBuilder.build(state);
+            scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
+            logs.push("AURA Stack Compiled (Instrumented)");
+          } catch (e) { logs.push("AURA SimBuild Failed: " + e.message); }
+        }
+      } else if (A.AuraBuilder) {
+        // Fallback to regular builder if SimBuilder not available
+        const auraScript = scripts.find(s => s.id === 'sys_aura');
+        if (auraScript && auraScript.enabled) {
+          try {
+            const dynamicCode = A.AuraBuilder.build(state);
+            scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
+            logs.push("AURA Stack Compiled");
+          } catch (e) { logs.push("AURA Build Failed: " + e.message); }
+        }
+      }
+
+      // Execute
+      const scriptLogs = [];
+
+      scripts.forEach(script => {
+        if (!script.enabled) return;
+        const logger = {
+          log: (...args) => scriptLogs.push(`[${script.name}] ${args.join(' ')}`),
+          warn: (...args) => scriptLogs.push(`[${script.name}] WARN: ${args.join(' ')}`),
+          error: (...args) => scriptLogs.push(`[${script.name}] ERROR: ${args.join(' ')}`),
+          info: (...args) => scriptLogs.push(`[${script.name}] INFO: ${args.join(' ')}`)
+        };
+        try {
+          const runFn = new Function('context', 'console', 'A', `
+                        "use strict";
+                        try { ${script.source.code} } 
+                        catch (e) { console.error(e.message); }
+                    `);
+          runFn(context, logger, A);
+        } catch (err) {
+          scriptLogs.push(`[${script.name}] CRITICAL: ${err.message}`);
+        }
+      });
+
+      // Log script execution results
+      if (A.FlowLogger) {
+        scripts.forEach(script => {
+          A.FlowLogger.log({
+            name: script.name,
+            type: 'script',
+            passed: script.enabled,
+            reason: script.enabled ? 'Script executed' : 'Script disabled'
+          });
+        });
+        A.FlowLogger.endTurn();
+      }
+
+      // 3. ACTION 5: FINAL STATE ACHIEVED
+      return {
+        context: context,
+        logs: scriptLogs,
+        snapshot: snapshot,
+        diff: calculateDiff(snapshot, context)
+      };
+
+    } catch (err) {
+      console.error("[LogicEngine] Critical Error in processRound:", err);
+      if (A.UI && A.UI.Toast) A.UI.Toast.show("Logic Engine Crash: " + err.message, 'error');
+      // Return a safe fallback to prevent infinite loops or UI freeze
+      return {
+        context: {},
+        logs: ["CRITICAL EXECUTION FAILURE: " + err.message],
+        snapshot: {},
+        diff: { fields: [], tags: [] }
+      };
+    }
   }
 
   function calculateDiff(snapshot, context) {

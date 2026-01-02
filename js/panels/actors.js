@@ -55,6 +55,7 @@
     }
 
     function render(container, context) {
+        const state = A.State.get();
         container.style.height = '100%';
         container.style.display = 'grid';
         container.style.gridTemplateColumns = '250px 1fr';

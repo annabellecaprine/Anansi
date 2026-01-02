@@ -258,8 +258,26 @@
                 scoring: { enabled: false, rules: [] },
                 advanced: { enabled: false, rules: [] },
                 sbx: { rules: [] },
+                strands: {
+                    sources: { items: {} },
+                    scripts: { items: {}, order: [] }
+                },
                 sim: {}
             };
+
+            // Apply Default Sources (Fix for detached Sources panel)
+            console.log('[ProjectPicker] Checking Adapters:', A.Adapters);
+            if (A.Adapters && A.Adapters['jai']) { // Default env is 'jai'
+                console.log('[ProjectPicker] Found JAI adapter. Injecting defaults...');
+                const defaults = A.Adapters['jai'].getDefaultSources();
+                console.log('[ProjectPicker] Defaults:', defaults);
+                defaults.forEach(src => {
+                    newProjectState.strands.sources.items[src.id] = src;
+                });
+                console.log('[ProjectPicker] Injected sources:', Object.keys(newProjectState.strands.sources.items));
+            } else {
+                console.warn('[ProjectPicker] JAI Adapter NOT found.');
+            }
 
             // Save the new project to DB (but don't switch to it yet)
             await A.ProjectDB.save(newProjectState);

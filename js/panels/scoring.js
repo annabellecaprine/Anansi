@@ -20,6 +20,7 @@
     function render(container) {
         const state = A.State.get();
         if (!state.scoring) state.scoring = { topics: [], advanced: [] };
+        if (!state.scoring.topics) state.scoring.topics = [];
         if (!state.scoring.advanced) state.scoring.advanced = [];
 
         // Layout
@@ -89,7 +90,7 @@
         // --- List Render ---
         function refreshList() {
             listBody.innerHTML = '';
-            const items = (currentTab === 'basic') ? state.scoring.topics : state.scoring.advanced;
+            const items = ((currentTab === 'basic') ? state.scoring.topics : state.scoring.advanced) || [];
 
             if (!items.length) {
                 listBody.innerHTML = '<div class="muted" style="padding:16px; text-align:center;">No items.</div>';

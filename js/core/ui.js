@@ -185,31 +185,66 @@
             });
         },
 
-        switchPanel: function (id, context) {
-            activePanelId = id;
-            this.refreshNav(); // Update active state
-
-            // Persist active panel to localStorage
-            localStorage.setItem('anansi_active_panel', id);
-
-            const section = A.getNavSections().find(s => s.id === id);
-            if (!section) return;
-
-            this.els.panelTitle.textContent = section.label;
-            this.els.panelSubtitle.textContent = section.subtitle || '';
-
-            // Clear global lens on panel switch by default unless specific panels handle it
-            if (id !== 'simulator' && id !== 'scripts') {
-                this.setLens(null);
+        refresh: function () {
+            this.refreshNav();
+            this.switchPanel(activePanelId);
+            // Trigger state update to refresh header
+            const state = A.State.get();
+            if (state) {
+                this.els.displayName.textContent = state.meta.name + (state.isDirty ? ' •' : '');
+                this.els.displayEnv.textContent = state.environment.id.toUpperCase();
+                this.updateIntegrityBadge(state);
             }
+        },
 
-            // CRITICAL: Clear inline styles from previous panel to prevent layout bleed
-            this.els.panelRoot.removeAttribute('style');
-            this.els.panelRoot.innerHTML = '';
-            if (section.render) {
-                section.render(this.els.panelRoot, context);
-            } else {
-                this.els.panelRoot.innerHTML = `<div class="empty-state">Unable to load panel.</div>`;
+        switchPanel: function (id, context) {
+            try {
+                activePanelId = id;
+                this.refreshNav(); // Update active state
+
+                // Persist active panel to localStorage
+                localStorage.setItem('anansi_active_panel', id);
+
+                const section = A.getNavSections().find(s => s.id === id);
+                if (!section) {
+                    console.error(`[UI] Panel not found: ${id}`);
+                    return;
+                }
+
+                if (this.els.panelTitle) this.els.panelTitle.textContent = section.label;
+                if (this.els.panelSubtitle) this.els.panelSubtitle.textContent = section.subtitle || '';
+
+                // Clear global lens on panel switch by default unless specific panels handle it
+                // Wrapped in try-catch to prevent lens errors from blocking panel load
+                try {
+                    if (id !== 'simulator' && id !== 'scripts') {
+                        this.setLens(null);
+                    }
+                } catch (e) {
+                    console.warn(`[UI] Lens reset failed: ${e.message}`);
+                }
+
+                // CRITICAL: Clear inline styles from previous panel to prevent layout bleed
+                if (this.els.panelRoot) {
+                    this.els.panelRoot.removeAttribute('style');
+                    this.els.panelRoot.innerHTML = '';
+                    if (section.render) {
+                        try {
+                            section.render(this.els.panelRoot, context);
+                        } catch (renderErr) {
+                            console.error(`[UI] Failed to render panel ${id}:`, renderErr);
+                            this.els.panelRoot.innerHTML = `<div class="empty-state error-state">
+                                <div style="color:var(--status-error); margin-bottom:8px;">Panel Crash</div>
+                                <div style="font-size:11px; font-family:monospace;">${renderErr.message}</div>
+                            </div>`;
+                        }
+                    } else {
+                        this.els.panelRoot.innerHTML = `<div class="empty-state">Unable to load panel.</div>`;
+                    }
+                }
+            } catch (err) {
+                console.error(`[UI] switchPanel critical failure:`, err);
+                if (A.UI.Toast) A.UI.Toast.show(`Nav Error: ${err.message}`, 'error');
             }
         },
 

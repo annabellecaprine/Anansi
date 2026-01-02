@@ -9,6 +9,11 @@
 
   function render(container) {
     const state = A.State.get();
+    if (!state) {
+      container.innerHTML = '<div class="empty-state">No project loaded.</div>';
+      return;
+    }
+    if (!state.strands) state.strands = {};
     if (!state.strands.sources) state.strands.sources = { items: {} };
     // Ensuring items is an object, not array, based on previous code.
     // If it's an array in some states, we might need migration, but assuming structure:
