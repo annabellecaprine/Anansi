@@ -463,6 +463,43 @@
         renderFn(this.els.lensRoot);
     };
 
+    // --- Empty State Utility ---
+    A.UI.getEmptyStateHTML = function (title, message, actionLabel, actionOnClickStr) {
+        // actionOnClickStr should be a string for inline onclick, e.g., "Anansi.UI.switchPanel(\'actors\')"
+        const buttonHtml = actionLabel ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="${actionOnClickStr}">${actionLabel} →</button>` : '';
+
+        return `
+            <div class="empty-state-card" style="margin:auto; max-width:400px; text-align:center; padding:40px 20px;">
+                <div style="opacity:0.2; margin-bottom:16px;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <circle cx="12" cy="16" r="1"></circle>
+                    </svg>
+                </div>
+                <div style="font-size:16px; font-weight:600; color:var(--text-main); margin-bottom:8px;">${title}</div>
+                <div style="font-size:13px; color:var(--text-muted); line-height:1.5;">${message}</div>
+                ${buttonHtml}
+            </div>
+        `;
+    };
+
+    /**
+     * Renders an empty state into a container if the items array is empty.
+     * Returns true if empty state was rendered.
+     */
+    A.UI.renderEmptyState = function (container, items, title, message, action) {
+        if (!items || Object.keys(items).length === 0) {
+            container.innerHTML = A.UI.getEmptyStateHTML(title, message, action?.label, action?.onclick);
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.justifyContent = 'center';
+            container.style.height = '100%';
+            return true;
+        }
+        return false;
+    };
+
     // --- UI Components Namespace ---
     A.UI.Components = {};
 

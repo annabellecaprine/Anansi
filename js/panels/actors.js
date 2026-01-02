@@ -688,17 +688,30 @@
 
         refreshList();
         // Show empty state initially
-        content.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <div style="margin-bottom:16px;">Select an Actor to edit</div>
-                <button class="btn btn-secondary" id="btn-empty-create">Create New Actor</button>
-            </div>
-        `;
-        content.querySelector('#btn-empty-create').onclick = () => addBtn.click();
+        // Show empty state initially if list is empty, otherwise standard select prompt
+        if (!currentId) {
+            const hasActors = Object.keys(state.nodes?.actors?.items || {}).length > 0;
+            if (!hasActors) {
+                content.innerHTML = A.UI.getEmptyStateHTML(
+                    'No Actors Found',
+                    'Create your first actor to begin building your cast.',
+                    'Create New Actor',
+                    "document.getElementById('btn-add-actor').click()"
+                );
+            } else {
+                // Select prompt
+                content.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <div style="margin-bottom:16px;">Select an Actor to edit</div>
+                        <button class="btn btn-secondary" onclick="document.getElementById('btn-add-actor').click()">Create New Actor</button>
+                    </div>
+                `;
+            }
+        }
     }
 
     A.registerPanel('actors', {

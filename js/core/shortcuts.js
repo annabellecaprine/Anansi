@@ -80,10 +80,12 @@
             // Global shortcuts (work even in inputs)
             this.register('ctrl+s', {
                 action: () => {
-                    if (A.IO && A.IO.exportToFile) {
-                        A.IO.exportToFile();
-                    } else {
-                        if (A.UI.Toast) A.UI.Toast.show('Project saved to memory', 'success');
+                    if (A.IO && A.IO.saveNow) {
+                        A.IO.saveNow().then(() => {
+                            if (A.UI.Toast) A.UI.Toast.show('Project saved', 'success');
+                        });
+                    } else if (A.UI.Toast) {
+                        A.UI.Toast.show('Project saved to memory', 'success');
                     }
                 },
                 label: 'Save Project',

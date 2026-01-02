@@ -262,18 +262,14 @@
             listBody.innerHTML = '';
 
             if (scripts.length === 0) {
-                listBody.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                        <div style="margin-bottom:16px;">${searchTerm ? 'No matches found' : 'No scripts found'}</div>
-                        ${!searchTerm ? '<button class="btn btn-secondary" id="btn-empty-new">Create New Script</button>' : ''}
-                    </div>
-                `;
-                if (!searchTerm) {
-                    listBody.querySelector('#btn-empty-new').onclick = () => container.querySelector('#btn-add-script').click();
-                }
+                // Determine if it's a search result empty or total empty
+                const isSearch = !!searchTerm;
+                listBody.innerHTML = A.UI.getEmptyStateHTML(
+                    isSearch ? 'No Matches Found' : 'No Scripts',
+                    isSearch ? `No scripts matching "${searchTerm}"` : 'Manage your project scripts here.',
+                    isSearch ? 'Clear Search' : 'Create New Script',
+                    isSearch ? "document.getElementById('search-scripts').value = ''; document.getElementById('search-scripts').dispatchEvent(new Event('input'));" : "document.getElementById('btn-add-script').click()"
+                );
                 return;
             }
 

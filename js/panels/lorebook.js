@@ -333,21 +333,25 @@
     const renderEditor = () => {
       editorCol.innerHTML = '';
       if (!currentId || !state.weaves.lorebook.entries[currentId]) {
-        editorCol.innerHTML = `
-          <div class="empty-state-card" style="margin:auto; max-width:320px;">
-            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-            </svg>
-            <div class="empty-title">Start Weaving Lore</div>
-            <div class="empty-description">Select an entry from the list to edit, or create a new one to begin building your world.</div>
-            <button class="btn btn-primary" id="btn-empty-create" style="margin-top:16px;">+ Create New Entry</button>
-          </div>
-        `;
-        // Defer click handler binding slightly to ensure DOM insertion
-        setTimeout(() => {
-          const btn = editorCol.querySelector('#btn-empty-create');
-          if (btn) btn.onclick = () => listCol.querySelector('#btn-add-lore').click();
-        }, 0);
+        const hasEntries = Object.keys(state.weaves.lorebook.entries).length > 0;
+        if (!hasEntries) {
+          editorCol.innerHTML = A.UI.getEmptyStateHTML(
+            'Lorebook Empty',
+            'The Lorebook stores all your world knowledge, factions, and story details.',
+            '+ Create First Entry',
+            "document.getElementById('btn-add-lore').click()"
+          );
+        } else {
+          editorCol.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.5;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <div>Select an entry to edit</div>
+                </div>
+            `;
+        }
         return;
       }
 
