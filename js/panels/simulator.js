@@ -1583,7 +1583,9 @@
       // Inject Stats
       stats: state.weaves?.stats?.values || {},
       // Inject Locations
-      locations: state.weaves?.locations || []
+      locations: state.weaves?.locations || [],
+      // Inject Actors
+      actors: [...(state.sim.actors || [])]
     };
 
     // Snapshot for Diffing

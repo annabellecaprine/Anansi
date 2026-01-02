@@ -60,6 +60,9 @@
             // 8. Lore (Instrumented)
             output += this._buildInstrumentedLoreScript(data.loreEntries) + '\n\n';
 
+            // 9. Pairs (Instrumented - Relationship Logic)
+            output += this._buildInstrumentedPairsScript(state) + '\n\n';
+
             return '/* === AURA (Simulation Mode - Instrumented) === */\n\n' + output;
         },
 
@@ -69,29 +72,33 @@
         },
 
         /**
-         * Instrumented Voices Script
+         * Instrumented Pairs (Relationships) Script
          */
-        _buildInstrumentedVoicesScript: function (state) {
-            const voices = state?.weaves?.voices?.voices || [];
-            if (!voices.length) return '// No Voices';
+        _buildInstrumentedPairsScript: function (state) {
+            const pairs = Object.values(state?.nodes?.pairs?.items || {});
+            if (!pairs.length) return '// No Pairs';
 
             const jsStr = this._jsStr;
-            let s = '/* === VOICES (Instrumented) === */\n';
+            let s = '/* === PAIRS (Instrumented) === */\n';
             s += '(function(){\n';
-            s += '  if (typeof AURA === "undefined" || !context) return;\n\n';
+            s += '  if (!context || !context.actors) return;\n\n';
 
-            voices.forEach((v, i) => {
-                const name = v.name || `Voice ${i + 1}`;
-                s += `  // Voice: ${name}\n`;
+            pairs.forEach((p, i) => {
+                const actor1Name = state.nodes.actors.items[p.actor1]?.name || 'Unknown';
+                const actor2Name = state.nodes.actors.items[p.actor2]?.name || 'Unknown';
+                const name = `${p.type || 'Relationship'}: ${actor1Name} & ${actor2Name}`;
+
+                s += `  // Pair: ${name}\n`;
                 s += `  (function(){\n`;
-                s += `    var passed = ${v.enabled ? 'true' : 'false'};\n`;
-                s += `    var reason = passed ? 'Voice is active' : 'Voice is disabled';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'voice', passed: passed, reason: reason});\n`;
-                if (v.enabled && v.baselineRail) {
-                    s += `    if (passed && context.character) {\n`;
-                    s += `      context.character.personality = (context.character.personality || '') + '\\n' + ${jsStr(v.baselineRail)};\n`;
-                    s += `    }\n`;
-                }
+                s += `    var a1 = ${jsStr(p.actor1 || '')};\n`;
+                s += `    var a2 = ${jsStr(p.actor2 || '')};\n`;
+                s += `    var passed = context.actors.indexOf(a1) !== -1 && context.actors.indexOf(a2) !== -1;\n`;
+                s += `    var reason = passed ? 'Both actors present' : 'One or both actors missing';\n`;
+                s += `    var assoc = [a1, a2];\n`;
+                s += `    var content = ${jsStr(p.content || '')};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'pair', passed: passed, reason: reason, metadata: { associatedActors: assoc, content: content }});\n`;
+                s += `    if (passed && passed) {\n`;
+                s += `    }\n`;
                 s += `  })();\n\n`;
             });
 
@@ -99,9 +106,28 @@
             return s;
         },
 
-        /**
-         * Instrumented Microcues Script
-         */
+        _buildInstrumentedVoicesScript: function (state) {
+            const voices = Object.values(state?.nodes?.voices?.items || {});
+            const jsStr = this._jsStr;
+            let s = '/* === VOICES (Instrumented) === */\n';
+            s += '(function(){\n';
+
+            voices.forEach((v, i) => {
+                const actorName = state.nodes.actors.items[v.actorId]?.name || 'Unknown';
+                const name = `Voice ${i + 1}: ${actorName}`;
+
+                s += `  (function(){\n`;
+                s += `    var passed = ${v.enabled};\n`;
+                s += `    var reason = passed ? 'Voice enabled' : 'Voice disabled';\n`;
+                s += `    var content = ${jsStr(v.content || '')};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'voice', passed: passed, reason: reason, metadata: { content: content, target: 'Character Personality' }});\n`;
+                s += `  })();\n\n`;
+            });
+
+            s += '})();';
+            return s;
+        },
+
         _buildInstrumentedMicrocuesScript: function (state) {
             const entries = Object.values(state?.aura?.microcues?.items || {});
             if (!entries.length) return '// No MicroCues';
@@ -121,7 +147,6 @@
                 s += `    var passed = true;\n`;
                 s += `    var reason = '';\n`;
 
-                // Emotion gate only (entity gate removed - not functional)
                 if (reqEmotions.length > 0) {
                     s += `    var reqEmotions = ${JSON.stringify(reqEmotions)};\n`;
                     s += `    var emotionMatch = reqEmotions.indexOf(currentEmotion) !== -1;\n`;
@@ -129,7 +154,8 @@
                 }
 
                 s += `    if (passed) reason = 'Emotion: ' + currentEmotion + ' matched';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'microcue', passed: passed, reason: reason});\n`;
+                s += `    var content = ${jsStr(e.content || '')};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'microcue', passed: passed, reason: reason, metadata: { content: content, target: 'Character Personality' }});\n`;
                 s += `    if (passed && context.character) {\n`;
                 s += `      context.character.personality = (context.character.personality || '') + ' ' + ${jsStr(e.content || '')};\n`;
                 s += `    }\n`;
@@ -140,9 +166,6 @@
             return s;
         },
 
-        /**
-         * Instrumented Custom Rules (SBX) Script
-         */
         _buildInstrumentedCustomRulesScript: function (state) {
             const rules = state?.sbx?.rules || [];
             if (!rules.length) return '// No Custom Rules';
@@ -160,7 +183,8 @@
                 s += `  (function(){\n`;
                 s += `    var passed = ${enabled};\n`;
                 s += `    var reason = passed ? '${(rule.chain || []).length} condition blocks' : 'Rule is disabled';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'advanced', passed: passed, reason: reason});\n`;
+                s += `    var assocActors = ${JSON.stringify(rule.associatedActors || [])};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'advanced', passed: passed, reason: reason, metadata: { associatedActors: assocActors, target: 'Context State/Output' }});\n`;
                 s += `  })();\n\n`;
             });
 
@@ -168,9 +192,6 @@
             return s;
         },
 
-        /**
-         * Instrumented Scoring Script
-         */
         _buildInstrumentedScoringScript: function (state) {
             const topics = state?.scoring?.topics || [];
             if (!topics.length) return '// No Scoring Topics';
@@ -198,7 +219,8 @@
                 s += `    keywords.forEach(function(kw){ if (msgLower.indexOf(kw.toLowerCase()) !== -1) matches++; });\n`;
                 s += `    var passed = matches >= ${topic.min || 1};\n`;
                 s += `    var reason = 'Found ' + matches + ' matches (min: ${topic.min || 1})';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'scoring', passed: passed, reason: reason});\n`;
+                s += `    var assocActors = ${JSON.stringify(topic.associatedActors || [])};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'scoring', passed: passed, reason: reason, metadata: { associatedActors: assocActors, target: 'Score State' }});\n`;
                 s += `  })();\n\n`;
             });
 
@@ -206,9 +228,6 @@
             return s;
         },
 
-        /**
-         * Instrumented Events Script
-         */
         _buildInstrumentedEventsScript: function (state) {
             const events = Object.values(state?.aura?.events?.items || {});
             if (!events.length) return '// No Events';
@@ -226,7 +245,9 @@
                 s += `  (function(){\n`;
                 s += `    var passed = ${enabled};\n`;
                 s += `    var reason = passed ? 'Type: ${evt.eventType || 'standard'}' : 'Event is disabled';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'event', passed: passed, reason: reason});\n`;
+                s += `    var assocActors = ${JSON.stringify(evt.associatedActors || [])};\n`;
+                s += `    var content = ${jsStr(evt.effect || '')};\n`;
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'event', passed: passed, reason: reason, metadata: { associatedActors: assocActors, content: content, target: 'Character Personality' }});\n`;
                 if (enabled && evt.effect) {
                     s += `    if (passed && context.character) {\n`;
                     s += `      context.character.personality = (context.character.personality || '') + '\\n' + ${jsStr(evt.effect)};\n`;
@@ -239,9 +260,6 @@
             return s;
         },
 
-        /**
-         * Instrumented Actor Cues Script
-         */
         _buildInstrumentedActorCuesScript: function (state) {
             const actors = Object.values(state?.nodes?.actors?.items || {});
             const actorsWithCues = actors.filter(a =>
@@ -270,7 +288,8 @@
                         s += `    var tag = ${jsStr('PULSE_' + emotion.toUpperCase())};\n`;
                         s += `    var passed = activeTags.indexOf(tag) !== -1;\n`;
                         s += `    var reason = passed ? 'Tag ' + tag + ' active' : 'Tag ' + tag + ' not found';\n`;
-                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - PULSE: ' + emotion)}, type: 'actor-cue', passed: passed, reason: reason});\n`;
+                        s += `    var content = ${jsStr(cue.content || '')};\n`;
+                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - PULSE: ' + emotion)}, type: 'actor-cue', passed: passed, reason: reason, metadata: { content: content, target: 'Context Tags' }});\n`;
                         s += `  })();\n`;
                     });
                 }
@@ -284,7 +303,8 @@
                         s += `    var tag = ${jsStr('EROS_' + level.toUpperCase())};\n`;
                         s += `    var passed = activeTags.indexOf(tag) !== -1;\n`;
                         s += `    var reason = passed ? 'Tag ' + tag + ' active' : 'Tag ' + tag + ' not found';\n`;
-                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - EROS: ' + level)}, type: 'actor-cue', passed: passed, reason: reason});\n`;
+                        s += `    var content = ${jsStr(cue.content || '')};\n`;
+                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - EROS: ' + level)}, type: 'actor-cue', passed: passed, reason: reason, metadata: { content: content, target: 'Context Tags' }});\n`;
                         s += `  })();\n`;
                     });
                 }
@@ -298,7 +318,8 @@
                         s += `    var tag = ${jsStr('INTENT_' + intent.toUpperCase())};\n`;
                         s += `    var passed = activeTags.indexOf(tag) !== -1;\n`;
                         s += `    var reason = passed ? 'Tag ' + tag + ' active' : 'Tag ' + tag + ' not found';\n`;
-                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - INTENT: ' + intent)}, type: 'actor-cue', passed: passed, reason: reason});\n`;
+                        s += `    var content = ${jsStr(cue.content || '')};\n`;
+                        s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(actorName + ' - INTENT: ' + intent)}, type: 'actor-cue', passed: passed, reason: reason, metadata: { content: content, target: 'Context Tags' }});\n`;
                         s += `  })();\n`;
                     });
                 }
@@ -308,9 +329,6 @@
             return s;
         },
 
-        /**
-         * Instrumented Lore Script
-         */
         _buildInstrumentedLoreScript: function (loreEntries) {
             if (!loreEntries || !loreEntries.length) return '// No Lore Entries';
 
@@ -322,17 +340,74 @@
 
             loreEntries.forEach((entry, i) => {
                 const name = entry.tag || `Entry ${i + 1}`;
-                const keywords = entry.words || [];
+                const keywords = entry.keywords || entry.words || []; // Handle data shape variants
+
+                // Detect Target & Content
+                // Transformers map injectionTarget to a key in the entry. We must find it.
+                const metaKeys = new Set([
+                    'tag', 'keywords', 'triggers', 'priority', 'probability',
+                    'group', 'groupWeight', 'minMessages', 'associatedActors',
+                    'andAnyTags', 'blocksTags', 'notAnyTags',
+                    'andAnyEmotion', 'andAllEmotion', 'notAnyEmotion', 'notAllEmotion',
+                    'andAnyIntent', 'requireEntities',
+                    'erosMin', 'erosMax', 'erosLTMin',
+                    'words', 'content' // exclude 'content' if we prefer specific keys, but fallback uses it
+                ]);
+
+                let targetKey = 'personality';
+                let contentVal = '';
+
+                // 1. Check Standard Keys
+                if (typeof entry.personality === 'string' && entry.personality) { targetKey = 'personality'; contentVal = entry.personality; }
+                else if (typeof entry.scenario === 'string' && entry.scenario) { targetKey = 'scenario'; contentVal = entry.scenario; }
+                else if (typeof entry.mes_example === 'string' && entry.mes_example) { targetKey = 'mes_example'; contentVal = entry.mes_example; }
+                else if (typeof entry.description === 'string' && entry.description) { targetKey = 'description'; contentVal = entry.description; }
+                else {
+                    // 2. Scan for custom keys or fallbacks
+                    // If entry.content exists and wasn't caught above
+                    if (entry.content) {
+                        targetKey = 'personality'; // standard fallback
+                        contentVal = entry.content;
+                    } else {
+                        // Scan keys
+                        for (const k in entry) {
+                            if (!metaKeys.has(k) && typeof entry[k] === 'string' && entry[k].length > 0) {
+                                targetKey = k;
+                                contentVal = entry[k];
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Format friendly text for UI
+                let friendlyTarget = 'Character Personality';
+                if (targetKey === 'scenario') friendlyTarget = 'Character Scenario';
+                else if (targetKey === 'mes_example') friendlyTarget = 'Character Example Dialogue';
+                else if (targetKey === 'description') friendlyTarget = 'Character Description';
+                else if (targetKey !== 'personality') friendlyTarget = 'Source: ' + targetKey;
 
                 s += `  // Lore: ${name}\n`;
                 s += `  (function(){\n`;
                 s += `    var entry = ${JSON.stringify(entry)};\n`;
                 s += `    var passed = AURA.gates.checkWords(entry, msg) && AURA.gates.checkTags(entry, {}, 'Tags');\n`;
-                s += `    var reason = passed ? 'Keywords matched: ${keywords.slice(0, 3).join(', ')}${keywords.length > 3 ? '...' : ''}' : 'Keywords not found: ${keywords.slice(0, 3).join(', ')}${keywords.length > 3 ? '...' : ''}';\n`;
-                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'lorebook', passed: passed, reason: reason});\n`;
-                s += `    if (passed) {\n`;
-                s += `      var content = entry.personality || entry.content || '';\n`;
-                s += `      if (content) context.character.personality = (context.character.personality || '') + '\\n' + content;\n`;
+                // Probability
+                if (entry.probability !== undefined && entry.probability < 1) { // 0-1 scale
+                    s += `    if (passed && Math.random() > ${entry.probability}) passed = false;\n`;
+                }
+
+                s += `    var reason = passed ? 'Keywords/Tags matched' : 'Conditions not met';\n`;
+                s += `    var assocActors = ${JSON.stringify(entry.associatedActors || [])};\n`;
+
+                // Use detected content
+                s += `    var content = ${jsStr(contentVal || '')};\n`;
+
+                // Log with friendly target
+                s += `    if (A && A.FlowLogger) A.FlowLogger.log({name: ${jsStr(name)}, type: 'lorebook', passed: passed, reason: reason, metadata: { associatedActors: assocActors, content: content, target: ${jsStr(friendlyTarget)} }});\n`;
+
+                s += `    if (passed && content) {\n`;
+                // Inject to target
+                s += `      context.character['${targetKey}'] = (context.character['${targetKey}'] || '') + '\\n' + content;\n`;
                 s += `    }\n`;
                 s += `  })();\n\n`;
             });
@@ -340,6 +415,7 @@
             s += '})();';
             return s;
         }
+
     };
 
     A.AuraSimBuilder = AuraSimBuilder;

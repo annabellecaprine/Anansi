@@ -243,7 +243,43 @@
 
             if (activeTab === 'lists') renderListEditor(body, item);
             else if (activeTab === 'derived') renderDerivedEditor(body, item, state);
-            else renderRuleChainEditor(body, item, state);
+            else {
+                renderRuleChainEditor(body, item, state);
+
+                // Actor Association (Flow Explorer) for Rules
+                const actorSec = document.createElement('div');
+                actorSec.style.marginTop = '16px';
+                actorSec.style.borderTop = '1px solid var(--border-subtle)';
+                actorSec.style.paddingTop = '12px';
+                actorSec.innerHTML = `<div style="font-size:10px; text-transform:uppercase; font-weight:bold; color:var(--text-muted); margin-bottom:8px;">Associate with Actors (Flow Explorer Only)</div><div id="actor-associations" style="display:flex; flex-wrap:wrap; gap:8px;"></div>`;
+                body.appendChild(actorSec);
+
+                const assocActors = Object.values(state.nodes?.actors?.items || {});
+                const actorAssocList = actorSec.querySelector('#actor-associations');
+                if (assocActors.length === 0) {
+                    actorAssocList.innerHTML = '<div style="font-size:11px; color:var(--text-muted); padding:4px;">No actors found.</div>';
+                } else {
+                    if (!item.associatedActors) item.associatedActors = [];
+                    assocActors.forEach(actor => {
+                        const isChecked = item.associatedActors.includes(actor.id);
+                        const lbl = document.createElement('label');
+                        lbl.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:11px; padding:2px 6px; background:var(--bg-elevated); border-radius:4px; border:1px solid var(--border-subtle); cursor:pointer; user-select:none;';
+                        if (isChecked) lbl.style.borderColor = 'var(--accent-primary)';
+                        lbl.innerHTML = `<input type="checkbox" style="margin:0;" ${isChecked ? 'checked' : ''}> ${actor.name || 'Unknown'}`;
+                        lbl.querySelector('input').onchange = (e) => {
+                            if (e.target.checked) {
+                                item.associatedActors.push(actor.id);
+                                lbl.style.borderColor = 'var(--accent-primary)';
+                            } else {
+                                item.associatedActors = item.associatedActors.filter(id => id !== actor.id);
+                                lbl.style.borderColor = 'var(--border-subtle)';
+                            }
+                            A.State.notify();
+                        };
+                        actorAssocList.appendChild(lbl);
+                    });
+                }
+            }
 
             container.appendChild(body);
             mainCol.appendChild(container);

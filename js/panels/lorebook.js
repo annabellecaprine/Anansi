@@ -474,6 +474,14 @@
            <label class="l-lab">Content</label>
            <div id="quill-content" style="height:180px;"></div>
         </div>
+
+        <!-- Actor Association (Flow Explorer Metadata) -->
+        <div class="l-sec">
+          <div class="l-lab" style="margin-bottom:8px;">Associate with Actors (Flow Explorer Only)</div>
+          <div id="actor-associations" style="display:flex; flex-wrap:wrap; gap:8px; padding:4px; max-height:100px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:4px;">
+            <!-- Populated by JS -->
+          </div>
+        </div>
         
         <!-- Logic & Prob -->
         <div class="l-sec">
@@ -553,6 +561,36 @@
       bindChk('#chk-whole', 'matchWholeWords');
       bindChk('#chk-case', 'caseSensitive');
       bindChk('#chk-kpri', 'keyMatchPriority');
+
+      // Populate Actor Associations
+      const assocActors = Object.values(state.nodes?.actors?.items || {});
+      const actorAssocList = body.querySelector('#actor-associations');
+      if (assocActors.length === 0) {
+        actorAssocList.innerHTML = '<div style="font-size:11px; color:var(--text-muted); padding:4px;">No actors found.</div>';
+      } else {
+        if (!entry.associatedActors) entry.associatedActors = [];
+
+        assocActors.forEach(actor => {
+          const isChecked = entry.associatedActors.includes(actor.id);
+          const lbl = document.createElement('label');
+          lbl.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:11px; padding:2px 6px; background:var(--bg-elevated); border-radius:4px; border:1px solid var(--border-subtle); cursor:pointer; user-select:none;';
+          if (isChecked) lbl.style.borderColor = 'var(--accent-primary)';
+
+          lbl.innerHTML = `<input type="checkbox" style="margin:0;" ${isChecked ? 'checked' : ''}> ${actor.name || 'Unknown'}`;
+
+          lbl.querySelector('input').onchange = (e) => {
+            if (e.target.checked) {
+              entry.associatedActors.push(actor.id);
+              lbl.style.borderColor = 'var(--accent-primary)';
+            } else {
+              entry.associatedActors = entry.associatedActors.filter(id => id !== actor.id);
+              lbl.style.borderColor = 'var(--border-subtle)';
+            }
+            A.State.notify();
+          };
+          actorAssocList.appendChild(lbl);
+        });
+      }
 
       // --- ADVANCED GATES SECTION ---
       // Initialize gate structures if missing

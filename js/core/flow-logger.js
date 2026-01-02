@@ -30,9 +30,10 @@
             if (!this.currentTurn) return;
             this.currentTurn.entries.push({
                 name: entry.name || 'Unknown',
-                type: entry.type || 'unknown', // lorebook, scoring, advanced, voice, event
+                type: entry.type || 'unknown', // lorebook, scoring, advanced, voice, event, pair
                 passed: !!entry.passed,
-                reason: entry.reason || ''
+                reason: entry.reason || '',
+                metadata: entry.metadata || null
             });
         },
 

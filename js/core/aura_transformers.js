@@ -101,7 +101,8 @@
                     probability: (entry.probability !== undefined ? entry.probability : 100) / 100,
                     group: entry.inclusionGroup || null,
                     groupWeight: entry.groupWeight || 100,
-                    minMessages: entry.minMessages || 0
+                    minMessages: entry.minMessages || 0,
+                    associatedActors: entry.associatedActors || []
                 };
 
                 // Injection target
