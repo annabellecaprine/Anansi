@@ -236,21 +236,76 @@
             }
 
             // Save current project first
-            await A.ProjectDB.save(A.State.get());
+            const currentState = A.State.get();
+            await A.ProjectDB.save(currentState);
+            const currentId = currentState.meta.id;
 
-            // Create new state with new ID
-            A.State.reset();
-            const newState = A.State.get();
-            newState.meta.id = A.ProjectDB.generateId();
-            newState.meta.name = 'Untitled Project';
+            // Create new project state (without loading it)
+            const newProjectState = {
+                meta: {
+                    id: A.ProjectDB.generateId(),
+                    name: 'Untitled Project',
+                    env: 'JAI',
+                    created: Date.now(),
+                    modified: Date.now()
+                },
+                actors: { list: [] },
+                weaves: {
+                    lorebook: { entries: {}, scanDepth: 3 },
+                    voices: { enabled: true, debug: false, voices: [] },
+                    events: { list: [] }
+                },
+                scoring: { enabled: false, rules: [] },
+                advanced: { enabled: false, rules: [] },
+                sbx: { rules: [] },
+                sim: {}
+            };
 
-            // Save new project
-            await A.ProjectDB.save(newState);
+            // Save the new project to DB (but don't switch to it yet)
+            await A.ProjectDB.save(newProjectState);
+            const newProjectId = newProjectState.meta.id;
 
-            // Close modal and refresh UI
-            A.UI.Modal.close();
-            A.UI.refresh();
-            A.UI.Toast.show('New project created', 'success');
+            // Refresh the list to show the new project
+            await ProjectPicker._refreshList();
+
+            // Prompt user to switch
+            A.UI.Modal.show({
+                title: 'Switch to New Project?',
+                content: `
+                    <div style="padding: 12px;">
+                        <p>A new project "<strong>Untitled Project</strong>" has been created.</p>
+                        <p style="margin-top: 12px; color: var(--text-muted); font-size: 12px;">
+                            Would you like to switch to it now, or continue working on your current project?
+                        </p>
+                    </div>
+                `,
+                actions: [
+                    {
+                        label: 'Switch to New Project',
+                        primary: true,
+                        onClick: async (close) => {
+                            // Load the new project
+                            const project = await A.ProjectDB.get(newProjectId);
+                            A.State.load(project.data);
+                            A.ProjectDB.setCurrentId(newProjectId);
+
+                            close();
+                            A.UI.Modal.close(); // Close the project picker too
+                            A.UI.refresh();
+                            A.UI.Toast.show('Switched to new project', 'success');
+                        }
+                    },
+                    {
+                        label: 'Stay on Current Project',
+                        onClick: async (close) => {
+                            close();
+                            // Re-open the project picker
+                            ProjectPicker.show();
+                            A.UI.Toast.show('New project created (not switched)', 'info');
+                        }
+                    }
+                ]
+            });
         },
 
         /**
