@@ -1,0 +1,179 @@
+/* Anansi Design Tokens - Brand Palette (Silk / Ink / Ember) */
+
+:root {
+  /* --- Primitives (Dark Mode Default) --- */
+
+  /* Ink (Neutrals - Dark) */
+  --ink-900: #0E0F13;
+  /* Main BG */
+  --ink-800: #151720;
+  /* Panels */
+  --ink-700: #1D2030;
+  /* Elevated */
+  --ink-500: #8A8FAF;
+  /* Secondary Text */
+  --ink-100: #E6E8F2;
+  /* Primary Text */
+
+  /* Silk (Focus/Highlight) */
+  --silk-500: #7C6CFF;
+  --silk-400: #9A8CFF;
+  --silk-300: #C1B8FF;
+
+  /* Ember (Action/Causality) */
+  --ember-600: #E5533D;
+  --ember-500: #FF6A4D;
+  --ember-400: #FF907A;
+
+  /* Moss (Positive/Valid) */
+  --moss-600: #3CB179;
+  --moss-500: #5FD49C;
+  --moss-400: #8BE5B9;
+
+  /* Ash (Muted) */
+  --ash-500: #6B6F8A;
+  --ash-400: #9A9EB8;
+  --ash-300: #C5C8DC;
+
+  /* Void (Contrast) */
+  --void-900: #000000;
+  --void-800: #0A0B10;
+
+  /* --- Semantic Mapping (Dark Mode) --- */
+
+  --color-bg: var(--ink-900);
+  --color-panel: var(--ink-800);
+  --color-elevated: var(--ink-700);
+
+  --color-text-primary: var(--ink-100);
+  --color-text-secondary: var(--ink-500);
+  --color-text-muted: var(--ash-500);
+
+  --color-border-subtle: rgba(230, 232, 242, 0.08);
+  /* Derived from ink-100ish */
+  --color-border-strong: rgba(230, 232, 242, 0.14);
+  --color-divider: rgba(230, 232, 242, 0.06);
+
+  --color-accent-primary: var(--silk-500);
+  --color-accent-hover: var(--silk-400);
+  --color-focus-ring: var(--silk-300);
+  --color-accent-soft: rgba(124, 108, 255, 0.15);
+  /* Helper for UI */
+  --color-accent-soft-2: rgba(124, 108, 255, 0.25);
+  /* Helper for UI */
+  --color-accent-strong: var(--silk-400);
+
+  --color-action-primary: var(--ember-500);
+  --color-action-hover: var(--ember-400);
+  --color-action-danger: var(--ember-600);
+  --color-action-success: var(--moss-500);
+
+  --color-code-bg: var(--void-800);
+
+  --status-success: var(--moss-500);
+  --status-warning: var(--ember-400);
+  --status-error: var(--ember-600);
+
+  /* --- Backward Compatibility (Legacy Mapping) --- */
+  --bg-app: var(--color-bg);
+  --bg-panel: var(--color-panel);
+  --bg-surface: var(--color-elevated);
+  /* Map surface to elevated */
+  --bg-elevated: var(--color-elevated);
+
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+
+  --accent-primary: var(--color-accent-primary);
+  --accent-muted: var(--color-accent-soft);
+
+  --border-subtle: var(--color-border-subtle);
+  --border-default: var(--color-border-strong);
+
+
+  /* Spacing & Radius (Preserved) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 9999px;
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Crimson Pro', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+}
+
+[data-theme='light'] {
+  /* --- Primitives (Light Mode Override) --- */
+
+  /* Ink (Neutrals - Light) */
+  --ink-900: #1B1E2B;
+  /* Text Primary */
+  --ink-800: #2A2F45;
+  --ink-700: #4B5070;
+  /* Text Secondary */
+  --ink-200: #E4E6F1;
+  /* Panels/Elevated */
+  --ink-50: #F7F8FC;
+  /* Main BG */
+
+  /* --- Semantic Mapping (Light Mode) --- */
+
+  --color-bg: var(--ink-50);
+  --color-panel: #FFFFFF;
+  --color-elevated: var(--ink-200);
+
+  --color-text-primary: var(--ink-900);
+  --color-text-secondary: var(--ink-700);
+  --color-text-muted: var(--ash-500);
+
+  --color-border-subtle: rgba(27, 30, 43, 0.10);
+  --color-border-strong: rgba(27, 30, 43, 0.16);
+  --color-divider: rgba(27, 30, 43, 0.08);
+
+  --color-accent-primary: var(--silk-500);
+  --color-accent-hover: var(--silk-400);
+  --color-focus-ring: rgba(124, 108, 255, 0.35);
+  --color-accent-soft: rgba(124, 108, 255, 0.1);
+  --color-accent-soft-2: rgba(124, 108, 255, 0.2);
+  --color-accent-strong: var(--silk-500);
+
+  --color-action-primary: var(--ember-500);
+  --color-action-hover: var(--ember-400);
+  --color-action-danger: var(--ember-600);
+  --color-action-success: var(--moss-600);
+
+  --color-code-bg: #0E0F13;
+  /* Keep code dark even in light mode mostly, or specific primitive */
+
+  --status-success: var(--moss-600);
+  --status-warning: var(--ember-500);
+  --status-error: var(--ember-600);
+
+  --shadow-soft: 0 4px 12px rgba(27, 30, 43, 0.08);
+
+  /* --- Backward Compatibility (Light Mode) --- */
+  --bg-app: var(--color-bg);
+  --bg-panel: var(--color-panel);
+  --bg-surface: var(--color-elevated);
+  --bg-elevated: var(--color-elevated);
+
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+
+  --border-subtle: var(--color-border-subtle);
+  --border-default: var(--color-border-strong);
+}

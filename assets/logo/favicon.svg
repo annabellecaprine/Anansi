@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Anansi Logo - Spider Web with Center Node -->
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="100%" style="stop-color:#D97706"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Web strands -->
+  <g stroke="url(#gold)" stroke-width="1.5" fill="none" opacity="0.6">
+    <line x1="32" y1="32" x2="32" y2="4"/>
+    <line x1="32" y1="32" x2="32" y2="60"/>
+    <line x1="32" y1="32" x2="4" y2="32"/>
+    <line x1="32" y1="32" x2="60" y2="32"/>
+    <line x1="32" y1="32" x2="12" y2="12"/>
+    <line x1="32" y1="32" x2="52" y2="52"/>
+    <line x1="32" y1="32" x2="52" y2="12"/>
+    <line x1="32" y1="32" x2="12" y2="52"/>
+  </g>
+  
+  <!-- Web circles -->
+  <g stroke="url(#gold)" stroke-width="1" fill="none" opacity="0.4">
+    <circle cx="32" cy="32" r="12"/>
+    <circle cx="32" cy="32" r="20"/>
+    <circle cx="32" cy="32" r="28"/>
+  </g>
+  
+  <!-- Center node -->
+  <circle cx="32" cy="32" r="6" fill="url(#gold)"/>
+</svg>

@@ -1,0 +1,96 @@
+Folder PATH listing
+Volume serial number is A093-3A5D
+C:.
+¦   build_system_data.py
+¦   filetree.txt
+¦   index.html
+¦   README.md
+¦   
++---assets
+¦   ¦   favicon.ico
+¦   ¦   logo_dark.png
+¦   ¦   logo_light.png
+¦   ¦   README.md
+¦   ¦   
+¦   +---logo
+¦           favicon.svg
+¦           
++---css
+¦       main.css
+¦       tokens.css
+¦       tour.css
+¦       
++---docs
+¦       README.md
+¦       
++---js
+¦   +---aura
+¦   ¦       AURA.js
+¦   ¦       EROS.js
+¦   ¦       INTENT.js
+¦   ¦       PULSE.js
+¦   ¦       
+¦   +---core
+¦   ¦       adapters.js
+¦   ¦       analysis.js
+¦   ¦       anansi.js
+¦   ¦       aura_builder.js
+¦   ¦       aura_lib.js
+¦   ¦       aura_transformers.js
+¦   ¦       export.js
+¦   ¦       gate_types.js
+¦   ¦       io.js
+¦   ¦       logic_engine.js
+¦   ¦       quill_manager.js
+¦   ¦       scripts.js
+¦   ¦       state.js
+¦   ¦       system_data.js
+¦   ¦       tester.js
+¦   ¦       tour.js
+¦   ¦       tour_content.js
+¦   ¦       ui.js
+¦   ¦       validator.js
+¦   ¦       
+¦   +---data
+¦   ¦       tours.js
+¦   ¦       
+¦   +---env
+¦   ¦       jai.js
+¦   ¦       jai.renderer.js
+¦   ¦       
+¦   +---lib
+¦   ¦       escodegen.js
+¦   ¦       escodegen.min.js
+¦   ¦       esprima.js
+¦   ¦       esprima.min.js
+¦   ¦       estraverse.js
+¦   ¦       
+¦   +---panels
+¦           actors.js
+¦           advanced.js
+¦           character.js
+¦           events.js
+¦           locations.js
+¦           lorebook.js
+¦           microcues.js
+¦           pairs.js
+¦           project.js
+¦           scoring.js
+¦           scripts.js
+¦           simulator.js
+¦           sources.js
+¦           stats.js
+¦           tester.js
+¦           tokens.js
+¦           validator.js
+¦           voices.js
+¦           
++---node_modules
+    +---@esbuild
+    ¦   +---win32-x64
+    ¦           esbuild.exe
+    ¦           
+    +---@rollup
+        +---rollup-win32-x64-msvc
+                rollup.win32-x64-msvc.node
+                
