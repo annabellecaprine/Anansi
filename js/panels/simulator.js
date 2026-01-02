@@ -717,6 +717,10 @@
             <button class="btn btn-ghost btn-sm" id="btn-live-load" title="Load session">Load</button>
             <button class="btn btn-ghost btn-sm" id="btn-live-save" title="Save session">Save</button>
             <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
+            <select class="input" id="branch-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:80px; background:var(--bg-elevated);">
+              <option value="main">🌿 main</option>
+            </select>
+            <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
             <button class="btn btn-ghost btn-sm" id="btn-run-all" title="Run Full Simulation Trace">Run Trace</button>
             <button class="btn btn-ghost btn-sm" id="btn-export-story" title="Export as Story">Export</button>
             <button class="btn btn-ghost btn-sm" id="btn-clear-chat" style="color:var(--status-error);">Clear</button>
@@ -819,6 +823,7 @@
           actions.innerHTML = `
             <button class="chat-action-btn" data-action="edit" title="Edit">✏️</button>
             <button class="chat-action-btn" data-action="copy" title="Copy">📋</button>
+            <button class="chat-action-btn" data-action="fork" title="Fork from here">🌿</button>
             ${msg.role === 'model' ? '<button class="chat-action-btn" data-action="regenerate" title="Regenerate">🔄</button>' : ''}
             <button class="chat-action-btn danger" data-action="delete" title="Delete">🗑️</button>
           `;
@@ -870,6 +875,42 @@
           }
         } else if (action === 'regenerate') {
           regenerateMessage(index);
+        } else if (action === 'fork') {
+          // Create a new branch from this point
+          const branchName = prompt('Branch name:', `branch-${Date.now().toString(36)}`);
+          if (!branchName) return;
+
+          // Initialize branches structure if needed
+          if (!state.sim.branches) {
+            state.sim.branches = {
+              'main': {
+                history: JSON.parse(JSON.stringify(state.sim.history)),
+                createdAt: new Date().toISOString()
+              }
+            };
+            state.sim.activeBranch = 'main';
+          }
+
+          // Save current branch state
+          state.sim.branches[state.sim.activeBranch].history = JSON.parse(JSON.stringify(state.sim.history));
+
+          // Create new branch from this point (include messages up to and including selected)
+          const branchHistory = state.sim.history.slice(0, index + 1);
+          state.sim.branches[branchName] = {
+            history: JSON.parse(JSON.stringify(branchHistory)),
+            parentBranch: state.sim.activeBranch,
+            forkIndex: index,
+            createdAt: new Date().toISOString()
+          };
+
+          // Switch to new branch
+          state.sim.activeBranch = branchName;
+          state.sim.history = JSON.parse(JSON.stringify(branchHistory));
+
+          A.State.notify();
+          refreshChat();
+          refreshBranchSelect();
+          if (A.UI.Toast) A.UI.Toast.show(`Created branch "${branchName}"`, 'success');
         }
       }
 
@@ -989,6 +1030,11 @@
             if (lore && !finalContext.system_notes) systemPrompt += `\n[Context Notes]:\n${lore}\n`;
           }
 
+          // Append Context Summary (from auto-summarization)
+          if (state.sim.contextSummary) {
+            systemPrompt += `\n[Earlier Context]:\n${state.sim.contextSummary}\n`;
+          }
+
           sendBtn.textContent = 'Thinking...'; // Calling LLM
 
           // Store system prompt for Prompt Inspector
@@ -1032,6 +1078,60 @@
         A.State.notify();
         refreshChat();
       };
+
+      // --- Branch Management ---
+      const branchSelect = chatCol.querySelector('#branch-select');
+
+      function refreshBranchSelect() {
+        const state = A.State.get();
+        const branches = state.sim?.branches || {};
+        const activeBranch = state.sim?.activeBranch || 'main';
+
+        // Ensure at least 'main' exists
+        if (!branches.main) {
+          branches.main = { history: state.sim.history || [], createdAt: new Date().toISOString() };
+          state.sim.branches = branches;
+          state.sim.activeBranch = 'main';
+        }
+
+        branchSelect.innerHTML = '';
+        Object.keys(branches).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          const msgCount = branches[name].history?.length || 0;
+          opt.textContent = `🌿 ${name} (${msgCount})`;
+          if (name === activeBranch) opt.selected = true;
+          branchSelect.appendChild(opt);
+        });
+      }
+
+      branchSelect.onchange = () => {
+        const state = A.State.get();
+        const targetBranch = branchSelect.value;
+        const currentBranch = state.sim.activeBranch || 'main';
+
+        if (targetBranch === currentBranch) return;
+
+        // Save current branch state
+        if (!state.sim.branches) state.sim.branches = {};
+        state.sim.branches[currentBranch] = {
+          ...state.sim.branches[currentBranch],
+          history: JSON.parse(JSON.stringify(state.sim.history))
+        };
+
+        // Load target branch
+        const target = state.sim.branches[targetBranch];
+        if (target) {
+          state.sim.history = JSON.parse(JSON.stringify(target.history || []));
+          state.sim.activeBranch = targetBranch;
+          A.State.notify();
+          refreshChat();
+          if (A.UI.Toast) A.UI.Toast.show(`Switched to "${targetBranch}"`, 'info');
+        }
+      };
+
+      // Initialize branch select
+      refreshBranchSelect();
 
       chatCol.querySelector('#btn-run-all').onclick = async () => {
         if (A.Tester) {
@@ -1478,8 +1578,76 @@
             </div>
             
             ${usagePercent > 80 ? '<div style="margin-top:12px; padding:8px; background:rgba(255,200,0,0.1); border-left:3px solid var(--status-warning); font-size:11px; color:var(--status-warning);">⚠️ Context window is filling up. Consider summarizing or clearing older messages.</div>' : ''}
+            
+            <!-- Summarize Controls -->
+            ${history.length > 4 ? `
+              <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
+                <div style="font-size:10px; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; font-weight:bold;">Context Management</div>
+                <button class="btn btn-secondary btn-sm" id="btn-summarize-history" style="width:100%;">📝 Summarize Oldest Messages</button>
+                <div style="font-size:9px; color:var(--text-muted); margin-top:4px; text-align:center;">Compresses first half of chat history into a summary</div>
+              </div>
+            ` : ''}
+            
+            ${state.sim?.contextSummary ? `
+              <div style="margin-top:12px; padding:8px; background:var(--bg-surface); border-radius:4px; border:1px solid var(--border-subtle);">
+                <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase;">Active Summary</div>
+                <div style="font-size:11px; color:var(--text-secondary); white-space:pre-wrap;">${escapeHtml(state.sim.contextSummary)}</div>
+                <button class="btn btn-ghost btn-sm" id="btn-clear-summary" style="margin-top:8px; font-size:10px; width:100%;">Clear Summary</button>
+              </div>
+            ` : ''}
           </div>
         `;
+
+        // Bind summarize button
+        const summarizeBtn = lensContent.querySelector('#btn-summarize-history');
+        if (summarizeBtn) {
+          summarizeBtn.onclick = () => {
+            const currentState = A.State.get();
+            const currentHistory = currentState.sim?.history || [];
+
+            if (currentHistory.length < 5) {
+              if (A.UI.Toast) A.UI.Toast.show('Not enough messages to summarize', 'warning');
+              return;
+            }
+
+            // Take first half of messages to summarize
+            const splitPoint = Math.floor(currentHistory.length / 2);
+            const toSummarize = currentHistory.slice(0, splitPoint);
+            const toKeep = currentHistory.slice(splitPoint);
+
+            // Build a simple summary
+            const summaryParts = [];
+            toSummarize.forEach(msg => {
+              const preview = (msg.content || '').slice(0, 100);
+              const role = msg.role === 'user' ? 'User' : msg.role === 'model' ? 'Character' : 'System';
+              if (preview) summaryParts.push(`${role}: ${preview}${msg.content.length > 100 ? '...' : ''}`);
+            });
+
+            // Create context summary
+            currentState.sim.contextSummary = `[Earlier in conversation (${toSummarize.length} messages)]\n${summaryParts.join('\n')}`;
+
+            // Replace history with only kept messages
+            currentState.sim.history = toKeep;
+
+            A.State.notify();
+            updateGlobalLens(); // Refresh to show new state
+            if (typeof refreshChat === 'function') refreshChat();
+
+            if (A.UI.Toast) A.UI.Toast.show(`Summarized ${toSummarize.length} messages`, 'success');
+          };
+        }
+
+        // Bind clear summary button
+        const clearSummaryBtn = lensContent.querySelector('#btn-clear-summary');
+        if (clearSummaryBtn) {
+          clearSummaryBtn.onclick = () => {
+            const currentState = A.State.get();
+            delete currentState.sim.contextSummary;
+            A.State.notify();
+            updateGlobalLens();
+            if (A.UI.Toast) A.UI.Toast.show('Summary cleared', 'info');
+          };
+        }
 
       } else if (activeLens === 'config') {
         const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
