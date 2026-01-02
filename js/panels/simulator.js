@@ -824,6 +824,7 @@
             <button class="chat-action-btn" data-action="edit" title="Edit">✏️</button>
             <button class="chat-action-btn" data-action="copy" title="Copy">📋</button>
             <button class="chat-action-btn" data-action="fork" title="Fork from here">🌿</button>
+            ${msg.injections ? '<button class="chat-action-btn" data-action="inspect" title="View Injections">ℹ️</button>' : ''}
             ${msg.role === 'model' ? '<button class="chat-action-btn" data-action="regenerate" title="Regenerate">🔄</button>' : ''}
             <button class="chat-action-btn danger" data-action="delete" title="Delete">🗑️</button>
           `;
@@ -911,6 +912,48 @@
           refreshChat();
           refreshBranchSelect();
           if (A.UI.Toast) A.UI.Toast.show(`Created branch "${branchName}"`, 'success');
+        } else if (action === 'inspect') {
+          // Show injection details modal for this message
+          const injections = msg.injections;
+          if (!injections) {
+            if (A.UI.Toast) A.UI.Toast.show('No injection data for this message', 'info');
+            return;
+          }
+
+          const logsHtml = injections.logs.length
+            ? injections.logs.map(l => `<div style="font-size:10px; padding:2px 0; border-bottom:1px solid var(--border-subtle);">${escapeHtml(l)}</div>`).join('')
+            : '<div style="color:var(--text-muted); font-style:italic;">No script logs</div>';
+
+          const tagsHtml = injections.activeTags?.length
+            ? injections.activeTags.map(t => `<span style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:4px;">${t}</span>`).join('')
+            : '<span style="color:var(--text-muted); font-style:italic;">None</span>';
+
+          A.UI.Modal.show({
+            title: `Message #${index + 1} - Injection Details`,
+            content: `
+              <div style="font-size:11px; font-family:var(--font-mono);">
+                <div style="margin-bottom:12px;">
+                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">ACTIVE TAGS</div>
+                  <div>${tagsHtml}</div>
+                </div>
+                <div style="margin-bottom:12px;">
+                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">LOREBOOK ENTRIES</div>
+                  <div>${injections.loreEntries || 0} entries injected</div>
+                </div>
+                <div style="margin-bottom:12px;">
+                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SCRIPT LOGS</div>
+                  <div style="max-height:150px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px;">${logsHtml}</div>
+                </div>
+                <div>
+                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SYSTEM PROMPT</div>
+                  <pre style="max-height:200px; overflow-y:auto; background:var(--ink-900); padding:8px; border-radius:4px; white-space:pre-wrap; word-break:break-word; font-size:10px;">${escapeHtml(injections.systemPrompt || 'N/A')}</pre>
+                </div>
+              </div>
+            `,
+            actions: [
+              { label: 'Close', class: 'btn-primary', onclick: () => true }
+            ]
+          });
         }
       }
 
@@ -1050,7 +1093,18 @@
 
           const responseText = await callLLM(config.provider, config.model, apiKey, systemPrompt, state.sim.history);
 
-          state.sim.history.push({ role: 'model', content: responseText, timestamp: new Date().toISOString() });
+          // Store response with injection details for per-message inspection
+          state.sim.history.push({
+            role: 'model',
+            content: responseText,
+            timestamp: new Date().toISOString(),
+            injections: {
+              logs: roundResult.logs || [],
+              systemPrompt: systemPrompt,
+              activeTags: finalContext.tags || [],
+              loreEntries: state.sim.lastLogicResult ? state.sim.lastLogicResult.filter(r => r.type === 'entry').length : 0
+            }
+          });
           refreshChat();
 
         } catch (e) {
@@ -1133,11 +1187,36 @@
       // Initialize branch select
       refreshBranchSelect();
 
+      // Delete branch on double-click of selector (or add dedicated button)
+      branchSelect.ondblclick = () => {
+        const state = A.State.get();
+        const branchToDelete = branchSelect.value;
+
+        if (branchToDelete === 'main') {
+          if (A.UI.Toast) A.UI.Toast.show('Cannot delete main branch', 'warning');
+          return;
+        }
+
+        if (!confirm(`Delete branch "${branchToDelete}"?`)) return;
+
+        // Delete the branch
+        delete state.sim.branches[branchToDelete];
+
+        // Switch to main
+        state.sim.activeBranch = 'main';
+        state.sim.history = JSON.parse(JSON.stringify(state.sim.branches.main?.history || []));
+
+        A.State.notify();
+        refreshChat();
+        refreshBranchSelect();
+        if (A.UI.Toast) A.UI.Toast.show(`Deleted branch "${branchToDelete}"`, 'info');
+      };
+
       chatCol.querySelector('#btn-run-all').onclick = async () => {
         if (A.Tester) {
-          A.Tester.clearTrace();
+          A.Tester.clear();
           A.Tester.log('system', 'Running full simulation trace...');
-          await A.Tester.runAllScripts();
+          A.Tester.run();
           A.State.notify(); // Re-render lens to show trace
         }
       };
@@ -1220,6 +1299,24 @@
       };
 
       refreshLiveSessionList();
+
+      // Delete session on double-click
+      liveSessionSelect.ondblclick = () => {
+        const state = A.State.get();
+        const sessionToDelete = liveSessionSelect.value;
+
+        if (!sessionToDelete) {
+          if (A.UI.Toast) A.UI.Toast.show('Select a session to delete', 'warning');
+          return;
+        }
+
+        if (!confirm(`Delete session "${sessionToDelete}"?`)) return;
+
+        delete state.sim.chatSessions[sessionToDelete];
+        A.State.notify();
+        refreshLiveSessionList();
+        if (A.UI.Toast) A.UI.Toast.show(`Deleted session "${sessionToDelete}"`, 'info');
+      };
 
       chatCol.querySelector('#btn-live-save').onclick = () => {
         const state = A.State.get();
