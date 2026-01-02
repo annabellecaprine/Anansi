@@ -236,17 +236,22 @@
       runCard.style.flexDirection = 'column';
       runCard.style.marginBottom = '0';
       runCard.style.minHeight = '0'; // Flex scroll fix
+      runCard.style.flex = '0 0 auto'; // Don't grow, just fit content
       runCard.innerHTML = `
         <div class="card-header" style="background:var(--ink-700); border-bottom:1px solid var(--border-subtle);">
           <div style="display:flex; align-items:center; gap:8px;">
-             <strong>Execution Trace</strong>
+             <strong>Simulation</strong>
              <span id="sim-run-time" style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono);"></span>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-run-sim">▶ Recall</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost btn-sm" id="btn-flow-explorer">📊 Flow Explorer</button>
+            <button class="btn btn-primary btn-sm" id="btn-run-sim">▶ Recall</button>
+          </div>
         </div>
-        <div class="card-body" id="sim-output" style="flex:1; overflow-y:auto; font-family:var(--font-mono); font-size:11px; background:var(--bg-app); padding:16px;">
-          <div style="color:var(--text-muted); text-align:center; margin-top:20px; opacity:0.5;">
-             Ready to weave.<br>Set sources and messages, then click Recall.
+        <div class="card-body" id="sim-output" style="padding:12px; background:var(--bg-app);">
+          <div style="color:var(--text-muted); text-align:center; font-size:12px;">
+             Set sources and messages, then click <strong>Recall</strong> to run simulation.
+             <br><span style="font-size:11px;">View detailed execution log in <a href="#" onclick="Anansi.UI.switchPanel('flow-explorer'); return false;" style="color:var(--accent-primary);">Flow Explorer</a>.</span>
           </div>
         </div>
       `;
@@ -357,6 +362,12 @@
         renderMessageHistory();
         if (A.UI.Toast) A.UI.Toast.show(`Loaded "${name}"`, 'success');
       };
+
+      // Flow Explorer button
+      const flowBtn = runCard.querySelector('#btn-flow-explorer');
+      if (flowBtn) {
+        flowBtn.onclick = () => A.UI.switchPanel('flow-explorer');
+      }
 
       runCard.querySelector('#btn-run-sim').onclick = () => {
         runSimulation();
@@ -591,8 +602,15 @@
 
       output.innerHTML = ''; // Clear previous run
 
+      // Start flow logging for this turn
+      const simState = A.State.get();
+      const turnNumber = (simState.sim?.executionLog?.length || 0) + 1;
+      const lastMsg = (simState.sim?.simMessages || []).slice(-1)[0];
+      const userMessage = lastMsg?.content || '(No message)';
+      if (A.FlowLogger) A.FlowLogger.startTurn(turnNumber, userMessage);
+
       // --- SIMULATED MODE: Re-uses processRound logic for consistency ---
-      const result = processRound("", state.sim.simMessages || []);
+      const result = processRound("", simState.sim?.simMessages || []);
 
       const logs = result.logs;
       const context = result.context;
@@ -601,15 +619,15 @@
 
       // --- PERSISTENCE WRITE-BACK ---
       // --- PERSISTENCE WRITE-BACK ---
-      const sourceDefs = state.strands && state.strands.sources ? state.strands.sources.items : {};
+      const sourceDefs = simState.strands && simState.strands.sources ? simState.strands.sources.items : {};
 
       Object.keys(sourceDefs).forEach(key => {
         if (sourceDefs[key].persistent && context.hasOwnProperty(key)) {
           // Write back from Context (Final State) to State (Input Field)
-          const oldVal = state.sim.simSources[key];
+          const oldVal = simState.sim.simSources[key];
           const newVal = context[key];
           if (oldVal !== newVal) {
-            state.sim.simSources[key] = newVal;
+            simState.sim.simSources[key] = newVal;
             if (A.UI.Toast) A.UI.Toast.show(`Updated persistent source: ${sourceDefs[key].label || key}`, 'success');
           }
         }
@@ -619,15 +637,29 @@
       const sourcesList = contentArea.querySelector('#sim-sources-list');
       if (sourcesList && sourcesList.isConnected) renderSourcesConfig();
 
-      // Render Logs
-      output.innerHTML = logs.map(l => `<div style="font-family:var(--font-mono); font-size:10px; padding:2px; border-bottom:1px solid var(--border-subtle); color:var(--text-secondary);">${l}</div>`).join('');
-
       // Update State with Diff from processRound
-      state.sim.lastDiff = diff;
+      simState.sim.lastDiff = diff;
       A.State.notify();
 
-      output.innerHTML += logs.join('');
-      output.scrollTop = output.scrollHeight;
+      // Show simple success message (detailed logs in Flow Explorer)
+      // Read from saved log since currentTurn is cleared by endTurn()
+      const lastLog = simState.sim?.executionLog?.slice(-1)[0];
+      const entries = lastLog?.entries || [];
+      const passedCount = entries.filter(e => e.passed).length;
+      const failedCount = entries.filter(e => !e.passed).length;
+
+      output.innerHTML = `
+        <div style="text-align:center; padding:8px;">
+          <div style="color:var(--status-success); font-size:14px; margin-bottom:4px;">✓ Simulation Complete</div>
+          <div style="font-size:11px; color:var(--text-muted);">
+            <span style="color:var(--status-success);">${passedCount} passed</span> · 
+            <span style="color:var(--status-error);">${failedCount} did not trigger</span>
+          </div>
+          <div style="margin-top:6px;">
+            <a href="#" onclick="Anansi.UI.switchPanel('flow-explorer'); return false;" style="color:var(--accent-primary); font-size:11px;">View Details in Flow Explorer →</a>
+          </div>
+        </div>
+      `;
     }
 
     // Subscription for external updates
@@ -1557,31 +1589,9 @@
     // Snapshot for Diffing
     const snapshot = JSON.parse(JSON.stringify(context));
 
-    // 1.5 ACTION 3.5: RUN LOGIC ENGINE (Lorebook & System Tags)
-    // This detects keywords in the user's text and retrieves relevant Lorebook entries.
-    let logicResults = [];
-    if (window.LogicEngine) {
-      const lorebook = Object.values(state.weaves && state.weaves.lorebook ? state.weaves.lorebook.entries : {});
-      // LogicEngine needs the raw context to check gates
-      logicResults = window.LogicEngine.process(userText, lorebook, context);
-      state.sim.lastLogicResult = logicResults; // Update global state for UI visibility
-
-      // Inject Lore into Context for Scripts to see
-      const loreEntries = logicResults.filter(r => r.type === 'entry').map(r => r.data.content);
-      if (loreEntries.length > 0) {
-        context.lore = loreEntries; // Scripts can access context.lore
-        context.system_notes = loreEntries.join('\n---\n');
-      }
-
-      // Logic Engine might trigger Tags. 
-      logicResults.forEach(r => {
-        if (r.data.tags) {
-          r.data.tags.forEach(t => {
-            if (!context.tags.includes(t)) context.tags.push(t);
-          });
-        }
-      });
-    }
+    // NOTE: All rule evaluation (lorebook, microcues, voices, events, etc.)
+    // now happens inside the instrumented AURA script built by AuraSimBuilder.
+    // This ensures correct execution order (e.g., emotion signals available for lorebook).
 
     // 2. ACTION 4: RUN SCRIPTS SEQUENTIALLY
     let scripts = A.Scripts.getAll();
@@ -1595,8 +1605,18 @@
       return 0;
     });
 
-    // Dynamic Stack Injection (sys_aura)
-    if (A.AuraBuilder) {
+    // Dynamic Stack Injection (sys_aura) - Use INSTRUMENTED SimBuilder for accurate logging
+    if (A.AuraSimBuilder) {
+      const auraScript = scripts.find(s => s.id === 'sys_aura');
+      if (auraScript && auraScript.enabled) {
+        try {
+          const dynamicCode = A.AuraSimBuilder.build(state);
+          scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
+          logs.push("AURA Stack Compiled (Instrumented)");
+        } catch (e) { logs.push("AURA SimBuild Failed: " + e.message); }
+      }
+    } else if (A.AuraBuilder) {
+      // Fallback to regular builder if SimBuilder not available
       const auraScript = scripts.find(s => s.id === 'sys_aura');
       if (auraScript && auraScript.enabled) {
         try {
@@ -1629,6 +1649,19 @@
         scriptLogs.push(`[${script.name}] CRITICAL: ${err.message}`);
       }
     });
+
+    // Log script execution results
+    if (A.FlowLogger) {
+      scripts.forEach(script => {
+        A.FlowLogger.log({
+          name: script.name,
+          type: 'script',
+          passed: script.enabled,
+          reason: script.enabled ? 'Script executed' : 'Script disabled'
+        });
+      });
+      A.FlowLogger.endTurn();
+    }
 
     // 3. ACTION 5: FINAL STATE ACHIEVED
     return {

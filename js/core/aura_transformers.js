@@ -468,30 +468,14 @@
   if (!MICROCUES_CFG || !MICROCUES_CFG.enabled) return;
   if (!context) return;
   
-  var activeActors = context.activeActors || [];
-  
-  // Use AURA Tag Gating for Emotions (mapping "andAny" to "andAnyTags" on the fly or just checking manually)
-  // For strict parity with original logic, we check context.emotions.current.
-  // Ideally, AURA should eventually standardize "current emotion" into the activeTags set.
+  // Get current emotion from PULSE/EROS/INTENT signals
   var currentEmotion = (context.emotions && context.emotions.current) ? context.emotions.current.toUpperCase() : 'NEUTRAL';
-  var activeTags = {}; 
-  activeTags[currentEmotion] = 1;
 
   MICROCUES_CFG.entries.forEach(function(entry){
     
-    // 1. Entity Gate
-    var reqActors = entry.entityGates.restrictToActors || [];
-    if (reqActors.length > 0) {
-       // Only run if ONE of the required actors is present
-       var actorPresent = reqActors.some(function(id){ return activeActors.indexOf(id) !== -1; });
-       if (!actorPresent) return;
-    }
-
-    // 2. Emotion Gate (Using AURA Lib if possible, or manual check for parity)
-    // We can map the entry's 'emotionGates.andAny' to specific tag checks
+    // Emotion Gate - check if current emotion matches any required emotions
     var reqEmotions = entry.emotionGates.andAny || [];
     if (reqEmotions.length > 0) {
-       // Manual check against currentEmotion (fastest)
        var match = reqEmotions.some(function(e){ return e === currentEmotion; });
        if (!match) return;
     }
