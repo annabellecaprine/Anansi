@@ -64,22 +64,37 @@
                 error: (...args) => Tester.log('error', args.join(' '))
             };
 
-            // 2. Load Scripts
+            // 2. Build context object that AURA scripts expect
+            const char = state.character?.char || {};
+            const context = {
+                character: {
+                    name: char.name || 'Character',
+                    personality: char.personality || '',
+                    scenario: char.scenario || '',
+                    example_dialogue: char.example_dialogue || ''
+                },
+                chat: state.sim?.history?.map(m => ({
+                    is_user: m.role === 'user',
+                    mes: m.content || ''
+                })) || [],
+                tags: state.sim?.activeTags || []
+            };
+
+            // 3. Load Scripts
             const scripts = A.Scripts.getAll();
             if (scripts.length === 0) {
                 Tester.log('warn', 'No enabled scripts found.');
             }
 
-            // 3. Execute Scripts
+            // 4. Execute Scripts
             scripts.forEach(script => {
                 if (!script.enabled) return;
 
                 Tester.log('system', `Executing: ${script.name}`);
 
                 try {
-                    // Construct the function
-                    // We wrap in a function that takes 'console' as argument to shadow the global console
-                    const fn = new Function('console', 'state', `
+                    // Construct the function with context available
+                    const fn = new Function('console', 'state', 'context', `
             try {
               ${script.source.code}
             } catch(e) {
@@ -88,8 +103,8 @@
             }
           `);
 
-                    // Run it
-                    fn(sandboxConsole, state);
+                    // Run it with context
+                    fn(sandboxConsole, state, context);
 
                 } catch (e) {
                     Tester.log('error', `Script Crash (${script.name}): ${e.message}`, e);
