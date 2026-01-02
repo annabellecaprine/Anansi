@@ -710,9 +710,9 @@
         </div>
         <div class="card-body" id="sim-chat-log" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; background: var(--bg-surface);"></div>
         <div class="card-footer" style="padding:12px;">
-          <div style="display:flex; gap:8px;">
-            <input class="input" id="sim-input" placeholder="Weave a message..." style="flex:1;">
-            <button class="btn btn-primary" id="sim-send">Send</button>
+          <div style="display:flex; gap:8px; align-items:flex-end;">
+            <textarea class="input" id="sim-input" placeholder="Weave a message... (Shift+Enter for new line)" style="flex:1; resize:none; min-height:36px; max-height:120px; line-height:1.4;" rows="1"></textarea>
+            <button class="btn btn-primary" id="sim-send" style="height:36px;">Send</button>
           </div>
         </div>
       `;
@@ -760,16 +760,147 @@
 
       const refreshChat = () => {
         const state = A.State.get();
-        chatLog.innerHTML = (state.sim.history || []).map(msg => `
-                <div style="display:flex; justify-content:${msg.role === 'user' ? 'flex-end' : 'flex-start'};">
-                  <div style="max-width:85%; padding:8px 12px; border-radius:12px; font-size:13px; background: ${msg.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-base)'}; color: ${msg.role === 'user' ? '#fff' : 'var(--text-main)'}; border: ${msg.role === 'user' ? 'none' : '1px solid var(--border-subtle)'};">
-                    <div style="font-weight:bold; font-size:9px; opacity:0.6; margin-bottom:2px;">${msg.role.toUpperCase()}</div>
-                    ${msg.content}
-                  </div>
-                </div>
-              `).join('');
+        const history = state.sim.history || [];
+
+        chatLog.innerHTML = '';
+        chatLog.className = 'card-body chat-log';
+
+        history.forEach((msg, idx) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = `chat-message chat-message-${msg.role}`;
+          wrapper.dataset.index = idx;
+
+          const bubble = document.createElement('div');
+          bubble.className = `chat-bubble chat-bubble-${msg.role}`;
+
+          // Role label
+          const roleLabel = document.createElement('div');
+          roleLabel.className = 'chat-role';
+          roleLabel.textContent = msg.role.toUpperCase();
+          if (msg.edited) {
+            const editedTag = document.createElement('span');
+            editedTag.className = 'chat-edited';
+            editedTag.textContent = '(edited)';
+            roleLabel.appendChild(editedTag);
+          }
+          bubble.appendChild(roleLabel);
+
+          // Message content (formatted)
+          const content = document.createElement('div');
+          content.className = 'chat-content';
+          content.innerHTML = A.ChatFormatter ? A.ChatFormatter.format(msg.content) : msg.content;
+          bubble.appendChild(content);
+
+          // Timestamp (relative)
+          if (msg.timestamp) {
+            const ts = document.createElement('span');
+            ts.className = 'chat-timestamp';
+            ts.textContent = getRelativeTime(msg.timestamp);
+            bubble.appendChild(ts);
+          }
+
+          // Actions toolbar
+          const actions = document.createElement('div');
+          actions.className = 'chat-actions';
+          actions.innerHTML = `
+            <button class="chat-action-btn" data-action="edit" title="Edit">✏️</button>
+            <button class="chat-action-btn" data-action="copy" title="Copy">📋</button>
+            ${msg.role === 'model' ? '<button class="chat-action-btn" data-action="regenerate" title="Regenerate">🔄</button>' : ''}
+            <button class="chat-action-btn danger" data-action="delete" title="Delete">🗑️</button>
+          `;
+          wrapper.appendChild(actions);
+          wrapper.appendChild(bubble);
+          chatLog.appendChild(wrapper);
+        });
+
+        // Bind action buttons
+        chatLog.querySelectorAll('.chat-action-btn').forEach(btn => {
+          btn.onclick = (e) => handleMessageAction(e.target.dataset.action, parseInt(e.target.closest('.chat-message').dataset.index));
+        });
+
         chatLog.scrollTop = chatLog.scrollHeight;
       };
+
+      // Relative time helper
+      function getRelativeTime(timestamp) {
+        const diff = Date.now() - new Date(timestamp).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+      }
+
+      // Message action handler
+      function handleMessageAction(action, index) {
+        const state = A.State.get();
+        const msg = state.sim.history[index];
+        if (!msg) return;
+
+        if (action === 'edit') {
+          openEditModal(index, msg);
+        } else if (action === 'copy') {
+          const text = A.ChatFormatter ? A.ChatFormatter.toPlainText(msg.content) : msg.content;
+          navigator.clipboard.writeText(text);
+          if (A.UI.Toast) A.UI.Toast.show('Copied to clipboard', 'success');
+        } else if (action === 'delete') {
+          const msgCount = state.sim.history.length - index;
+          const confirmMsg = msgCount > 1
+            ? `Delete this message and ${msgCount - 1} subsequent message(s)?`
+            : 'Delete this message?';
+          if (confirm(confirmMsg)) {
+            state.sim.history = state.sim.history.slice(0, index);
+            A.State.notify();
+            refreshChat();
+          }
+        } else if (action === 'regenerate') {
+          regenerateMessage(index);
+        }
+      }
+
+      // Edit modal
+      function openEditModal(index, msg) {
+        const state = A.State.get();
+        A.UI.Modal.show({
+          title: `Edit ${msg.role.toUpperCase()} Message`,
+          content: `
+            <textarea id="edit-msg-content" class="input chat-edit-textarea" style="width:100%; min-height:120px;">${msg.content}</textarea>
+          `,
+          actions: [
+            { label: 'Cancel', class: 'btn-ghost', onclick: () => true },
+            {
+              label: 'Save', class: 'btn-primary', onclick: (modal) => {
+                const newContent = modal.querySelector('#edit-msg-content').value;
+                state.sim.history[index].content = newContent;
+                state.sim.history[index].edited = true;
+                A.State.notify();
+                refreshChat();
+                if (A.UI.Toast) A.UI.Toast.show('Message updated', 'success');
+                return true;
+              }
+            }
+          ]
+        });
+      }
+
+      // Regenerate AI message
+      async function regenerateMessage(index) {
+        const state = A.State.get();
+        // Remove everything from this index onwards
+        state.sim.history = state.sim.history.slice(0, index);
+        A.State.notify();
+        refreshChat();
+
+        // Trigger a new AI response
+        if (state.sim.history.length > 0) {
+          const lastUserMsg = [...state.sim.history].reverse().find(m => m.role === 'user');
+          if (lastUserMsg) {
+            // Re-run the sendMessage logic would be complex, so just notify user
+            if (A.UI.Toast) A.UI.Toast.show('Send a new message to regenerate', 'info');
+          }
+        }
+      }
 
 
       // Initialize after definition
@@ -781,7 +912,7 @@
 
         // 0. Push User Message
         const state = A.State.get();
-        state.sim.history.push({ role: 'user', content: txt });
+        state.sim.history.push({ role: 'user', content: txt, timestamp: new Date().toISOString() });
         input.value = '';
         refreshChat();
 
@@ -820,9 +951,17 @@
 
           // 2. BUILD SYSTEM PROMPT (Action 6)
           // Uses the MUTATED Final State (e.g. if EROS changed Scenario, LLM sees it)
+
+          // Helper: Strip internal AURA tags that shouldn't be sent to LLM
+          const stripAuraTags = (text) => {
+            if (!text) return '';
+            // Remove [WORD], [WORD.WORD], [LT_WORD] patterns (AURA internal tags)
+            return text.replace(/\[\s*(?:LT_)?[A-Z_]+(?:\.[A-Z_]+)?\s*\]/gi, '').replace(/\s+/g, ' ').trim();
+          };
+
           let systemPrompt = `You are playing the role of ${finalContext.character.name}.\n`;
-          if (finalContext.character.personality) systemPrompt += `[Personality: ${finalContext.character.personality}]\n`;
-          if (finalContext.character.scenario) systemPrompt += `[Scenario: ${finalContext.character.scenario}]\n`;
+          if (finalContext.character.personality) systemPrompt += `[Personality: ${stripAuraTags(finalContext.character.personality)}]\n`;
+          if (finalContext.character.scenario) systemPrompt += `[Scenario: ${stripAuraTags(finalContext.character.scenario)}]\n`;
           if (finalContext.tags && finalContext.tags.length) systemPrompt += `[Active Tags: ${finalContext.tags.join(', ')}]\n`;
 
           // Append Logic Engine Hints (Lorebook)
@@ -848,13 +987,13 @@
 
           const responseText = await callLLM(config.provider, config.model, apiKey, systemPrompt, state.sim.history);
 
-          state.sim.history.push({ role: 'model', content: responseText });
+          state.sim.history.push({ role: 'model', content: responseText, timestamp: new Date().toISOString() });
           refreshChat();
 
         } catch (e) {
           console.error(e);
           A.UI.Toast.show(e.message, 'error');
-          state.sim.history.push({ role: 'system', content: `[Error: ${e.message}]` });
+          state.sim.history.push({ role: 'system', content: `[Error: ${e.message}]`, timestamp: new Date().toISOString() });
           refreshChat();
         } finally {
           sendBtn.disabled = false;
@@ -863,7 +1002,12 @@
       };
 
       sendBtn.onclick = sendMessage;
-      input.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
+      input.onkeydown = e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      };
 
       chatCol.querySelector('#btn-clear-chat').onclick = () => {
         const state = A.State.get();

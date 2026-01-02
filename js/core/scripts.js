@@ -163,13 +163,6 @@
             }
 
             return combined;
-        },
-
-        // DEPRECATED: Sync a managed script from a panel
-        // No longer used - all content now merges into AURA.js via AuraBuilder
-        syncManaged: function (id, name, code) {
-            console.warn(`[Scripts.syncManaged] DEPRECATED: "${name}" - Content now exports via AuraBuilder merge.`);
-            // No-op: managed scripts are no longer created separately
         }
     };
 

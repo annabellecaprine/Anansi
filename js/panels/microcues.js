@@ -418,12 +418,9 @@
             });
         }
 
-        // Sync generated script to Scripts panel
+        // DEPRECATED: syncScript - Content now exports via AuraBuilder merge
         function syncScript() {
-            const currentState = A.State.get();
-            if (!currentState || !currentState.aura || !currentState.aura.microcues) return;
-            const code = generateScript(currentState.aura.microcues.items);
-            A.Scripts.syncManaged('gen_microcues', 'GENERATED: MicroCues', code);
+            // No-op: MicroCues content merges into AURA.js on export
         }
 
         // Full sync: regenerate from actors, update script, refresh UI

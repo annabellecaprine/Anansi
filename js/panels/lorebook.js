@@ -998,23 +998,15 @@
       // No immediate rerender needed, just state update
     };
 
-    // Sync generated script to Scripts panel
-    function syncScript() {
-      const code = generateScript(state.weaves.lorebook.entries);
-      A.Scripts.syncManaged('gen_lorebook', 'GENERATED: Lorebook', code);
-    }
-
     // View Script button - navigates to Scripts panel
     listCol.querySelector('#btn-view-script').onclick = () => {
-      syncScript();
       A.State.notify();
       if (A.UI && A.UI.switchPanel) {
-        A.UI.switchPanel('scripts', { selectScript: 'gen_lorebook' });
+        // Navigate to scripts panel (AuraBuilder will handle the merge)
+        A.UI.switchPanel('scripts');
+        if (A.UI.Toast) A.UI.Toast.show('Lorebook content merges into AURA.js on export', 'info');
       }
     };
-
-    // Initial sync
-    syncScript();
 
     // Run Initial Renders
     renderList();

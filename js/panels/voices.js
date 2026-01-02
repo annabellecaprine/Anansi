@@ -212,10 +212,9 @@
       refreshList();
     };
 
-    // Sync generated script to Scripts panel
+    // DEPRECATED: syncScript - Content now exports via AuraBuilder merge
     function syncScript() {
-      const code = generateScript(data);
-      A.Scripts.syncManaged('gen_voices', 'GENERATED: Voices', code);
+      // No-op: Voices content merges into AURA.js on export
     }
 
     function refreshList() {
