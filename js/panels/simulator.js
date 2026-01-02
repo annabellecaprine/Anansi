@@ -630,6 +630,15 @@
       const diff = result.diff;
       const snapshot = result.snapshot;
 
+      // Push logs to Tester for Trace lens auto-update
+      if (A.Tester) {
+        A.Tester.clear();
+        A.Tester.log('system', `Simulation Run #${turnNumber}`);
+        A.Tester.log('info', `User Message: ${userMessage.slice(0, 50)}${userMessage.length > 50 ? '...' : ''}`);
+        logs.forEach(log => A.Tester.log('info', log));
+        A.Tester.log('system', 'Simulation Complete');
+      }
+
       // --- PERSISTENCE WRITE-BACK ---
       // --- PERSISTENCE WRITE-BACK ---
       const sourceDefs = simState.strands && simState.strands.sources ? simState.strands.sources.items : {};
