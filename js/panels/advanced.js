@@ -417,8 +417,18 @@
             renderChain();
 
             // Add Blocks
-            container.querySelector('#btn-add-elseif').onclick = () => { item.chain.push(makeBlock('elseif')); renderChain(); A.State.notify(); };
-            container.querySelector('#btn-add-else').onclick = () => { item.chain.push(makeBlock('else')); renderChain(); A.State.notify(); };
+            container.querySelector('#btn-add-elseif').onclick = () => { item.chain.push(makeBlock('elseif')); renderChain(); addActionTokenCounters(); A.State.notify(); };
+            container.querySelector('#btn-add-else').onclick = () => { item.chain.push(makeBlock('else')); renderChain(); addActionTokenCounters(); A.State.notify(); };
+
+            // Add token counters to action textareas
+            const addActionTokenCounters = () => {
+                rootEl.querySelectorAll('textarea').forEach(textarea => {
+                    if (!textarea.nextElementSibling || (!textarea.nextElementSibling.classList.contains('token-badge') && textarea.nextElementSibling.tagName !== 'DIV')) {
+                        A.Utils.addTokenCounter(textarea, null);
+                    }
+                });
+            };
+            addActionTokenCounters();
         }
 
         function renderConditionDetail(el, c, state) {

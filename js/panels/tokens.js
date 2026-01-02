@@ -75,53 +75,91 @@
     ratioInp.onchange = (e) => {
       state.sim.tokenRatio = parseFloat(e.target.value) || 4;
       A.State.notify();
+      updateCounts(); // Re-calculate with new ratio
     };
 
     updateCounts();
 
     function updateCounts() {
-      const r = state.sim.tokenRatio || 4;
-      let totalChars = 0;
+      if (!A.TokenMetrics) {
+        container.querySelector('#total-chars').textContent = 'Service unavailable';
+        container.querySelector('#total-tokens').textContent = 'N/A';
+        return;
+      }
 
-      // Seed Breakdown
+      const metrics = A.TokenMetrics.getBreakdown();
+      const total = metrics.permanent.tokens + metrics.temporary.tokens + metrics.injectable.tokens;
+
+      // Update summary cards
+      const totalChars = metrics.permanent.chars + metrics.temporary.chars + metrics.injectable.chars;
+      container.querySelector('#total-chars').textContent = totalChars.toLocaleString();
+      container.querySelector('#total-tokens').textContent = total.toLocaleString();
+
+      // Seed Breakdown - Now show Permanent + Temporary
       const seedBox = container.querySelector('#seed-breakdown');
-      const seedContent = (state.seed.persona || '') + (state.seed.scenario || '') + (state.seed.examples || '');
-      const seedChars = seedContent.length;
-      totalChars += seedChars;
       seedBox.innerHTML = `
-        <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span>Persona/Scenario Seed</span>
-          <span style="color:var(--text-secondary);">${seedChars} chars (${Math.ceil(seedChars / r)} tkn)</span>
+        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--accent-primary);">Permanent (Every Turn)</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+          <span>Personality</span>
+          <span style="color:var(--text-secondary);">${metrics.permanent.breakdown.personality.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; margin-bottom:12px;">
+          <span>Scenario</span>
+          <span style="color:var(--text-secondary);">${metrics.permanent.breakdown.scenario.tokens} tkn</span>
+        </div>
+        
+        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--status-warning);">Temporary (Initial Only)</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+          <span>Example Dialogue</span>
+          <span style="color:var(--text-secondary);">${metrics.temporary.breakdown.examples.tokens} tkn</span>
         </div>
       `;
 
-      // Actor Breakdown
+      // Actor Breakdown - Show Injectable category
       const actorBox = container.querySelector('#actor-breakdown');
-      const actors = Object.values(state.nodes.actors?.items || {});
-      if (actors.length === 0) {
-        actorBox.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic;">No custom actors defined.</div>';
-      } else {
-        actorBox.innerHTML = actors.map(a => {
-          const content = (a.description || '') + (a.scenario || '');
-          totalChars += content.length;
-          return `
-            <div style="display:flex; justify-content:space-between; font-size:12px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
-              <span>${a.name || 'Unnamed Actor'}</span>
-              <span style="color:var(--text-secondary);">${content.length} chars (${Math.ceil(content.length / r)} tkn)</span>
-            </div>
-          `;
-        }).join('');
-      }
+      const injBreakdown = metrics.injectable.breakdown;
+      actorBox.innerHTML = `
+        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--status-success);">Injectable (Conditional)</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Actors (Appearance + Cues)</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.actors.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Lorebook Entries</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.lorebook.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Relationships (Pairs)</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.pairs.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Voices & Rails</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.voices.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Events</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.events.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+          <span>Custom Rules (Advanced)</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.advanced.tokens} tkn</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+          <span>Scoring Context</span>
+          <span style="color:var(--text-secondary);">${injBreakdown.scoring.tokens} tkn</span>
+        </div>
+      `;
 
-      // Lorebook Breakdown
+      // Lorebook Breakdown Table (keep detailed view)
       const loreBody = container.querySelector('#lore-table-body');
       const loreEntries = Object.values(state.weaves.lorebook?.entries || {});
+      const r = state.sim.tokenRatio || 4;
+
       if (loreEntries.length === 0) {
         loreBody.innerHTML = '<tr><td colspan="3" style="padding:16px; text-align:center; color:var(--text-muted);">Lorebook is empty.</td></tr>';
       } else {
         loreBody.innerHTML = loreEntries.map(e => {
           const content = e.content || '';
-          totalChars += content.length;
           return `
             <tr>
               <td style="padding:8px; border-bottom:1px solid var(--divider);">${e.title || 'Untitled'}</td>
@@ -131,10 +169,6 @@
           `;
         }).join('');
       }
-
-      // Final Tally
-      container.querySelector('#total-chars').textContent = totalChars.toLocaleString();
-      container.querySelector('#total-tokens').textContent = Math.ceil(totalChars / r).toLocaleString();
     }
   }
 

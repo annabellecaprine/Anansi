@@ -70,6 +70,11 @@
             // Apply custom styling to match Anansi theme
             this._applyThemeStyles(containerId);
 
+            // Add token counter if enabled
+            if (options.showTokenCounter !== false && A.Utils && A.Utils.estimateTokens) {
+                this._addTokenCounter(containerId, quill, options.tokenLabel);
+            }
+
             // Set up change callback
             if (options.onChange && typeof options.onChange === 'function') {
                 quill.on('text-change', () => {
@@ -79,6 +84,61 @@
 
             this.instances[containerId] = quill;
             return quill;
+        },
+
+        /**
+         * Add a token counter badge to a Quill editor
+         * @private
+         */
+        _addTokenCounter(containerId, quill, label) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // Find or create a label container
+            let labelContainer = container.previousElementSibling;
+            if (!labelContainer || !labelContainer.classList.contains('l-lab')) {
+                // Look for any label before the container
+                labelContainer = container.parentElement?.querySelector('.l-lab, .evt-lab, .sc-lab, .p-lab');
+            }
+
+            // Create token badge
+            const badge = document.createElement('span');
+            badge.className = 'token-badge';
+            badge.style.marginLeft = '8px';
+            badge.id = `token-badge-${containerId}`;
+
+            const updateTokenCount = () => {
+                const text = quill.getText().trim();
+                const count = A.Utils.estimateTokens(text);
+                badge.textContent = `${count} tkn`;
+
+                // Color coding
+                if (count > 1000) {
+                    badge.style.color = 'var(--status-error)';
+                } else if (count > 500) {
+                    badge.style.color = 'var(--status-warning)';
+                } else {
+                    badge.style.color = 'var(--text-muted)';
+                }
+            };
+
+            // Initial count
+            updateTokenCount();
+
+            // Update on text change
+            quill.on('text-change', updateTokenCount);
+
+            // Append badge to label or create a wrapper
+            if (labelContainer) {
+                labelContainer.appendChild(badge);
+            } else {
+                // Create a label if none exists
+                const newLabel = document.createElement('div');
+                newLabel.className = 'l-lab';
+                newLabel.textContent = label || 'Content';
+                newLabel.appendChild(badge);
+                container.parentElement?.insertBefore(newLabel, container);
+            }
         },
 
         /**

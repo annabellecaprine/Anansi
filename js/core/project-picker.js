@@ -282,26 +282,32 @@
                 actions: [
                     {
                         label: 'Switch to New Project',
-                        primary: true,
-                        onClick: async (close) => {
+                        class: 'btn-primary',
+                        onclick: async () => {
                             // Load the new project
                             const project = await A.ProjectDB.get(newProjectId);
                             A.State.load(project.data);
                             A.ProjectDB.setCurrentId(newProjectId);
 
-                            close();
-                            A.UI.Modal.close(); // Close the project picker too
+                            // Close ALL modals
+                            const overlays = document.querySelectorAll('.modal-overlay');
+                            overlays.forEach(o => o.remove());
+
                             A.UI.refresh();
                             A.UI.Toast.show('Switched to new project', 'success');
+                            return true; // Allow modal to close
                         }
                     },
                     {
                         label: 'Stay on Current Project',
-                        onClick: async (close) => {
-                            close();
-                            // Re-open the project picker
-                            ProjectPicker.show();
-                            A.UI.Toast.show('New project created (not switched)', 'info');
+                        class: 'btn-secondary',
+                        onclick: async () => {
+                            // Close ALL modals (prompt and project picker)
+                            const overlays = document.querySelectorAll('.modal-overlay');
+                            overlays.forEach(o => o.remove());
+
+                            A.UI.Toast.show('New project created', 'info');
+                            return true; // Allow modal to close
                         }
                     }
                 ]
@@ -322,12 +328,15 @@
                 return;
             }
 
-            // Load into state
+            // Load into state and set as current
             A.State.load(project.data);
             A.ProjectDB.setCurrentId(id);
 
-            // Close modal and refresh UI
-            A.UI.Modal.close();
+            // Close ALL modals
+            const overlays = document.querySelectorAll('.modal-overlay');
+            overlays.forEach(o => o.remove());
+
+            // Force UI refresh
             A.UI.refresh();
             A.UI.Toast.show(`Opened "${project.name}"`, 'success');
         },

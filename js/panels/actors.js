@@ -562,8 +562,60 @@
                         if (!cueObj[tag]) cueObj[tag] = {};
                         cueObj[tag][part] = val;
                         A.State.notify();
+
+                        // Update token counters for this section
+                        updateCueTokenCounter(section);
                     };
                 });
+
+                // Helper to calculate and display total tokens for a cue section
+                const updateCueTokenCounter = (sectionId) => {
+                    let cueObj;
+                    if (sectionId === 'pulse') cueObj = T.pulseCues;
+                    else if (sectionId === 'eros') cueObj = T.erosCues;
+                    else cueObj = T.intentCues;
+
+                    // Calculate total tokens from all cue inputs
+                    let totalText = '';
+                    Object.values(cueObj || {}).forEach(cue => {
+                        ['basic', 'ears', 'tail', 'wings', 'horns'].forEach(part => {
+                            if (cue[part]) totalText += cue[part] + ' ';
+                        });
+                    });
+
+                    const tokens = A.Utils.estimateTokens(totalText);
+                    const section = content.querySelector(`.cue-section[data-section="${sectionId}"]`);
+                    if (section) {
+                        let badge = section.querySelector('.cue-token-badge');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'cue-token-badge token-badge';
+                            badge.style.marginLeft = '8px';
+                            const header = section.querySelector('.cue-section-header strong');
+                            if (header) header.parentNode.appendChild(badge);
+                        }
+                        badge.textContent = `${tokens} tkn`;
+                        if (tokens > 500) badge.style.color = 'var(--status-warning)';
+                        else if (tokens > 1000) badge.style.color = 'var(--status-error)';
+                        else badge.style.color = 'var(--text-muted)';
+                    }
+                };
+
+                // Initial token count display for all sections
+                updateCueTokenCounter('pulse');
+                updateCueTokenCounter('eros');
+                updateCueTokenCounter('intent');
+            }
+
+            // Add token counter for appearance description
+            if (currentTab === 'appearance') {
+                const appDesc = content.querySelector('#app-desc');
+                if (appDesc) {
+                    const label = appDesc.previousElementSibling;
+                    if (label) {
+                        A.Utils.addTokenCounter(appDesc, label);
+                    }
+                }
             }
         }
 

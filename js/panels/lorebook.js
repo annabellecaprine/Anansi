@@ -856,6 +856,13 @@
           A.State.notify();
         };
 
+        // Add token counter to shift content
+        const shiftTextarea = form.querySelector('#inp-sh-content');
+        if (shiftTextarea) {
+          const label = shiftTextarea.previousElementSibling;
+          if (label) A.Utils.addTokenCounter(shiftTextarea, label);
+        }
+
         container.appendChild(form);
 
         // Render Tag Pickers (append to form)

@@ -274,7 +274,26 @@
                 pair.shifts.push({ emotion: '', content: '' });
                 A.State.notify();
                 renderShifts();
+                // Re-add token counters after shift is added
+                setTimeout(() => addShiftTokenCounters(), 50);
             };
+
+            // Add token counter to base content
+            const baseContent = editorCol.querySelector('#inp-content');
+            if (baseContent) {
+                const label = baseContent.previousElementSibling;
+                if (label) A.Utils.addTokenCounter(baseContent, label);
+            }
+
+            // Add token counters to shift contents
+            const addShiftTokenCounters = () => {
+                shiftsContainer.querySelectorAll('.shift-content').forEach(textarea => {
+                    if (!textarea.nextElementSibling || !textarea.nextElementSibling.classList.contains('token-badge')) {
+                        A.Utils.addTokenCounter(textarea, null);
+                    }
+                });
+            };
+            addShiftTokenCounters();
         };
 
         // Add Hook

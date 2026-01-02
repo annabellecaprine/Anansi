@@ -498,8 +498,27 @@
           grp.items = grp.items || [];
           grp.items.push({ name: 'Item', weight: 100, text: '' });
           renderItems();
+          // Re-add token counters after adding item
+          setTimeout(() => addItemTokenCounters(), 50);
           A.State.notify();
         };
+
+        // Add token counters to injection item textareas
+        const addItemTokenCounters = () => {
+          itemsContainer.querySelectorAll('textarea').forEach(textarea => {
+            if (!textarea.nextElementSibling || !textarea.nextElementSibling.classList.contains('token-badge')) {
+              A.Utils.addTokenCounter(textarea, null);
+            }
+          });
+        };
+        addItemTokenCounters();
+      }
+
+      // Add token counter to message content textarea if present (msg effect type)
+      const msgTextarea = body.querySelector('#e-msg');
+      if (msgTextarea) {
+        const label = msgTextarea.previousElementSibling;
+        if (label) A.Utils.addTokenCounter(msgTextarea, label);
       }
     }
 

@@ -391,9 +391,33 @@
         v.subtones = v.subtones || [];
         v.subtones.push({ label: 'New Subtone', weight: 1, rail: '' });
         renderST();
+        addSubtoneTokenCounters(); // Update counters after adding
         upd();
         if (A.UI.Toast) A.UI.Toast.show('Subtone added', 'success');
       };
+
+      // Add token counters to baseline and cadence rails
+      const baseTextarea = body.querySelector('#inp-base');
+      const cadTextarea = body.querySelector('#inp-cad');
+      if (baseTextarea) {
+        const baseLabel = baseTextarea.previousElementSibling;
+        if (baseLabel) A.Utils.addTokenCounter(baseTextarea, baseLabel);
+      }
+      if (cadTextarea) {
+        const cadLabel = cadTextarea.previousElementSibling;
+        if (cadLabel) A.Utils.addTokenCounter(cadTextarea, cadLabel);
+      }
+
+      // Add token counters to subtone rails
+      const addSubtoneTokenCounters = () => {
+        stList.querySelectorAll('textarea').forEach(textarea => {
+          // Check if already has counter
+          if (!textarea.nextElementSibling || !textarea.nextElementSibling.classList.contains('token-badge')) {
+            A.Utils.addTokenCounter(textarea, null);
+          }
+        });
+      };
+      addSubtoneTokenCounters();
     }
 
     // Global Bindings

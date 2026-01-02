@@ -20,17 +20,19 @@
       } catch (e) { return 0; }
     };
 
-    // Calculate Word Count (rough approximation from Lore + Scripts)
-    const calcWordCount = () => {
-      let count = 0;
-      // Lore
-      const lore = Object.values(state.weaves?.lorebook?.entries || {});
-      lore.forEach(e => count += (e.content || '').split(/\s+/).length);
-      // Scripts
-      const scripts = A.Scripts ? A.Scripts.getAll() : [];
-      scripts.forEach(s => count += (s.source?.code || '').split(/\s+/).length);
-      return count;
+    // Calculate Token Metrics
+    const getTokenMetrics = () => {
+      if (!A.TokenMetrics) return { total: 0, permanent: 0, temporary: 0, injectable: 0 };
+      const metrics = A.TokenMetrics.getBreakdown();
+      return {
+        total: metrics.permanent.tokens + metrics.temporary.tokens + metrics.injectable.tokens,
+        permanent: metrics.permanent.tokens,
+        temporary: metrics.temporary.tokens,
+        injectable: metrics.injectable.tokens
+      };
     };
+
+    const tokenMetrics = getTokenMetrics();
 
     container.style.padding = 'var(--space-4)';
     container.style.height = '100%';
@@ -53,17 +55,16 @@
 
         <!-- Stats Row -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
-            ${renderStatCard('Word Count', calcWordCount().toLocaleString(), 'Approximate',
-      '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>')}
+            ${renderTokenCard(tokenMetrics)}
             
             ${renderStatCard('Actors', getCount('nodes.actors.items'), 'Active Nodes',
-        '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>')}
+      '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>')}
             
             ${renderStatCard('Scripts', A.Scripts ? A.Scripts.getAll().length : 0, 'Logic Modules',
-          '<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>')}
+        '<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>')}
             
             ${renderStatCard('Integrity', 'Stable', 'System Status',
-            '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>', 'color:var(--status-success);')}
+          '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>', 'color:var(--status-success);')}
         </div>
 
         <!-- Main Content Grid -->
@@ -159,6 +160,25 @@
 
       </div>
     `;
+
+    // --- Helper Component: Token Card (with breakdown) ---
+    function renderTokenCard(metrics) {
+      return `
+            <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 4px; position:relative; overflow:hidden;">
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; z-index:1;">Total Tokens</div>
+                <div style="font-size: 24px; font-weight: 300; color: var(--text-primary); z-index:1;">${metrics.total.toLocaleString()}</div>
+                <div style="font-size: 9px; color: var(--text-muted); z-index:1; display:flex; gap:8px; flex-wrap:wrap;">
+                  <span style="color:var(--accent-primary);">●${metrics.permanent} Perm</span>
+                  <span style="color:var(--status-warning);">●${metrics.temporary} Temp</span>
+                  <span style="color:var(--status-success);">●${metrics.injectable} Inj</span>
+                </div>
+                
+                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05; color: var(--text-primary); transform: rotate(-15deg);">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </div>
+            </div>
+        `;
+    }
 
     // --- Helper Component: Stat Card ---
     function renderStatCard(label, value, sub, iconSvg, valueStyle = '') {

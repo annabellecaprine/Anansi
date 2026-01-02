@@ -96,6 +96,15 @@
       });
       A.QuillManager.setHTML('quill-scenario', state.seed.scenario || '');
     }
+
+    // Add token counters to injectable textareas
+    const examplesTextarea = container.querySelector('#char-examples');
+    if (examplesTextarea) {
+      const examplesLabel = examplesTextarea.previousElementSibling;
+      if (examplesLabel) {
+        A.Utils.addTokenCounter(examplesTextarea, examplesLabel);
+      }
+    }
   }
 
   A.registerPanel('character', {

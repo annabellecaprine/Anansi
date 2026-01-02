@@ -243,6 +243,13 @@
                 body.querySelector('#inp-keys').oninput = e => { item.keywordsText = e.target.value; upd(); };
                 body.querySelector('#inp-ctx').oninput = e => { item.contextField = e.target.value; upd(); };
 
+                // Add token counter to context field
+                const ctxTextarea = body.querySelector('#inp-ctx');
+                if (ctxTextarea) {
+                    const label = ctxTextarea.previousElementSibling;
+                    if (label) A.Utils.addTokenCounter(ctxTextarea, label);
+                }
+
             } else {
                 // === ADVANCED EDITOR (Combiner) ===
                 const c = item.conditions;
