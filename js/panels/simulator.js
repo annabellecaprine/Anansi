@@ -920,6 +920,21 @@
             return;
           }
 
+          // Helper: Highlight text that was added (not in original)
+          const highlightDiff = (original, final) => {
+            if (!final) return '<span style="color:var(--text-muted); font-style:italic;">Empty</span>';
+            if (!original || original === final) return escapeHtml(final);
+
+            // Find the added portion (simple: if final starts with original, highlight the rest)
+            if (final.startsWith(original)) {
+              const added = final.slice(original.length);
+              return escapeHtml(original) + '<span style="background:rgba(0,255,100,0.15); border-bottom:1px solid var(--status-success);">' + escapeHtml(added) + '</span>';
+            }
+
+            // If completely different or complex injection, highlight entire final
+            return '<span style="background:rgba(0,255,100,0.15); border-bottom:1px solid var(--status-success);">' + escapeHtml(final) + '</span>';
+          };
+
           const logsHtml = injections.logs.length
             ? injections.logs.map(l => `<div style="font-size:10px; padding:2px 0; border-bottom:1px solid var(--border-subtle);">${escapeHtml(l)}</div>`).join('')
             : '<div style="color:var(--text-muted); font-style:italic;">No script logs</div>';
@@ -927,6 +942,21 @@
           const tagsHtml = injections.activeTags?.length
             ? injections.activeTags.map(t => `<span style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:4px;">${t}</span>`).join('')
             : '<span style="color:var(--text-muted); font-style:italic;">None</span>';
+
+          // Build diff sections if we have original/final
+          let diffHtml = '';
+          if (injections.original && injections.final) {
+            diffHtml = `
+              <div style="margin-bottom:12px;">
+                <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">PERSONALITY <span style="font-size:9px; background:rgba(0,255,100,0.15); padding:1px 4px; border-radius:2px;">added = highlighted</span></div>
+                <div style="max-height:80px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px; font-size:10px; white-space:pre-wrap;">${highlightDiff(injections.original.personality, injections.final.personality)}</div>
+              </div>
+              <div style="margin-bottom:12px;">
+                <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SCENARIO <span style="font-size:9px; background:rgba(0,255,100,0.15); padding:1px 4px; border-radius:2px;">added = highlighted</span></div>
+                <div style="max-height:80px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px; font-size:10px; white-space:pre-wrap;">${highlightDiff(injections.original.scenario, injections.final.scenario)}</div>
+              </div>
+            `;
+          }
 
           A.UI.Modal.show({
             title: `Message #${index + 1} - Injection Details`,
@@ -940,13 +970,14 @@
                   <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">LOREBOOK ENTRIES</div>
                   <div>${injections.loreEntries || 0} entries injected</div>
                 </div>
+                ${diffHtml}
                 <div style="margin-bottom:12px;">
                   <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SCRIPT LOGS</div>
-                  <div style="max-height:150px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px;">${logsHtml}</div>
+                  <div style="max-height:100px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px;">${logsHtml}</div>
                 </div>
                 <div>
-                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SYSTEM PROMPT</div>
-                  <pre style="max-height:200px; overflow-y:auto; background:var(--ink-900); padding:8px; border-radius:4px; white-space:pre-wrap; word-break:break-word; font-size:10px;">${escapeHtml(injections.systemPrompt || 'N/A')}</pre>
+                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">FULL SYSTEM PROMPT</div>
+                  <pre style="max-height:150px; overflow-y:auto; background:var(--ink-900); padding:8px; border-radius:4px; white-space:pre-wrap; word-break:break-word; font-size:10px;">${escapeHtml(injections.systemPrompt || 'N/A')}</pre>
                 </div>
               </div>
             `,
@@ -1102,7 +1133,17 @@
               logs: roundResult.logs || [],
               systemPrompt: systemPrompt,
               activeTags: finalContext.tags || [],
-              loreEntries: state.sim.lastLogicResult ? state.sim.lastLogicResult.filter(r => r.type === 'entry').length : 0
+              loreEntries: state.sim.lastLogicResult ? state.sim.lastLogicResult.filter(r => r.type === 'entry').length : 0,
+              // Store original vs final for diff highlighting
+              original: {
+                personality: state.character?.char?.personality || '',
+                scenario: state.character?.char?.scenario || '',
+                exampleDialogue: state.character?.char?.example_dialogue || ''
+              },
+              final: {
+                personality: finalContext.character?.personality || '',
+                scenario: finalContext.character?.scenario || ''
+              }
             }
           });
           refreshChat();
