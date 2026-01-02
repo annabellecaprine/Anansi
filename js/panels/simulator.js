@@ -154,7 +154,7 @@
     const updateGlobalLens = () => {
       A.UI.setLens((lensRoot) => {
         lensRoot.innerHTML = `
-          <div class="lens-tabs" style="display:flex; gap:2px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; overflow-x:auto;">
+          <div class="lens-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
             ${[
             { k: 'state', l: 'State' },
             { k: 'context', l: 'Ctx' },
