@@ -41,11 +41,7 @@
                     </div>
                 ` : ''}
                 <div class="project-picker-list" id="pp-list">
-                    ${projects.length === 0 ? `
-                        <div class="project-picker-empty">
-                            No projects yet. Create one to get started!
-                        </div>
-                    ` : projects.map(p => ProjectPicker._renderProjectCard(p, p.id === currentId)).join('')}
+                    ${ProjectPicker._renderProjectsHTML(projects, currentId)}
                 </div>
             `;
 
@@ -82,6 +78,9 @@
 
             // Bind events
             ProjectPicker._bindEvents(content);
+
+            // Initial bind of list events
+            ProjectPicker._bindListEvents(content);
         },
 
         /**
@@ -146,6 +145,79 @@
 
             // Delete buttons
             container.querySelectorAll('.pp-delete').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await ProjectPicker._deleteProject(btn.dataset.id);
+                });
+            });
+        },
+
+        /**
+         * Re-render just the project list
+         */
+        _refreshList: async function () {
+            const listEl = document.getElementById('pp-list');
+            const countEl = document.querySelector('.project-picker-count');
+            const newBtn = document.getElementById('pp-new');
+
+            if (!listEl) return;
+
+            const projects = await A.ProjectDB.list();
+            const currentId = A.ProjectDB.getCurrentId();
+            const count = projects.length;
+            const max = A.ProjectDB.getMaxProjects();
+
+            // Update header stats
+            if (countEl) countEl.textContent = `${count} / ${max} slots used`;
+
+            // Update New button state
+            if (newBtn) {
+                if (count >= max) newBtn.setAttribute('disabled', 'true');
+                else newBtn.removeAttribute('disabled');
+            }
+
+            // Update warning
+            const existingWarning = document.querySelector('.project-picker-warning');
+            if (count >= max && !existingWarning) {
+                const warning = document.createElement('div');
+                warning.className = 'project-picker-warning';
+                warning.innerHTML = '⚠️ Project slots full. Download or delete a project to make room.';
+                listEl.parentNode.insertBefore(warning, listEl);
+            } else if (count < max && existingWarning) {
+                existingWarning.remove();
+            }
+
+            // Update list content
+            listEl.innerHTML = ProjectPicker._renderProjectsHTML(projects, currentId);
+
+            // Re-bind events for list items
+            ProjectPicker._bindListEvents(listEl);
+        },
+
+        /**
+         * Generate HTML for the projects list
+         */
+        _renderProjectsHTML: function (projects, currentId) {
+            if (projects.length === 0) {
+                return `
+                    <div class="project-picker-empty">
+                        No projects yet. Create one to get started!
+                    </div>
+                `;
+            }
+            return projects.map(p => ProjectPicker._renderProjectCard(p, p.id === currentId)).join('');
+        },
+
+        /**
+         * Bind events for list items (Open/Delete buttons)
+         */
+        _bindListEvents: function (container) {
+            container.querySelectorAll('#pp-open').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await ProjectPicker._openProject(btn.dataset.id);
+                });
+            });
+
+            container.querySelectorAll('#pp-delete').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     await ProjectPicker._deleteProject(btn.dataset.id);
                 });
@@ -246,10 +318,12 @@
             // Delete the project
             await A.ProjectDB.delete(id);
 
-            // Refresh the picker
-            A.UI.Modal.close();
-            ProjectPicker.show();
+            // Update the list in place
+            await ProjectPicker._refreshList();
+
+            // Also refresh main UI in case we switched current project
             A.UI.refresh();
+
             A.UI.Toast.show('Project deleted', 'info');
         },
 
