@@ -1557,8 +1557,15 @@ CRITICAL: Respond ONLY with valid JSON:
       });
       scrollToBottom();
 
-      // Restore Input UI for current step
-      advanceConversation(true);
+      // Restore Input UI or Continue
+      const lastMsg = rs.messages[rs.messages.length - 1];
+      if (lastMsg && lastMsg.role === 'user') {
+        // User just answered, so we should move to next question (full render)
+        setTimeout(() => advanceConversation(false), 500);
+      } else {
+        // Anansi spoke last (question), restore inputs only
+        advanceConversation(true);
+      }
     } else {
       // Start fresh
       setTimeout(() => advanceConversation(), 500);
