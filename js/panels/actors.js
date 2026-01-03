@@ -727,7 +727,7 @@
         // Show empty state initially
         // Show empty state initially if list is empty, otherwise standard select prompt
         if (!currentId) {
-            const hasActors = Object.keys(state.nodes?.actors?.items || {}).length > 0;
+            const hasActors = state && Object.keys(state.nodes?.actors?.items || {}).length > 0;
             if (!hasActors) {
                 content.innerHTML = A.UI.getEmptyStateHTML(
                     'No Actors Found',
