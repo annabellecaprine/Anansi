@@ -309,7 +309,7 @@
     };
 
     UI.updateIntegrityBadge = function (state) {
-        if (!A.Validator) return;
+        if (!state || !A.Validator) return;
         const issues = A.Validator.run(state);
         const hasErrors = issues.some(i => i.severity === 'error');
         const hasWarnings = issues.some(i => i.severity === 'warning');

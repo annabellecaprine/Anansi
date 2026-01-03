@@ -9,6 +9,11 @@
   function render(container) {
     const state = A.State.get();
 
+    if (!state) {
+      container.innerHTML = '<div class="empty-state" style="padding:2em; text-align:center; color:var(--text-muted);">No project loaded.</div>';
+      return;
+    }
+
     // Ensure seed exists (migration for existing projects)
     if (state && !state.seed) {
       state.seed = { characterName: '', chatName: '', persona: '', scenario: '', examples: '' };
