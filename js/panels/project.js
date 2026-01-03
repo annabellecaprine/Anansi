@@ -43,13 +43,32 @@
       <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
         
         <!-- Header / Welcome -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-            <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div style="flex: 1;">
                 <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px;">Mission Control</div>
                 <h1 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: -0.5px;">${state.meta.name || 'Untitled Project'}</h1>
+                <span class="badge" style="background:var(--bg-elevated); font-family:var(--font-mono); margin-top: 8px; display: inline-block;">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
             </div>
-            <div style="display: flex; gap: 8px;">
-                 <span class="badge" style="background:var(--bg-elevated); font-family:var(--font-mono);">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
+            <!-- Project Cover Image -->
+            <div style="flex-shrink: 0; text-align: center;">
+                <div id="project-cover-preview" style="
+                    width: 100px;
+                    height: 100px;
+                    background: var(--bg-inset);
+                    border: 2px dashed var(--border-subtle);
+                    border-radius: var(--radius-md);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                    cursor: pointer;
+                " title="Click to upload project cover">
+                    ${state.meta.cover?.data
+        ? `<img src="${state.meta.cover.data}" style="width: 100%; height: 100%; object-fit: cover;">`
+        : `<span style="color: var(--text-muted); font-size: 9px; text-align: center;">Project<br>Cover</span>`
+      }
+                </div>
+                <input type="file" id="cover-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
             </div>
         </div>
 
@@ -58,13 +77,13 @@
             ${renderTokenCard(tokenMetrics)}
             
             ${renderStatCard('Actors', getCount('nodes.actors.items'), 'Active Nodes',
-      '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>')}
+        '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>')}
             
             ${renderStatCard('Scripts', A.Scripts ? A.Scripts.getAll().length : 0, 'Logic Modules',
-        '<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>')}
+          '<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>')}
             
             ${renderStatCard('Integrity', 'Stable', 'System Status',
-          '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>', 'color:var(--status-success);')}
+            '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>', 'color:var(--status-success);')}
         </div>
 
         <!-- Main Content Grid -->
@@ -94,20 +113,16 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header"><strong>Environment Connectivity</strong></div>
+                    <div class="card-header"><strong>Platform Compatibility</strong></div>
                     <div class="card-body">
-                         <div style="display: flex; gap: 16px; align-items: flex-end;">
-                            <div class="form-group" style="flex: 1;">
-                              <label class="label">Target Platform</label>
-                              <select class="input" id="sel-env">
-                                <option value="jai" ${state.environment?.id === 'jai' ? 'selected' : ''}>JanitorAI (Native)</option>
-                                <option value="sillytavern" ${state.environment?.id === 'sillytavern' ? 'selected' : ''} disabled>SillyTavern (Stub)</option>
-                              </select>
-                            </div>
-                            <div class="form-group" style="width: 120px;">
-                               <label class="label">API Version</label>
-                               <input class="input" value="${state.environment?.adapterVersion || '1.0.0'}" disabled style="text-align:center; font-family:var(--font-mono);">
-                            </div>
+                         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ JanitorAI</span>
+                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ SillyTavern</span>
+                            <span class="badge" style="background: var(--bg-elevated); color: var(--text-muted); padding: 6px 12px;">○ Chub.ai</span>
+                            <span class="badge" style="background: var(--bg-elevated); color: var(--text-muted); padding: 6px 12px;">○ Kobold</span>
+                         </div>
+                         <div style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+                            Character Card v2 format compatible with most platforms.
                          </div>
                     </div>
                 </div>
@@ -243,7 +258,23 @@
     container.querySelector('#inp-proj-name').onchange = (e) => { A.State.updateMeta({ name: e.target.value }); notifySave(); };
     container.querySelector('#inp-proj-author').onchange = (e) => { A.State.updateMeta({ author: e.target.value }); notifySave(); };
     container.querySelector('#inp-proj-desc').onchange = (e) => { A.State.updateMeta({ description: e.target.value }); notifySave(); };
-    container.querySelector('#sel-env').onchange = (e) => { A.State.setEnvironment(e.target.value); notifySave(); };
+
+    // Cover image upload
+    const coverPreview = container.querySelector('#project-cover-preview');
+    const coverInput = container.querySelector('#cover-input');
+    coverPreview.onclick = () => coverInput.click();
+    coverInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        A.State.updateMeta({ cover: { type: 'dataUrl', data: ev.target.result, mimeType: file.type } });
+        coverPreview.innerHTML = `<img src="${ev.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        if (A.UI.Toast) A.UI.Toast.show('Project cover updated', 'success');
+        A.State.notify();
+      };
+      reader.readAsDataURL(file);
+    };
 
     // Dynamic Integrity Check
     if (A.Validator) {
