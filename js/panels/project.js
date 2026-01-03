@@ -118,8 +118,8 @@
                          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                             <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ JanitorAI</span>
                             <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ SillyTavern</span>
-                            <span class="badge" style="background: var(--bg-elevated); color: var(--text-muted); padding: 6px 12px;">○ Chub.ai</span>
-                            <span class="badge" style="background: var(--bg-elevated); color: var(--text-muted); padding: 6px 12px;">○ Kobold</span>
+                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ Chub.ai</span>
+                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ Kobold</span>
                          </div>
                          <div style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
                             Character Card v2 format compatible with most platforms.
