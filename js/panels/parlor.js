@@ -596,8 +596,22 @@ CRITICAL: Respond ONLY with valid JSON:
     container.style.background = 'linear-gradient(135deg, var(--bg-base) 0%, rgba(139, 69, 19, 0.05) 100%)';
 
     // State
-    let currentStep = 0;
-    let answers = {};
+    // State
+    const globalState = A.State.get();
+    let rs = { currentStep: 0, answers: {}, messages: [] };
+
+    // Load from project if available
+    if (globalState && globalState.meta?.id) {
+      if (!globalState.parlor) globalState.parlor = { currentStep: 0, answers: {}, messages: [] };
+      rs = globalState.parlor;
+    }
+    // Ensure schema
+    if (!rs.messages) rs.messages = [];
+    if (!rs.answers) rs.answers = {};
+    if (typeof rs.currentStep !== 'number') rs.currentStep = 0;
+
+    // Local refs for closure compatibility (where possible)
+    let answers = rs.answers;
     let isTyping = false;
     let skipTyping = false;
 
@@ -970,14 +984,20 @@ CRITICAL: Respond ONLY with valid JSON:
 
     // Restart handler
     btnRestart.onclick = () => {
-      currentStep = 0;
-      answers = {};
+      rs.currentStep = 0;
+      rs.answers = {};
+      rs.messages = [];
+      answers = rs.answers; // Update ref
       conversationLog.innerHTML = '';
       inputArea.style.display = 'none';
       inputArea.innerHTML = '';
       btnRestart.style.display = 'none';
       // Clear runes after runeContainer is initialized (called lazily)
       if (typeof clearRunes === 'function') clearRunes();
+
+      // Save
+      A.State.notify();
+
       advanceConversation();
     };
 
@@ -1136,11 +1156,11 @@ CRITICAL: Respond ONLY with valid JSON:
     // CONVERSATION ENGINE (with conditional questions)
     // ============================================
     function getNextQuestion() {
-      while (currentStep < QUESTIONS.length) {
-        const question = QUESTIONS[currentStep];
+      while (rs.currentStep < QUESTIONS.length) {
+        const question = QUESTIONS[rs.currentStep];
         // Check condition
-        if (question.condition && !question.condition(answers)) {
-          currentStep++;
+        if (question.condition && !question.condition(rs.answers)) {
+          rs.currentStep++;
           continue;
         }
         return question;
@@ -1148,17 +1168,40 @@ CRITICAL: Respond ONLY with valid JSON:
       return null;
     }
 
-    async function advanceConversation() {
+    async function advanceConversation(restore = false) {
       const question = getNextQuestion();
       if (!question) return;
 
       // Show restart after first question
-      if (currentStep > 0) {
+      if (rs.currentStep > 0) {
         btnRestart.style.display = 'block';
       }
 
+      // If restoring, logic differs:
+      if (restore) {
+        // We assume the TEXT is already in history (replayed in initial render).
+        // We just need to show the INPUTS.
+        const lastMsgDiv = conversationLog.lastElementChild; // Should be the question
+        if (!lastMsgDiv) {
+          // Fallback if something weird happened
+          advanceConversation(false);
+          return;
+        }
+
+        if (question.type === 'buttons') {
+          showButtons(question, lastMsgDiv);
+        } else if (question.type === 'textarea') {
+          showTextarea(question);
+        }
+        return;
+      }
+
       // Get dynamic text if available
-      const questionText = question.getText ? question.getText(answers) : question.text;
+      const questionText = question.getText ? question.getText(rs.answers) : question.text;
+
+      // Add to history
+      rs.messages.push({ role: 'anansi', text: questionText });
+      A.State.notify();
 
       // Create Anansi message
       const msgDiv = document.createElement('div');
@@ -1176,7 +1219,8 @@ CRITICAL: Respond ONLY with valid JSON:
       // Handle question type
       if (question.type === 'auto') {
         await sleep(question.delay || 2000);
-        currentStep++;
+        rs.currentStep++;
+        A.State.notify();
         advanceConversation();
       } else if (question.type === 'buttons') {
         showButtons(question, msgDiv);
@@ -1217,7 +1261,11 @@ CRITICAL: Respond ONLY with valid JSON:
 
     function handleButtonResponse(question, option, btnContainer) {
       // Store answer
-      answers[question.id] = option.value;
+      rs.answers[question.id] = option.value;
+
+      // Store in history
+      rs.messages.push({ role: 'user', text: option.label, value: option.value });
+      A.State.notify();
 
       // Add magical rune
       addRune(question.id);
@@ -1259,6 +1307,10 @@ CRITICAL: Respond ONLY with valid JSON:
         `;
         conversationLog.appendChild(flavorMsg);
         scrollToBottom();
+
+        // Add flavor to history
+        rs.messages.push({ role: 'anansi', text: flavor, flavor: true });
+        A.State.notify();
       }
 
       // Special handling for 'weave' confirmation
@@ -1268,7 +1320,10 @@ CRITICAL: Respond ONLY with valid JSON:
       }
 
       // Advance
-      currentStep++;
+      // Don't advance if just showing flavor, wait for timeout
+
+      rs.currentStep++;
+      A.State.notify();
       setTimeout(() => advanceConversation(), flavor ? 800 : 500);
     }
 
@@ -1318,6 +1373,10 @@ CRITICAL: Respond ONLY with valid JSON:
 
     function submitTextResponse(question, value) {
       answers[question.id] = value;
+
+      // Persist in history
+      rs.messages.push({ role: 'user', text: value, value: value });
+      A.State.notify();
 
       // Add magical rune (only if value provided)
       if (value) addRune(question.id);
@@ -1469,8 +1528,40 @@ CRITICAL: Respond ONLY with valid JSON:
       scrollToBottom();
     }
 
-    // Start the conversation
-    setTimeout(() => advanceConversation(), 500);
+    // Start or Restore
+    if (rs.messages && rs.messages.length > 0) {
+      // Replay History
+      rs.messages.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        if (msg.role === 'anansi') {
+          msgDiv.className = 'parlor-message anansi';
+          if (msg.flavor) {
+            msgDiv.innerHTML = `
+              <div class="anansi-text" style="font-style: italic; opacity: 0.9; padding: 8px 12px; font-size: 13px;">
+                ${escapeHtml(msg.text)}
+              </div>
+            `;
+          } else {
+            msgDiv.innerHTML = `
+              <div class="anansi-label">🕷️ Anansi</div>
+              <div class="anansi-text">${escapeHtml(msg.text)}</div>
+            `;
+          }
+        } else {
+          msgDiv.className = 'parlor-message user';
+          const displayText = msg.value ? (msg.value.length > 100 ? msg.value.slice(0, 100) + '...' : msg.value) : (msg.text || '(Skipped)');
+          msgDiv.innerHTML = `<div class="user-response" style="max-width: 300px; white-space: pre-wrap;">${escapeHtml(displayText)}</div>`;
+        }
+        conversationLog.appendChild(msgDiv);
+      });
+      scrollToBottom();
+
+      // Restore Input UI for current step
+      advanceConversation(true);
+    } else {
+      // Start fresh
+      setTimeout(() => advanceConversation(), 500);
+    }
   }
 
   // ============================================
