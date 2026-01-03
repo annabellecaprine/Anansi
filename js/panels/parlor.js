@@ -1125,6 +1125,75 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
 
             return true;
           }
+        },
+        {
+          label: '🔄 Spin Scenario',
+          class: 'btn-ghost',
+          onclick: async (modal) => {
+            const name = modal.querySelector('#preview-name').value.trim();
+            const personality = modal.querySelector('#preview-personality').value.trim();
+            const scenarioField = modal.querySelector('#preview-scenario');
+
+            if (!name || !personality) {
+              if (A.UI.Toast) A.UI.Toast.show('Need name and personality to spin a new scenario!', 'warning');
+              return false;
+            }
+
+            // Show spinning state
+            scenarioField.value = '✧ Spinning a new scenario...';
+            scenarioField.disabled = true;
+
+            // Get API config
+            const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
+            const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+            const apiKey = keys[activeKeyName];
+
+            if (!apiKey) {
+              scenarioField.value = 'No API key configured!';
+              scenarioField.disabled = false;
+              return false;
+            }
+
+            const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
+
+            const spinPrompt = `You are a creative story designer. The character "${name}" already exists with this personality:
+
+${personality}
+
+Generate a NEW and DIFFERENT scenario for this character that:
+1. Has a unique setting and atmosphere
+2. Shows what the character is doing when the story begins
+3. Creates a clear hook for how {{user}} encounters them
+4. Invites dialogue or action from {{user}}
+
+Context from the original request:
+- Genre: ${answers.genre}
+- Tone: ${answers.tone}
+- User's Role: ${answers.user_role}
+${answers.concept ? `- Story Concept: ${answers.concept}` : ''}
+
+CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the scenario paragraph(s).`;
+
+            try {
+              const response = await callParlorLLM(
+                config.provider,
+                config.model,
+                apiKey,
+                spinPrompt,
+                "Generate the new scenario now.",
+                config.baseUrl
+              );
+
+              scenarioField.value = response.trim();
+              scenarioField.disabled = false;
+              if (A.UI.Toast) A.UI.Toast.show('New scenario woven!', 'success');
+            } catch (err) {
+              scenarioField.value = 'Failed to spin scenario: ' + err.message;
+              scenarioField.disabled = false;
+            }
+
+            return false; // Don't close modal
+          }
         }
       ]
     });
