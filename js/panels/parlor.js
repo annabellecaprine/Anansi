@@ -357,7 +357,7 @@ FORMATTING:
 
 
 CRITICAL: Respond ONLY with valid JSON:
-{"name": "character name", "appearance": "physical description", "personality": "personality text", "scenario": "scenario text"}`;
+{"name": "character name", "appearance": "physical description", "personality": "personality text", "scenario": "scenario text", "firstMessage": "optional opening message"}`;
   }
 
   // ============================================
@@ -595,7 +595,6 @@ CRITICAL: Respond ONLY with valid JSON:
     container.style.overflowY = 'hidden';
     container.style.background = 'linear-gradient(135deg, var(--bg-base) 0%, rgba(139, 69, 19, 0.05) 100%)';
 
-    // State
     // State
     const globalState = A.State.get();
     let rs = { currentStep: 0, answers: {}, messages: [] };
@@ -2446,7 +2445,8 @@ CRITICAL: Respond ONLY with valid JSON:
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ============================================
