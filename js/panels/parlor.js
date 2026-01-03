@@ -522,10 +522,20 @@ CRITICAL: Respond ONLY with valid JSON:
       gender: genderCode,
       aliases: [],
       tags: ['parlor-generated'],
-      notes: extraNotes || '',
+      notes: (extraNotes ? extraNotes + '\n\n' : '') + (personality ? '=== GENERATED PERSONALITY ===\n' + personality : ''),
       traits: {
-        appearance: appearance || '',
-        quirks: personality || '',
+        appearance: {
+          description: appearance || '',
+          hair: '',
+          eyes: '',
+          build: '',
+          appendages: {}
+        },
+        quirks: {
+          physical: [],
+          mental: [],
+          emotional: []
+        },
         pulseCues: [],
         erosCues: [],
         intentCues: []
