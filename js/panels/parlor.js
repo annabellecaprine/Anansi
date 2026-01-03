@@ -1669,7 +1669,8 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
             A.UI.switchPanel('character');
 
             return true;
-          },
+          }
+        },
         {
           label: '👤 Import to Actors',
           class: 'btn-ghost',
