@@ -98,6 +98,25 @@
       ]
     },
     {
+      id: 'pov',
+      text: "How shall the tale be told? What voice speaks the story?",
+      type: 'buttons',
+      options: [
+        { label: '👁️ 2nd Person (you/your)', value: '2nd' },
+        { label: '📖 3rd Person (he/she/they)', value: '3rd' },
+        { label: '🗣️ 1st Person (I/me)', value: '1st' }
+      ]
+    },
+    {
+      id: 'tense',
+      text: "And the flow of time... past or present?",
+      type: 'buttons',
+      options: [
+        { label: '⏮️ Past Tense (walked, said)', value: 'past' },
+        { label: '⏺️ Present Tense (walks, says)', value: 'present' }
+      ]
+    },
+    {
       id: 'user_role',
       text: "And YOU, dear storyteller... what role shall you play in this tale?",
       type: 'buttons',
@@ -218,6 +237,11 @@ STORYTELLER'S REQUIREMENTS:
 - Tone: ${answers.tone}
 - Rating: ${ratingGuide[answers.rating] || ratingGuide.sfw}
 - User's Role: ${userRoleDescriptions[answers.user_role] || userRoleDescriptions.surprise}
+
+NARRATIVE STYLE (IMPORTANT):
+- Point of View: ${answers.pov === '1st' ? '1st person (I/me) - character narrates their own thoughts' : answers.pov === '2nd' ? '2nd person (you/your) - addressing the reader directly' : '3rd person (he/she/they) - external narrator'}
+- Tense: ${answers.tense === 'past' ? 'Past tense (walked, said, felt)' : 'Present tense (walks, says, feels)'}
+- Write the scenario in the specified POV and tense!
 ${twistInstruction}
 ${answers.extras ? `\nSPECIAL ELEMENTS REQUESTED:\n${answers.extras}` : ''}
 THEIR STORY CONCEPT:
@@ -705,6 +729,8 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       genre: '✧',       // Star
       tone: '☽',        // Crescent moon
       rating: '⚗',      // Alembic
+      pov: '◉',         // Point of view - eye
+      tense: '⧗',       // Hourglass - time/tense
       user_role: '⚔',   // Crossed swords
       challenge: '⚡',   // Lightning - challenge
       challenge_type: '🜏', // Alchemical twist
@@ -1175,6 +1201,9 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
 
       const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
 
+      const povInstruction = answers.pov === '1st' ? '1st person (I/me)' : answers.pov === '2nd' ? '2nd person (you/your)' : '3rd person (he/she/they)';
+      const tenseInstruction = answers.tense === 'past' ? 'past tense' : 'present tense';
+
       const openingPrompt = `You are "${name}", a character with this personality:
 
 ${personality}
@@ -1182,7 +1211,12 @@ ${personality}
 The scenario is:
 ${scenario}
 
-Write the OPENING MESSAGE of a roleplay as this character. This is the first thing ${name} says or does when the story begins. Write in second person addressing {{user}}.
+Write the OPENING MESSAGE of a roleplay as this character. This is the first thing ${name} says or does when the story begins.
+
+NARRATIVE STYLE REQUIRED:
+- Point of View: ${povInstruction}
+- Tense: ${tenseInstruction}
+- Addressing: {{user}}
 
 Guidelines:
 - Stay completely in character
@@ -1306,6 +1340,9 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
 
             const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
 
+            const povStyle = answers.pov === '1st' ? '1st person (I/me)' : answers.pov === '2nd' ? '2nd person (you/your)' : '3rd person (he/she/they)';
+            const tenseStyle = answers.tense === 'past' ? 'past tense' : 'present tense';
+
             const spinPrompt = `You are a creative story designer. The character "${name}" already exists with this personality:
 
 ${personality}
@@ -1320,7 +1357,11 @@ Context from the original request:
 - Genre: ${answers.genre}
 - Tone: ${answers.tone}
 - User's Role: ${answers.user_role}
+- POV: ${povStyle}
+- Tense: ${tenseStyle}
 ${answers.concept ? `- Story Concept: ${answers.concept}` : ''}
+
+IMPORTANT: Write the scenario in ${povStyle} and ${tenseStyle}!
 
 CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the scenario paragraph(s).`;
 
