@@ -431,12 +431,17 @@
 
                     // Wire thumbnail clicks (context menu)
                     galleryCard.querySelectorAll('.gallery-thumb').forEach(thumb => {
-                        thumb.onclick = () => {
+                        thumb.onclick = (e) => {
+                            e.stopPropagation(); // Prevent immediate close
                             const imgId = thumb.dataset.id;
                             const img = gallery.images.find(i => i.id === imgId);
                             if (!img) return;
 
+                            // Remove any existing menus
+                            document.querySelectorAll('.gallery-context-menu').forEach(m => m.remove());
+
                             const menu = document.createElement('div');
+                            menu.className = 'gallery-context-menu';
                             menu.style.cssText = `
                                 position: fixed; z-index: 9999;
                                 background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -455,7 +460,10 @@
                             document.body.appendChild(menu);
 
                             const closeMenu = () => menu.remove();
-                            document.addEventListener('click', closeMenu, { once: true });
+                            // Delay adding the close listener to avoid immediate trigger
+                            setTimeout(() => {
+                                document.addEventListener('click', closeMenu, { once: true });
+                            }, 10);
 
                             menu.querySelectorAll('button').forEach(btn => {
                                 btn.onclick = (ev) => {
