@@ -164,9 +164,10 @@
           <div class="lens-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
             ${[
             { k: 'state', l: 'State' },
+            { k: 'arc', l: 'Arc' },       // NEW: Emotional Arc Visualization
             { k: 'context', l: 'Ctx' },
-            { k: 'prompt', l: 'Prompt' },   // NEW: Prompt Inspector
-            { k: 'tokens', l: 'Tokens' },   // NEW: Token Visualizer
+            { k: 'prompt', l: 'Prompt' },
+            { k: 'tokens', l: 'Tokens' },
             { k: 'integrity', l: 'Valid' },
             { k: 'trace', l: 'Trace' },
             { k: 'stats', l: 'Stats' },
@@ -1055,9 +1056,19 @@
         const txt = input.value.trim();
         if (!txt) return;
 
-        // 0. Push User Message
+        // 0. Push User Message with emotional snapshot
         const state = A.State.get();
-        state.sim.history.push({ role: 'user', content: txt, timestamp: new Date().toISOString() });
+        state.sim.history.push({
+          role: 'user',
+          content: txt,
+          timestamp: new Date().toISOString(),
+          emotionalSnapshot: {
+            pulse: [...(state.sim.emotions?.all || [])],
+            eros: state.sim.eros?.currentVibe || 0,
+            intent: state.sim.intent || 'unknown',
+            microcuesFired: [] // User messages don't trigger microcues
+          }
+        });
         input.value = '';
         refreshChat();
 
@@ -1141,10 +1152,27 @@
           const responseText = await callLLM(config.provider, config.model, apiKey, systemPrompt, state.sim.history);
 
           // Store response with injection details for per-message inspection
+          // Extract microcues that fired from the execution log
+          const firedMicrocues = [];
+          if (state.sim.executionLog && state.sim.executionLog.length > 0) {
+            const lastTurn = state.sim.executionLog[state.sim.executionLog.length - 1];
+            (lastTurn.entries || []).forEach(e => {
+              if (e.passed && (e.type === 'microcue' || e.type === 'actor-cue')) {
+                firedMicrocues.push(e.name);
+              }
+            });
+          }
+
           state.sim.history.push({
             role: 'model',
             content: responseText,
             timestamp: new Date().toISOString(),
+            emotionalSnapshot: {
+              pulse: [...(state.sim.emotions?.all || [])],
+              eros: state.sim.eros?.currentVibe || 0,
+              intent: state.sim.intent || 'unknown',
+              microcuesFired: firedMicrocues
+            },
             injections: {
               logs: roundResult.logs || [],
               systemPrompt: systemPrompt,
@@ -1503,6 +1531,154 @@
           };
         }
 
+      } else if (activeLens === 'arc') {
+        // --- Emotional Arc Tab ---
+        const history = state.sim.history || [];
+
+        if (history.length === 0) {
+          lensContent.innerHTML = `
+            <div style="text-align:center; padding:24px; color:var(--text-muted);">
+              <div style="font-size:32px; margin-bottom:12px;">📊</div>
+              <div style="font-size:13px;">No conversation history yet.</div>
+              <div style="font-size:11px; opacity:0.7; margin-top:4px;">Send messages in Live mode to see the emotional arc.</div>
+            </div>
+          `;
+          return;
+        }
+
+        // Extract emotional data from history
+        const labels = [];
+        const erosData = [];
+        const pulseData = [];
+        const messageData = [];
+
+        history.forEach((msg, idx) => {
+          if (msg.role === 'system') return; // Skip system messages
+
+          labels.push(`#${idx + 1}`);
+
+          // Get emotional snapshot from message or current state as fallback
+          const snapshot = msg.emotionalSnapshot || {};
+          erosData.push(snapshot.eros ?? state.sim.eros?.currentVibe ?? 0);
+
+          // For PULSE, count active emotions (simplified as intensity)
+          const pulseCount = (snapshot.pulse || []).length;
+          pulseData.push(pulseCount);
+
+          messageData.push({
+            role: msg.role,
+            content: (msg.content || '').substring(0, 50) + '...',
+            pulse: snapshot.pulse || [],
+            eros: snapshot.eros ?? 0,
+            intent: snapshot.intent || 'unknown',
+            microcues: snapshot.microcuesFired || []
+          });
+        });
+
+        lensContent.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="height:160px; position:relative;">
+              <canvas id="arc-chart"></canvas>
+            </div>
+            <div style="border-top:1px solid var(--border-subtle); padding-top:12px;">
+              <div style="font-weight:bold; font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Message Timeline</div>
+              <div id="arc-timeline" style="max-height:200px; overflow-y:auto; font-size:11px;"></div>
+            </div>
+          </div>
+        `;
+
+        // Render Chart
+        const ctx = lensContent.querySelector('#arc-chart');
+        if (ctx && typeof Chart !== 'undefined') {
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'EROS',
+                  data: erosData,
+                  borderColor: 'rgba(255, 99, 132, 1)',
+                  backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                  tension: 0.3,
+                  fill: true,
+                  yAxisID: 'y'
+                },
+                {
+                  label: 'PULSE (count)',
+                  data: pulseData,
+                  borderColor: 'rgba(54, 162, 235, 1)',
+                  backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                  tension: 0.3,
+                  fill: true,
+                  yAxisID: 'y1'
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                  labels: { boxWidth: 12, font: { size: 10 } }
+                }
+              },
+              scales: {
+                x: {
+                  display: true,
+                  ticks: { font: { size: 9 } }
+                },
+                y: {
+                  type: 'linear',
+                  display: true,
+                  position: 'left',
+                  min: 0,
+                  max: 10,
+                  title: { display: true, text: 'EROS', font: { size: 9 } },
+                  ticks: { font: { size: 9 } }
+                },
+                y1: {
+                  type: 'linear',
+                  display: true,
+                  position: 'right',
+                  min: 0,
+                  title: { display: true, text: 'PULSE', font: { size: 9 } },
+                  ticks: { font: { size: 9 } },
+                  grid: { drawOnChartArea: false }
+                }
+              }
+            }
+          });
+        }
+
+        // Render Timeline
+        const timelineEl = lensContent.querySelector('#arc-timeline');
+        if (timelineEl) {
+          timelineEl.innerHTML = messageData.map((msg, idx) => {
+            const roleColor = msg.role === 'user' ? 'var(--accent-primary)' : 'var(--status-success)';
+            const pulsePills = msg.pulse.map(p =>
+              `<span style="background:var(--accent-soft); color:var(--accent-primary); padding:1px 4px; border-radius:4px; font-size:9px; margin-right:2px;">${p}</span>`
+            ).join('');
+            const microcuePills = msg.microcues.map(m =>
+              `<span style="background:rgba(255,193,7,0.2); color:#ffc107; padding:1px 4px; border-radius:4px; font-size:9px; margin-right:2px;">⚡${m}</span>`
+            ).join('');
+
+            return `
+              <div style="padding:8px; border-bottom:1px solid var(--border-subtle); ${idx === messageData.length - 1 ? 'border-bottom:none;' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-weight:bold; color:${roleColor}; text-transform:uppercase; font-size:9px;">${msg.role}</span>
+                  <span style="font-size:9px; color:var(--text-muted);">EROS: ${msg.eros} | Intent: ${msg.intent}</span>
+                </div>
+                <div style="margin-bottom:4px;">${pulsePills || '<span style="opacity:0.5; font-size:9px;">no emotions</span>'}</div>
+                ${microcuePills ? `<div style="margin-bottom:4px;">${microcuePills}</div>` : ''}
+              </div>
+            `;
+          }).join('');
+        }
+
       } else if (activeLens === 'context') {
         // --- Context Tab ---
         const lastResult = state.sim.lastLogicResult || [];
@@ -1817,12 +1993,19 @@
                         <select class="input" id="sim-provider" style="font-size:11px;">
                           <option value="gemini" ${config.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
                           <option value="openai" ${config.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                          <option value="chutes" ${config.provider === 'chutes' ? 'selected' : ''}>Chutes AI</option>
+                          <option value="custom" ${config.provider === 'custom' ? 'selected' : ''}>Custom (OpenAI-compatible)</option>
                           <option value="kobold" ${config.provider === 'kobold' ? 'selected' : ''}>Kobold (Local)</option>
                         </select>
                       </div>
                       <div class="form-group">
                         <label class="label" style="font-size:10px;">Model ID</label>
                         <input class="input" id="sim-model" value="${config.model || 'gemini-2.0-flash'}" style="font-size:11px;">
+                      </div>
+                      <div class="form-group" id="custom-url-group" style="display:${config.provider === 'custom' ? 'block' : 'none'};">
+                        <label class="label" style="font-size:10px;">Base URL <span style="opacity:0.6;">(for Custom)</span></label>
+                        <input class="input" id="sim-base-url" value="${config.baseUrl || 'https://api.example.com/v1'}" placeholder="https://api.example.com/v1" style="font-size:11px;">
+                        <div style="font-size:9px; color:var(--text-muted); margin-top:4px;">Endpoint: {baseUrl}/chat/completions</div>
                       </div>
                     </section>
                     
@@ -1834,15 +2017,25 @@
         // Simplified Config Logic for Brevity (Full implementation requires saving logic)
         const p = lensContent.querySelector('#sim-provider');
         const m = lensContent.querySelector('#sim-model');
+        const u = lensContent.querySelector('#sim-base-url');
+        const urlGroup = lensContent.querySelector('#custom-url-group');
 
         const saveConfig = () => {
-          localStorage.setItem('anansi_sim_config', JSON.stringify({
+          const configData = {
             provider: p.value,
             model: m.value
-          }));
+          };
+          if (u) configData.baseUrl = u.value;
+          localStorage.setItem('anansi_sim_config', JSON.stringify(configData));
         };
 
-        p.onchange = m.onchange = saveConfig;
+        // Show/hide base URL field based on provider
+        p.onchange = () => {
+          if (urlGroup) urlGroup.style.display = p.value === 'custom' ? 'block' : 'none';
+          saveConfig();
+        };
+        m.onchange = saveConfig;
+        if (u) u.onchange = saveConfig;
 
         lensContent.querySelector('#btn-manage-keys').onclick = () => showKeyManagerModal();
         lensContent.querySelector('#sim-reset-config').onclick = () => {
@@ -2374,6 +2567,69 @@
 
     if (provider === 'openai') {
       const url = 'https://api.openai.com/v1/chat/completions';
+      const messages = [
+        { role: 'system', content: system },
+        ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
+      ];
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: 0.9
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error?.message || resp.statusText);
+      }
+
+      const data = await resp.json();
+      return data.choices?.[0]?.message?.content || "(No response)";
+    }
+
+    if (provider === 'chutes') {
+      // Chutes AI - OpenAI-compatible API
+      const url = 'https://llm.chutes.ai/v1/chat/completions';
+      const messages = [
+        { role: 'system', content: system },
+        ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
+      ];
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: 0.9
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error?.message || resp.statusText);
+      }
+
+      const data = await resp.json();
+      return data.choices?.[0]?.message?.content || "(No response)";
+    }
+
+    if (provider === 'custom') {
+      // Custom OpenAI-compatible endpoint
+      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
+      const baseUrl = (config.baseUrl || 'https://api.example.com/v1').replace(/\/$/, ''); // Remove trailing slash
+      const url = `${baseUrl}/chat/completions`;
+
       const messages = [
         { role: 'system', content: system },
         ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
