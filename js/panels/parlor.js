@@ -19,9 +19,108 @@
       delay: 2500
     },
     {
+      id: 'mode',
+      text: "How shall we begin? Do you wish to dive right in, or craft something tailored just for you?",
+      type: 'buttons',
+      options: [
+        { label: '⚡ Quick Weave', value: 'quick' },
+        { label: '🎨 Tailored Story', value: 'full' }
+      ]
+    },
+    // ========== QUICK START PATH ==========
+    {
+      id: 'quick_theme',
+      text: "What flavor of story calls to you?",
+      type: 'buttons',
+      condition: (answers) => answers.mode === 'quick',
+      options: [
+        { label: '💕 Romance', value: 'romance' },
+        { label: '⚔️ Adventure', value: 'adventure' },
+        { label: '🔍 Mystery', value: 'mystery' },
+        { label: '👻 Horror', value: 'horror' },
+        { label: '🎭 Drama', value: 'drama' }
+      ]
+    },
+    {
+      id: 'quick_setting',
+      text: "And what world shall this story inhabit?",
+      type: 'buttons',
+      condition: (answers) => answers.mode === 'quick',
+      options: [
+        { label: '🗡️ Fantasy', value: 'fantasy' },
+        { label: '🚀 Sci-Fi', value: 'scifi' },
+        { label: '🏙️ Modern', value: 'modern' },
+        { label: '📜 Historical', value: 'historical' }
+      ]
+    },
+    {
+      id: 'quick_gender',
+      text: "What form shall your companion take?",
+      type: 'buttons',
+      condition: (answers) => answers.mode === 'quick',
+      options: [
+        { label: 'Male', value: 'male' },
+        { label: 'Female', value: 'female' },
+        { label: 'Non-binary', value: 'nonbinary' },
+        { label: 'Any', value: 'any' }
+      ]
+    },
+    {
+      id: 'quick_template',
+      text: "Choose a soul to weave...",
+      type: 'buttons',
+      condition: (answers) => answers.mode === 'quick',
+      getOptions: (answers) => {
+        const templates = {
+          romance: [
+            { label: '🌹 The Brooding Noble', value: 'brooding_noble', desc: 'Wealthy, mysterious, hiding pain behind cold walls' },
+            { label: '☀️ Childhood Friend', value: 'childhood_friend', desc: 'Sweet reunion, feelings never confessed' },
+            { label: '🔥 Forbidden Attraction', value: 'forbidden', desc: 'They shouldn\'t want each other, but they do' },
+            { label: '💔 Second Chance', value: 'second_chance', desc: 'Former lovers meeting again after years apart' }
+          ],
+          adventure: [
+            { label: '🗡️ Reluctant Hero', value: 'reluctant_hero', desc: 'Thrust into destiny, would rather be left alone' },
+            { label: '🏴‍☠️ Charming Rogue', value: 'charming_rogue', desc: 'Quick wit, quicker fingers, heart of gold' },
+            { label: '🛡️ Hardened Warrior', value: 'hardened_warrior', desc: 'Seen too much, fights for those who can\'t' },
+            { label: '🔮 Mysterious Mentor', value: 'mysterious_mentor', desc: 'Knows more than they let on, guides with riddles' }
+          ],
+          mystery: [
+            { label: '🔎 The Detective', value: 'detective', desc: 'Brilliant mind, unconventional methods' },
+            { label: '🎭 Person of Interest', value: 'person_interest', desc: 'Suspect or witness? Hard to tell' },
+            { label: '📰 Investigative Reporter', value: 'reporter', desc: 'Chasing the story, whatever the cost' },
+            { label: '🕵️ The Insider', value: 'insider', desc: 'Knows the secrets, bound by silence' }
+          ],
+          horror: [
+            { label: '👤 The Survivor', value: 'survivor', desc: 'They\'ve seen things, won\'t talk about them' },
+            { label: '🩸 The Monster', value: 'monster', desc: 'Inhuman, but hauntingly beautiful' },
+            { label: '📿 The Believer', value: 'believer', desc: 'Knows the old ways, prepares for what\'s coming' },
+            { label: '🏚️ The Haunted', value: 'haunted', desc: 'Something follows them, always watching' }
+          ],
+          drama: [
+            { label: '👑 Fallen Royalty', value: 'fallen_royalty', desc: 'Lost everything, clinging to dignity' },
+            { label: '🎪 The Performer', value: 'performer', desc: 'All the world\'s a stage, they never stop acting' },
+            { label: '⚖️ Moral Crossroads', value: 'moral_crossroads', desc: 'Good person, impossible choice' },
+            { label: '🌙 The Outcast', value: 'outcast', desc: 'Society rejected them, they rejected society' }
+          ]
+        };
+        return templates[answers.quick_theme] || templates.romance;
+      }
+    },
+    {
+      id: 'quick_confirm',
+      text: "The pattern is clear. Shall I weave this soul into being?",
+      type: 'buttons',
+      condition: (answers) => answers.mode === 'quick',
+      options: [
+        { label: '🕸️ Weave My Story', value: 'weave', primary: true }
+      ]
+    },
+    // ========== FULL PATH ==========
+    {
       id: 'cast',
       text: "Do you seek to craft a single soul, or shall we weave an ensemble of characters?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: 'A Single Soul', value: 'solo' },
         { label: 'An Ensemble', value: 'ensemble' }
@@ -32,19 +131,19 @@
       text: "An ensemble! How delightful. Tell me more about this cast... How many souls, and what binds them together?",
       type: 'textarea',
       placeholder: "Describe the group: how many characters, their relationships, the dynamic between them...",
-      condition: (answers) => answers.cast === 'ensemble'
+      condition: (answers) => answers.mode === 'full' && answers.cast === 'ensemble'
     },
     {
       id: 'gender',
       text: "And the protagonist of this tale... what form do they take?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: 'Male', value: 'male' },
         { label: 'Female', value: 'female' },
         { label: 'Non-binary', value: 'nonbinary' },
         { label: 'You Decide', value: 'any' }
       ],
-      // Adjust text for ensemble
       getText: (answers) => answers.cast === 'ensemble'
         ? "And the lead character of this ensemble... what form do they take?"
         : "And the protagonist of this tale... what form do they take?"
@@ -53,6 +152,7 @@
       id: 'archetype',
       text: "What archetype calls to your soul? What essence shall define them?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '🎭 The Trickster', value: 'trickster' },
         { label: '🛡️ The Guardian', value: 'guardian' },
@@ -66,6 +166,7 @@
       id: 'genre',
       text: "Every tale needs its world. What realm calls to you?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '🗡️ Fantasy', value: 'fantasy' },
         { label: '🚀 Sci-Fi', value: 'scifi' },
@@ -79,6 +180,7 @@
       id: 'tone',
       text: "What mood shall hang in the air of your story?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: 'Dark & Serious', value: 'dark' },
         { label: 'Light & Playful', value: 'light' },
@@ -91,6 +193,7 @@
       id: 'rating',
       text: "How... intimate shall this story become?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '☀️ Keep it Wholesome', value: 'sfw' },
         { label: '🌙 Mature Themes', value: 'mature' },
@@ -101,6 +204,7 @@
       id: 'pov',
       text: "How shall the tale be told? What voice speaks the story?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '👁️ 2nd Person (you/your)', value: '2nd' },
         { label: '📖 3rd Person (he/she/they)', value: '3rd' },
@@ -111,6 +215,7 @@
       id: 'tense',
       text: "And the flow of time... past or present?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '⏮️ Past Tense (walked, said)', value: 'past' },
         { label: '⏺️ Present Tense (walks, says)', value: 'present' }
@@ -120,6 +225,7 @@
       id: 'user_role',
       text: "And YOU, dear storyteller... what role shall you play in this tale?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '🎭 A Stranger They Meet', value: 'stranger' },
         { label: '💫 Someone From Their Past', value: 'past' },
@@ -132,6 +238,7 @@
       id: 'challenge',
       text: "*The spider's eyes glint with mischief...* Why don't we make things a little more interesting?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '✨ Yes, spice it up!', value: 'yes' },
         { label: '🕊️ Keep it simple', value: 'no' }
@@ -141,7 +248,7 @@
       id: 'challenge_type',
       text: "Ohoho! Then tell me... what secret spice shall we add to this tale?",
       type: 'buttons',
-      condition: (answers) => answers.challenge === 'yes',
+      condition: (answers) => answers.mode === 'full' && answers.challenge === 'yes',
       options: [
         { label: '🔮 A Dark Secret', value: 'secret' },
         { label: '💔 Forbidden Connection', value: 'forbidden' },
@@ -154,12 +261,14 @@
       id: 'concept',
       text: "Now then... whisper to me the seed of your story. What vision burns in your mind?",
       type: 'textarea',
+      condition: (answers) => answers.mode === 'full',
       placeholder: "Describe the character, their world, and how your paths might cross..."
     },
     {
       id: 'extras',
       text: "Is there anything else the weave should contain? Special elements, themes, or flavors you desire?",
       type: 'textarea',
+      condition: (answers) => answers.mode === 'full',
       placeholder: "(Optional) Any additional details...",
       optional: true,
       skipLabel: 'Skip this step'
@@ -168,11 +277,86 @@
       id: 'confirm',
       text: "The threads are gathered. The pattern is clear in my mind. Shall I begin the weave?",
       type: 'buttons',
+      condition: (answers) => answers.mode === 'full',
       options: [
         { label: '🕸️ Weave My Story', value: 'weave', primary: true }
       ]
     }
   ];
+
+  // ============================================
+  // QUICK START TEMPLATE DESCRIPTIONS
+  // ============================================
+  const TEMPLATE_PROMPTS = {
+    // Romance
+    brooding_noble: 'A wealthy noble with a cold exterior who hides deep pain and loneliness behind walls of ice. Reserved, intense, secretly yearning for genuine connection.',
+    childhood_friend: 'A sweet reunion with someone from the past - feelings were never confessed, but now fate brings them together again. Warm, nostalgic, with unspoken tension.',
+    forbidden: 'An attraction that shouldn\'t exist - different worlds, opposing sides, or social taboos stand between them. Intense, dangerous, irresistible.',
+    second_chance: 'Former lovers meeting again after years apart. Old wounds, lingering feelings, and the question of what might have been.',
+    // Adventure
+    reluctant_hero: 'Thrust into destiny against their will, they\'d rather be left alone. Gruff exterior, hidden nobility, carrying burdens they don\'t discuss.',
+    charming_rogue: 'Quick wit and quicker fingers, they survive on charm and cunning. Heart of gold beneath the devil-may-care attitude.',
+    hardened_warrior: 'Seen too much, fought too long. Fights for those who can\'t, speaks little, observes everything. Haunted but unbroken.',
+    mysterious_mentor: 'Knows far more than they reveal. Guides with cryptic wisdom, tests with strange challenges. Ancient secrets lurk behind kind eyes.',
+    // Mystery
+    detective: 'Brilliant deductive mind with unconventional methods. Obsessive about truth, socially awkward, sees patterns others miss.',
+    person_interest: 'Are they suspect or witness? Victim or perpetrator? Everything about them is a puzzle wrapped in enigma.',
+    reporter: 'Chasing the story at any cost. Tenacious, morally flexible when needed, driven by the need to expose truth.',
+    insider: 'They know the secrets but are bound by silence. Every word is measured, every glance meaningful.',
+    // Horror
+    survivor: 'They\'ve seen things no one should see. Don\'t ask about the scars. Some experiences leave marks that never fade.',
+    monster: 'Beautiful and terrifying. Not quite human, not quite other. Hunger wars with something almost like tenderness.',
+    believer: 'They know the old ways, the old protections. When darkness comes, they alone understand what must be done.',
+    haunted: 'Something follows them. Always watching. They\'ve learned to live with the presence, but it\'s getting stronger.',
+    // Drama
+    fallen_royalty: 'Once had everything, now clings to dignity alone. Pride battles with desperate need, nobility with survival.',
+    performer: 'The mask never comes off. Every interaction is a performance, but what lies beneath the act?',
+    moral_crossroads: 'A good person facing an impossible choice. No matter what they do, someone suffers.',
+    outcast: 'Society rejected them first. Now they\'ve built walls and weapons from that rejection.'
+  };
+
+  // ============================================
+  // QUICK START PROMPT BUILDER
+  // ============================================
+  function buildQuickStartPrompt(answers) {
+    const templateDesc = TEMPLATE_PROMPTS[answers.quick_template] || 'A compelling character with depth and mystery.';
+    const genderHint = answers.quick_gender === 'any' ? 'any gender you find fitting' : `a ${answers.quick_gender} character`;
+
+    return `You are Anansi, the Spider God and Master of Stories.
+A storyteller seeks a quick tale. Weave them a character with these parameters:
+
+CHARACTER TEMPLATE: ${templateDesc}
+
+REQUIREMENTS:
+- Setting: ${answers.quick_setting}
+- Theme: ${answers.quick_theme}
+- Gender: ${genderHint}
+- Rating: Mature themes acceptable (violence, darker emotions, suggestive content)
+- This is for interactive roleplay - the USER will participate
+
+Create a character card with:
+- **Name**: A fitting, memorable name
+- **Personality**: 2-3 paragraphs describing who they are, their traits, motivations, and quirks
+- **Scenario**: How {{user}} encounters them. Include:
+  1. The setting and atmosphere
+  2. What the character is doing
+  3. A hook for {{user}} to enter the story
+  4. An opening situation inviting interaction
+
+NARRATIVE STYLE:
+- POV: 2nd person (you/your) addressing {{user}}
+- Tense: Present tense
+- User Role: A stranger meeting them for the first time
+
+FORMATTING:
+- *Asterisks* for actions: *She turned slowly.*
+- "Quotes" for dialogue: "Hello," she said.
+- **Bold** for emphasis
+- Paragraph breaks for pacing
+
+CRITICAL: Respond ONLY with valid JSON:
+{"name": "character name", "personality": "personality text", "scenario": "scenario text"}`;
+  }
 
   // ============================================
   // STORY DESIGNER PROMPT (Enhanced with User Anchoring)
@@ -728,6 +912,13 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
 
     // Arcane-looking symbols (not Norse, more mystical/magical)
     const RUNE_SYMBOLS = {
+      // Quick Start
+      mode: '⚜',         // Fleur-de-lis - choice
+      quick_theme: '♠',  // Theme
+      quick_setting: '⌂', // Setting/world
+      quick_gender: '⚥', // Gender
+      quick_template: '✧', // Template/soul
+      // Full path
       cast: '☿',        // Mercury - transformation
       ensemble_details: '⚶', // Additional symbol
       gender: '⚥',      // Gender symbol
@@ -854,10 +1045,14 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       const btnContainer = document.createElement('div');
       btnContainer.className = 'response-buttons';
 
-      question.options.forEach(opt => {
+      // Support dynamic options
+      const options = question.getOptions ? question.getOptions(answers) : question.options;
+
+      options.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'response-btn' + (opt.primary ? ' primary' : '');
         btn.textContent = opt.label;
+        if (opt.desc) btn.title = opt.desc; // Show description on hover
         btn.onclick = () => handleButtonResponse(question, opt, btnContainer);
         btnContainer.appendChild(btn);
       });
@@ -1037,7 +1232,10 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
 
       try {
-        const systemPrompt = buildSystemPrompt(answers);
+        // Use Quick Start prompt for quick mode, full prompt otherwise
+        const systemPrompt = answers.mode === 'quick'
+          ? buildQuickStartPrompt(answers)
+          : buildSystemPrompt(answers);
         const response = await callParlorLLM(
           config.provider,
           config.model,
