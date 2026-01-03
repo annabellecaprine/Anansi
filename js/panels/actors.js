@@ -446,16 +446,26 @@
                                 <div class="cue-header" style="font-weight:bold; font-size:10px; text-align:center; color:var(--text-muted);">HORNS</div>
                             </div>`;
 
+                    // Check appendages status for disabling inputs
+                    const appConfig = T.appearance?.appendages || {};
+                    const getDisabledAttr = (part) => {
+                        if (part === 'basic') return '';
+                        if (!appConfig[part] || !appConfig[part].present) {
+                            return 'disabled style="font-size:11px; padding:4px 6px; opacity:0.3; background:var(--bg-base); cursor:not-allowed;" title="Appendage not present"';
+                        }
+                        return 'style="font-size:11px; padding:4px 6px;"';
+                    };
+
                     tags.forEach(tag => {
                         const cue = cueData[tag] || {};
                         html += `
                             <div class="cue-grid" style="display:grid; grid-template-columns:90px repeat(5, 1fr); gap:6px; align-items:center; margin-bottom:4px;">
                                 <div style="font-size:11px; font-weight:600; text-transform:uppercase; color:${colorAccent};">${tag}</div>
-                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="basic" value="${cue.basic || ''}" style="font-size:11px; padding:4px 6px;">
-                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="ears" value="${cue.ears || ''}" style="font-size:11px; padding:4px 6px;">
-                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="tail" value="${cue.tail || ''}" style="font-size:11px; padding:4px 6px;">
-                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="wings" value="${cue.wings || ''}" style="font-size:11px; padding:4px 6px;">
-                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="horns" value="${cue.horns || ''}" style="font-size:11px; padding:4px 6px;">
+                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="basic" value="${cue.basic || ''}" ${getDisabledAttr('basic')}>
+                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="ears" value="${cue.ears || ''}" ${getDisabledAttr('ears')}>
+                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="tail" value="${cue.tail || ''}" ${getDisabledAttr('tail')}>
+                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="wings" value="${cue.wings || ''}" ${getDisabledAttr('wings')}>
+                                <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="horns" value="${cue.horns || ''}" ${getDisabledAttr('horns')}>
                             </div>`;
                     });
 
@@ -527,9 +537,22 @@
                             return;
                         }
 
-                        // Apply preset data to cues
+                        // Get actor appendages configuration
+                        const appConfig = T.appearance?.appendages || {};
+
+                        // Apply preset data to cues, respecting appendages
                         Object.keys(presetData).forEach(tag => {
-                            targetCues[tag] = { ...presetData[tag] };
+                            const src = presetData[tag];
+                            const dest = { basic: src.basic || '' };
+
+                            PARTS.forEach(p => {
+                                // Only clean copy if actor HAS this part
+                                if (appConfig[p] && appConfig[p].present) {
+                                    if (src[p]) dest[p] = src[p];
+                                }
+                            });
+
+                            targetCues[tag] = dest;
                         });
 
                         A.State.notify();
