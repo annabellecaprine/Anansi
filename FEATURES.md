@@ -1,6 +1,6 @@
 # Anansi: Feature List by Panel
 
-**As of: January 2, 2026**
+**As of: January 3, 2026 (v1.4.0)**
 
 ---
 
@@ -10,12 +10,20 @@
 - Project name/description editing
 - Author metadata
 - Character card statistics overview
-- Web integrity summary
+- Web integrity summary (Validity checks)
 - Quick navigation to core panels
 
 ---
 
 ## 🌱 SEEDS (Character Building)
+
+### 🕷️ The Spider's Parlor (Creation Wizard)
+- **Guided Interview**: Interactive, roleplay-style character creation with Anansi.
+- **Quick Weave (Templates)**: Jumpstart with 8+ archetype presets (e.g., The Trickster, The Guardian).
+- **Session Persistence**: Auto-saves conversation history/answers; resumes seamlessly on reload.
+- **Smart Generation**: Creates Name, Appearance, Personality, Scenario, and First Message.
+- **Companion Mode**: Generate matching sidekicks or rivals after the main character.
+- **Direct Import**: One-click sync to Actors/Project panels.
 
 ### Character Panel
 - Character name, personality, scenario editing
@@ -169,6 +177,7 @@
 - Build scripts (download .txt or .zip)
 - Toast notifications
 - Modal dialogs
+- **Collapsible Sidebar**: Clean, persistent navigation categories.
 - Guided tours (Help button)
 - Panel transitions
 - Responsive layout
@@ -176,4 +185,4 @@
 
 ---
 
-*Last updated: January 2, 2026*
+*Last updated: January 3, 2026*
