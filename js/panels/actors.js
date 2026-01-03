@@ -248,8 +248,76 @@
             content.appendChild(style);
 
             if (activeTab === 'profile') {
+                // Ensure portrait exists
+                actor.portrait = actor.portrait || null;
+
                 // ID display
                 const idRow = `<div style="font-size:11px; color:gray; margin-bottom:12px;">ID: ${actor.id}</div>`;
+
+                // Portrait Card
+                const portraitSrc = actor.portrait?.data || '';
+                const portraitCard = document.createElement('div');
+                portraitCard.style.cssText = 'display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; padding: 12px; background: var(--bg-inset); border-radius: var(--radius-md);';
+                portraitCard.innerHTML = `
+                    <div id="actor-portrait-preview" style="
+                        width: 100px;
+                        height: 140px;
+                        background: var(--bg-surface);
+                        border: 2px dashed var(--border-subtle);
+                        border-radius: var(--radius-sm);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
+                        flex-shrink: 0;
+                    ">
+                        ${portraitSrc
+                        ? `<img src="${portraitSrc}" style="width: 100%; height: 100%; object-fit: cover;">`
+                        : `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`
+                    }
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <input type="file" id="actor-portrait-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
+                        <button class="btn btn-sm" id="btn-actor-upload">📷 Upload</button>
+                        <button class="btn btn-ghost btn-sm" id="btn-actor-remove" ${!portraitSrc ? 'disabled' : ''}>🗑️ Remove</button>
+                        <div style="font-size: 9px; color: var(--text-muted); max-width: 100px;">
+                            PNG, JPG, WebP. Max 500KB.
+                        </div>
+                    </div>
+                `;
+                content.innerHTML = idRow;
+                content.appendChild(portraitCard);
+
+                // Portrait event handlers
+                const portraitInput = portraitCard.querySelector('#actor-portrait-input');
+                const btnUpload = portraitCard.querySelector('#btn-actor-upload');
+                const btnRemove = portraitCard.querySelector('#btn-actor-remove');
+                const portraitPreview = portraitCard.querySelector('#actor-portrait-preview');
+
+                btnUpload.onclick = () => portraitInput.click();
+
+                portraitInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 500 * 1024) {
+                        if (A.UI?.Toast) A.UI.Toast.show('Image is larger than 500KB. Consider compressing.', 'warning');
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        actor.portrait = { type: 'dataUrl', data: ev.target.result, mimeType: file.type };
+                        A.State.notify();
+                        portraitPreview.innerHTML = `<img src="${ev.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                        btnRemove.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                btnRemove.onclick = () => {
+                    actor.portrait = null;
+                    A.State.notify();
+                    portraitPreview.innerHTML = `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`;
+                    btnRemove.disabled = true;
+                };
 
                 // Container for Smart Inputs
                 const smartContainer = document.createElement('div');
