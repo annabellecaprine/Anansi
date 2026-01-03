@@ -1392,7 +1392,8 @@ CRITICAL: Respond ONLY with valid JSON:
       conversationLog.appendChild(userMsg);
       scrollToBottom();
 
-      currentStep++;
+      rs.currentStep++;
+      A.State.notify();
       setTimeout(() => advanceConversation(), 500);
     }
 
