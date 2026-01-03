@@ -94,7 +94,7 @@
         const header = document.createElement('div');
         header.className = 'card-header';
         header.innerHTML = `
-      <input type="text" id="actor-name" class="input" style="width:200px; font-weight:bold;" placeholder="Actor Name" disabled>
+      <input type="text" id="actor-name" class="input" style="width:200px; font-weight:bold;" placeholder="e.g., Seraphine, The Merchant" disabled>
       <div style="flex:1;"></div>
       <button class="btn btn-ghost btn-sm" id="btn-del-actor" style="color:var(--status-error);" disabled>Delete</button>
     `;
@@ -324,7 +324,7 @@
                 notesSection.innerHTML = `
                   <h3 style="margin-top:20px; font-size:13px; color:var(--text-primary);">Notes</h3>
                   <div class="form-col">
-                    <textarea class="input" id="inp-notes" style="height:150px; resize:vertical;" placeholder="Personal notes about this actor...">${actor.notes}</textarea>
+                    <textarea class="input" id="inp-notes" style="height:150px; resize:vertical;" placeholder="Internal notes (not exported). E.g., 'Main love interest' or 'Acts differently when angry'">${actor.notes}</textarea>
                   </div>
                 `;
                 smartContainer.appendChild(notesSection);
@@ -465,6 +465,19 @@
 
                 // Build all three sections with their respective preset lists
                 let cuesHTML = '';
+
+                // Add explanatory tip for first-time users
+                cuesHTML += `
+                <div style="background:var(--accent-soft); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; line-height:1.5; border-left:3px solid var(--accent-primary);">
+                  <strong style="color:var(--accent-primary);">💡 What are Cues?</strong><br>
+                  Cues are short behavioral snippets triggered by emotional states. 
+                  <strong>PULSE</strong> = emotions (joy, anger, etc.), 
+                  <strong>EROS</strong> = intimacy levels, 
+                  <strong>INTENT</strong> = user actions (comfort, tease, etc.).<br>
+                  <span style="color:var(--text-muted);">Fill in the cells that apply to this actor. Use presets for quick setup, or leave empty to skip.</span>
+                </div>
+                `;
+
                 cuesHTML += buildCueSection('pulse', 'PULSE Cues', 'Emotional Expression', PULSE_TAGS, T.pulseCues, 'var(--status-info)', A.Presets?.getPulsePresetList);
                 cuesHTML += buildCueSection('eros', 'EROS Cues', 'Intimacy Response', EROS_TAGS, T.erosCues, 'var(--status-error)', A.Presets?.getErosPresetList);
                 cuesHTML += buildCueSection('intent', 'INTENT Cues', 'Behavioral Response', INTENT_TAGS, T.intentCues, 'var(--status-success)', A.Presets?.getIntentPresetList);

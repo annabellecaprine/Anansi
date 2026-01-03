@@ -45,11 +45,18 @@
     // --- Mode Toggle Header ---
     const modeHeader = document.createElement('div');
     modeHeader.style.display = 'flex';
+    modeHeader.style.flexDirection = 'column';
     modeHeader.style.gap = '8px';
     modeHeader.style.marginBottom = '8px';
     modeHeader.innerHTML = `
-      <button class="btn btn-sm spindle-mode-btn" data-mode="simulated" style="flex:1;">Simulated</button>
-      <button class="btn btn-sm spindle-mode-btn" data-mode="live" style="flex:1;">Live</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sm spindle-mode-btn" data-mode="simulated" style="flex:1;">Simulated</button>
+        <button class="btn btn-sm spindle-mode-btn" data-mode="live" style="flex:1;">Live</button>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); padding:8px 12px; background:var(--bg-surface); border-radius:6px; line-height:1.4;">
+        <strong style="color:var(--text-secondary);">Simulated</strong>: Dry-run with mock responses (fast, no API needed). 
+        <strong style="color:var(--text-secondary);">Live</strong>: Real LLM calls using your API key.
+      </div>
     `;
     container.appendChild(modeHeader);
 
