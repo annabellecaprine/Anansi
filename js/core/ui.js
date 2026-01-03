@@ -130,6 +130,9 @@
             const container = this.els.navContainer;
             container.innerHTML = '';
 
+            // Load sidebar state
+            const collapsedState = JSON.parse(localStorage.getItem('anansi_sidebar_collapsed') || '{}');
+
             const sections = A.getNavSections();
 
             // Group by Category
@@ -145,6 +148,8 @@
                 const groupItems = groups[cat];
                 if (!groupItems || groupItems.length === 0) return;
 
+                const isCollapsed = collapsedState[cat];
+
                 // Render Header
                 const header = document.createElement('div');
                 header.className = 'nav-header';
@@ -154,15 +159,40 @@
                 header.style.color = 'var(--text-muted)';
                 header.style.textTransform = 'uppercase';
                 header.style.letterSpacing = '1px';
-                header.textContent = cat;
+                header.style.cursor = 'pointer';
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+                header.style.userSelect = 'none';
+
+                header.innerHTML = `
+                    <span>${cat}</span>
+                    <span class="nav-chevron" style="transition: transform 0.2s; transform: ${isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'}; font-size: 8px;">▼</span>
+                `;
+
                 container.appendChild(header);
 
-                // Render Items
+                // Render Items Container
                 const list = document.createElement('div');
                 list.className = 'nav-group';
-                list.style.display = 'flex';
+                list.style.display = isCollapsed ? 'none' : 'flex';
                 list.style.flexDirection = 'column';
                 list.style.gap = '2px';
+
+                // Toggle Handler
+                header.onclick = () => {
+                    const wasCollapsed = list.style.display === 'none';
+                    const newState = wasCollapsed ? 'flex' : 'none';
+                    list.style.display = newState;
+
+                    const chevron = header.querySelector('.nav-chevron');
+                    if (chevron) chevron.style.transform = newState === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
+
+                    // Save
+                    const currentStored = JSON.parse(localStorage.getItem('anansi_sidebar_collapsed') || '{}');
+                    currentStored[cat] = (newState === 'none');
+                    localStorage.setItem('anansi_sidebar_collapsed', JSON.stringify(currentStored));
+                };
 
                 groupItems.forEach(section => {
                     const btn = document.createElement('button');
