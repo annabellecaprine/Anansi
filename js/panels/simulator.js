@@ -2657,6 +2657,35 @@
       return data.choices?.[0]?.message?.content || "(No response)";
     }
 
+    if (provider === 'kobold') {
+      // Kobold AI - Local Server
+      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
+      const baseUrl = (config.baseUrl || 'http://localhost:5001').replace(/\/$/, '');
+      const url = `${baseUrl}/api/v1/generate`;
+
+      // Kobold uses a different format - single prompt string
+      const fullPrompt = `${system}\n\n${history.map(m => `${m.role === 'user' ? 'User' : 'Character'}: ${m.content}`).join('\n')}`;
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: fullPrompt,
+          max_context_length: 4096,
+          max_length: 512,
+          temperature: 0.9
+        })
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Kobold Error: ${errText || resp.statusText}`);
+      }
+
+      const data = await resp.json();
+      return data.results?.[0]?.text || "(No response)";
+    }
+
     throw new Error(`Unknown provider: ${provider}`);
   }
 
