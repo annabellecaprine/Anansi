@@ -522,7 +522,7 @@ CRITICAL: Respond ONLY with valid JSON:
       gender: genderCode,
       aliases: [],
       tags: ['parlor-generated'],
-      notes: (extraNotes ? extraNotes + '\n\n' : '') + (personality ? '=== GENERATED PERSONALITY ===\n' + personality : ''),
+      notes: extraNotes || '',
       traits: {
         appearance: {
           description: appearance || '',
@@ -1675,6 +1675,7 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
           onclick: (modal) => {
             const name = modal.querySelector('#preview-name').value.trim();
             const personality = modal.querySelector('#preview-personality').value.trim();
+            const scenario = modal.querySelector('#preview-scenario').value.trim();
             const appearance = modal.querySelector('#preview-appearance')?.value.trim() || '';
 
             const companionEl = modal.querySelector('#companion-personality');
@@ -1729,6 +1730,15 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
                     state.meta.name = name;
                     state.meta.description = `Woven by Anansi (${answers.genre || 'Story'})`;
 
+                    // Populate Character Panel (Seed)
+                    state.seed = {
+                      characterName: name,
+                      chatName: name,
+                      persona: personality,
+                      scenario: scenario,
+                      examples: ''
+                    };
+
                     // Add actors
                     const gender = answers.gender || answers.quick_gender || 'any';
                     createActorFromParlor(name, personality, appearance, gender, 'Protagonist');
@@ -1741,8 +1751,8 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
                     A.State.notify();
                     A.UI.refresh();
 
-                    if (A.UI.Toast) A.UI.Toast.show(`New project "${name}" created with actors!`, 'success');
-                    A.UI.switchPanel('actors');
+                    if (A.UI.Toast) A.UI.Toast.show(`New project "${name}" created!`, 'success');
+                    A.UI.switchPanel('character'); // Switch to Character panel instead of actors
                     return true;
                   }
                 }
@@ -2206,10 +2216,21 @@ CRITICAL: Respond ONLY with valid JSON:
 
                     // Use first character as main project name
                     const mainName = charNames[0]?.value.trim() || 'Ensemble';
+                    const mainPersonality = charPersonalities[0]?.value.trim() || '';
+                    const scenario = modal.querySelector('#ensemble-scenario')?.value.trim() || '';
 
                     state.meta.id = A.ProjectDB.generateId();
                     state.meta.name = mainName;
                     state.meta.description = `Ensemble woven by Anansi (${charNames.length} chars)`;
+
+                    // Populate Character Panel (Seed)
+                    state.seed = {
+                      characterName: mainName,
+                      chatName: mainName,
+                      persona: mainPersonality,
+                      scenario: scenario,
+                      examples: ''
+                    };
 
                     // Add actors
                     const gender = answers.gender || 'any';
@@ -2230,7 +2251,7 @@ CRITICAL: Respond ONLY with valid JSON:
                     A.UI.refresh();
 
                     if (A.UI.Toast) A.UI.Toast.show(`New project "${mainName}" created with ${createdCount} actors!`, 'success');
-                    A.UI.switchPanel('actors');
+                    A.UI.switchPanel('character'); // Switch to Character panel
                     return true;
                   }
                 }
