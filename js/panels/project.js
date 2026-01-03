@@ -127,8 +127,16 @@
                     </div>
                 </div>
 
-            </div>
+                <!-- AI Disclaimer -->
+                <div class="card" style="border-left: 3px solid var(--accent-primary);">
+                    <div class="card-body" style="font-size: 11px; color: var(--text-secondary);">
+                        <strong>🪄 AI Assistance Available</strong><br>
+                        Look for the magic wand to polish or generate text. These features are optional and require your own API key (configured in the Simulator). Usage consumes tokens.
+                    </div>
+                </div>
 
+            </div>
+            
             <!-- Right: Quick Actions & Health -->
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 
@@ -259,6 +267,13 @@
     container.querySelector('#inp-proj-author').onchange = (e) => { A.State.updateMeta({ author: e.target.value }); notifySave(); };
     container.querySelector('#inp-proj-desc').onchange = (e) => { A.State.updateMeta({ description: e.target.value }); notifySave(); };
 
+    // Attach AI Assistant to Description
+    if (A.UI.Assistant) {
+      A.UI.Assistant.attach(container.querySelector('#inp-proj-desc'), {
+        label: 'Project Manifesto',
+        system: 'You are an expert creative director. Summarize and polish the user\'s project description (manifesto). Keep it evocative but concise.'
+      });
+    }
     // Cover image upload
     const coverPreview = container.querySelector('#project-cover-preview');
     const coverInput = container.querySelector('#cover-input');

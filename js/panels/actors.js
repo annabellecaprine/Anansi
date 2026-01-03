@@ -680,6 +680,26 @@
                 bindCardField('cf-scenario', 'scenario');
                 bindCardField('cf-firstmessage', 'firstMessage');
 
+                // Attach AI Assistant to Card Fields
+                if (A.UI.Assistant) {
+                    A.UI.Assistant.attach(cardSection.querySelector('#cf-personality'), {
+                        label: 'Actor Personality',
+                        system: 'You are an expert character designer. Improve this personality summary.'
+                    });
+                    A.UI.Assistant.attach(cardSection.querySelector('#cf-description'), {
+                        label: 'Actor Description',
+                        system: 'You are an expert character designer. Improve this character description.'
+                    });
+                    A.UI.Assistant.attach(cardSection.querySelector('#cf-scenario'), {
+                        label: 'Actor Scenario',
+                        system: 'You are an expert scenario writer. Improve this character scenario.'
+                    });
+                    A.UI.Assistant.attach(cardSection.querySelector('#cf-firstmessage'), {
+                        label: 'Actor First Message',
+                        system: 'You are a roleplay character. Improve this first message.'
+                    });
+                }
+
                 // Notes (internal, not exported)
                 actor.notes = actor.notes || '';
                 const notesSection = document.createElement('div');
@@ -754,6 +774,14 @@
                 content.querySelector('#app-eyes').onchange = e => { app.eyes = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
                 content.querySelector('#app-build').onchange = e => { app.build = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
                 content.querySelector('#app-desc').onchange = e => { app.description = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
+
+                // Attach AI Assistant to Appearance Description
+                if (A.UI.Assistant) {
+                    A.UI.Assistant.attach(content.querySelector('#app-desc'), {
+                        label: 'Appearance Description',
+                        system: 'You are a visual design expert. Describe this character\'s appearance in vivid detail.'
+                    });
+                }
 
                 PARTS.forEach(p => {
                     content.querySelector(`#app-${p}-present`).onchange = e => {

@@ -308,6 +308,14 @@
                     </div>
                 `;
 
+                // Attach AI Assistant to Description
+                if (A.UI.Assistant) {
+                    A.UI.Assistant.attach(el.querySelector('.loc-desc'), {
+                        label: 'Location Description',
+                        system: 'You are a world-building expert. Describe this location\'s atmosphere, appearance, and significance.'
+                    });
+                }
+
                 // Sub-renders
                 const exList = el.querySelector('.exits-list');
                 (loc.exits || []).forEach((eid, exIdx) => {

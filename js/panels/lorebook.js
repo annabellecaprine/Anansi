@@ -833,6 +833,16 @@
         // Set initial content
         A.QuillManager.setHTML('quill-content', entry.content || '');
       }
+
+      // Attach AI Assistant to Entry Content
+      if (A.UI.Assistant && A.QuillManager) {
+        A.UI.Assistant.attach(document.getElementById('quill-content'), {
+          label: 'Lore Entry',
+          system: 'You are a world-building expert. Write or improve this lorebook entry. Focus on detail, history, and consistency.',
+          getValue: () => A.QuillManager.getText('quill-content'),
+          setValue: (val) => A.QuillManager.setText('quill-content', val)
+        });
+      }
     };
 
     // --- Sub-Helper: Shifts Render ---
@@ -903,6 +913,13 @@
         if (shiftTextarea) {
           const label = shiftTextarea.previousElementSibling;
           if (label) A.Utils.addTokenCounter(shiftTextarea, label);
+
+          if (A.UI.Assistant) {
+            A.UI.Assistant.attach(shiftTextarea, {
+              label: 'Shift Content',
+              system: 'You are a world-building expert. Write or improve this lore shift content.'
+            });
+          }
         }
 
         container.appendChild(form);

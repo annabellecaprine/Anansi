@@ -200,6 +200,41 @@
       const examplesLabel = examplesTextarea.closest('.form-group')?.querySelector('.label');
       if (examplesLabel) A.Utils.addTokenCounter(examplesTextarea, examplesLabel);
     }
+
+    // Attach AI Assistant
+    if (A.UI.Assistant) {
+      // Persona (Quill)
+      A.UI.Assistant.attach(document.getElementById('quill-persona'), {
+        label: 'Persona',
+        system: 'You are an expert character designer. Improve the persona description. Focus on personality, quirks, and background.',
+        getValue: () => A.QuillManager.getText('quill-persona'),
+        setValue: (val) => A.QuillManager.setText('quill-persona', val)
+      });
+
+      // Scenario (Quill)
+      A.UI.Assistant.attach(document.getElementById('quill-scenario'), {
+        label: 'Scenario',
+        system: 'You are an expert scenario writer. Improve the scenario description. Focus on the setting, current situation, and goals.',
+        getValue: () => A.QuillManager.getText('quill-scenario'),
+        setValue: (val) => A.QuillManager.setText('quill-scenario', val)
+      });
+
+      // First Message
+      if (firstMsgTextarea) {
+        A.UI.Assistant.attach(firstMsgTextarea, {
+          label: 'First Message',
+          system: 'You are a roleplay character. Improve this introductory message. Keep it engaging and true to the character\'s voice.'
+        });
+      }
+
+      // Examples
+      if (examplesTextarea) {
+        A.UI.Assistant.attach(examplesTextarea, {
+          label: 'Example Dialogue',
+          system: 'You are a dialogue expert. Write or improve these example dialogue pairs to showcase the character\'s voice and mannerisms.'
+        });
+      }
+    }
   }
 
   A.registerPanel('character', {

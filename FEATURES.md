@@ -1,8 +1,16 @@
 # Anansi: Feature List by Panel
 
-**As of: January 3, 2026 (v1.5.0)**
+**As of: January 3, 2026 (v1.6.0)**
 
 ---
+
+## 🚀 Key Features
+
+### 🪄 AI Text Assistance (New in v1.6.0)
+- **Magic Wand Tool**: Integrated into Project, Character, Actor, Lorebook, and Location panels.
+- **Provider Agnostic**: Use Kobold (Local), Gemini, OpenAI, or any compatible API.
+- **Context Aware**: Specialized system prompts for Personas, Scenarios, and Descriptions.
+- **Privacy Focused**: Keys stored locally; optional usage.
 
 ## 🏛️ LOOM (Project Management)
 
