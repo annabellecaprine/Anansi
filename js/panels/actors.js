@@ -278,8 +278,12 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
                         <input type="file" id="actor-portrait-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
+                        <input type="file" id="actor-card-import" accept="image/png" style="display: none;">
                         <button class="btn btn-sm" id="btn-actor-upload">📷 Upload</button>
                         <button class="btn btn-ghost btn-sm" id="btn-actor-remove" ${!portraitSrc ? 'disabled' : ''}>🗑️ Remove</button>
+                        <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
+                        <button class="btn btn-sm" id="btn-actor-export" ${!portraitSrc ? 'disabled' : ''} title="Export as Character Card v2 PNG">📤 Export Card</button>
+                        <button class="btn btn-ghost btn-sm" id="btn-actor-import" title="Import Character Card v2 PNG">📥 Import Card</button>
                         <div style="font-size: 9px; color: var(--text-muted); max-width: 100px;">
                             PNG, JPG, WebP. Max 500KB.
                         </div>
@@ -315,6 +319,90 @@
                     A.State.notify();
                     portraitPreview.innerHTML = `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`;
                     btnRemove.disabled = true;
+                };
+
+                // Character Card v2 Export
+                const btnExport = portraitCard.querySelector('#btn-actor-export');
+                const btnImport = portraitCard.querySelector('#btn-actor-import');
+                const cardImportInput = portraitCard.querySelector('#actor-card-import');
+
+                btnExport.onclick = async () => {
+                    if (!actor.portrait?.data) {
+                        if (A.UI?.Toast) A.UI.Toast.show('Upload a portrait first to export as Character Card.', 'warning');
+                        return;
+                    }
+
+                    try {
+                        // Get seed data for export
+                        const state = A.State.get();
+                        const seed = state.seed || {};
+
+                        // Convert dataUrl to blob
+                        const dataUrl = actor.portrait.data;
+                        const response = await fetch(dataUrl);
+                        const blob = await response.blob();
+
+                        // Build card data
+                        const cardData = A.CardEncoder.actorToCard(actor, seed);
+
+                        // Embed in PNG
+                        const cardPng = await A.CardEncoder.embed(blob, cardData);
+
+                        // Download
+                        const url = URL.createObjectURL(cardPng);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+
+                        if (A.UI?.Toast) A.UI.Toast.show(`Exported Character Card: ${actor.name}`, 'success');
+                    } catch (err) {
+                        console.error('[Actors] Export error:', err);
+                        if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
+                    }
+                };
+
+                btnImport.onclick = () => cardImportInput.click();
+
+                cardImportInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    try {
+                        // Extract card data from PNG
+                        const cardData = await A.CardEncoder.extract(file);
+
+                        if (!cardData) {
+                            if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found in this PNG.', 'warning');
+                            return;
+                        }
+
+                        // Convert to actor format
+                        const imported = A.CardEncoder.cardToActor(cardData);
+
+                        // Update current actor with imported data
+                        actor.name = imported.name || actor.name;
+                        actor.tags = imported.tags || actor.tags;
+                        actor.notes = imported.notes || actor.notes;
+                        actor.gender = imported.gender || actor.gender;
+                        actor.aliases = imported.aliases || actor.aliases;
+                        actor.traits = { ...actor.traits, ...imported.traits };
+
+                        // Store the PNG as portrait
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            actor.portrait = { type: 'dataUrl', data: ev.target.result, mimeType: 'image/png' };
+                            A.State.notify();
+                            renderTab(); // Re-render to show updates
+                        };
+                        reader.readAsDataURL(file);
+
+                        if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
+                    } catch (err) {
+                        console.error('[Actors] Import error:', err);
+                        if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                    }
                 };
 
                 // Container for Smart Inputs
