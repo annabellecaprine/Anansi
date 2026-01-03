@@ -1030,47 +1030,9 @@
         });
       }
 
-      // Regenerate AI message
-      async function regenerateMessage(index) {
+      // Shared AI Processing Logic
+      const processAIResponse = async (txt) => {
         const state = A.State.get();
-        // Remove everything from this index onwards
-        state.sim.history = state.sim.history.slice(0, index);
-        A.State.notify();
-        refreshChat();
-
-        // Trigger a new AI response
-        if (state.sim.history.length > 0) {
-          const lastUserMsg = [...state.sim.history].reverse().find(m => m.role === 'user');
-          if (lastUserMsg) {
-            // Re-run the sendMessage logic would be complex, so just notify user
-            if (A.UI.Toast) A.UI.Toast.show('Send a new message to regenerate', 'info');
-          }
-        }
-      }
-
-
-      // Initialize after definition
-      refreshChat();
-
-      const sendMessage = async () => {
-        const txt = input.value.trim();
-        if (!txt) return;
-
-        // 0. Push User Message with emotional snapshot
-        const state = A.State.get();
-        state.sim.history.push({
-          role: 'user',
-          content: txt,
-          timestamp: new Date().toISOString(),
-          emotionalSnapshot: {
-            pulse: [...(state.sim.emotions?.all || [])],
-            eros: state.sim.eros?.currentVibe || 0,
-            intent: state.sim.intent || 'unknown',
-            microcuesFired: [] // User messages don't trigger microcues
-          }
-        });
-        input.value = '';
-        refreshChat();
 
         sendBtn.disabled = true;
         sendBtn.textContent = 'Weaving...'; // Processing Scripts
@@ -1118,6 +1080,9 @@
           let systemPrompt = `You are playing the role of ${finalContext.character.name}.\n`;
           if (finalContext.character.personality) systemPrompt += `[Personality: ${stripAuraTags(finalContext.character.personality)}]\n`;
           if (finalContext.character.scenario) systemPrompt += `[Scenario: ${stripAuraTags(finalContext.character.scenario)}]\n`;
+          if (finalContext.character.tags && finalContext.character.tags.length) systemPrompt += `[Active Tags: ${finalContext.character.tags.join(', ')}]\n`;
+          // Note: using state context tags if available, but finalContext should have them merged? 
+          // Previous code used finalContext.tags. Let's stick to previous code if possible.
           if (finalContext.tags && finalContext.tags.length) systemPrompt += `[Active Tags: ${finalContext.tags.join(', ')}]\n`;
 
           // Append Logic Engine Hints (Lorebook)
@@ -1201,6 +1166,53 @@
           sendBtn.disabled = false;
           sendBtn.textContent = 'Send';
         }
+      };
+
+      // Regenerate AI message
+      async function regenerateMessage(index) {
+        const state = A.State.get();
+        // Remove everything from this index onwards
+        state.sim.history = state.sim.history.slice(0, index);
+        A.State.notify();
+        refreshChat();
+
+        // Trigger a new AI response
+        if (state.sim.history.length > 0) {
+          const lastMsg = state.sim.history[state.sim.history.length - 1];
+          // Ensure last message is from user to retry against it
+          if (lastMsg.role === 'user') {
+            await processAIResponse(lastMsg.content);
+          } else {
+            if (A.UI.Toast) A.UI.Toast.show('Cannot regenerate: Context does not end with a user message', 'warning');
+          }
+        }
+      }
+
+
+      // Initialize after definition
+      refreshChat();
+
+      const sendMessage = async () => {
+        const txt = input.value.trim();
+        if (!txt) return;
+
+        // 0. Push User Message with emotional snapshot
+        const state = A.State.get();
+        state.sim.history.push({
+          role: 'user',
+          content: txt,
+          timestamp: new Date().toISOString(),
+          emotionalSnapshot: {
+            pulse: [...(state.sim.emotions?.all || [])],
+            eros: state.sim.eros?.currentVibe || 0,
+            intent: state.sim.intent || 'unknown',
+            microcuesFired: [] // User messages don't trigger microcues
+          }
+        });
+        input.value = '';
+        refreshChat();
+
+        await processAIResponse(txt);
       };
 
       sendBtn.onclick = sendMessage;
