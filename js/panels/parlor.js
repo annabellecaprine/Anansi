@@ -242,6 +242,12 @@ NARRATIVE STYLE (IMPORTANT):
 - Point of View: ${answers.pov === '1st' ? '1st person (I/me) - character narrates their own thoughts' : answers.pov === '2nd' ? '2nd person (you/your) - addressing the reader directly' : '3rd person (he/she/they) - external narrator'}
 - Tense: ${answers.tense === 'past' ? 'Past tense (walked, said, felt)' : 'Present tense (walks, says, feels)'}
 - Write the scenario in the specified POV and tense!
+
+FORMATTING GUIDE (for scenario text):
+- *Single asterisks* for actions and narration: *She turned slowly, her eyes narrowing.*
+- "Quotation marks" for dialogue: "Who are you?" she demanded.
+- **Double asterisks** for emphasis or important terms: **The ancient artifact** gleamed.
+- Use paragraph breaks for pacing and readability.
 ${twistInstruction}
 ${answers.extras ? `\nSPECIAL ELEMENTS REQUESTED:\n${answers.extras}` : ''}
 THEIR STORY CONCEPT:
@@ -1218,12 +1224,17 @@ NARRATIVE STYLE REQUIRED:
 - Tense: ${tenseInstruction}
 - Addressing: {{user}}
 
+FORMATTING GUIDE:
+- *Single asterisks* for actions and narration: *She turned slowly, her eyes narrowing.*
+- "Quotation marks" for dialogue: "Who are you?" she demanded.
+- **Double asterisks** for emphasis: **something important**
+- Use paragraph breaks for pacing.
+
 Guidelines:
 - Stay completely in character
 - Set the scene vividly
 - Create intrigue or emotional hook
 - End with something that invites {{user}} to respond
-- Use *asterisks* for actions and descriptions
 - Length: 2-4 paragraphs
 
 CRITICAL: Respond ONLY with the opening message in character. No meta-commentary.`;
@@ -1362,6 +1373,12 @@ Context from the original request:
 ${answers.concept ? `- Story Concept: ${answers.concept}` : ''}
 
 IMPORTANT: Write the scenario in ${povStyle} and ${tenseStyle}!
+
+FORMATTING GUIDE:
+- *Single asterisks* for actions/narration: *She turned slowly.*
+- "Quotation marks" for dialogue: "Hello," she said.
+- **Double asterisks** for emphasis: **The ancient door** creaked open.
+- Use paragraph breaks for readability.
 
 CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the scenario paragraph(s).`;
 
