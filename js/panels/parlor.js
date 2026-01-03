@@ -353,6 +353,8 @@ FORMATTING:
 - "Quotes" for dialogue: "Hello," she said.
 - **Bold** for emphasis
 - Paragraph breaks for pacing
+- ESCAPE internal double quotes: "Lila \"Flick\" Kane" OR use single quotes: "Lila 'Flick' Kane"
+
 
 CRITICAL: Respond ONLY with valid JSON:
 {"name": "character name", "appearance": "physical description", "personality": "personality text", "scenario": "scenario text"}`;
@@ -432,6 +434,8 @@ FORMATTING GUIDE (for scenario text):
 - "Quotation marks" for dialogue: "Who are you?" she demanded.
 - **Double asterisks** for emphasis or important terms: **The ancient artifact** gleamed.
 - Use paragraph breaks for pacing and readability.
+- ESCAPE internal double quotes: "Lila \"Flick\" Kane" OR use single quotes: "Lila 'Flick' Kane"
+
 ${twistInstruction}
 ${answers.extras ? `\nSPECIAL ELEMENTS REQUESTED:\n${answers.extras}` : ''}
 THEIR STORY CONCEPT:
@@ -1366,7 +1370,7 @@ CRITICAL: Respond ONLY with valid JSON:
         try {
           const jsonMatch = response.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            cardData = JSON.parse(jsonMatch[0]);
+            cardData = safeJsonParse(jsonMatch[0]);
           } else {
             throw new Error('No JSON found');
           }
@@ -1928,6 +1932,8 @@ FORMATTING:
 - *Asterisks* for actions
 - "Quotes" for dialogue
 - **Bold** for emphasis
+- ESCAPE internal double quotes: "Lila \"Flick\" Kane" OR use single quotes: "Lila 'Flick' Kane"
+
 
 CRITICAL: Respond ONLY with valid JSON:
 {
@@ -1955,7 +1961,7 @@ CRITICAL: Respond ONLY with valid JSON:
                   try {
                     const jsonMatch = response.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                      companionData = JSON.parse(jsonMatch[0]);
+                      companionData = safeJsonParse(jsonMatch[0]);
                     }
                   } catch (parseErr) {
                     throw new Error('Failed to parse companion data');
@@ -2226,6 +2232,46 @@ CRITICAL: Respond ONLY with valid JSON:
         }
       ]
     });
+  }
+
+  // Helper to safely parse JSON from LLM that might include unescaped quotes
+  function safeJsonParse(str) {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      console.warn('[Parlor] JSON parse failed, attempting auto-fix...');
+      // Heuristic: identify unescaped double quotes inside strings and escape them.
+      // This is risky but helps with "Lila "Flick" Kane" cases.
+      // Only replace " if it's NOT a structural delimiter.
+      // Structural delimiters are:
+      // Start of value: : "
+      // End of value: " , OR " }
+      // Start of key: " (after { or ,)
+      // End of key: " :
+
+      // Regex approach:
+      // Find " that are NOT preceded by (start of line/file OR { OR [ OR , OR : + optional space)
+      // AND NOT followed by (optional space + } OR ] OR , OR :)
+
+      const fixed = str.replace(/([^\s{\[\,:]\s*)"(\s*[^\s}\]\,:])/g, '$1\\"$2');
+
+      // Also handle the "Nickname" case specifically where it might be surrounded by spaces inside a string
+      // "Lila "Flick" Kane" -> "Lila \"Flick\" Kane"
+      // The inner quotes are preceded by a char that is not \ and followed by a char that is not structure
+
+      // Let's try a simpler specific fix for the user's case first:
+      // "Name "Nickname" Surname"
+      const fixed2 = str.replace(/(?<=\w)\s*"\s*(?=\w)/g, '\\"').replace(/(?<=\w)\s*"\s*(?=\w)/g, '\\"');
+
+      try {
+        return JSON.parse(fixed2);
+      } catch (e2) {
+        // Last ditch: replace ALL quotes that aren't structural
+        // This is too hard to do perfectly with regex.
+        // Let's rely on the prompt update primarily.
+        throw e;
+      }
+    }
   }
 
   function escapeHtml(str) {
