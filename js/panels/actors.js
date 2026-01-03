@@ -485,26 +485,30 @@
 
                 const cardSection = document.createElement('div');
                 cardSection.innerHTML = `
-                    <h3 style="margin-top:20px; font-size:13px; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
-                        📋 Character Card Fields
-                        <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(for standalone export)</span>
-                    </h3>
-                    <div class="form-col" style="margin-bottom:12px;">
-                        <label class="field-label">Personality</label>
-                        <textarea class="input" id="cf-personality" style="height:80px; resize:vertical;" placeholder="Brief personality summary (traits, demeanor, quirks)...">${escapeForTextarea(cf.personality || '')}</textarea>
-                    </div>
-                    <div class="form-col" style="margin-bottom:12px;">
-                        <label class="field-label">Description</label>
-                        <textarea class="input" id="cf-description" style="height:100px; resize:vertical;" placeholder="Full character description (background, appearance, motivations)...">${escapeForTextarea(cf.description || '')}</textarea>
-                    </div>
-                    <div class="form-col" style="margin-bottom:12px;">
-                        <label class="field-label">Scenario</label>
-                        <textarea class="input" id="cf-scenario" style="height:60px; resize:vertical;" placeholder="Context for this character (setting, current situation)...">${escapeForTextarea(cf.scenario || '')}</textarea>
-                    </div>
-                    <div class="form-col" style="margin-bottom:12px;">
-                        <label class="field-label">First Message</label>
-                        <textarea class="input" id="cf-firstmessage" style="height:80px; resize:vertical;" placeholder="Opening message when someone starts a chat with this character...">${escapeForTextarea(cf.firstMessage || '')}</textarea>
-                    </div>
+                    <details style="margin-top:16px;">
+                        <summary style="font-size:13px; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 0;">
+                            📋 Character Card Fields
+                            <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(for standalone export)</span>
+                        </summary>
+                        <div style="padding-top:12px;">
+                            <div class="form-col" style="margin-bottom:12px;">
+                                <label class="field-label">Personality</label>
+                                <textarea class="input" id="cf-personality" style="height:80px; resize:vertical;" placeholder="Brief personality summary (traits, demeanor, quirks)...">${escapeForTextarea(cf.personality || '')}</textarea>
+                            </div>
+                            <div class="form-col" style="margin-bottom:12px;">
+                                <label class="field-label">Description</label>
+                                <textarea class="input" id="cf-description" style="height:100px; resize:vertical;" placeholder="Full character description (background, appearance, motivations)...">${escapeForTextarea(cf.description || '')}</textarea>
+                            </div>
+                            <div class="form-col" style="margin-bottom:12px;">
+                                <label class="field-label">Scenario</label>
+                                <textarea class="input" id="cf-scenario" style="height:60px; resize:vertical;" placeholder="Context for this character (setting, current situation)...">${escapeForTextarea(cf.scenario || '')}</textarea>
+                            </div>
+                            <div class="form-col" style="margin-bottom:12px;">
+                                <label class="field-label">First Message</label>
+                                <textarea class="input" id="cf-firstmessage" style="height:80px; resize:vertical;" placeholder="Opening message when someone starts a chat with this character...">${escapeForTextarea(cf.firstMessage || '')}</textarea>
+                            </div>
+                        </div>
+                    </details>
                 `;
                 smartContainer.appendChild(cardSection);
 
