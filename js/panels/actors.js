@@ -285,10 +285,8 @@
                         </div>
                     </div>
                 `;
-                content.innerHTML = idRow;
-                content.appendChild(portraitCard);
 
-                // Portrait event handlers
+                // Portrait event handlers (card appended later with smartContainer)
                 const portraitInput = portraitCard.querySelector('#actor-portrait-input');
                 const btnUpload = portraitCard.querySelector('#btn-actor-upload');
                 const btnRemove = portraitCard.querySelector('#btn-actor-remove');
@@ -398,6 +396,7 @@
                 smartContainer.appendChild(notesSection);
 
                 content.innerHTML = idRow;
+                content.appendChild(portraitCard);
                 content.appendChild(smartContainer);
 
                 // Notes Binding
