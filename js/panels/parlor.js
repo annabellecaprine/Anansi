@@ -444,6 +444,60 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
   }
 
   // ============================================
+  // ENSEMBLE PROMPT BUILDER (2-4 characters with relationships)
+  // ============================================
+  function buildEnsemblePrompt(answers) {
+    const ratingGuide = {
+      sfw: 'Keep content family-friendly and wholesome.',
+      mature: 'Mature themes are acceptable (violence, darker emotions, suggestive content).',
+      explicit: 'Adult/explicit content is permitted if it serves the story.'
+    };
+
+    return `You are Anansi, the Spider God and Master of Stories.
+A storyteller has approached your web seeking an ENSEMBLE CAST for an interactive roleplay narrative.
+
+CRITICAL: This is for interactive fiction where the USER will be a participant in the story.
+
+ENSEMBLE DETAILS FROM THE STORYTELLER:
+${answers.ensemble_details || 'Create 2-4 interesting characters with compelling dynamics.'}
+
+STORYTELLER'S REQUIREMENTS:
+- Genre: ${answers.genre}
+- Tone: ${answers.tone}
+- Rating: ${ratingGuide[answers.rating] || ratingGuide.sfw}
+- Lead Character Gender: ${answers.gender === 'any' ? 'any' : answers.gender}
+
+NARRATIVE STYLE:
+- POV: ${answers.pov === '1st' ? '1st person' : answers.pov === '2nd' ? '2nd person' : '3rd person'}
+- Tense: ${answers.tense === 'past' ? 'past tense' : 'present tense'}
+
+${answers.extras ? `SPECIAL ELEMENTS: ${answers.extras}` : ''}
+STORY CONCEPT: ${answers.concept}
+
+Create an ensemble cast of 2-4 characters with:
+1. Each character has a distinct name, personality, and role
+2. Clear relationships and dynamics between characters
+3. ONE shared scenario where {{user}} encounters the group
+
+FORMATTING:
+- *Asterisks* for actions: *She glanced at him.*
+- "Quotes" for dialogue
+- **Bold** for emphasis
+
+CRITICAL: Respond ONLY with valid JSON:
+{
+  "characters": [
+    { "name": "...", "personality": "2-3 paragraphs", "role": "protagonist/support" },
+    { "name": "...", "personality": "2-3 paragraphs", "role": "..." }
+  ],
+  "relationships": [
+    { "between": ["Name1", "Name2"], "dynamic": "description of their connection" }
+  ],
+  "scenario": "shared scenario where {{user}} meets the ensemble"
+}`;
+  }
+
+  // ============================================
   // RENDER FUNCTION
   // ============================================
   function render(container) {
@@ -1232,22 +1286,30 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
 
       try {
-        // Use Quick Start prompt for quick mode, full prompt otherwise
-        const systemPrompt = answers.mode === 'quick'
-          ? buildQuickStartPrompt(answers)
-          : buildSystemPrompt(answers);
+        // Determine which prompt to use
+        let systemPrompt;
+        const isEnsemble = answers.mode === 'full' && answers.cast === 'ensemble';
+
+        if (answers.mode === 'quick') {
+          systemPrompt = buildQuickStartPrompt(answers);
+        } else if (isEnsemble) {
+          systemPrompt = buildEnsemblePrompt(answers);
+        } else {
+          systemPrompt = buildSystemPrompt(answers);
+        }
+
         const response = await callParlorLLM(
           config.provider,
           config.model,
           apiKey,
           systemPrompt,
-          "Please weave the character now.",
+          "Please weave the character(s) now.",
           config.baseUrl
         );
 
         setSparkle(false);
 
-        // Parse response
+        // Parse the response
         let cardData;
         try {
           const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -1262,20 +1324,37 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
           return;
         }
 
-        // Show success
-        const successMsg = document.createElement('div');
-        successMsg.className = 'parlor-message anansi';
-        successMsg.innerHTML = `
-          <div class="anansi-label">🕷️ Anansi</div>
-          <div class="anansi-text">
-            The weave is complete. I present to you: <strong>${escapeHtml(cardData.name)}</strong>
-          </div>
-        `;
-        conversationLog.appendChild(successMsg);
-        scrollToBottom();
+        // Handle ensemble vs single character
+        if (isEnsemble && cardData.characters) {
+          // Ensemble success
+          const names = cardData.characters.map(c => c.name).join(', ');
+          const successMsg = document.createElement('div');
+          successMsg.className = 'parlor-message anansi';
+          successMsg.innerHTML = `
+            <div class="anansi-label">🕷️ Anansi</div>
+            <div class="anansi-text">
+              The ensemble is woven. I present to you: <strong>${escapeHtml(names)}</strong>
+            </div>
+          `;
+          conversationLog.appendChild(successMsg);
+          scrollToBottom();
 
-        // Show preview modal
-        setTimeout(() => showPreviewModal(cardData, answers), 1000);
+          setTimeout(() => showEnsemblePreview(cardData, answers), 1000);
+        } else {
+          // Single character success
+          const successMsg = document.createElement('div');
+          successMsg.className = 'parlor-message anansi';
+          successMsg.innerHTML = `
+            <div class="anansi-label">🕷️ Anansi</div>
+            <div class="anansi-text">
+              The weave is complete. I present to you: <strong>${escapeHtml(cardData.name)}</strong>
+            </div>
+          `;
+          conversationLog.appendChild(successMsg);
+          scrollToBottom();
+
+          setTimeout(() => showPreviewModal(cardData, answers), 1000);
+        }
 
       } catch (err) {
         setSparkle(false);
@@ -1599,6 +1678,312 @@ CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the
             }
 
             return false; // Don't close modal
+          }
+        },
+        {
+          label: '👥 Add Companion',
+          class: 'btn-ghost',
+          onclick: async (modal) => {
+            const mainName = modal.querySelector('#preview-name').value.trim();
+            const mainPersonality = modal.querySelector('#preview-personality').value.trim();
+            const scenario = modal.querySelector('#preview-scenario').value.trim();
+
+            if (!mainName || !mainPersonality) {
+              if (A.UI.Toast) A.UI.Toast.show('Need main character first!', 'warning');
+              return false;
+            }
+
+            // Show relationship type selector
+            const relationshipTypes = [
+              { label: '💕 Love Interest', value: 'love_interest', desc: 'Romantic tension or attraction between them' },
+              { label: '⚔️ Rival', value: 'rival', desc: 'Competition, conflict, or opposing goals' },
+              { label: '🎓 Mentor', value: 'mentor', desc: 'Teacher, guide, or protective figure' },
+              { label: '🌱 Protégé', value: 'protege', desc: 'Student, ward, or someone they protect' },
+              { label: '👨‍👩‍👧 Sibling', value: 'sibling', desc: 'Family bond, shared history' },
+              { label: '🎲 Surprise Me', value: 'surprise', desc: 'Let Anansi decide the connection' }
+            ];
+
+            // Create inline selector
+            let selectedRelation = null;
+            const selectorHtml = `
+              <div style="margin-bottom: 16px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-main);">What binds these two souls together?</div>
+                <div id="relation-selector" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  ${relationshipTypes.map(r => `
+                    <button class="btn btn-ghost btn-sm relation-btn" data-value="${r.value}" title="${r.desc}" style="border: 1px solid var(--border-subtle);">
+                      ${r.label}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+              <div id="companion-status" style="text-align: center; padding: 20px; color: var(--text-muted); display: none;">
+                ✧ Weaving a companion...
+              </div>
+            `;
+
+            // Insert selector before scenario
+            const scenarioGroup = modal.querySelector('#preview-scenario').parentElement;
+            const selectorDiv = document.createElement('div');
+            selectorDiv.id = 'companion-selector-container';
+            selectorDiv.innerHTML = selectorHtml;
+            scenarioGroup.parentElement.insertBefore(selectorDiv, scenarioGroup);
+
+            // Wire up buttons
+            const relationBtns = selectorDiv.querySelectorAll('.relation-btn');
+            const statusDiv = selectorDiv.querySelector('#companion-status');
+
+            relationBtns.forEach(btn => {
+              btn.onclick = async () => {
+                selectedRelation = btn.dataset.value;
+
+                // Highlight selected
+                relationBtns.forEach(b => b.style.background = '');
+                btn.style.background = 'var(--accent-soft)';
+
+                // Show status
+                selectorDiv.querySelector('#relation-selector').style.display = 'none';
+                statusDiv.style.display = 'block';
+
+                // Get API config
+                const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
+                const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+                const apiKey = keys[activeKeyName];
+
+                if (!apiKey) {
+                  statusDiv.textContent = 'No API key configured!';
+                  return;
+                }
+
+                const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
+
+                const relationDescriptions = {
+                  love_interest: 'a love interest - romantic tension, attraction, or deep emotional connection',
+                  rival: 'a rival - competition, conflict, opposing goals, or professional tension',
+                  mentor: 'a mentor - teacher, guide, protector, or wise figure who shapes their path',
+                  protege: 'a protégé - student, ward, or someone they feel protective of',
+                  sibling: 'a sibling - shared blood, family history, and all the complexity that brings',
+                  surprise: 'a compelling connection that fits the story naturally'
+                };
+
+                const companionPrompt = `You are Anansi, the Spider God. A storyteller has woven one soul and now seeks a companion for them.
+
+THE MAIN CHARACTER:
+Name: ${mainName}
+Personality: ${mainPersonality}
+
+CURRENT SCENARIO:
+${scenario}
+
+Create a COMPANION CHARACTER who is ${relationDescriptions[selectedRelation]} for ${mainName}.
+
+The companion must:
+1. Complement or contrast the main character interestingly
+2. Have their own distinct personality, not just exist for the main character
+3. Fit naturally into the existing scenario
+4. Create narrative tension or emotional depth
+
+ALSO update the scenario to include BOTH characters and how {{user}} encounters them together.
+
+FORMATTING:
+- *Asterisks* for actions
+- "Quotes" for dialogue
+- **Bold** for emphasis
+
+CRITICAL: Respond ONLY with valid JSON:
+{
+  "companion": {
+    "name": "companion name",
+    "personality": "2-3 paragraphs about who they are"
+  },
+  "relationship": "one paragraph describing the dynamic between ${mainName} and the companion",
+  "scenario": "updated scenario featuring BOTH characters and how {{user}} meets them"
+}`;
+
+                try {
+                  const response = await callParlorLLM(
+                    config.provider,
+                    config.model,
+                    apiKey,
+                    companionPrompt,
+                    "Generate the companion now.",
+                    config.baseUrl
+                  );
+
+                  // Parse response
+                  let companionData;
+                  try {
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      companionData = JSON.parse(jsonMatch[0]);
+                    }
+                  } catch (parseErr) {
+                    throw new Error('Failed to parse companion data');
+                  }
+
+                  if (!companionData || !companionData.companion) {
+                    throw new Error('Invalid companion data received');
+                  }
+
+                  // Update the modal to show both characters
+                  selectorDiv.innerHTML = `
+                    <div style="background: var(--accent-soft); border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px;">
+                      <div style="font-weight: 600; color: var(--accent-primary); margin-bottom: 8px;">
+                        👥 Companion: ${escapeHtml(companionData.companion.name)}
+                      </div>
+                      <div style="font-size: 12px; margin-bottom: 8px; font-style: italic; color: var(--text-muted);">
+                        ${escapeHtml(companionData.relationship || '')}
+                      </div>
+                      <textarea id="companion-personality" class="input" style="height: 100px; resize: vertical; font-size: 12px;">${escapeHtml(companionData.companion.personality || '')}</textarea>
+                    </div>
+                  `;
+
+                  // Update scenario
+                  modal.querySelector('#preview-scenario').value = companionData.scenario || scenario;
+
+                  if (A.UI.Toast) A.UI.Toast.show(`${companionData.companion.name} joins the story!`, 'success');
+
+                } catch (err) {
+                  statusDiv.textContent = 'Failed: ' + err.message;
+                  selectorDiv.querySelector('#relation-selector').style.display = 'flex';
+                  statusDiv.style.display = 'none';
+                }
+              };
+            });
+
+            return false; // Don't close modal
+          }
+        }
+      ]
+    });
+  }
+
+  // ============================================
+  // ENSEMBLE PREVIEW MODAL
+  // ============================================
+  function showEnsemblePreview(ensembleData, answers) {
+    const characters = ensembleData.characters || [];
+    const relationships = ensembleData.relationships || [];
+    const scenario = ensembleData.scenario || '';
+
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-height: 60vh; overflow-y: auto;">
+        <!-- Character Cards -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          ${characters.map((char, i) => `
+            <div class="card" style="margin: 0; padding: 12px; border-left: 3px solid var(--accent-primary);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <input type="text" class="input char-name" data-idx="${i}" value="${escapeHtml(char.name || '')}" 
+                  style="font-weight: 600; font-size: 14px; width: 70%;">
+                <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(char.role || 'character')}</span>
+              </div>
+              <textarea class="input char-personality" data-idx="${i}" style="height: 80px; resize: vertical; font-size: 12px;">${escapeHtml(char.personality || '')}</textarea>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Relationships -->
+        ${relationships.length > 0 ? `
+          <div class="card" style="margin: 0; padding: 12px; background: var(--accent-soft);">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--accent-primary);">🕸️ Web of Connections</div>
+            ${relationships.map(r => `
+              <div style="font-size: 12px; margin-bottom: 4px;">
+                <strong>${escapeHtml(Array.isArray(r.between) ? r.between.join(' ↔ ') : 'Connection')}</strong>: 
+                ${escapeHtml(r.dynamic || '')}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <!-- Shared Scenario -->
+        <div class="form-group">
+          <label class="label">Shared Scenario</label>
+          <textarea id="ensemble-scenario" class="input" style="height: 120px; resize: vertical;">${escapeHtml(scenario)}</textarea>
+        </div>
+
+        <div style="
+          padding: 12px;
+          background: var(--bg-surface);
+          border-radius: var(--radius-md);
+          font-size: 11px;
+          color: var(--text-muted);
+        ">
+          <strong>Woven with:</strong> ${answers.genre || 'fantasy'} / ${answers.tone || 'dramatic'} / ${answers.rating || 'mature'}
+        </div>
+      </div>
+    `;
+
+    A.UI.Modal.show({
+      title: '🕸️ Your Ensemble Awaits',
+      content: content,
+      width: 650,
+      actions: [
+        {
+          label: 'Discard',
+          class: 'btn-secondary',
+          onclick: () => true
+        },
+        {
+          label: '✓ Create Project',
+          class: 'btn-primary',
+          onclick: async (modal) => {
+            // Gather all character data
+            const charNames = modal.querySelectorAll('.char-name');
+            const charPersonalities = modal.querySelectorAll('.char-personality');
+            const scenarioText = modal.querySelector('#ensemble-scenario').value.trim();
+
+            const isFull = await A.ProjectDB.isFull();
+            if (isFull) {
+              if (A.UI.Toast) A.UI.Toast.show('The web is full. Delete a project to make room.', 'error');
+              return false;
+            }
+
+            await A.IO.saveNow();
+            A.State.reset();
+            const state = A.State.get();
+
+            // Use first character as main
+            const mainName = charNames[0]?.value.trim() || 'Ensemble';
+            const mainPersonality = charPersonalities[0]?.value.trim() || '';
+
+            state.meta.id = A.ProjectDB.generateId();
+            state.meta.name = mainName;
+            state.meta.description = `Ensemble woven by Anansi (${characters.length} chars)`;
+
+            state.seed = state.seed || {};
+            state.seed.characterName = mainName;
+            state.seed.chatName = mainName;
+            state.seed.persona = mainPersonality;
+            state.seed.scenario = scenarioText;
+
+            // Add additional characters to notes or as separate actors if we have the structure
+            if (characters.length > 1) {
+              let ensembleNotes = '=== ENSEMBLE CAST ===\n\n';
+              for (let i = 0; i < charNames.length; i++) {
+                const name = charNames[i]?.value.trim() || `Character ${i + 1}`;
+                const personality = charPersonalities[i]?.value.trim() || '';
+                ensembleNotes += `## ${name}\n${personality}\n\n`;
+              }
+              if (relationships.length > 0) {
+                ensembleNotes += '=== RELATIONSHIPS ===\n\n';
+                relationships.forEach(r => {
+                  const between = Array.isArray(r.between) ? r.between.join(' ↔ ') : 'Connection';
+                  ensembleNotes += `${between}: ${r.dynamic || ''}\n`;
+                });
+              }
+              state.seed.characterNotes = ensembleNotes;
+            }
+
+            await A.ProjectDB.save(state);
+            A.ProjectDB.setCurrentId(state.meta.id);
+
+            A.State.notify();
+            A.UI.refresh();
+
+            if (A.UI.Toast) A.UI.Toast.show(`Ensemble "${mainName}" has been woven!`, 'success');
+            A.UI.switchPanel('character');
+
+            return true;
           }
         }
       ]
