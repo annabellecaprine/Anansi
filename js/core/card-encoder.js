@@ -232,17 +232,20 @@
 
     /**
      * Convert actor data to Character Card v2 format
+     * Prioritizes actor.cardFields for standalone export, falls back to seed
      */
     function actorToCharaCard(actor, seed = {}) {
+        const cf = actor.cardFields || {};
         return {
             spec: 'chara_card_v2',
             spec_version: '2.0',
             data: {
                 name: actor.name || 'Unnamed',
-                description: actor.traits?.description || '',
-                personality: actor.traits?.personality || '',
-                scenario: seed.scenario || '',
-                first_mes: seed.firstMessage || '',
+                // Prefer cardFields, fall back to traits, then seed
+                description: cf.description || actor.traits?.description || '',
+                personality: cf.personality || actor.traits?.personality || '',
+                scenario: cf.scenario || seed.scenario || '',
+                first_mes: cf.firstMessage || seed.firstMessage || '',
                 mes_example: seed.examples || '',
                 creator_notes: actor.notes || '',
                 system_prompt: '',
@@ -275,6 +278,12 @@
             traits: {
                 description: d.description || '',
                 personality: d.personality || ''
+            },
+            cardFields: {
+                personality: d.personality || '',
+                description: d.description || '',
+                scenario: d.scenario || '',
+                firstMessage: d.first_mes || ''
             },
             imported: {
                 scenario: d.scenario || '',
