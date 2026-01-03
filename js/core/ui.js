@@ -337,8 +337,9 @@
                     const btn = document.createElement('button');
                     btn.className = `btn ${act.class || 'btn-secondary'} btn-sm`;
                     btn.textContent = act.label;
-                    btn.onclick = () => {
-                        if (act.onclick(modal) !== false) this.hide(overlay);
+                    btn.onclick = async () => {
+                        const result = await act.onclick(modal);
+                        if (result !== false) this.hide(overlay);
                     };
                     footer.appendChild(btn);
                 });
