@@ -110,6 +110,28 @@
       ]
     },
     {
+      id: 'challenge',
+      text: "*The spider's eyes glint with mischief...* Why don't we make things a little more interesting?",
+      type: 'buttons',
+      options: [
+        { label: '✨ Yes, spice it up!', value: 'yes' },
+        { label: '🕊️ Keep it simple', value: 'no' }
+      ]
+    },
+    {
+      id: 'challenge_type',
+      text: "Ohoho! Then tell me... what secret spice shall we add to this tale?",
+      type: 'buttons',
+      condition: (answers) => answers.challenge === 'yes',
+      options: [
+        { label: '🔮 A Dark Secret', value: 'secret' },
+        { label: '💔 Forbidden Connection', value: 'forbidden' },
+        { label: '👤 Hidden Identity', value: 'identity' },
+        { label: '⚡ Dangerous Power', value: 'power' },
+        { label: '🎲 Surprise Me', value: 'surprise' }
+      ]
+    },
+    {
       id: 'concept',
       text: "Now then... whisper to me the seed of your story. What vision burns in your mind?",
       type: 'textarea',
@@ -162,6 +184,18 @@
       any: 'Choose an archetype that best fits the story concept.'
     };
 
+    const challengeTwists = {
+      secret: 'The character harbors a DARK SECRET that could change everything if revealed. Hint at it subtly in the personality.',
+      forbidden: 'There is a FORBIDDEN CONNECTION or attraction involved - something taboo, against the rules, or that society disapproves of.',
+      identity: 'The character has a HIDDEN IDENTITY - they are not who they appear to be. Their true nature is concealed.',
+      power: 'The character possesses a DANGEROUS POWER they must hide or struggle to control. It could be magical, political, or psychological.',
+      surprise: 'Add an unexpected narrative twist that adds depth and intrigue to the character.'
+    };
+
+    const twistInstruction = answers.challenge === 'yes' && answers.challenge_type
+      ? `\n\nNARRATIVE TWIST REQUESTED:\n${challengeTwists[answers.challenge_type] || challengeTwists.surprise}`
+      : '';
+
     return `You are Anansi, the Spider God and Master of Stories.
 A storyteller has approached your web seeking help crafting a character for an INTERACTIVE roleplay narrative.
 
@@ -184,8 +218,8 @@ STORYTELLER'S REQUIREMENTS:
 - Tone: ${answers.tone}
 - Rating: ${ratingGuide[answers.rating] || ratingGuide.sfw}
 - User's Role: ${userRoleDescriptions[answers.user_role] || userRoleDescriptions.surprise}
-
-${answers.extras ? `SPECIAL ELEMENTS REQUESTED:\n${answers.extras}\n` : ''}
+${twistInstruction}
+${answers.extras ? `\nSPECIAL ELEMENTS REQUESTED:\n${answers.extras}` : ''}
 THEIR STORY CONCEPT:
 ${answers.concept}
 
@@ -672,6 +706,8 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       tone: '☽',        // Crescent moon
       rating: '⚗',      // Alembic
       user_role: '⚔',   // Crossed swords
+      challenge: '⚡',   // Lightning - challenge
+      challenge_type: '🜏', // Alchemical twist
       concept: '✴',     // Eight-pointed star
       extras: '❈',      // Decorative
     };
@@ -835,7 +871,8 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
         'tone:dark': "*Delicious.* The darkness holds many secrets.",
         'genre:horror': "*Oh, you want to feel something.* Good.",
         'cast:ensemble': "*Multiple threads to weave!* This shall be... intricate.",
-        'user_role:rival': "*Conflict breeds the finest tales.* I approve."
+        'user_role:rival': "*Conflict breeds the finest tales.* I approve.",
+        'challenge:yes': "*Ohohoho!* I knew you had spirit. Let us add some... spice."
       };
 
       const flavorKey = `${question.id}:${option.value}`;
@@ -1059,6 +1096,40 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
           <textarea id="preview-scenario" class="input" style="height: 100px; resize: vertical;">${escapeHtml(cardData.scenario || '')}</textarea>
         </div>
         
+        <!-- First Message Section -->
+        <div class="form-group">
+          <label class="label" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>First Message (Optional)</span>
+            <button id="btn-generate-opening" class="btn btn-ghost btn-sm" style="font-size: 11px;">
+              ✨ Generate Opening
+            </button>
+          </label>
+          <div id="first-message-container" style="
+            min-height: 60px;
+            background: linear-gradient(135deg, rgba(218, 165, 32, 0.05) 0%, rgba(139, 69, 19, 0.05) 100%);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            position: relative;
+          ">
+            <textarea id="preview-first-message" class="input" style="
+              height: 80px; 
+              resize: vertical; 
+              background: transparent;
+              border: none;
+              padding: 0;
+            " placeholder="Click 'Generate Opening' to create a first message as the character..."></textarea>
+            <button id="btn-copy-first-message" class="btn btn-ghost btn-sm" style="
+              position: absolute;
+              top: 8px;
+              right: 8px;
+              font-size: 10px;
+              opacity: 0.6;
+              display: none;
+            ">📋 Copy</button>
+          </div>
+        </div>
+        
         <div style="
           padding: 12px;
           background: var(--bg-surface);
@@ -1070,6 +1141,85 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
         </div>
       </div>
     `;
+
+    // Wire up Generate Opening button
+    const generateBtn = content.querySelector('#btn-generate-opening');
+    const firstMessageField = content.querySelector('#preview-first-message');
+    const copyBtn = content.querySelector('#btn-copy-first-message');
+
+    generateBtn.onclick = async () => {
+      const name = content.querySelector('#preview-name').value.trim();
+      const personality = content.querySelector('#preview-personality').value.trim();
+      const scenario = content.querySelector('#preview-scenario').value.trim();
+
+      if (!name || !personality) {
+        if (A.UI.Toast) A.UI.Toast.show('Need name and personality first!', 'warning');
+        return;
+      }
+
+      generateBtn.disabled = true;
+      generateBtn.textContent = '✧ Generating...';
+      firstMessageField.value = '';
+      firstMessageField.placeholder = 'Weaving an opening...';
+
+      const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
+      const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+      const apiKey = keys[activeKeyName];
+
+      if (!apiKey) {
+        generateBtn.disabled = false;
+        generateBtn.textContent = '✨ Generate Opening';
+        firstMessageField.placeholder = 'No API key configured!';
+        return;
+      }
+
+      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
+
+      const openingPrompt = `You are "${name}", a character with this personality:
+
+${personality}
+
+The scenario is:
+${scenario}
+
+Write the OPENING MESSAGE of a roleplay as this character. This is the first thing ${name} says or does when the story begins. Write in second person addressing {{user}}.
+
+Guidelines:
+- Stay completely in character
+- Set the scene vividly
+- Create intrigue or emotional hook
+- End with something that invites {{user}} to respond
+- Use *asterisks* for actions and descriptions
+- Length: 2-4 paragraphs
+
+CRITICAL: Respond ONLY with the opening message in character. No meta-commentary.`;
+
+      try {
+        const response = await callParlorLLM(
+          config.provider,
+          config.model,
+          apiKey,
+          openingPrompt,
+          "Write the opening message now.",
+          config.baseUrl
+        );
+
+        firstMessageField.value = response.trim();
+        copyBtn.style.display = 'block';
+        if (A.UI.Toast) A.UI.Toast.show('Opening message woven!', 'success');
+      } catch (err) {
+        firstMessageField.value = '';
+        firstMessageField.placeholder = 'Failed: ' + err.message;
+      }
+
+      generateBtn.disabled = false;
+      generateBtn.textContent = '✨ Generate Opening';
+    };
+
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(firstMessageField.value);
+      if (A.UI.Toast) A.UI.Toast.show('Copied to clipboard!', 'info');
+    };
 
     A.UI.Modal.show({
       title: '🕸️ Your Story Awaits',
