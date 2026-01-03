@@ -50,6 +50,19 @@
         : "And the protagonist of this tale... what form do they take?"
     },
     {
+      id: 'archetype',
+      text: "What archetype calls to your soul? What essence shall define them?",
+      type: 'buttons',
+      options: [
+        { label: '🎭 The Trickster', value: 'trickster' },
+        { label: '🛡️ The Guardian', value: 'guardian' },
+        { label: '🌍 The Wanderer', value: 'wanderer' },
+        { label: '💕 The Lover', value: 'lover' },
+        { label: '🌑 The Shadow', value: 'shadow' },
+        { label: '❓ Surprise Me', value: 'any' }
+      ]
+    },
+    {
       id: 'genre',
       text: "Every tale needs its world. What realm calls to you?",
       type: 'buttons',
@@ -140,6 +153,15 @@
       surprise: 'Create an interesting dynamic between the user and character that fits the story.'
     };
 
+    const archetypeDescriptions = {
+      trickster: 'The Trickster - cunning, playful, loves mischief and bending rules. Clever and unpredictable.',
+      guardian: 'The Guardian - protective, noble, devoted to those they care for. Strong moral compass.',
+      wanderer: 'The Wanderer - restless, curious, driven by adventure and discovery. Free-spirited.',
+      lover: 'The Lover - passionate, devoted, deeply emotional. Lives for connection and intimacy.',
+      shadow: 'The Shadow - complex, morally gray, harboring secrets or darkness. Intriguing and layered.',
+      any: 'Choose an archetype that best fits the story concept.'
+    };
+
     return `You are Anansi, the Spider God and Master of Stories.
 A storyteller has approached your web seeking help crafting a character for an INTERACTIVE roleplay narrative.
 
@@ -157,6 +179,7 @@ Based on their vision, weave a character card with:
 STORYTELLER'S REQUIREMENTS:
 - Cast: ${castType}${answers.ensemble_details ? `\n- Ensemble Details: ${answers.ensemble_details}` : ''}
 - Protagonist: ${genderHint}
+- Archetype: ${archetypeDescriptions[answers.archetype] || archetypeDescriptions.any}
 - Genre: ${answers.genre}
 - Tone: ${answers.tone}
 - Rating: ${ratingGuide[answers.rating] || ratingGuide.sfw}
@@ -644,6 +667,7 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       cast: '☿',        // Mercury - transformation
       ensemble_details: '⚶', // Additional symbol
       gender: '⚥',      // Gender symbol
+      archetype: '⚹',   // Sextile - essence/archetype
       genre: '✧',       // Star
       tone: '☽',        // Crescent moon
       rating: '⚗',      // Alembic
@@ -801,6 +825,34 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
       conversationLog.appendChild(userMsg);
       scrollToBottom();
 
+      // Anansi's Voice Flavor - playful reactions to certain choices
+      const voiceFlavors = {
+        'rating:explicit': "*My my, not shy are we?* The web trembles with possibilities...",
+        'rating:mature': "*Ah, a taste for the shadows.* I understand.",
+        'archetype:trickster': "*Hehehe...* A kindred spirit, perhaps?",
+        'archetype:shadow': "*Yesss...* The most interesting souls dwell in gray.",
+        'archetype:lover': "*Ah, the heart's path.* A beautiful choice.",
+        'tone:dark': "*Delicious.* The darkness holds many secrets.",
+        'genre:horror': "*Oh, you want to feel something.* Good.",
+        'cast:ensemble': "*Multiple threads to weave!* This shall be... intricate.",
+        'user_role:rival': "*Conflict breeds the finest tales.* I approve."
+      };
+
+      const flavorKey = `${question.id}:${option.value}`;
+      const flavor = voiceFlavors[flavorKey];
+
+      if (flavor) {
+        const flavorMsg = document.createElement('div');
+        flavorMsg.className = 'parlor-message anansi';
+        flavorMsg.innerHTML = `
+          <div class="anansi-text" style="font-style: italic; opacity: 0.9; padding: 8px 12px; font-size: 13px;">
+            ${flavor}
+          </div>
+        `;
+        conversationLog.appendChild(flavorMsg);
+        scrollToBottom();
+      }
+
       // Special handling for 'weave' confirmation
       if (option.value === 'weave') {
         startWeaving();
@@ -809,7 +861,7 @@ CRITICAL: Respond ONLY with valid JSON in this exact format, no markdown, no exp
 
       // Advance
       currentStep++;
-      setTimeout(() => advanceConversation(), 500);
+      setTimeout(() => advanceConversation(), flavor ? 800 : 500);
     }
 
     function showTextarea(question) {
