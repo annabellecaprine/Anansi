@@ -254,162 +254,307 @@
             content.appendChild(style);
 
             if (activeTab === 'profile') {
-                // Ensure portrait exists
-                actor.portrait = actor.portrait || null;
+                // ========== GALLERY SYSTEM ==========
+                // Configuration
+                const MAX_GALLERY_IMAGES = 20;
+                const FOLDERS = ['all', 'sfw', 'nsfw'];
+
+                // Migrate legacy portrait to gallery
+                if (actor.portrait && !actor.gallery) {
+                    actor.gallery = {
+                        primary: 'migrated_0',
+                        showNsfw: false,
+                        images: [{
+                            id: 'migrated_0',
+                            folder: 'sfw',
+                            data: actor.portrait.data,
+                            mimeType: actor.portrait.mimeType || 'image/png',
+                            caption: '',
+                            timestamp: Date.now()
+                        }]
+                    };
+                    actor.portrait = null; // Clear legacy
+                    A.State.notify();
+                }
+
+                // Ensure gallery exists
+                actor.gallery = actor.gallery || { primary: null, showNsfw: false, images: [] };
+                const gallery = actor.gallery;
 
                 // ID display
                 const idRow = `<div style="font-size:11px; color:gray; margin-bottom:12px;">ID: ${actor.id}</div>`;
 
-                // Portrait Card
-                const portraitSrc = actor.portrait?.data || '';
-                const portraitCard = document.createElement('div');
-                portraitCard.style.cssText = 'display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; padding: 12px; background: var(--bg-inset); border-radius: var(--radius-md);';
-                portraitCard.innerHTML = `
-                    <div id="actor-portrait-preview" style="
-                        width: 100px;
-                        height: 140px;
-                        background: var(--bg-surface);
-                        border: 2px dashed var(--border-subtle);
-                        border-radius: var(--radius-sm);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        overflow: hidden;
-                        flex-shrink: 0;
-                    ">
-                        ${portraitSrc
-                        ? `<img src="${portraitSrc}" style="width: 100%; height: 100%; object-fit: cover;">`
-                        : `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`
-                    }
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <input type="file" id="actor-portrait-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
-                        <input type="file" id="actor-card-import" accept="image/png" style="display: none;">
-                        <button class="btn btn-sm" id="btn-actor-upload">📷 Upload</button>
-                        <button class="btn btn-ghost btn-sm" id="btn-actor-remove" ${!portraitSrc ? 'disabled' : ''}>🗑️ Remove</button>
-                        <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
-                        <button class="btn btn-sm" id="btn-actor-export" ${!portraitSrc ? 'disabled' : ''} title="Export as Character Card v2 PNG">📤 Export Card</button>
-                        <button class="btn btn-ghost btn-sm" id="btn-actor-import" title="Import Character Card v2 PNG">📥 Import Card</button>
-                        <div style="font-size: 9px; color: var(--text-muted); max-width: 100px;">
-                            PNG, JPG, WebP. Max 500KB.
+                // Get primary image
+                const primaryImg = gallery.images.find(img => img.id === gallery.primary) || gallery.images[0];
+                const primarySrc = primaryImg?.data || '';
+
+                // Build gallery card
+                const galleryCard = document.createElement('div');
+                galleryCard.style.cssText = 'margin-bottom: 16px; padding: 12px; background: var(--bg-inset); border-radius: var(--radius-md);';
+
+                // State for folder filter
+                let currentFolder = 'all';
+
+                function renderGalleryCard() {
+                    const filteredImages = currentFolder === 'all'
+                        ? gallery.images.filter(img => gallery.showNsfw || img.folder !== 'nsfw')
+                        : gallery.images.filter(img => img.folder === currentFolder && (gallery.showNsfw || img.folder !== 'nsfw'));
+
+                    galleryCard.innerHTML = `
+                        <div style="display: flex; gap: 16px; align-items: flex-start;">
+                            <!-- Primary Image -->
+                            <div style="flex-shrink: 0;">
+                                <div id="gallery-primary" style="
+                                    width: 100px;
+                                    height: 140px;
+                                    background: var(--bg-surface);
+                                    border: 2px solid var(--accent-primary);
+                                    border-radius: var(--radius-sm);
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    overflow: hidden;
+                                ">
+                                    ${primarySrc
+                            ? `<img src="${primarySrc}" style="width: 100%; height: 100%; object-fit: cover;">`
+                            : `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`
+                        }
+                                </div>
+                                <div style="font-size: 9px; color: var(--text-muted); text-align: center; margin-top: 4px;">Primary</div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 100px;">
+                                <input type="file" id="gallery-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
+                                <input type="file" id="gallery-card-import" accept="image/png" style="display: none;">
+                                <button class="btn btn-sm" id="btn-gallery-add" ${gallery.images.length >= MAX_GALLERY_IMAGES ? 'disabled' : ''}>📷 Add Image</button>
+                                <button class="btn btn-sm" id="btn-gallery-export" ${!primarySrc ? 'disabled' : ''}>📤 Export Card</button>
+                                <button class="btn btn-ghost btn-sm" id="btn-gallery-import">📥 Import Card</button>
+                                <div style="font-size: 9px; color: var(--text-muted);">
+                                    ${gallery.images.length}/${MAX_GALLERY_IMAGES} images
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
 
-                // Portrait event handlers (card appended later with smartContainer)
-                const portraitInput = portraitCard.querySelector('#actor-portrait-input');
-                const btnUpload = portraitCard.querySelector('#btn-actor-upload');
-                const btnRemove = portraitCard.querySelector('#btn-actor-remove');
-                const portraitPreview = portraitCard.querySelector('#actor-portrait-preview');
+                        <!-- Folder Tabs & NSFW Toggle -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; border-top: 1px solid var(--border-subtle); padding-top: 8px;">
+                            <div style="display: flex; gap: 4px;">
+                                ${FOLDERS.map(f => `
+                                    <button class="btn btn-ghost btn-sm folder-tab" data-folder="${f}" 
+                                        style="${currentFolder === f ? 'background: var(--accent-primary); color: white;' : ''} font-size: 10px; padding: 4px 8px;">
+                                        ${f === 'all' ? 'All' : f.toUpperCase()}
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted); cursor: pointer;">
+                                <input type="checkbox" id="chk-show-nsfw" ${gallery.showNsfw ? 'checked' : ''}>
+                                Show NSFW
+                            </label>
+                        </div>
 
-                btnUpload.onclick = () => portraitInput.click();
+                        <!-- Thumbnail Grid -->
+                        <div id="gallery-grid" style="
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+                            gap: 6px;
+                            margin-top: 8px;
+                            max-height: 160px;
+                            overflow-y: auto;
+                        ">
+                            ${filteredImages.length === 0
+                            ? `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 11px; padding: 20px;">No images</div>`
+                            : filteredImages.map(img => `
+                                    <div class="gallery-thumb" data-id="${img.id}" style="
+                                        width: 60px;
+                                        height: 80px;
+                                        border-radius: var(--radius-sm);
+                                        overflow: hidden;
+                                        cursor: pointer;
+                                        position: relative;
+                                        border: 2px solid ${img.id === gallery.primary ? 'var(--accent-primary)' : 'transparent'};
+                                    ">
+                                        <img src="${img.data}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        ${img.folder === 'nsfw' ? `<span style="position: absolute; top: 2px; right: 2px; font-size: 8px;">🔒</span>` : ''}
+                                    </div>
+                                `).join('')
+                        }
+                        </div>
+                    `;
 
-                portraitInput.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    if (file.size > 500 * 1024) {
-                        if (A.UI?.Toast) A.UI.Toast.show('Image is larger than 500KB. Consider compressing.', 'warning');
+                    // Wire folder tabs
+                    galleryCard.querySelectorAll('.folder-tab').forEach(btn => {
+                        btn.onclick = () => {
+                            currentFolder = btn.dataset.folder;
+                            renderGalleryCard();
+                        };
+                    });
+
+                    // Wire NSFW toggle
+                    const nsfwChk = galleryCard.querySelector('#chk-show-nsfw');
+                    if (nsfwChk) {
+                        nsfwChk.onchange = () => {
+                            gallery.showNsfw = nsfwChk.checked;
+                            A.State.notify();
+                            renderGalleryCard();
+                        };
                     }
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        actor.portrait = { type: 'dataUrl', data: ev.target.result, mimeType: file.type };
-                        A.State.notify();
-                        portraitPreview.innerHTML = `<img src="${ev.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
-                        btnRemove.disabled = false;
-                    };
-                    reader.readAsDataURL(file);
-                };
 
-                btnRemove.onclick = () => {
-                    actor.portrait = null;
-                    A.State.notify();
-                    portraitPreview.innerHTML = `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`;
-                    btnRemove.disabled = true;
-                };
-
-                // Character Card v2 Export
-                const btnExport = portraitCard.querySelector('#btn-actor-export');
-                const btnImport = portraitCard.querySelector('#btn-actor-import');
-                const cardImportInput = portraitCard.querySelector('#actor-card-import');
-
-                btnExport.onclick = async () => {
-                    if (!actor.portrait?.data) {
-                        if (A.UI?.Toast) A.UI.Toast.show('Upload a portrait first to export as Character Card.', 'warning');
-                        return;
-                    }
-
-                    try {
-                        // Get seed data for export
-                        const state = A.State.get();
-                        const seed = state.seed || {};
-
-                        // Convert dataUrl to blob
-                        const dataUrl = actor.portrait.data;
-                        const response = await fetch(dataUrl);
-                        const blob = await response.blob();
-
-                        // Build card data
-                        const cardData = A.CardEncoder.actorToCard(actor, seed);
-
-                        // Embed in PNG
-                        const cardPng = await A.CardEncoder.embed(blob, cardData);
-
-                        // Download
-                        const url = URL.createObjectURL(cardPng);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-
-                        if (A.UI?.Toast) A.UI.Toast.show(`Exported Character Card: ${actor.name}`, 'success');
-                    } catch (err) {
-                        console.error('[Actors] Export error:', err);
-                        if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
-                    }
-                };
-
-                btnImport.onclick = () => cardImportInput.click();
-
-                cardImportInput.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    try {
-                        // Extract card data from PNG
-                        const cardData = await A.CardEncoder.extract(file);
-
-                        if (!cardData) {
-                            if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found in this PNG.', 'warning');
+                    // Wire Add button
+                    const addBtn = galleryCard.querySelector('#btn-gallery-add');
+                    const fileInput = galleryCard.querySelector('#gallery-input');
+                    addBtn.onclick = () => fileInput.click();
+                    fileInput.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        if (gallery.images.length >= MAX_GALLERY_IMAGES) {
+                            if (A.UI?.Toast) A.UI.Toast.show(`Gallery full (${MAX_GALLERY_IMAGES} max)`, 'warning');
                             return;
                         }
-
-                        // Convert to actor format
-                        const imported = A.CardEncoder.cardToActor(cardData);
-
-                        // Update current actor with imported data
-                        actor.name = imported.name || actor.name;
-                        actor.tags = imported.tags || actor.tags;
-                        actor.notes = imported.notes || actor.notes;
-                        actor.gender = imported.gender || actor.gender;
-                        actor.aliases = imported.aliases || actor.aliases;
-                        actor.traits = { ...actor.traits, ...imported.traits };
-
-                        // Store the PNG as portrait
                         const reader = new FileReader();
                         reader.onload = (ev) => {
-                            actor.portrait = { type: 'dataUrl', data: ev.target.result, mimeType: 'image/png' };
+                            const newImg = {
+                                id: 'img_' + crypto.randomUUID().split('-')[0],
+                                folder: 'sfw', // Default SFW
+                                data: ev.target.result,
+                                mimeType: file.type,
+                                caption: '',
+                                timestamp: Date.now()
+                            };
+                            gallery.images.push(newImg);
+                            if (!gallery.primary) gallery.primary = newImg.id;
                             A.State.notify();
-                            renderTab(); // Re-render to show updates
+                            renderGalleryCard();
+                            if (A.UI?.Toast) A.UI.Toast.show('Image added to gallery', 'success');
                         };
                         reader.readAsDataURL(file);
+                    };
 
-                        if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
-                    } catch (err) {
-                        console.error('[Actors] Import error:', err);
-                        if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
-                    }
-                };
+                    // Wire thumbnail clicks (context menu)
+                    galleryCard.querySelectorAll('.gallery-thumb').forEach(thumb => {
+                        thumb.onclick = () => {
+                            const imgId = thumb.dataset.id;
+                            const img = gallery.images.find(i => i.id === imgId);
+                            if (!img) return;
+
+                            const menu = document.createElement('div');
+                            menu.style.cssText = `
+                                position: fixed; z-index: 9999;
+                                background: var(--bg-surface); border: 1px solid var(--border-subtle);
+                                border-radius: var(--radius-md); padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            `;
+                            menu.innerHTML = `
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left;" data-action="primary">⭐ Set as Primary</button>
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left;" data-action="toggle-folder">
+                                    ${img.folder === 'nsfw' ? '🔓 Move to SFW' : '🔒 Move to NSFW'}
+                                </button>
+                                <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; color: var(--status-error);" data-action="delete">🗑️ Delete</button>
+                            `;
+                            menu.style.left = `${thumb.getBoundingClientRect().left}px`;
+                            menu.style.top = `${thumb.getBoundingClientRect().bottom + 4}px`;
+                            document.body.appendChild(menu);
+
+                            const closeMenu = () => menu.remove();
+                            document.addEventListener('click', closeMenu, { once: true });
+
+                            menu.querySelectorAll('button').forEach(btn => {
+                                btn.onclick = (ev) => {
+                                    ev.stopPropagation();
+                                    const action = btn.dataset.action;
+                                    if (action === 'primary') {
+                                        gallery.primary = imgId;
+                                    } else if (action === 'toggle-folder') {
+                                        img.folder = img.folder === 'nsfw' ? 'sfw' : 'nsfw';
+                                    } else if (action === 'delete') {
+                                        gallery.images = gallery.images.filter(i => i.id !== imgId);
+                                        if (gallery.primary === imgId) {
+                                            gallery.primary = gallery.images[0]?.id || null;
+                                        }
+                                    }
+                                    A.State.notify();
+                                    closeMenu();
+                                    renderGalleryCard();
+                                };
+                            });
+                        };
+                    });
+
+                    // Wire Export button
+                    const exportBtn = galleryCard.querySelector('#btn-gallery-export');
+                    exportBtn.onclick = async () => {
+                        const primary = gallery.images.find(i => i.id === gallery.primary) || gallery.images[0];
+                        if (!primary) {
+                            if (A.UI?.Toast) A.UI.Toast.show('No image to export', 'warning');
+                            return;
+                        }
+                        try {
+                            const state = A.State.get();
+                            const seed = state.seed || {};
+                            const response = await fetch(primary.data);
+                            const blob = await response.blob();
+                            const cardData = A.CardEncoder.actorToCard(actor, seed);
+                            const cardPng = await A.CardEncoder.embed(blob, cardData);
+                            const url = URL.createObjectURL(cardPng);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            if (A.UI?.Toast) A.UI.Toast.show(`Exported: ${actor.name}`, 'success');
+                        } catch (err) {
+                            console.error('[Gallery] Export error:', err);
+                            if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
+                        }
+                    };
+
+                    // Wire Import button
+                    const importBtn = galleryCard.querySelector('#btn-gallery-import');
+                    const importInput = galleryCard.querySelector('#gallery-card-import');
+                    importBtn.onclick = () => importInput.click();
+                    importInput.onchange = async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        try {
+                            const cardData = await A.CardEncoder.extract(file);
+                            if (!cardData) {
+                                if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
+                                return;
+                            }
+                            const imported = A.CardEncoder.cardToActor(cardData);
+                            actor.name = imported.name || actor.name;
+                            actor.tags = imported.tags || actor.tags;
+                            actor.notes = imported.notes || actor.notes;
+                            actor.gender = imported.gender || actor.gender;
+                            actor.aliases = imported.aliases || actor.aliases;
+                            actor.traits = { ...actor.traits, ...imported.traits };
+                            actor.cardFields = imported.cardFields || actor.cardFields;
+
+                            // Add imported image to gallery
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const newImg = {
+                                    id: 'img_' + crypto.randomUUID().split('-')[0],
+                                    folder: 'sfw',
+                                    data: ev.target.result,
+                                    mimeType: 'image/png',
+                                    caption: 'Imported from Character Card',
+                                    timestamp: Date.now()
+                                };
+                                gallery.images.push(newImg);
+                                if (!gallery.primary) gallery.primary = newImg.id;
+                                A.State.notify();
+                                renderTab();
+                            };
+                            reader.readAsDataURL(file);
+                            if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
+                        } catch (err) {
+                            console.error('[Gallery] Import error:', err);
+                            if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                        }
+                    };
+                }
+
+                renderGalleryCard();
 
                 // Container for Smart Inputs
                 const smartContainer = document.createElement('div');
@@ -539,7 +684,7 @@
                 smartContainer.appendChild(notesSection);
 
                 content.innerHTML = idRow;
-                content.appendChild(portraitCard);
+                content.appendChild(galleryCard);
                 content.appendChild(smartContainer);
 
                 // Notes Binding
