@@ -155,6 +155,13 @@
                     </div>
                 </div>
 
+                <div class="card">
+                    <div class="card-header"><strong>Setup Progress</strong></div>
+                    <div class="card-body" style="font-size:12px;">
+                        ${renderSetupChecklist(state)}
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -194,6 +201,38 @@
             </div>
         `;
     }
+
+    // --- Helper Component: Setup Progress Checklist ---
+    function renderSetupChecklist(state) {
+      const hasCharacter = !!(state.character && (state.character.name || state.character.persona));
+      const actorCount = Object.keys(state.nodes?.actors?.items || {}).length;
+      const loreCount = Object.keys(state.weaves?.lorebook?.entries || {}).length;
+      const hasVoices = (state.weaves?.voices?.voices || []).length > 0;
+
+      const checkRow = (done, label, hint, panelId) => `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:6px 8px; border-radius:6px; background:${done ? 'transparent' : 'var(--bg-surface)'}; cursor:pointer;" 
+             onclick="Anansi.UI.switchPanel('${panelId}')">
+          <span style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:50%; 
+                       background:${done ? 'var(--status-success)' : 'var(--bg-elevated)'}; 
+                       color:${done ? 'white' : 'var(--text-muted)'}; font-size:11px;">
+            ${done ? '✓' : '○'}
+          </span>
+          <div style="flex:1;">
+            <div style="font-weight:500; color:${done ? 'var(--text-primary)' : 'var(--text-secondary)'};">${label}</div>
+            <div style="font-size:10px; color:var(--text-muted);">${hint}</div>
+          </div>
+          ${!done ? '<span style="font-size:10px; color:var(--accent-primary);">→</span>' : ''}
+        </div>
+      `;
+
+      return `
+        ${checkRow(hasCharacter, 'Define Main Character', 'Set name, persona, and example dialogue', 'character')}
+        ${checkRow(actorCount > 0, 'Create Actors', actorCount > 0 ? `${actorCount} actor${actorCount > 1 ? 's' : ''} defined` : 'Add NPCs and secondary characters', 'actors')}
+        ${checkRow(loreCount > 0, 'Add Lorebook Entries', loreCount > 0 ? `${loreCount} entr${loreCount > 1 ? 'ies' : 'y'} defined` : 'World info, factions, locations', 'lorebook')}
+        ${checkRow(hasVoices, 'Configure Voices', hasVoices ? 'Voice profiles active' : 'Speaking styles for actors', 'voices')}
+      `;
+    }
+
 
     // --- Events & Logic ---
     const notifySave = () => {

@@ -386,7 +386,7 @@
       header.className = 'card-header';
       header.innerHTML = `
         <div style="flex:1;">
-          <input class="input" id="inp-title" value="${entry.title || ''}" placeholder="Entry Title" style="font-weight:bold; font-size:14px;">
+          <input class="input" id="inp-title" value="${entry.title || ''}" placeholder="e.g., The Crimson Order, Magic System" style="font-weight:bold; font-size:14px;">
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-ghost btn-sm" id="btn-logic" style="color:var(--accent-primary); font-weight:bold; ${logicCount > 0 ? 'background:var(--accent-soft);' : ''}">⚡ Logic ${logicCount > 0 ? '(' + logicCount + ')' : ''}</button>
@@ -470,8 +470,8 @@
              <select class="input" id="sel-tgt">${tgtOpts}</select>
            </div>
            <div class="l-col">
-             <label class="l-lab">Keywords (comma)</label>
-             <input class="input" id="inp-keys" value="${(entry.keywords || []).join(', ')}">
+             <label class="l-lab" title="Triggers this entry when these words appear in chat">Keywords <span style="opacity:0.5; cursor:help;">(?)</span></label>
+             <input class="input" id="inp-keys" value="${(entry.keywords || []).join(', ')}" placeholder="e.g., magic, spell, crimson order">
            </div>
         </div>
         <div class="l-col" style="margin-bottom:12px;">
