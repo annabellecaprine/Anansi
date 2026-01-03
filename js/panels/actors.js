@@ -645,7 +645,7 @@
             }
 
             // Add token counter for appearance description
-            if (currentTab === 'appearance') {
+            if (activeTab === 'appearance') {
                 const appDesc = content.querySelector('#app-desc');
                 if (appDesc) {
                     const label = appDesc.previousElementSibling;
