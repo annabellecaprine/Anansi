@@ -1,6 +1,6 @@
 # Anansi: Feature List by Panel
 
-**As of: January 3, 2026 (v1.4.0)**
+**As of: January 3, 2026 (v1.5.0)**
 
 ---
 
@@ -9,6 +9,8 @@
 ### Project Panel
 - Project name/description editing
 - Author metadata
+- **Cover Image Upload (100x100)**
+- **Platform Compatibility Badges**
 - Character card statistics overview
 - Web integrity summary (Validity checks)
 - Quick navigation to core panels
@@ -22,17 +24,28 @@
 - **Quick Weave (Templates)**: Jumpstart with 8+ archetype presets (e.g., The Trickster, The Guardian).
 - **Session Persistence**: Auto-saves conversation history/answers; resumes seamlessly on reload.
 - **Smart Generation**: Creates Name, Appearance, Personality, Scenario, and First Message.
+- **Portrait Upload**: Add visual identity during preview phase.
 - **Companion Mode**: Generate matching sidekicks or rivals after the main character.
-- **Direct Import**: One-click sync to Actors/Project panels.
+- **Direct Import**: One-click sync to Actors/Project panels (including portrait).
 
 ### Character Panel
 - Character name, personality, scenario editing
 - Example dialogue management
-- First message configuration
+- **First Message Configuration (with token count)**
+- **Portrait Upload & Preview**
 - Token counting for all fields
 
 ### Actors Panel
 - Multi-actor support (beyond main character)
+- **Actor Gallery System**:
+  - Up to 20 images per actor
+  - SFW/NSFW folder organization
+  - Safe mode toggle (blur/hide NSFW)
+  - Primary image selection
+- **Character Card v2 Support**:
+  - Export full actor data to PNG (V2 spec)
+  - Import new actors from PNG cards
+  - Standalone card fields (Description, Personality, Scenario, First Message)
 - Per-actor: name, handle, traits, relationships
 - Enable/disable actors
 - Automatic ID generation
@@ -174,6 +187,7 @@
 - Dark/Light theme toggle
 - Project save/load (JSON)
 - Project export (.anansi.json)
+- **Character Card v2 Export/Import (PNG)**
 - Build scripts (download .txt or .zip)
 - Toast notifications
 - Modal dialogs
@@ -185,4 +199,4 @@
 
 ---
 
-*Last updated: January 3, 2026*
+*Last updated: January 3, 2026 (v1.5.0)*
