@@ -504,7 +504,7 @@ CRITICAL: Respond ONLY with valid JSON:
   // ============================================
   // ACTOR CREATION HELPER
   // ============================================
-  function createActorFromParlor(name, _personality, appearance, gender, extraNotes) {
+  function createActorFromParlor(name, _personality, appearance, gender, extraNotes, portrait = null) {
     const state = A.State.get();
     if (!state.nodes) state.nodes = {};
     if (!state.nodes.actors) state.nodes.actors = { items: {} };
@@ -525,6 +525,7 @@ CRITICAL: Respond ONLY with valid JSON:
       aliases: [],
       tags: ['parlor-generated'],
       notes: extraNotes || '', // Only extra notes, NO personality
+      portrait: portrait, // Portrait from Parlor (optional)
       traits: {
         appearance: {
           description: appearance || '',
@@ -1575,17 +1576,40 @@ CRITICAL: Respond ONLY with valid JSON:
   // PREVIEW MODAL
   // ============================================
   function showPreviewModal(cardData, answers) {
+    // Track portrait for actor creation
+    let selectedPortrait = null;
+
     const content = document.createElement('div');
     content.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-        <div class="form-group">
-          <label class="label">Character Name</label>
-          <input type="text" id="preview-name" class="input" value="${escapeHtml(cardData.name || '')}">
-        </div>
-
-        <div class="form-group">
-          <label class="label">Appearance</label>
-          <textarea id="preview-appearance" class="input" style="height: 60px; resize: vertical;" placeholder="Physical description...">${escapeHtml(cardData.appearance || '')}</textarea>
+        <div style="display: flex; gap: var(--space-4); align-items: flex-start;">
+          <div style="flex-shrink: 0;">
+            <div id="modal-portrait-preview" style="
+              width: 100px;
+              height: 140px;
+              background: var(--bg-inset);
+              border: 2px dashed var(--border-subtle);
+              border-radius: var(--radius-md);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            ">
+              <span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 8px;">No portrait<br>(optional)</span>
+            </div>
+            <input type="file" id="modal-portrait-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
+            <button id="btn-modal-upload" class="btn btn-ghost btn-sm" style="width: 100%; margin-top: 6px; font-size: 10px;">📷 Upload</button>
+          </div>
+          <div style="flex: 1;">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="label">Character Name</label>
+              <input type="text" id="preview-name" class="input" value="${escapeHtml(cardData.name || '')}">
+            </div>
+            <div class="form-group">
+              <label class="label">Appearance</label>
+              <textarea id="preview-appearance" class="input" style="height: 60px; resize: vertical;" placeholder="Physical description...">${escapeHtml(cardData.appearance || '')}</textarea>
+            </div>
+          </div>
         </div>
         
         <div class="form-group">
@@ -1648,6 +1672,23 @@ CRITICAL: Respond ONLY with valid JSON:
     const generateBtn = content.querySelector('#btn-generate-opening');
     const firstMessageField = content.querySelector('#preview-first-message');
     const copyBtn = content.querySelector('#btn-copy-first-message');
+
+    // Wire up portrait upload
+    const portraitInput = content.querySelector('#modal-portrait-input');
+    const portraitPreview = content.querySelector('#modal-portrait-preview');
+    const uploadBtn = content.querySelector('#btn-modal-upload');
+
+    uploadBtn.onclick = () => portraitInput.click();
+    portraitInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        selectedPortrait = { type: 'dataUrl', data: ev.target.result, mimeType: file.type };
+        portraitPreview.innerHTML = `<img src="${ev.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      };
+      reader.readAsDataURL(file);
+    };
 
     generateBtn.onclick = async () => {
       const name = content.querySelector('#preview-name').value.trim();
@@ -1829,8 +1870,8 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
                   onclick: () => {
                     const gender = answers.gender || answers.quick_gender || 'any';
                     // Pass _personality as null/ignored to be safe, though function ignores it.
-                    // Wait, createActorFromParlor signature is (name, _personality, appearance, ...)
-                    const mainId = createActorFromParlor(name, personality, appearance, gender, 'Generated by The Spider\'s Parlor');
+                    // createActorFromParlor signature: (name, _personality, appearance, gender, extraNotes, portrait)
+                    const mainId = createActorFromParlor(name, personality, appearance, gender, 'Generated by The Spider\'s Parlor', selectedPortrait);
                     if (companionName) {
                       const compId = createActorFromParlor(companionName, companionPersonality, companionAppearance, 'any', `Companion of ${name}`);
                       createPairFromParlor(mainId, compId, companionRelType);
@@ -1866,12 +1907,13 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
                       chatName: name,
                       persona: personality,
                       scenario: scenario,
-                      examples: ''
+                      examples: '',
+                      portrait: selectedPortrait // Portrait from Parlor
                     };
 
                     // Add actors
                     const gender = answers.gender || answers.quick_gender || 'any';
-                    const mainId = createActorFromParlor(name, personality, appearance, gender, 'Protagonist');
+                    const mainId = createActorFromParlor(name, personality, appearance, gender, 'Protagonist', selectedPortrait);
                     if (companionName) {
                       const compId = createActorFromParlor(companionName, companionPersonality, companionAppearance, 'any', `Companion of ${name}`);
                       createPairFromParlor(mainId, compId, companionRelType);
