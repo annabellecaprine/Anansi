@@ -843,25 +843,91 @@
 
             if (currentView === 'list') {
                 // Load generation settings
-                const genSettings = JSON.parse(localStorage.getItem('anansi_gen_settings') || '{"temperature":0.7,"maxTokens":2048,"topP":1.0}');
+                const defaultGenSettings = { temperature: 0.7, maxTokens: 0, topP: 1.0, topK: 0, contextSize: 16384, repetitionPenalty: 1.0, frequencyPenalty: 0, presencePenalty: 0 };
+                const genSettings = { ...defaultGenSettings, ...JSON.parse(localStorage.getItem('anansi_gen_settings') || '{}') };
 
                 // --- LIST VIEW ---
                 body.innerHTML = `
-                    <details style="margin-bottom:16px;padding:12px;background:var(--bg-surface);border-radius:var(--radius-md);border:1px solid var(--border-subtle);">
+                    <details open style="margin-bottom:16px;padding:12px;background:var(--bg-surface);border-radius:var(--radius-md);border:1px solid var(--border-subtle);">
                         <summary style="cursor:pointer;font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:bold;">Generation Settings</summary>
-                        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+                        <div style="margin-top:12px;display:flex;flex-direction:column;gap:16px;">
+                            
                             <div class="form-group">
-                                <label class="label" style="font-size:10px;">Temperature <span id="temp-val" style="color:var(--accent-primary);">${genSettings.temperature}</span></label>
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <label class="label" style="font-size:10px;margin:0;">Temperature</label>
+                                    <span id="temp-val" style="font-size:11px;color:var(--accent-primary);font-weight:bold;">${genSettings.temperature}</span>
+                                </div>
                                 <input type="range" id="gen-temp" min="0" max="2" step="0.1" value="${genSettings.temperature}" style="width:100%;">
+                                <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);"><span>0</span><span>1</span><span>2</span></div>
+                                <div style="font-size:9px;color:var(--text-muted);margin-top:2px;">Controls randomness. Lower = focused, higher = creative.</div>
                             </div>
+                            
                             <div class="form-group">
-                                <label class="label" style="font-size:10px;">Max Tokens</label>
-                                <input type="number" id="gen-max-tokens" class="input" value="${genSettings.maxTokens}" min="1" max="128000" style="font-size:11px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <label class="label" style="font-size:10px;margin:0;">Max Tokens</label>
+                                    <span id="maxtok-val" style="font-size:11px;color:var(--accent-primary);font-weight:bold;">${genSettings.maxTokens === 0 ? 'Unlimited' : genSettings.maxTokens}</span>
+                                </div>
+                                <input type="range" id="gen-max-tokens" min="0" max="8192" step="256" value="${genSettings.maxTokens}" style="width:100%;">
+                                <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);"><span>0</span><span>4K</span><span>8K</span></div>
+                                <div style="font-size:9px;color:var(--text-muted);margin-top:2px;">Response length limit. 0 = unlimited.</div>
                             </div>
+                            
                             <div class="form-group">
-                                <label class="label" style="font-size:10px;">Top P <span id="topp-val" style="color:var(--accent-primary);">${genSettings.topP}</span></label>
-                                <input type="range" id="gen-top-p" min="0" max="1" step="0.05" value="${genSettings.topP}" style="width:100%;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <label class="label" style="font-size:10px;margin:0;">Context Size</label>
+                                    <span id="ctx-val" style="font-size:11px;color:var(--accent-primary);font-weight:bold;">${genSettings.contextSize}</span>
+                                </div>
+                                <input type="range" id="gen-ctx" min="1024" max="131072" step="1024" value="${genSettings.contextSize}" style="width:100%;">
+                                <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);"><span>1K</span><span>64K</span><span>128K</span></div>
+                                <div style="font-size:9px;color:var(--text-muted);margin-top:2px;">Memory window. Lower if you get errors.</div>
                             </div>
+                            
+                            <details style="padding:8px;background:var(--bg-elevated);border-radius:var(--radius-sm);border:1px solid var(--border-subtle);">
+                                <summary style="cursor:pointer;font-size:10px;color:var(--text-muted);text-transform:uppercase;">Advanced Settings</summary>
+                                <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+                                    
+                                    <div class="form-group">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <label class="label" style="font-size:10px;margin:0;">Top P</label>
+                                            <span id="topp-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.topP}</span>
+                                        </div>
+                                        <input type="range" id="gen-top-p" min="0" max="1" step="0.05" value="${genSettings.topP}" style="width:100%;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <label class="label" style="font-size:10px;margin:0;">Top K</label>
+                                            <span id="topk-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.topK === 0 ? 'Off' : genSettings.topK}</span>
+                                        </div>
+                                        <input type="range" id="gen-top-k" min="0" max="100" step="1" value="${genSettings.topK}" style="width:100%;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <label class="label" style="font-size:10px;margin:0;">Repetition Penalty</label>
+                                            <span id="rep-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.repetitionPenalty}</span>
+                                        </div>
+                                        <input type="range" id="gen-rep" min="1" max="2" step="0.05" value="${genSettings.repetitionPenalty}" style="width:100%;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <label class="label" style="font-size:10px;margin:0;">Frequency Penalty</label>
+                                            <span id="freq-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.frequencyPenalty}</span>
+                                        </div>
+                                        <input type="range" id="gen-freq" min="0" max="2" step="0.1" value="${genSettings.frequencyPenalty}" style="width:100%;">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                                            <label class="label" style="font-size:10px;margin:0;">Presence Penalty</label>
+                                            <span id="pres-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.presencePenalty}</span>
+                                        </div>
+                                        <input type="range" id="gen-pres" min="0" max="2" step="0.1" value="${genSettings.presencePenalty}" style="width:100%;">
+                                    </div>
+                                </div>
+                            </details>
+                            
                         </div>
                     </details>
 
@@ -880,20 +946,36 @@
                 const saveGenSettings = () => {
                     const settings = {
                         temperature: parseFloat(body.querySelector('#gen-temp').value),
-                        maxTokens: parseInt(body.querySelector('#gen-max-tokens').value) || 2048,
-                        topP: parseFloat(body.querySelector('#gen-top-p').value)
+                        maxTokens: parseInt(body.querySelector('#gen-max-tokens').value) || 0,
+                        topP: parseFloat(body.querySelector('#gen-top-p').value),
+                        topK: parseInt(body.querySelector('#gen-top-k').value) || 0,
+                        contextSize: parseInt(body.querySelector('#gen-ctx').value) || 16384,
+                        repetitionPenalty: parseFloat(body.querySelector('#gen-rep').value),
+                        frequencyPenalty: parseFloat(body.querySelector('#gen-freq').value),
+                        presencePenalty: parseFloat(body.querySelector('#gen-pres').value)
                     };
                     localStorage.setItem('anansi_gen_settings', JSON.stringify(settings));
                 };
-                body.querySelector('#gen-temp').oninput = (e) => {
-                    body.querySelector('#temp-val').textContent = e.target.value;
-                    saveGenSettings();
+
+                // Slider bindings with live value display
+                const bindSlider = (id, valId, formatter = v => v) => {
+                    const slider = body.querySelector(id);
+                    const valSpan = body.querySelector(valId);
+                    if (slider && valSpan) {
+                        slider.oninput = (e) => {
+                            valSpan.textContent = formatter(e.target.value);
+                            saveGenSettings();
+                        };
+                    }
                 };
-                body.querySelector('#gen-max-tokens').onchange = saveGenSettings;
-                body.querySelector('#gen-top-p').oninput = (e) => {
-                    body.querySelector('#topp-val').textContent = e.target.value;
-                    saveGenSettings();
-                };
+                bindSlider('#gen-temp', '#temp-val');
+                bindSlider('#gen-max-tokens', '#maxtok-val', v => v === '0' ? 'Unlimited' : v);
+                bindSlider('#gen-ctx', '#ctx-val');
+                bindSlider('#gen-top-p', '#topp-val');
+                bindSlider('#gen-top-k', '#topk-val', v => v === '0' ? 'Off' : v);
+                bindSlider('#gen-rep', '#rep-val');
+                bindSlider('#gen-freq', '#freq-val');
+                bindSlider('#gen-pres', '#pres-val');
 
                 const list = body.querySelector('#configs-list');
                 configs.forEach(cfg => {
@@ -1138,7 +1220,8 @@
 
     // Helper to get generation settings
     A.UI.getGenerationSettings = function () {
-        return JSON.parse(localStorage.getItem('anansi_gen_settings') || '{"temperature":0.7,"maxTokens":2048,"topP":1.0}');
+        const defaults = { temperature: 0.7, maxTokens: 0, topP: 1.0, topK: 0, contextSize: 16384, repetitionPenalty: 1.0, frequencyPenalty: 0, presencePenalty: 0 };
+        return { ...defaults, ...JSON.parse(localStorage.getItem('anansi_gen_settings') || '{}') };
     };
 
 })(window.Anansi);
