@@ -842,8 +842,29 @@
             body.style.cssText = 'flex:1;overflow-y:auto;padding:16px;';
 
             if (currentView === 'list') {
+                // Load generation settings
+                const genSettings = JSON.parse(localStorage.getItem('anansi_gen_settings') || '{"temperature":0.7,"maxTokens":2048,"topP":1.0}');
+
                 // --- LIST VIEW ---
                 body.innerHTML = `
+                    <details style="margin-bottom:16px;padding:12px;background:var(--bg-surface);border-radius:var(--radius-md);border:1px solid var(--border-subtle);">
+                        <summary style="cursor:pointer;font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:bold;">Generation Settings</summary>
+                        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+                            <div class="form-group">
+                                <label class="label" style="font-size:10px;">Temperature <span id="temp-val" style="color:var(--accent-primary);">${genSettings.temperature}</span></label>
+                                <input type="range" id="gen-temp" min="0" max="2" step="0.1" value="${genSettings.temperature}" style="width:100%;">
+                            </div>
+                            <div class="form-group">
+                                <label class="label" style="font-size:10px;">Max Tokens</label>
+                                <input type="number" id="gen-max-tokens" class="input" value="${genSettings.maxTokens}" min="1" max="128000" style="font-size:11px;">
+                            </div>
+                            <div class="form-group">
+                                <label class="label" style="font-size:10px;">Top P <span id="topp-val" style="color:var(--accent-primary);">${genSettings.topP}</span></label>
+                                <input type="range" id="gen-top-p" min="0" max="1" step="0.05" value="${genSettings.topP}" style="width:100%;">
+                            </div>
+                        </div>
+                    </details>
+
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">Saved Configurations (${configs.length})</div>
                         <button id="btn-add-config" class="btn btn-primary btn-sm">+ Add Configuration</button>
@@ -854,6 +875,25 @@
                         <div style="font-size:11px;color:var(--text-muted);">API keys are stored in your browser's localStorage. They are never sent to any server except the configured provider.</div>
                     </div>
                 `;
+
+                // Bind generation settings
+                const saveGenSettings = () => {
+                    const settings = {
+                        temperature: parseFloat(body.querySelector('#gen-temp').value),
+                        maxTokens: parseInt(body.querySelector('#gen-max-tokens').value) || 2048,
+                        topP: parseFloat(body.querySelector('#gen-top-p').value)
+                    };
+                    localStorage.setItem('anansi_gen_settings', JSON.stringify(settings));
+                };
+                body.querySelector('#gen-temp').oninput = (e) => {
+                    body.querySelector('#temp-val').textContent = e.target.value;
+                    saveGenSettings();
+                };
+                body.querySelector('#gen-max-tokens').onchange = saveGenSettings;
+                body.querySelector('#gen-top-p').oninput = (e) => {
+                    body.querySelector('#topp-val').textContent = e.target.value;
+                    saveGenSettings();
+                };
 
                 const list = body.querySelector('#configs-list');
                 configs.forEach(cfg => {
@@ -889,6 +929,7 @@
                         activeId = btn.dataset.id;
                         localStorage.setItem('anansi_active_config_id', activeId);
                         render();
+                        if (A.State && A.State.notify) A.State.notify(); // Refresh CFG lens
                         if (A.UI.Toast) A.UI.Toast.show('Configuration activated', 'success');
                     };
                 });
@@ -1093,6 +1134,11 @@
             baseUrl: cfg.baseUrl || preset.baseUrl,
             apiKey: cfg.apiKey
         };
+    };
+
+    // Helper to get generation settings
+    A.UI.getGenerationSettings = function () {
+        return JSON.parse(localStorage.getItem('anansi_gen_settings') || '{"temperature":0.7,"maxTokens":2048,"topP":1.0}');
     };
 
 })(window.Anansi);
