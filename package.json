@@ -1,0 +1,30 @@
+{
+  "name": "anansi",
+  "version": "1.0.0",
+  "description": "> *The spider of stories. All stories belong to Anansi — and he weaves them into a web that reaches everywhere.*",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node build-mobile.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annabellecaprine/Anansi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/annabellecaprine/Anansi/issues"
+  },
+  "homepage": "https://github.com/annabellecaprine/Anansi#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0"
+  }
+}

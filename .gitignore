@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Builds
+dist/
+www/
+build/
+
+# Mobile
+*.jks
+anansi-release.jks
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# OS
+.DS_Store
+Thumbs.db

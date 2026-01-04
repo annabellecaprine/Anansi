@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Anansi</string>
+    <string name="title_activity_main">Anansi</string>
+    <string name="package_name">com.anansi.app</string>
+    <string name="custom_url_scheme">com.anansi.app</string>
+</resources>

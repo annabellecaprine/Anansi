@@ -6,8 +6,10 @@
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     z-index: 9000;
-    pointer-events: auto; /* Catch clicks */
+    pointer-events: auto;
+    /* Catch clicks */
     /* Dimmed background using a huge box-shadow on the highlight element is a trick, 
        but here we might use a simple SVG mask or just a semi-transparent layer. 
        
@@ -17,7 +19,8 @@
        
        Easiest modern way: box-shadow on the highlight element.
     */
-    background: transparent; /* Background handled by highlight box-shadow */
+    background: transparent;
+    /* Background handled by highlight box-shadow */
 }
 
 /* 
@@ -30,7 +33,8 @@
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75), 0 0 0 2px var(--accent-primary);
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     z-index: 9001;
-    pointer-events: none; /* Let clicks pass through to the element? No, usually tour blocks interaction. */
+    pointer-events: none;
+    /* Let clicks pass through to the element? No, usually tour blocks interaction. */
 }
 
 .tour-popup {
@@ -47,8 +51,15 @@
 }
 
 @keyframes tour-pop-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .tour-header {
