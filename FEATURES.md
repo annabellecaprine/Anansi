@@ -40,6 +40,7 @@
 - Character name, personality, scenario editing
 - Example dialogue management
 - **First Message Configuration (with token count)**
+- **Alternate Initial Messages (Swipe in Simulator)**
 - **Portrait Upload & Preview**
 - Token counting for all fields
 
@@ -223,6 +224,7 @@
   - *API Reference*: Internal scripting cheatsheet.
 - **New Feature**: **Lorebook Import/Export** (JSON) with **Conflict Resolver** (Overwrite/Copy/Skip).
 - **New Feature**: **Bi-directional Location Linking**. Creating an exit automatically links the return path.
+- **New Feature**: **Alternate Initial Messages**. Define multiple greetings and swipe through them in the Simulator. Index tracked via `state.sim.greetingIndex`.
 - **Fix**: Lorebook Export button now correctly triggers download.
 
 ---

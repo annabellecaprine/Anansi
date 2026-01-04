@@ -26,7 +26,11 @@
     // Ensure new fields exist
     if (state.seed.characterName === undefined) state.seed.characterName = '';
     if (state.seed.chatName === undefined) state.seed.chatName = '';
-    if (state.seed.firstMessage === undefined) state.seed.firstMessage = '';
+    // Migration: firstMessage string -> array
+    if (typeof state.seed.firstMessage === 'string') {
+      state.seed.firstMessage = state.seed.firstMessage ? [state.seed.firstMessage] : [''];
+    }
+    if (!Array.isArray(state.seed.firstMessage)) state.seed.firstMessage = [''];
     if (state.seed.portrait === undefined) state.seed.portrait = null;
 
     // Set container layout for consistency with other panels
@@ -100,9 +104,10 @@
             </div>
 
             <div class="form-group">
-              <label class="label">Initial Message</label>
-              <textarea id="char-firstmessage" class="input" style="height: 120px; resize: vertical; font-size: 13px;" placeholder="The first message the character sends when starting a conversation...">${escapeHtml(state.seed.firstMessage || '')}</textarea>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">The character's opening message. Use *asterisks* for actions, "quotes" for speech.</div>
+              <label class="label">Initial Messages</label>
+              <div id="greetings-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+              <button class="btn btn-ghost btn-sm" id="btn-add-greeting" style="margin-top:8px;">+ Add Alternate Greeting</button>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">The character's opening messages. Swipe left/right in the Simulator to cycle through them.</div>
             </div>
 
             <div class="form-group">
@@ -129,8 +134,71 @@
 
     container.querySelector('#char-charname').oninput = e => update('characterName', e.target.value);
     container.querySelector('#char-chatname').oninput = e => update('chatName', e.target.value);
-    container.querySelector('#char-firstmessage').oninput = e => update('firstMessage', e.target.value);
     container.querySelector('#char-examples').oninput = e => update('examples', e.target.value);
+
+    // --- Greetings List Logic ---
+    const greetingsList = container.querySelector('#greetings-list');
+    const btnAddGreeting = container.querySelector('#btn-add-greeting');
+
+    const renderGreetings = () => {
+      greetingsList.innerHTML = '';
+      state.seed.firstMessage.forEach((msg, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+        row.innerHTML = `
+          <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:bold;">${idx === 0 ? 'Primary Greeting' : 'Alt ' + idx}</div>
+            <textarea class="input greeting-textarea" data-idx="${idx}" style="height:100px; resize:vertical; font-size:13px;" placeholder="${idx === 0 ? 'The first message the character sends...' : 'Alternate opening...'}">${escapeHtml(msg)}</textarea>
+          </div>
+          ${idx > 0 ? `<button class="btn btn-ghost btn-sm btn-del-greeting" data-idx="${idx}" style="color:var(--status-error); margin-top:20px;">🗑️</button>` : ''}
+        `;
+        greetingsList.appendChild(row);
+      });
+
+      // Bind textareas
+      greetingsList.querySelectorAll('.greeting-textarea').forEach(ta => {
+        ta.oninput = (e) => {
+          const i = parseInt(e.target.dataset.idx);
+          state.seed.firstMessage[i] = e.target.value;
+          A.State.notify();
+        };
+        // Token counter
+        if (A.Utils?.addTokenCounter) {
+          const label = ta.previousElementSibling;
+          if (label) A.Utils.addTokenCounter(ta, label);
+        }
+        // AI Assistant
+        if (A.UI.Assistant) {
+          A.UI.Assistant.attach(ta, {
+            label: 'Greeting ' + (parseInt(ta.dataset.idx) + 1),
+            system: 'You are a roleplay character. Improve this introductory message. Keep it engaging and true to the character\'s voice.'
+          });
+        }
+      });
+
+      // Bind delete buttons
+      greetingsList.querySelectorAll('.btn-del-greeting').forEach(btn => {
+        btn.onclick = () => {
+          const i = parseInt(btn.dataset.idx);
+          state.seed.firstMessage.splice(i, 1);
+          A.State.notify();
+          renderGreetings();
+        };
+      });
+    };
+
+    btnAddGreeting.onclick = () => {
+      state.seed.firstMessage.push('');
+      A.State.notify();
+      renderGreetings();
+      // Focus new textarea
+      setTimeout(() => {
+        const textareas = greetingsList.querySelectorAll('.greeting-textarea');
+        if (textareas.length) textareas[textareas.length - 1].focus();
+      }, 50);
+    };
+
+    renderGreetings();
 
     // Portrait upload handling
     const portraitInput = container.querySelector('#portrait-input');

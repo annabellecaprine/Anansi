@@ -852,6 +852,50 @@
           `;
           wrapper.appendChild(actions);
           wrapper.appendChild(bubble);
+
+          // --- Greeting Swipe Arrows (First AI message with alternates) ---
+          if (idx === 0 && msg.role === 'model' && Array.isArray(state.seed.firstMessage) && state.seed.firstMessage.length > 1) {
+            const greetings = state.seed.firstMessage;
+            if (state.sim.greetingIndex === undefined) state.sim.greetingIndex = 0;
+            const gIdx = state.sim.greetingIndex;
+
+            const swipeOverlay = document.createElement('div');
+            swipeOverlay.style.cssText = 'display:flex; justify-content:space-between; align-items:center; position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); pointer-events:none;';
+
+            swipeOverlay.innerHTML = `
+              <button class="btn btn-ghost btn-sm swipe-btn swipe-prev" style="pointer-events:auto; font-size:18px; opacity:0.7;">&lt;</button>
+              <span style="font-size:10px; color:var(--text-muted); background:var(--bg-base); padding:2px 6px; border-radius:4px;">${gIdx + 1} / ${greetings.length}</span>
+              <button class="btn btn-ghost btn-sm swipe-btn swipe-next" style="pointer-events:auto; font-size:18px; opacity:0.7;">&gt;</button>
+            `;
+
+            wrapper.style.position = 'relative';
+            wrapper.appendChild(swipeOverlay);
+
+            // Bind swipe buttons (defer to avoid immediate re-render loop)
+            setTimeout(() => {
+              const prevBtn = wrapper.querySelector('.swipe-prev');
+              const nextBtn = wrapper.querySelector('.swipe-next');
+              if (prevBtn) {
+                prevBtn.onclick = () => {
+                  const newIdx = (gIdx - 1 + greetings.length) % greetings.length;
+                  state.sim.greetingIndex = newIdx;
+                  state.sim.history[0].content = greetings[newIdx];
+                  A.State.notify();
+                  refreshChat();
+                };
+              }
+              if (nextBtn) {
+                nextBtn.onclick = () => {
+                  const newIdx = (gIdx + 1) % greetings.length;
+                  state.sim.greetingIndex = newIdx;
+                  state.sim.history[0].content = greetings[newIdx];
+                  A.State.notify();
+                  refreshChat();
+                };
+              }
+            }, 0);
+          }
+
           chatLog.appendChild(wrapper);
         });
 
