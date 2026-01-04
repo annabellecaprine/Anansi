@@ -1156,14 +1156,10 @@
           state.sim.lastSystemPrompt = systemPrompt;
 
           // 3. CALL LLM (Action 7)
-          const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash-exp"}');
-          const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-          const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-          const apiKey = keys[activeKeyName];
+          const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+          if (!llmConfig || !llmConfig.apiKey) throw new Error("No API Key configured. Open API Configuration from the CFG lens.");
 
-          if (!apiKey) throw new Error("No API Key.");
-
-          const responseText = await callLLM(config.provider, config.model, apiKey, systemPrompt, state.sim.history);
+          const responseText = await callLLM(llmConfig.provider, llmConfig.model, llmConfig.apiKey, systemPrompt, state.sim.history, llmConfig.baseUrl);
 
           // Store response with injection details for per-message inspection
           // Extract microcues that fired from the execution log

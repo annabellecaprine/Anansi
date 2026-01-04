@@ -15,29 +15,35 @@
      * @param {Object} overrideConfig Optional config overrides (provider, model, apiKey, baseUrl)
      */
     LLM.generate = async function (system, history, overrideConfig = {}) {
-        const storedConfig = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
+        // Try to get config from new consolidated system first
+        let storedConfig = {};
+        const llmConfigs = JSON.parse(localStorage.getItem('anansi_llm_configs') || '[]');
+        const activeConfigId = localStorage.getItem('anansi_active_config_id') || '';
+        const activeCfg = llmConfigs.find(c => c.id === activeConfigId) || llmConfigs[0] || null;
+
+        if (activeCfg) {
+            storedConfig = {
+                provider: activeCfg.provider,
+                model: activeCfg.model,
+                apiKey: activeCfg.apiKey,
+                baseUrl: activeCfg.baseUrl
+            };
+        } else {
+            // Fallback to old storage (for migration)
+            storedConfig = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
+        }
+
         const config = { ...storedConfig, ...overrideConfig };
 
         // Resolve API Key
-        let key = config.apiKey || ''; // First check overrides/config
+        let key = config.apiKey || '';
 
-        if (!key) {
-            // Try Key Manager storage
-            const storedKeys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-            const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-            if (storedKeys[activeKeyName]) {
-                key = storedKeys[activeKeyName];
-            } else if (storedKeys['Default']) { // Fallback
-                key = storedKeys['Default'];
-            }
-        }
-
-        const provider = config.provider || 'gemini'; // Default
+        const provider = config.provider || 'gemini';
         const model = config.model || 'gemini-1.5-flash';
 
         // Check for key (except local providers)
         if (!key && provider !== 'kobold') {
-            throw new Error(`Missing API Key for ${provider}. Please configure in Simulator > Web Lens > Config.`);
+            throw new Error(`Missing API Key for ${provider}. Please configure in API Configuration.`);
         }
 
         // --- Providers ---
