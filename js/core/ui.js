@@ -772,134 +772,262 @@
     };
 
     // --- API Key Manager (Global) ---
+    // --- Provider Presets ---
+    const PROVIDER_PRESETS = {
+        openai: { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini', needsKey: true },
+        anthropic: { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1', defaultModel: 'claude-3-haiku-20240307', needsKey: true },
+        gemini: { name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', defaultModel: 'gemini-2.0-flash', needsKey: true },
+        kobold: { name: 'Kobold (Local)', baseUrl: 'http://localhost:5001/api/v1', defaultModel: 'local', needsKey: false },
+        chutes: { name: 'Chutes AI', baseUrl: 'https://llm.chutes.ai/v1', defaultModel: 'deepseek-ai/DeepSeek-V3', needsKey: true },
+        custom: { name: 'Custom', baseUrl: '', defaultModel: '', needsKey: true }
+    };
+
     A.UI.showApiKeyManager = function () {
-        // Get current keys from localStorage
-        const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{"Default":""}');
-        const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+        // Load saved configs from localStorage
+        let configs = JSON.parse(localStorage.getItem('anansi_llm_configs') || '[]');
+        let activeId = localStorage.getItem('anansi_active_config_id') || '';
+
+        // Migration: If old keys exist, migrate them
+        const oldKeys = JSON.parse(localStorage.getItem('anansi_api_keys') || 'null');
+        if (oldKeys && configs.length === 0) {
+            Object.keys(oldKeys).forEach((name, idx) => {
+                configs.push({
+                    id: 'migrated_' + idx,
+                    name: name,
+                    provider: 'custom',
+                    model: '',
+                    baseUrl: '',
+                    apiKey: oldKeys[name]
+                });
+            });
+            localStorage.setItem('anansi_llm_configs', JSON.stringify(configs));
+            localStorage.removeItem('anansi_api_keys');
+        }
+
+        // Ensure at least one config exists
+        if (configs.length === 0) {
+            configs.push({ id: 'default', name: 'Default (Gemini)', provider: 'gemini', model: 'gemini-2.0-flash', baseUrl: '', apiKey: '' });
+            localStorage.setItem('anansi_llm_configs', JSON.stringify(configs));
+            activeId = 'default';
+            localStorage.setItem('anansi_active_config_id', activeId);
+        }
+
+        const saveConfigs = () => localStorage.setItem('anansi_llm_configs', JSON.stringify(configs));
 
         // Create modal overlay
         const overlay = document.createElement('div');
-        overlay.id = 'key-manager-overlay';
-        overlay.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.7); z-index: 9999;
-        display: flex; align-items: center; justify-content: center;
-      `;
+        overlay.id = 'api-config-overlay';
+        overlay.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;`;
 
-        // Modal container
         const modal = document.createElement('div');
-        modal.style.cssText = `
-        background: var(--bg-panel); border-radius: var(--radius-lg);
-        border: 1px solid var(--border-default); padding: 24px;
-        min-width: 400px; max-width: 500px; max-height: 80vh; overflow-y: auto;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-      `;
+        modal.style.cssText = `background:var(--bg-panel);border-radius:var(--radius-lg);border:1px solid var(--border-default);width:550px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.5);`;
 
-        // Render modal content
-        const renderModalContent = () => {
-            const keyNames = Object.keys(keys);
+        let currentView = 'list'; // 'list' or 'add'
+        let editingConfig = null;
 
-            modal.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h3 style="margin:0; font-size:16px; color:var(--text-primary);">API Key Manager</h3>
-            <button id="modal-close" style="background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">×</button>
-          </div>
-          
-          <div style="margin-bottom:16px; padding:12px; background:var(--bg-surface); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
-            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">ACTIVE KEY</div>
-            <select id="active-key-select" class="input" style="width:100%;">
-              ${keyNames.map(name => `<option value="${name}" ${name === activeKeyName ? 'selected' : ''}>${name}</option>`).join('')}
-            </select>
-          </div>
+        const render = () => {
+            modal.innerHTML = '';
 
-          <div style="margin-bottom:16px;">
-            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">SAVED KEYS (${keyNames.length})</div>
-            <div id="keys-list" style="display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto;">
-              ${keyNames.map(name => `
-                <div class="key-row" data-name="${name}" style="display:flex; align-items:center; gap:8px; padding:8px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
-                  <div style="flex:1;">
-                    <div style="font-size:12px; font-weight:bold; color:var(--text-primary);">${name}</div>
-                    <div style="font-size:10px; color:var(--text-muted);">${keys[name] ? '••••••••' + keys[name].slice(-4) : '(not set)'}</div>
-                  </div>
-                  <button class="btn-edit-key btn btn-ghost btn-sm" data-name="${name}" style="font-size:10px;">Edit</button>
-                  ${name !== 'Default' ? `<button class="btn-del-key btn btn-ghost btn-sm" data-name="${name}" style="font-size:10px; color:var(--status-error);">Delete</button>` : ''}
-                </div>
-              `).join('')}
-            </div>
-          </div>
+            // Header
+            const header = document.createElement('div');
+            header.style.cssText = 'padding:16px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;';
+            header.innerHTML = `
+                <h3 style="margin:0;font-size:16px;color:var(--text-primary);">API Configuration</h3>
+                <button id="modal-close" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;">×</button>
+            `;
+            modal.appendChild(header);
 
-          <div style="border-top:1px solid var(--border-subtle); padding-top:16px;">
-            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">ADD NEW KEY</div>
-            <div style="display:flex; gap:8px; margin-bottom:8px;">
-              <input id="new-key-name" class="input" placeholder="Key Name" style="flex:1;">
-              <input id="new-key-value" class="input" type="password" placeholder="API Key" style="flex:2;">
-            </div>
-            <button id="btn-add-key" class="btn btn-primary btn-sm" style="width:100%;">+ Add Key</button>
-          </div>
-        `;
+            // Body
+            const body = document.createElement('div');
+            body.style.cssText = 'flex:1;overflow-y:auto;padding:16px;';
 
-            // Bind events
-            modal.querySelector('#modal-close').onclick = () => overlay.remove();
+            if (currentView === 'list') {
+                // --- LIST VIEW ---
+                body.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">Saved Configurations (${configs.length})</div>
+                        <button id="btn-add-config" class="btn btn-primary btn-sm">+ Add Configuration</button>
+                    </div>
+                    <div id="configs-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <div style="margin-top:16px;padding:12px;background:var(--bg-surface);border-radius:var(--radius-md);border:1px solid var(--border-subtle);">
+                        <div style="font-size:10px;color:var(--status-warning);margin-bottom:4px;">⚠️ Note</div>
+                        <div style="font-size:11px;color:var(--text-muted);">API keys are stored in your browser's localStorage. They are never sent to any server except the configured provider.</div>
+                    </div>
+                `;
 
-            modal.querySelector('#active-key-select').onchange = (e) => {
-                localStorage.setItem('anansi_active_key_name', e.target.value);
-            };
+                const list = body.querySelector('#configs-list');
+                configs.forEach(cfg => {
+                    const isActive = cfg.id === activeId;
+                    const preset = PROVIDER_PRESETS[cfg.provider] || PROVIDER_PRESETS.custom;
+                    const row = document.createElement('div');
+                    row.style.cssText = `display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-elevated);border:1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'};border-radius:var(--radius-md);`;
+                    row.innerHTML = `
+                        <div style="flex:1;">
+                            <div style="font-size:13px;font-weight:bold;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+                                ${cfg.name}
+                                ${isActive ? '<span style="font-size:9px;padding:2px 6px;background:var(--accent-primary);color:white;border-radius:4px;">ACTIVE</span>' : ''}
+                            </div>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${preset.name} • ${cfg.model || preset.defaultModel}</div>
+                        </div>
+                        <div style="display:flex;gap:4px;">
+                            ${!isActive ? `<button class="btn btn-ghost btn-sm btn-activate" data-id="${cfg.id}" style="font-size:10px;">Activate</button>` : ''}
+                            <button class="btn btn-ghost btn-sm btn-edit" data-id="${cfg.id}" style="font-size:10px;">Edit</button>
+                            <button class="btn btn-ghost btn-sm btn-delete" data-id="${cfg.id}" style="font-size:10px;color:var(--status-error);">Delete</button>
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
 
-            modal.querySelectorAll('.btn-edit-key').forEach(btn => {
-                btn.onclick = () => {
-                    const name = btn.dataset.name;
-                    const newValue = prompt(`Enter new API key for "${name}":`, keys[name] || '');
-                    if (newValue !== null) {
-                        keys[name] = newValue;
-                        localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
-                        renderModalContent();
-                    }
-                };
-            });
+                modal.appendChild(body);
 
-            modal.querySelectorAll('.btn-del-key').forEach(btn => {
-                btn.onclick = () => {
-                    const name = btn.dataset.name;
-                    if (confirm(`Delete key "${name}"?`)) {
-                        delete keys[name];
-                        localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
-                        // If we deleted the active key, switch to Default
-                        if (localStorage.getItem('anansi_active_key_name') === name) {
-                            localStorage.setItem('anansi_active_key_name', 'Default');
+                // Bind list events
+                body.querySelector('#btn-add-config').onclick = () => { editingConfig = null; currentView = 'add'; render(); };
+                body.querySelectorAll('.btn-activate').forEach(btn => {
+                    btn.onclick = () => {
+                        activeId = btn.dataset.id;
+                        localStorage.setItem('anansi_active_config_id', activeId);
+                        render();
+                        if (A.UI.Toast) A.UI.Toast.show('Configuration activated', 'success');
+                    };
+                });
+                body.querySelectorAll('.btn-edit').forEach(btn => {
+                    btn.onclick = () => {
+                        editingConfig = configs.find(c => c.id === btn.dataset.id);
+                        currentView = 'add';
+                        render();
+                    };
+                });
+                body.querySelectorAll('.btn-delete').forEach(btn => {
+                    btn.onclick = () => {
+                        if (confirm('Delete this configuration?')) {
+                            configs = configs.filter(c => c.id !== btn.dataset.id);
+                            if (activeId === btn.dataset.id && configs.length > 0) activeId = configs[0].id;
+                            saveConfigs();
+                            localStorage.setItem('anansi_active_config_id', activeId);
+                            render();
                         }
-                        renderModalContent();
+                    };
+                });
+
+            } else {
+                // --- ADD/EDIT VIEW ---
+                const isEdit = !!editingConfig;
+                const cfg = editingConfig || { id: '', name: '', provider: 'openai', model: '', baseUrl: '', apiKey: '' };
+
+                body.innerHTML = `
+                    <button id="btn-back" class="btn btn-ghost btn-sm" style="margin-bottom:12px;">← Back to List</button>
+                    <h4 style="margin:0 0 16px 0;font-size:14px;">${isEdit ? 'Edit Configuration' : 'Add New Configuration'}</h4>
+                    
+                    <div style="margin-bottom:16px;">
+                        <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Provider</div>
+                        <div id="provider-tabs" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label class="label" style="font-size:11px;">Configuration Name</label>
+                        <input id="cfg-name" class="input" value="${cfg.name}" placeholder="My OpenAI Key">
+                    </div>
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label class="label" style="font-size:11px;">Model</label>
+                        <input id="cfg-model" class="input" value="${cfg.model}" placeholder="e.g., gpt-4o-mini">
+                    </div>
+                    <div class="form-group" id="url-group" style="margin-bottom:12px;display:none;">
+                        <label class="label" style="font-size:11px;">Base URL</label>
+                        <input id="cfg-url" class="input" value="${cfg.baseUrl}" placeholder="https://api.example.com/v1">
+                    </div>
+                    <div class="form-group" id="key-group" style="margin-bottom:12px;">
+                        <label class="label" style="font-size:11px;">API Key</label>
+                        <input id="cfg-key" class="input" type="password" value="${cfg.apiKey}" placeholder="sk-...">
+                    </div>
+
+                    <button id="btn-save-config" class="btn btn-primary" style="width:100%;margin-top:8px;">${isEdit ? 'Save Changes' : 'Add Configuration'}</button>
+                `;
+
+                modal.appendChild(body);
+
+                // Provider tabs
+                const tabsContainer = body.querySelector('#provider-tabs');
+                let selectedProvider = cfg.provider || 'openai';
+
+                const renderProviderTabs = () => {
+                    tabsContainer.innerHTML = Object.keys(PROVIDER_PRESETS).map(key => {
+                        const p = PROVIDER_PRESETS[key];
+                        const isSelected = key === selectedProvider;
+                        return `<button class="btn btn-sm provider-tab" data-provider="${key}" style="font-size:10px;${isSelected ? 'background:var(--accent-primary);color:white;' : ''}">${p.name}</button>`;
+                    }).join('');
+
+                    // Update field visibility
+                    const preset = PROVIDER_PRESETS[selectedProvider];
+                    body.querySelector('#url-group').style.display = selectedProvider === 'custom' ? 'block' : 'none';
+                    body.querySelector('#key-group').style.display = preset.needsKey ? 'block' : 'none';
+                    if (!isEdit) {
+                        body.querySelector('#cfg-model').placeholder = preset.defaultModel || 'Model ID';
                     }
+
+                    // Bind tab clicks
+                    tabsContainer.querySelectorAll('.provider-tab').forEach(tab => {
+                        tab.onclick = () => {
+                            selectedProvider = tab.dataset.provider;
+                            renderProviderTabs();
+                        };
+                    });
                 };
-            });
+                renderProviderTabs();
 
-            modal.querySelector('#btn-add-key').onclick = () => {
-                const nameInput = modal.querySelector('#new-key-name');
-                const valueInput = modal.querySelector('#new-key-value');
-                const name = nameInput.value.trim();
-                const value = valueInput.value.trim();
+                // Back button
+                body.querySelector('#btn-back').onclick = () => { currentView = 'list'; editingConfig = null; render(); };
 
-                if (!name) {
-                    alert('Please enter a key name.');
-                    return;
-                }
-                if (keys[name]) {
-                    alert('A key with this name already exists.');
-                    return;
-                }
+                // Save button
+                body.querySelector('#btn-save-config').onclick = () => {
+                    const name = body.querySelector('#cfg-name').value.trim();
+                    const model = body.querySelector('#cfg-model').value.trim() || PROVIDER_PRESETS[selectedProvider].defaultModel;
+                    const apiKey = body.querySelector('#cfg-key').value.trim();
+                    const baseUrl = body.querySelector('#cfg-url').value.trim() || PROVIDER_PRESETS[selectedProvider].baseUrl;
 
-                keys[name] = value;
-                localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
-                renderModalContent();
-            };
+                    if (!name) { alert('Please enter a configuration name.'); return; }
+
+                    if (isEdit) {
+                        editingConfig.name = name;
+                        editingConfig.provider = selectedProvider;
+                        editingConfig.model = model;
+                        editingConfig.baseUrl = baseUrl;
+                        editingConfig.apiKey = apiKey;
+                    } else {
+                        configs.push({
+                            id: 'cfg_' + Date.now(),
+                            name, provider: selectedProvider, model, baseUrl, apiKey
+                        });
+                    }
+                    saveConfigs();
+                    if (A.UI.Toast) A.UI.Toast.show(isEdit ? 'Configuration updated' : 'Configuration added', 'success');
+                    currentView = 'list';
+                    editingConfig = null;
+                    render();
+                };
+            }
+
+            // Close button
+            modal.querySelector('#modal-close').onclick = () => overlay.remove();
         };
 
-        renderModalContent();
+        render();
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    };
 
-        // Close on overlay click
-        overlay.onclick = (e) => {
-            if (e.target === overlay) overlay.remove();
+    // Helper to get active LLM config
+    A.UI.getActiveLLMConfig = function () {
+        const configs = JSON.parse(localStorage.getItem('anansi_llm_configs') || '[]');
+        const activeId = localStorage.getItem('anansi_active_config_id') || '';
+        const cfg = configs.find(c => c.id === activeId) || configs[0] || null;
+        if (!cfg) return null;
+        const preset = PROVIDER_PRESETS[cfg.provider] || PROVIDER_PRESETS.custom;
+        return {
+            provider: cfg.provider,
+            model: cfg.model || preset.defaultModel,
+            baseUrl: cfg.baseUrl || preset.baseUrl,
+            apiKey: cfg.apiKey
         };
     };
 

@@ -135,7 +135,7 @@
 - **TRACE**: Script execution trace
 - **STATS**: Scoring stat values
 - **LOCS**: Location map
-- **CFG**: LLM provider/model config, API key manager
+- **CFG**: **Consolidated API Configuration** (Provider presets, auto-filled URLs)
 
 **Advanced Features:**
 - Per-message injection inspector (ℹ️ button)
@@ -225,6 +225,7 @@
 - **New Feature**: **Lorebook Import/Export** (JSON) with **Conflict Resolver** (Overwrite/Copy/Skip).
 - **New Feature**: **Bi-directional Location Linking**. Creating an exit automatically links the return path.
 - **New Feature**: **Alternate Initial Messages**. Define multiple greetings and swipe through them in the Simulator. Index tracked via `state.sim.greetingIndex`.
+- **New Feature**: **Consolidated API Configuration Modal**. Tabbed interface with provider presets (OpenAI, Anthropic, Gemini, Kobold, Chutes, Custom) that auto-fill URLs.
 - **Fix**: Lorebook Export button now correctly triggers download.
 
 ---

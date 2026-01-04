@@ -2041,70 +2041,31 @@
         }
 
       } else if (activeLens === 'config') {
-        const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
-        const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{"Default":""}');
-        const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+        const activeConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
 
         lensContent.innerHTML = `
-                  <div style="display:flex; flex-direction:column; gap:12px;">
-                    <section>
-                      <div style="font-weight:bold; margin-bottom:8px; color:var(--text-muted); text-transform:uppercase; font-size:10px;">LLM Provider</div>
-                      <div class="form-group">
-                        <label class="label" style="font-size:10px;">Provider</label>
-                        <select class="input" id="sim-provider" style="font-size:11px;">
-                          <option value="gemini" ${config.provider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
-                          <option value="openai" ${config.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
-                          <option value="chutes" ${config.provider === 'chutes' ? 'selected' : ''}>Chutes AI</option>
-                          <option value="custom" ${config.provider === 'custom' ? 'selected' : ''}>Custom (OpenAI-compatible)</option>
-                          <option value="kobold" ${config.provider === 'kobold' ? 'selected' : ''}>Kobold (Local)</option>
-                        </select>
-                      </div>
-                      <div class="form-group">
-                        <label class="label" style="font-size:10px;">Model ID</label>
-                        <input class="input" id="sim-model" value="${config.model || 'gemini-2.0-flash'}" style="font-size:11px;">
-                      </div>
-                      <div class="form-group" id="custom-url-group" style="display:${config.provider === 'custom' ? 'block' : 'none'};">
-                        <label class="label" style="font-size:10px;">Base URL <span style="opacity:0.6;">(for Custom)</span></label>
-                        <input class="input" id="sim-base-url" value="${config.baseUrl || 'https://api.example.com/v1'}" placeholder="https://api.example.com/v1" style="font-size:11px;">
-                        <div style="font-size:9px; color:var(--text-muted); margin-top:4px;">Endpoint: {baseUrl}/chat/completions</div>
-                      </div>
-                    </section>
-                    
-                    <button class="btn btn-secondary btn-sm" id="btn-manage-keys" style="width:100%; margin-top:8px;">Manage API Keys</button>
-                    <button class="btn btn-ghost btn-sm" id="sim-reset-config" style="width:100%; margin-top:8px; font-size:10px;">Reset Settings</button>
-                  </div>
-                `;
-
-        // Simplified Config Logic for Brevity (Full implementation requires saving logic)
-        const p = lensContent.querySelector('#sim-provider');
-        const m = lensContent.querySelector('#sim-model');
-        const u = lensContent.querySelector('#sim-base-url');
-        const urlGroup = lensContent.querySelector('#custom-url-group');
-
-        const saveConfig = () => {
-          const configData = {
-            provider: p.value,
-            model: m.value
-          };
-          if (u) configData.baseUrl = u.value;
-          localStorage.setItem('anansi_sim_config', JSON.stringify(configData));
-        };
-
-        // Show/hide base URL field based on provider
-        p.onchange = () => {
-          if (urlGroup) urlGroup.style.display = p.value === 'custom' ? 'block' : 'none';
-          saveConfig();
-        };
-        m.onchange = saveConfig;
-        if (u) u.onchange = saveConfig;
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <section>
+              <div style="font-weight:bold; margin-bottom:8px; color:var(--text-muted); text-transform:uppercase; font-size:10px;">Active LLM Configuration</div>
+              ${activeConfig ? `
+                <div style="padding:12px; background:var(--bg-elevated); border:1px solid var(--accent-primary); border-radius:var(--radius-md);">
+                  <div style="font-size:13px; font-weight:bold; color:var(--text-primary);">${activeConfig.provider.toUpperCase()}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Model: <strong>${activeConfig.model}</strong></div>
+                  ${activeConfig.provider === 'custom' ? `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">URL: ${activeConfig.baseUrl}</div>` : ''}
+                  <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">API Key: ${activeConfig.apiKey ? '••••••••' + activeConfig.apiKey.slice(-4) : '<span style="color:var(--status-error);">Not set</span>'}</div>
+                </div>
+              ` : `
+                <div style="padding:12px; background:var(--bg-surface); border-radius:var(--radius-md); text-align:center; color:var(--text-muted); font-size:11px;">
+                  No configuration set. Click below to add one.
+                </div>
+              `}
+            </section>
+            
+            <button class="btn btn-primary btn-sm" id="btn-manage-keys" style="width:100%;">⚙️ Manage API Configurations</button>
+          </div>
+        `;
 
         lensContent.querySelector('#btn-manage-keys').onclick = () => A.UI.showApiKeyManager();
-        lensContent.querySelector('#sim-reset-config').onclick = () => {
-          if (confirm('Reset?')) {
-            localStorage.removeItem('anansi_sim_config');
-            A.State.notify();
-          }
-        };
       }
     }
 
