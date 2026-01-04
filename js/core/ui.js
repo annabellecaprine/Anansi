@@ -59,10 +59,16 @@
             };
 
             // Bind Topbar Actions
-            // Project Picker (hamburger menu)
+            // Dual-purpose hamburger: Desktop = ProjectPicker, Mobile = Nav Drawer
             if (this.els.btnProjects) {
                 this.els.btnProjects.onclick = () => {
-                    if (A.ProjectPicker) A.ProjectPicker.show();
+                    if (window.innerWidth < 768) {
+                        // Mobile: Toggle navigation drawer
+                        this.els.appShell.classList.toggle('nav-open');
+                    } else {
+                        // Desktop: Show project picker
+                        if (A.ProjectPicker) A.ProjectPicker.show();
+                    }
                 };
             }
 
@@ -93,6 +99,27 @@
             };
             this.els.btnToggleLens.onclick = () => this.toggleLens();
 
+            // Mobile: Project name opens ProjectPicker
+            const projectHeader = document.getElementById('project-header');
+            if (projectHeader) {
+                projectHeader.onclick = () => {
+                    if (window.innerWidth < 768 && A.ProjectPicker) {
+                        A.ProjectPicker.show();
+                    }
+                };
+            }
+
+            // Mobile: Click overlay to close nav drawer
+            this.els.appShell.addEventListener('click', (e) => {
+                if (window.innerWidth < 768 && this.els.appShell.classList.contains('nav-open')) {
+                    // Check if click is on the overlay (the ::before pseudo-element area)
+                    const nav = document.querySelector('.web-navigator');
+                    if (nav && !nav.contains(e.target) && !this.els.btnProjects.contains(e.target)) {
+                        this.els.appShell.classList.remove('nav-open');
+                    }
+                }
+            });
+
             // Tour Binding
             if (this.els.btnHelp) {
                 this.els.btnHelp.onclick = () => {
@@ -109,7 +136,6 @@
             A.State.subscribe(state => {
                 if (!state) return;
                 this.els.displayName.textContent = state.meta.name + (state.isDirty ? ' •' : '');
-                this.els.displayEnv.textContent = state.environment.id.toUpperCase();
                 this.updateIntegrityBadge(state);
             });
 
@@ -223,7 +249,6 @@
             const state = A.State.get();
             if (state) {
                 this.els.displayName.textContent = state.meta.name + (state.isDirty ? ' •' : '');
-                this.els.displayEnv.textContent = state.environment.id.toUpperCase();
                 this.updateIntegrityBadge(state);
             }
         },
@@ -232,6 +257,11 @@
             try {
                 activePanelId = id;
                 this.refreshNav(); // Update active state
+
+                // Mobile: Auto-close nav drawer on panel switch
+                if (window.innerWidth < 768 && this.els.appShell) {
+                    this.els.appShell.classList.remove('nav-open');
+                }
 
                 // Persist active panel to localStorage
                 localStorage.setItem('anansi_active_panel', id);
@@ -290,6 +320,14 @@
 
         toggleLens: function (force) {
             const shell = this.els.appShell;
+
+            // Mobile: Use slide-out drawer with lens-open class
+            if (window.innerWidth < 768) {
+                shell.classList.toggle('lens-open');
+                return;
+            }
+
+            // Desktop: Use collapse behavior
             const isCollapsed = force !== undefined ? force : !shell.classList.contains('lens-collapsed');
 
             if (isCollapsed) {
@@ -300,6 +338,18 @@
             localStorage.setItem('anansi_lens_collapsed', isCollapsed);
         }
     };
+
+    // Mobile: Click overlay to close lens drawer
+    document.addEventListener('click', (e) => {
+        const shell = document.getElementById('app-shell');
+        if (window.innerWidth < 768 && shell && shell.classList.contains('lens-open')) {
+            const lens = document.querySelector('.web-lens');
+            const lensBtn = document.getElementById('btn-toggle-lens');
+            if (lens && !lens.contains(e.target) && lensBtn && !lensBtn.contains(e.target)) {
+                shell.classList.remove('lens-open');
+            }
+        }
+    });
 
     // Extend UI with toggleTheme if missing (was in original file, ensuring it's kept)
     UI.toggleTheme = function () {

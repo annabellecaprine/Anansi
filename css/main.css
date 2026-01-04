@@ -888,3 +888,280 @@ kbd {
         /* Center the icon */
     }
 }
+
+/* ================================ */
+/* Mobile Layout: Stacked + Drawer  */
+/* ================================ */
+@media (max-width: 768px) {
+
+    /* Stack the layout */
+    .app-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: 56px 1fr;
+        grid-template-areas:
+            "topbar"
+            "main";
+    }
+
+    /* Topbar adjustments */
+    .topbar {
+        height: 56px;
+        padding: 0 var(--space-2);
+    }
+
+    .topbar-left {
+        gap: 4px;
+    }
+
+    /* Make logo smaller on mobile */
+    .app-logo-img {
+        height: 24px !important;
+    }
+
+    .app-logo span {
+        font-size: 14px;
+    }
+
+    /* Hide version number on mobile */
+    .app-logo span span {
+        display: none;
+    }
+
+    /* Truncate project name - remove absolute positioning on mobile */
+    .topbar-center {
+        position: static;
+        transform: none;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        justify-content: center;
+    }
+
+    .project-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
+        font-size: 13px;
+    }
+
+    /* Ensure topbar-right stays on top */
+    .topbar-right {
+        flex-shrink: 0;
+        z-index: 5;
+    }
+
+    /* Hide text buttons on mobile, keep icon buttons */
+    .topbar-right .btn-sm {
+        display: none;
+    }
+
+    /* Project name becomes clickable */
+    #project-header {
+        cursor: pointer;
+    }
+
+    /* Off-canvas Navigation Drawer */
+    .web-navigator {
+        position: fixed;
+        left: -280px;
+        top: 56px;
+        bottom: 0;
+        width: 280px;
+        z-index: 200;
+        transition: left 0.3s ease;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-shell.nav-open .web-navigator {
+        left: 0;
+    }
+
+    /* Overlay when nav is open */
+    .app-shell.nav-open::before {
+        content: '';
+        position: fixed;
+        inset: 56px 0 0 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 150;
+    }
+
+    /* Web Lens as slide-out drawer from right */
+    .web-lens {
+        position: fixed;
+        right: -280px;
+        top: 56px;
+        bottom: 0;
+        width: 280px;
+        z-index: 200;
+        transition: right 0.3s ease;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-shell.lens-open .web-lens {
+        right: 0;
+    }
+
+    /* Overlay when lens is open */
+    .app-shell.lens-open::after {
+        content: '';
+        position: fixed;
+        inset: 56px 0 0 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 150;
+    }
+
+    /* Panel container - full bleed on mobile */
+    .panel-container {
+        padding: var(--space-3);
+    }
+
+    .panel-header {
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-bottom: var(--space-4);
+    }
+
+    .panel-title {
+        font-size: 18px;
+    }
+
+    .panel-subtitle {
+        font-size: 11px;
+    }
+
+    /* Cards full-width and compact */
+    .card {
+        margin-bottom: var(--space-3);
+    }
+
+    .card-body {
+        padding: var(--space-3);
+    }
+
+    .card-header {
+        padding: var(--space-2) var(--space-3);
+    }
+
+    /* ================================ */
+    /* Force inline grids to stack!     */
+    /* ================================ */
+
+    /* Stats grid: force 2-column on mobile */
+    [style*="grid-template-columns: repeat(4"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    /* Two-column layouts: force single column */
+    [style*="grid-template-columns: 2fr 1fr"],
+    [style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Flexible grids in forms */
+    [style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Max-width containers - full width */
+    [style*="max-width: 1400px"] {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    /* Header layouts - stack vertically */
+    [style*="justify-content: space-between"][style*="align-items: flex-start"] {
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    /* Token/stat cards - compact sizing */
+    .card[style*="padding: 16px"] {
+        padding: 12px !important;
+    }
+
+    .card[style*="padding: 16px"] [style*="font-size: 24px"] {
+        font-size: 20px !important;
+    }
+
+    /* Form inputs - full width */
+    .form-group {
+        margin-bottom: var(--space-3);
+    }
+
+    .input,
+    .input[style] {
+        font-size: 16px;
+        /* Prevents iOS zoom on focus */
+    }
+
+    /* Buttons - larger touch targets */
+    .btn {
+        min-height: 44px;
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .btn-icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Badge spacing */
+    .badge {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    /* Flexbox wrapping for badges */
+    [style*="display: flex"][style*="gap: 12px"][style*="flex-wrap: wrap"] {
+        gap: 8px !important;
+    }
+
+    /* Cover image - smaller on mobile */
+    #project-cover-preview {
+        width: 80px !important;
+        height: 80px !important;
+    }
+
+    /* Toast positioning for mobile */
+    #toast-container {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+
+    .toast {
+        min-width: auto;
+        max-width: 100%;
+    }
+}
+
+/* Orientation Lock Overlay */
+.orientation-lock {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg-main);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    flex-direction: column;
+}
+
+/* Only show overlay on portrait mobile devices */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+    .orientation-lock {
+        display: flex;
+    }
+
+    /* Prevent scrolling of main app when locked */
+    .app-shell {
+        overflow: hidden;
+        height: 100vh;
+        filter: blur(5px);
+    }
+}
