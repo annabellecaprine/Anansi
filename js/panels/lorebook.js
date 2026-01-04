@@ -240,7 +240,12 @@
       <div class="card-body" id="lore-list" style="padding:0; flex:1; overflow-y:auto;"></div>
       <div class="card-footer" style="display:flex; flex-direction:column; gap:8px;">
         <button class="btn btn-primary btn-sm" id="btn-add-lore" style="width:100%;">+ Add Entry</button>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost btn-sm" id="btn-import-lore" style="flex:1; font-size:10px;">Import</button>
+            <button class="btn btn-ghost btn-sm" id="btn-export-lore" style="flex:1; font-size:10px;">Export</button>
+        </div>
         <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+        <input type="file" id="file-import-hidden" style="display:none;" accept=".json,.png">
       </div>
     `;
 
@@ -252,6 +257,226 @@
 
     container.appendChild(listCol);
     container.appendChild(editorCol);
+
+    // --- Event Handlers (Import/Export) ---
+
+    // Import
+    const fileInput = listCol.querySelector('#file-import-hidden');
+
+    listCol.querySelector('#btn-import-lore').onclick = () => {
+      fileInput.value = ''; // Reset
+      fileInput.click();
+    };
+
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          if (A.Converter) {
+            const imported = A.Converter.importLorebook(evt.target.result);
+            const importedKeys = Object.keys(imported);
+            const count = importedKeys.length;
+
+            if (count > 0) {
+              const existingKeys = Object.keys(state.weaves.lorebook.entries);
+              const collisions = importedKeys.filter(k => existingKeys.includes(k));
+
+              if (collisions.length > 0) {
+                // State for decisions: { [id]: 'skip' | 'overwrite' | 'copy' }
+                const decisions = {};
+                collisions.forEach(k => decisions[k] = 'skip'); // Default to safe skip
+
+                // Render Resolver Modal
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0,0,0,0.7); z-index: 10000;
+                        display: flex; align-items: center; justify-content: center;
+                     `;
+
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                        background: var(--bg-panel); border: 1px solid var(--border-default);
+                        border-radius: var(--radius-lg); width: 600px; max-height: 80vh;
+                        box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;
+                     `;
+
+                // Header
+                const header = document.createElement('div');
+                header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
+                header.innerHTML = `
+                        <div>
+                            <h3 style="margin:0; font-size:16px; color:var(--text-primary);">Import Conflicts</h3>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${collisions.length} existing entries found. ${count - collisions.length} new entries ready.</div>
+                        </div>
+                        <div style="font-size:11px; display:flex; gap:8px;">
+                            <span style="color:var(--text-muted);">Set All:</span>
+                            <a href="#" id="bulk-overwrite" style="color:var(--status-warning);">Overwrite</a>
+                            <a href="#" id="bulk-copy" style="color:var(--accent-primary);">Copy</a>
+                            <a href="#" id="bulk-skip" style="color:var(--text-muted);">Skip</a>
+                        </div>
+                     `;
+
+                // List
+                const listBody = document.createElement('div');
+                listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
+
+                const renderConflictList = () => {
+                  listBody.innerHTML = collisions.map(id => {
+                    const entry = imported[id];
+                    const action = decisions[id];
+                    let actionColor = 'var(--text-muted)';
+                    if (action === 'overwrite') actionColor = 'var(--status-warning)';
+                    if (action === 'copy') actionColor = 'var(--accent-primary)';
+
+                    return `
+                                <div class="conflict-row" data-id="${id}" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--border-subtle); gap:12px;">
+                                    <div style="flex:1; overflow:hidden;">
+                                        <div style="font-weight:bold; font-size:13px; color:var(--text-primary); white-space:nowrap; text-overflow:ellipsis;">${entry.title || 'Untitled'}</div>
+                                        <div style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono);">${id}</div>
+                                    </div>
+                                    <div style="display:flex; gap:2px; background:var(--bg-elevated); padding:2px; border-radius:4px;">
+                                        ${['overwrite', 'copy', 'skip'].map(act => `
+                                            <button class="btn-conflict-act" data-id="${id}" data-act="${act}" 
+                                                style="
+                                                    padding:4px 8px; font-size:10px; border:none; background:${action === act ? actionColor : 'transparent'}; 
+                                                    color:${action === act ? (act === 'overwrite' ? 'var(--bg-base)' : 'white') : 'var(--text-muted)'}; 
+                                                    border-radius:2px; cursor:pointer; font-weight:bold;
+                                                ">
+                                                ${act.charAt(0).toUpperCase() + act.slice(1)}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                             `;
+                  }).join('');
+
+                  // Re-bind row events
+                  listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
+                    btn.onclick = (e) => {
+                      decisions[btn.dataset.id] = btn.dataset.act;
+                      renderConflictList(); // Re-render to update toggle states
+                    };
+                  });
+                };
+
+                renderConflictList();
+
+                // Footer
+                const footer = document.createElement('div');
+                footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
+                footer.innerHTML = `
+                        <button id="btn-resolve-cancel" class="btn btn-ghost">Cancel Import</button>
+                        <button id="btn-resolve-apply" class="btn btn-primary">Complete Import</button>
+                     `;
+
+                modal.appendChild(header);
+                modal.appendChild(listBody);
+                modal.appendChild(footer);
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+
+                // Bulk Actions
+                const setAll = (act) => {
+                  collisions.forEach(k => decisions[k] = act);
+                  renderConflictList();
+                };
+                modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
+                modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
+                modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
+
+                // Cancel
+                modal.querySelector('#btn-resolve-cancel').onclick = () => {
+                  overlay.remove();
+                  if (A.UI.Toast) A.UI.Toast.show('Import cancelled.', 'info');
+                };
+
+                // Apply
+                modal.querySelector('#btn-resolve-apply').onclick = () => {
+                  let added = 0;
+                  let updated = 0;
+                  let skipped = 0;
+
+                  // 1. Process Safe Entries (Non-collisions)
+                  importedKeys.forEach(k => {
+                    if (!collisions.includes(k)) {
+                      state.weaves.lorebook.entries[k] = imported[k];
+                      added++;
+                    }
+                  });
+
+                  // 2. Process Conflicts based on decisions
+                  collisions.forEach(k => {
+                    const act = decisions[k];
+                    const entry = imported[k];
+
+                    if (act === 'overwrite') {
+                      state.weaves.lorebook.entries[k] = entry;
+                      updated++;
+                    } else if (act === 'copy') {
+                      const newId = A.ProjectDB.generateId();
+                      entry.id = newId;
+                      entry.uuid = A.ProjectDB.generateId();
+                      state.weaves.lorebook.entries[newId] = entry;
+                      added++;
+                    } else {
+                      skipped++;
+                    }
+                  });
+
+                  finalizeImport(`Import Complete: ${added} added, ${updated} updated, ${skipped} skipped.`);
+                  overlay.remove();
+                };
+
+                return; // Wait for user interaction
+              }
+
+              // Default path (No Collisions)
+              Object.assign(state.weaves.lorebook.entries, imported);
+              finalizeImport(`Imported ${count} entries.`);
+            } else {
+              if (A.UI.Toast) A.UI.Toast.show('No valid entries found in file.', 'warning');
+            }
+          } else {
+            alert('Converter module missing!');
+          }
+        } catch (err) {
+          console.error(err);
+          if (A.UI.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+        }
+      };
+
+      // Helper to finish up
+      const finalizeImport = (msg) => {
+        A.State.notify();
+        renderList();
+        if (A.UI.Toast) A.UI.Toast.show(msg, 'success');
+      };
+
+      reader.readAsText(file);
+    };
+
+    // Export
+    // Export
+    listCol.querySelector('#btn-export-lore').onclick = () => {
+      const entries = state.weaves.lorebook.entries;
+      // Native Export
+      const blob = new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lorebook_export_${new Date().getTime()}.json`;
+      document.body.appendChild(a); // Required for Firefox
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (A.UI.Toast) A.UI.Toast.show('Lorebook exported successfully.', 'success');
+    };
 
     // Handle Context
     if (context && context.createNew) {

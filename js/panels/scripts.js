@@ -53,6 +53,9 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               AURA
             </button>
+            <button class="btn btn-ghost btn-sm" id="btn-repo-script" title="Script Repository (Presets)" style="color:var(--accent-primary);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </button>
             <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Upload Script">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </button>
@@ -499,6 +502,288 @@
                 A.AuraBuilder.download(A.State.get());
                 modal.remove();
             };
+        };
+
+        container.querySelector('#btn-repo-script').onclick = () => {
+            const repoPoints = [
+                {
+                    name: 'RPG Travel System',
+                    desc: 'Enables dynamic world navigation. Uses your Locations map to provide cardinal directions (N/S/E/W) and move the user between nodes.',
+                    code: `/* 
+ * Anansi RPG Travel System
+ * ------------------------
+ * Dynamically tracks user location and provides navigable exits
+ * based on the "Locations" panel map layout.
+ */
+
+const RPG = {
+    state: {
+        currentLocationId: null
+    },
+
+    // Initialize or restore state
+    init: function() {
+        // Try to find a starting location if none set
+        if (!this.state.currentLocationId) {
+            const locs = Anansi.State.get().weaves.locations || [];
+            if (locs.length > 0) {
+                this.state.currentLocationId = locs[0].id; // Default to first
+            }
+        }
+    },
+
+    // Get current location validation
+    getCurrent: function() {
+        const locs = Anansi.State.get().weaves.locations || [];
+        return locs.find(l => l.id === this.state.currentLocationId);
+    },
+
+    // Travel to a new ID
+    travel: function(targetId) {
+        const locs = Anansi.State.get().weaves.locations || [];
+        const target = locs.find(l => l.id === targetId);
+        if (target) {
+            this.state.currentLocationId = targetId;
+            return \`You travel to \${target.name}.\`;
+        }
+        return "You cannot go there.";
+    },
+
+    // Calculate cardinal direction between two points
+    getDirection: function(p1, p2) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? "East" : "West";
+        } else {
+            return dy > 0 ? "South" : "North";
+        }
+    },
+
+    // Context Injection for LLM
+    getContext: function() {
+        const cur = this.getCurrent();
+        if (!cur) return "Location: Unknown Void";
+
+        const locs = Anansi.State.get().weaves.locations || [];
+        const exits = (cur.exits || []).map(eid => {
+            const dest = locs.find(l => l.id === eid);
+            if (!dest) return null;
+            
+            // Calculate heuristic direction from map positions
+            const dir = this.getDirection(cur.pos, dest.pos);
+            return \`\${dir}: \${dest.name}\`; 
+        }).filter(x => x).join(', ');
+
+        return \`[CURRENT LOCATION: \${cur.name}]\n[DESCRIPTION: \${cur.description}]\n[EXITS: \${exits}]\`;
+    }
+};
+
+// Auto-run init
+RPG.init();
+`
+                },
+                {
+                    name: 'Day/Night Cycle',
+                    desc: 'Simple time tracking system that advances time with every message and changes environment tags.',
+                    code: `/*
+ * Simple Day/Night Cycle
+ */
+const Time = {
+    hour: 8, // Start at 8 AM
+    
+    advance: function(hours = 1) {
+        this.hour = (this.hour + hours) % 24;
+    },
+    
+    getPhase: function() {
+        if (this.hour >= 6 && this.hour < 12) return "Morning";
+        if (this.hour >= 12 && this.hour < 18) return "Afternoon";
+        if (this.hour >= 18 && this.hour < 22) return "Evening";
+        return "Night";
+    },
+    
+    toString: function() {
+        return \`[TIME: \${this.hour}:00 (\${this.getPhase()})]\`;
+    }
+};`
+                },
+                {
+                    name: 'Inventory System',
+                    desc: 'Basic item tracking. Add/Remove items and list them in context.',
+                    code: `/*
+ * Basic Inventory
+ */
+const Inventory = {
+    items: [],
+    
+    add: function(item) { this.items.push(item); },
+    remove: function(item) { 
+        const idx = this.items.indexOf(item);
+        if (idx > -1) this.items.splice(idx, 1);
+    },
+    
+    list: function() {
+        if (this.items.length === 0) return "Empty";
+        return this.items.join(", ");
+    }
+};`
+                },
+                {
+                    name: 'API Reference / Cheatsheet',
+                    desc: 'A comprehensive guide to Anansi internal functions and state access. Fully commented out for safety.',
+                    code: `/* 
+ * ANANSI SCRIPTING API REFERENCE
+ * ==============================
+ * This guide lists common patterns to access your World State.
+ * All code is commented out so it doesn't execute by default.
+ * Copy-paste sections you need into your active scripts.
+ */
+
+// ------------------------------------------------------------------
+// 1. ACCESSING THE GLOBAL STATE
+// ------------------------------------------------------------------
+/*
+   const state = Anansi.State.get();
+   // 'state' now holds your entire project:
+   // - state.meta (Name, Author)
+   // - state.nodes.actors (Characters)
+   // - state.weaves.lorebook (Lore Entries)
+   // - state.weaves.locations (Map Nodes)
+   // - state.weaves.events (Timeline Events)
+*/
+
+// ------------------------------------------------------------------
+// 2. ACTORS (CHARACTERS)
+// ------------------------------------------------------------------
+/*
+   // Get ALL Actors as an array
+   const getAllActors = () => Object.values(Anansi.State.get().nodes.actors.items || {});
+
+   // Find Actor by Name
+   const getActor = (name) => {
+       return getAllActors().find(a => a.name === name);
+   };
+   
+   // Example: Check an Actor's emotion (if you are using Flux)
+   // const hero = getActor('Hero');
+   // if (hero) console.log(hero.data?.flux?.emotion);
+*/
+
+// ------------------------------------------------------------------
+// 3. LOREBOOK ENTRIES
+// ------------------------------------------------------------------
+/*
+   // Get ALL Entries
+   const getLoreEntries = () => Object.values(Anansi.State.get().weaves.lorebook.entries || {});
+   
+   // Find Entry by Title
+   const findLore = (title) => {
+       return getLoreEntries().find(e => e.title === title);
+   };
+
+   // Enable/Disable an Entry programmatically
+   const toggleLore = (title, enable) => {
+       const entry = findLore(title);
+       if (entry) {
+           entry.enabled = enable; 
+           // Note: State changes in scripts take effect immediately in memory
+       }
+   };
+*/
+
+// ------------------------------------------------------------------
+// 4. LOCATIONS (FORBIDDEN SECRETS)
+// ------------------------------------------------------------------
+/*
+   // Get Location by ID
+   const getLoc = (id) => (Anansi.State.get().weaves.locations || []).find(l => l.id === id);
+
+   // Get formatted exits for a location
+   const getExits = (loc) => {
+       return (loc.exits || []).map(eid => {
+           const dest = getLoc(eid);
+           return dest ? dest.name : eid;
+       }).join(', ');
+   };
+*/
+
+// ------------------------------------------------------------------
+// 5. GLOBAL VARIABLES (PERSISTENCE)
+// ------------------------------------------------------------------
+/*
+   // To store variables that persist between messages, attach them 
+   // to the window object (carefully) or a dedicated namespace.
+   
+   if (typeof GameVars === 'undefined') {
+       window.GameVars = {
+           gold: 100,
+           questStage: 0,
+           weather: 'Clear'
+       };
+   }
+
+   // Usage:
+   // GameVars.gold -= 10;
+*/
+
+// ------------------------------------------------------------------
+// 6. SIMULATION CONTEXT INTERFACE
+// ------------------------------------------------------------------
+/*
+   // If you define a function named 'getContext', the Simulator 
+   // will call it and inject the return string into the LLM prompt.
+   
+   /* 
+   function getContext() {
+       return \`[SYSTEM UPDATE: Validated Tokens: \${GameVars.gold}]\`;
+   }
+   */
+*/`
+                }
+            ];
+
+            // Show Modal
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+            modal.innerHTML = `
+                 <div style="background:var(--bg-panel); width:500px; max-height:80vh; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.5); border:1px solid var(--border-default);">
+                    <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
+                        <h3 style="margin:0;">Script Repository</h3>
+                        <div style="font-size:12px; color:var(--text-muted);">Pre-made modules to enhance your world.</div>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding:0;">
+                        ${repoPoints.map((s, idx) => `
+                            <div class="repo-item" style="padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:start; gap:12px;">
+                                <div>
+                                    <div style="font-weight:bold; color:var(--accent-primary); margin-bottom:4px;">${s.name}</div>
+                                    <div style="font-size:12px; color:var(--text-secondary); line-height:1.4;">${s.desc}</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm btn-install-repo" data-idx="${idx}" style="white-space:nowrap;">Install</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="padding:12px; text-align:right; border-top:1px solid var(--border-subtle);">
+                        <button class="btn btn-ghost btn-sm" id="btn-close-repo">Close</button>
+                    </div>
+                 </div>
+             `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('#btn-close-repo').onclick = () => modal.remove();
+
+            modal.querySelectorAll('.btn-install-repo').forEach(btn => {
+                btn.onclick = () => {
+                    const s = repoPoints[btn.dataset.idx];
+                    const id = A.Scripts.create(s.name);
+                    A.Scripts.update(id, { source: { type: 'inline', code: s.code } });
+                    selectScript(id);
+                    if (A.UI.Toast) A.UI.Toast.show(`Installed "${s.name}"`, 'success');
+                    modal.remove();
+                };
+            });
         };
 
         container.querySelector('#btn-upload-script').onclick = () => {

@@ -771,5 +771,137 @@
         }
     };
 
+    // --- API Key Manager (Global) ---
+    A.UI.showApiKeyManager = function () {
+        // Get current keys from localStorage
+        const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{"Default":""}');
+        const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
+
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'key-manager-overlay';
+        overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+      `;
+
+        // Modal container
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+        background: var(--bg-panel); border-radius: var(--radius-lg);
+        border: 1px solid var(--border-default); padding: 24px;
+        min-width: 400px; max-width: 500px; max-height: 80vh; overflow-y: auto;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      `;
+
+        // Render modal content
+        const renderModalContent = () => {
+            const keyNames = Object.keys(keys);
+
+            modal.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:16px; color:var(--text-primary);">API Key Manager</h3>
+            <button id="modal-close" style="background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">×</button>
+          </div>
+          
+          <div style="margin-bottom:16px; padding:12px; background:var(--bg-surface); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">ACTIVE KEY</div>
+            <select id="active-key-select" class="input" style="width:100%;">
+              ${keyNames.map(name => `<option value="${name}" ${name === activeKeyName ? 'selected' : ''}>${name}</option>`).join('')}
+            </select>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">SAVED KEYS (${keyNames.length})</div>
+            <div id="keys-list" style="display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto;">
+              ${keyNames.map(name => `
+                <div class="key-row" data-name="${name}" style="display:flex; align-items:center; gap:8px; padding:8px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+                  <div style="flex:1;">
+                    <div style="font-size:12px; font-weight:bold; color:var(--text-primary);">${name}</div>
+                    <div style="font-size:10px; color:var(--text-muted);">${keys[name] ? '••••••••' + keys[name].slice(-4) : '(not set)'}</div>
+                  </div>
+                  <button class="btn-edit-key btn btn-ghost btn-sm" data-name="${name}" style="font-size:10px;">Edit</button>
+                  ${name !== 'Default' ? `<button class="btn-del-key btn btn-ghost btn-sm" data-name="${name}" style="font-size:10px; color:var(--status-error);">Delete</button>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-subtle); padding-top:16px;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">ADD NEW KEY</div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <input id="new-key-name" class="input" placeholder="Key Name" style="flex:1;">
+              <input id="new-key-value" class="input" type="password" placeholder="API Key" style="flex:2;">
+            </div>
+            <button id="btn-add-key" class="btn btn-primary btn-sm" style="width:100%;">+ Add Key</button>
+          </div>
+        `;
+
+            // Bind events
+            modal.querySelector('#modal-close').onclick = () => overlay.remove();
+
+            modal.querySelector('#active-key-select').onchange = (e) => {
+                localStorage.setItem('anansi_active_key_name', e.target.value);
+            };
+
+            modal.querySelectorAll('.btn-edit-key').forEach(btn => {
+                btn.onclick = () => {
+                    const name = btn.dataset.name;
+                    const newValue = prompt(`Enter new API key for "${name}":`, keys[name] || '');
+                    if (newValue !== null) {
+                        keys[name] = newValue;
+                        localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
+                        renderModalContent();
+                    }
+                };
+            });
+
+            modal.querySelectorAll('.btn-del-key').forEach(btn => {
+                btn.onclick = () => {
+                    const name = btn.dataset.name;
+                    if (confirm(`Delete key "${name}"?`)) {
+                        delete keys[name];
+                        localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
+                        // If we deleted the active key, switch to Default
+                        if (localStorage.getItem('anansi_active_key_name') === name) {
+                            localStorage.setItem('anansi_active_key_name', 'Default');
+                        }
+                        renderModalContent();
+                    }
+                };
+            });
+
+            modal.querySelector('#btn-add-key').onclick = () => {
+                const nameInput = modal.querySelector('#new-key-name');
+                const valueInput = modal.querySelector('#new-key-value');
+                const name = nameInput.value.trim();
+                const value = valueInput.value.trim();
+
+                if (!name) {
+                    alert('Please enter a key name.');
+                    return;
+                }
+                if (keys[name]) {
+                    alert('A key with this name already exists.');
+                    return;
+                }
+
+                keys[name] = value;
+                localStorage.setItem('anansi_api_keys', JSON.stringify(keys));
+                renderModalContent();
+            };
+        };
+
+        renderModalContent();
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+            if (e.target === overlay) overlay.remove();
+        };
+    };
+
 })(window.Anansi);
 

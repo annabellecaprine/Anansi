@@ -132,6 +132,9 @@
                     <div class="card-body" style="font-size: 11px; color: var(--text-secondary);">
                         <strong>🪄 AI Assistance Available</strong><br>
                         Look for the magic wand to polish or generate text. These features are optional and require your own API key (configured in the Simulator). Usage consumes tokens.
+                        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); opacity:0.8;">
+                            To configure your API Key, <a href="#" onclick="Anansi.UI.showApiKeyManager(); return false;" style="color:var(--accent-primary); text-decoration:none; border-bottom:1px solid var(--accent-primary);">click here to open the Manager</a>.
+                        </div>
                     </div>
                 </div>
 

@@ -215,6 +215,7 @@
 
   <script src="js/core/utils.js"></script>
   <script src="js/core/io.js"></script>
+  <script src="js/core/converter.js"></script>
   <script src="js/core/llm.js"></script>
   <script src="js/core/state.js"></script>
 
@@ -248,11 +249,128 @@
   <script src="js/panels/advanced.js"></script>
   <script src="js/panels/parlor.js"></script>
 
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" style="
+    position: fixed;
+    inset: 0;
+    background: #000; /* Fallback */
+    background: radial-gradient(circle at center, #1a1a1d 0%, #000 100%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s ease-out;
+  ">
+    <div style="position: relative;">
+      <div id="sparkle-root" style="position: absolute; inset: -50px; pointer-events: none;"></div>
+      <img src="assets/spider_parlor.png" alt="Loading..." style="
+        width: 360px;
+        height: auto;
+        filter: drop-shadow(0 0 30px rgba(218, 165, 32, 0.4));
+        animation: pulse-load 3s ease-in-out infinite;
+      ">
+    </div>
+    <div style="
+      margin-top: 24px;
+      font-family: 'Crimson Pro', serif;
+      font-size: 18px;
+      color: #daa520;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.8;
+      animation: fade-text 2s ease-in-out infinite;
+    ">Anansi</div>
+  </div>
+
+  <style>
+    @keyframes pulse-load {
+
+      0%,
+      100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 30px rgba(218, 165, 32, 0.4));
+      }
+
+      50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 50px rgba(218, 165, 32, 0.6));
+      }
+    }
+
+    @keyframes fade-text {
+
+      0%,
+      100% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    @keyframes twinkle {
+
+      0%,
+      100% {
+        opacity: 0;
+        transform: scale(0.3);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.8);
+      animation: twinkle 1.5s ease-in-out infinite;
+    }
+
+    .fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+
+  <script>
+    // Sparkle generator for loading screen
+    (function () {
+      const root = document.getElementById('sparkle-root');
+      if (!root) return;
+      for (let i = 0; i < 15; i++) {
+        const s = document.createElement('div');
+        s.className = 'sparkle';
+        s.style.left = (Math.random() * 100) + '%';
+        s.style.top = (Math.random() * 100) + '%';
+        s.style.animationDelay = (Math.random() * 2) + 's';
+        s.style.animationDuration = (1 + Math.random()) + 's';
+        root.appendChild(s);
+      }
+    })();
+  </script>
+
   <!-- Boot -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       console.log('[Boot] Starting Anansi...');
-      Anansi.init();
+
+      // Initialize system
+      await Anansi.init();
+
+      // Fade out loading screen
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.remove(), 800);
+      }
     });
   </script>
 </body>

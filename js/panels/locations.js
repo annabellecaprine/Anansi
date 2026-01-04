@@ -355,13 +355,29 @@
                 const selEx = el.querySelector('.loc-add-exit');
                 selEx.onchange = (e) => {
                     if (e.target.value) {
+                        const targetId = e.target.value;
                         if (!loc.exits) loc.exits = [];
-                        if (!loc.exits.includes(e.target.value)) loc.exits.push(e.target.value);
+
+                        // 1. Add Forward Link
+                        if (!loc.exits.includes(targetId)) {
+                            loc.exits.push(targetId);
+
+                            // 2. Add Backward Link (Bi-directional)
+                            const targetLoc = state.weaves.locations.find(l => l.id === targetId);
+                            if (targetLoc) {
+                                if (!targetLoc.exits) targetLoc.exits = [];
+                                if (!targetLoc.exits.includes(loc.id)) {
+                                    targetLoc.exits.push(loc.id);
+                                    if (A.UI.Toast) A.UI.Toast.show(`Auto-linked "${targetLoc.name}" back to "${loc.name}"`, 'info');
+                                }
+                            }
+                        }
+
                         renderList(); // Show new tag
                         renderAll(); // Show new edge
                         updateLens();
                         A.State.notify();
-                        if (A.UI.Toast) A.UI.Toast.show('Exit added', 'success');
+                        if (A.UI.Toast) A.UI.Toast.show('Exit added (Bi-directional)', 'success');
                     }
                 };
 

@@ -129,26 +129,7 @@
                 }
             });
 
-            // Open buttons
-            container.querySelectorAll('.pp-open').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await ProjectPicker._openProject(btn.dataset.id);
-                });
-            });
 
-            // Download buttons
-            container.querySelectorAll('.pp-download').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await A.ProjectDB.exportProject(btn.dataset.id);
-                });
-            });
-
-            // Delete buttons
-            container.querySelectorAll('.pp-delete').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await ProjectPicker._deleteProject(btn.dataset.id);
-                });
-            });
         },
 
         /**
@@ -211,13 +192,19 @@
          * Bind events for list items (Open/Delete buttons)
          */
         _bindListEvents: function (container) {
-            container.querySelectorAll('#pp-open').forEach(btn => {
+            container.querySelectorAll('.pp-open').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     await ProjectPicker._openProject(btn.dataset.id);
                 });
             });
 
-            container.querySelectorAll('#pp-delete').forEach(btn => {
+            container.querySelectorAll('.pp-download').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await A.ProjectDB.exportProject(btn.dataset.id);
+                });
+            });
+
+            container.querySelectorAll('.pp-delete').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     await ProjectPicker._deleteProject(btn.dataset.id);
                 });

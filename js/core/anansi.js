@@ -33,11 +33,11 @@ window.Anansi = window.Anansi || {};
         return navSections;
     };
 
-    A.init = function () {
+    A.init = async function () {
         console.log('[Kernel] Initializing systems...');
 
-        // Initialize IO (loads project)
-        A.IO.init();
+        // Initialize IO (loads project) - AWAIT this!
+        await A.IO.init();
 
         // Initialize UI (renders shell)
         A.UI.init();
