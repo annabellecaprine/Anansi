@@ -873,6 +873,8 @@
                             ${!isActive ? `<button class="btn btn-ghost btn-sm btn-activate" data-id="${cfg.id}" style="font-size:10px;">Activate</button>` : ''}
                             <button class="btn btn-ghost btn-sm btn-edit" data-id="${cfg.id}" style="font-size:10px;">Edit</button>
                             <button class="btn btn-ghost btn-sm btn-delete" data-id="${cfg.id}" style="font-size:10px;color:var(--status-error);">Delete</button>
+                            <button class="btn btn-ghost btn-sm btn-copy" data-id="${cfg.id}" style="font-size:10px;">Copy</button>
+                            <button class="btn btn-ghost btn-sm btn-test" data-id="${cfg.id}" style="font-size:10px;">Test</button>
                         </div>
                     `;
                     list.appendChild(row);
@@ -906,6 +908,68 @@
                             localStorage.setItem('anansi_active_config_id', activeId);
                             render();
                         }
+                    };
+                });
+                // Copy button
+                body.querySelectorAll('.btn-copy').forEach(btn => {
+                    btn.onclick = () => {
+                        const original = configs.find(c => c.id === btn.dataset.id);
+                        if (original) {
+                            const copy = { ...original, id: 'cfg_' + Date.now(), name: original.name + ' (Copy)' };
+                            configs.push(copy);
+                            saveConfigs();
+                            render();
+                            if (A.UI.Toast) A.UI.Toast.show('Configuration copied', 'success');
+                        }
+                    };
+                });
+                // Test button
+                body.querySelectorAll('.btn-test').forEach(btn => {
+                    btn.onclick = async () => {
+                        const cfg = configs.find(c => c.id === btn.dataset.id);
+                        if (!cfg) return;
+                        const preset = PROVIDER_PRESETS[cfg.provider] || PROVIDER_PRESETS.custom;
+                        const baseUrl = cfg.baseUrl || preset.baseUrl;
+                        const model = cfg.model || preset.defaultModel;
+                        const apiKey = cfg.apiKey;
+
+                        btn.textContent = '...';
+                        btn.disabled = true;
+
+                        try {
+                            let success = false;
+                            if (cfg.provider === 'gemini') {
+                                // Gemini uses different endpoint
+                                const url = `${baseUrl}/models/${model}?key=${apiKey}`;
+                                const res = await fetch(url);
+                                success = res.ok;
+                            } else {
+                                // OpenAI-compatible
+                                const url = `${baseUrl}/chat/completions`;
+                                const res = await fetch(url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${apiKey}`
+                                    },
+                                    body: JSON.stringify({
+                                        model: model,
+                                        messages: [{ role: 'user', content: 'Hi' }],
+                                        max_tokens: 1
+                                    })
+                                });
+                                success = res.ok || res.status === 400; // 400 can mean "bad request but connection works"
+                            }
+                            if (success) {
+                                if (A.UI.Toast) A.UI.Toast.show('Connection successful!', 'success');
+                            } else {
+                                if (A.UI.Toast) A.UI.Toast.show('Connection failed. Check your settings.', 'error');
+                            }
+                        } catch (e) {
+                            if (A.UI.Toast) A.UI.Toast.show('Connection error: ' + e.message, 'error');
+                        }
+                        btn.textContent = 'Test';
+                        btn.disabled = false;
                     };
                 });
 
