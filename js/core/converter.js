@@ -86,10 +86,12 @@
             const title = src.comment || src.name || src.title || 'Untitled Entry';
             const content = src.content || src.entry || '';
 
-            // Keywords (Array normalize)
+            // Keywords (Array normalize) - check key (ST), keys (V2), keywords (Anansi)
             let keywords = [];
-            if (Array.isArray(src.keys)) keywords = src.keys;
+            if (Array.isArray(src.key)) keywords = src.key;
+            else if (Array.isArray(src.keys)) keywords = src.keys;
             else if (Array.isArray(src.keywords)) keywords = src.keywords;
+            else if (typeof src.key === 'string') keywords = src.key.split(',').map(s => s.trim());
             else if (typeof src.keys === 'string') keywords = src.keys.split(',').map(s => s.trim());
             else if (typeof src.keywords === 'string') keywords = src.keywords.split(',').map(s => s.trim());
 

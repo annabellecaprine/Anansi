@@ -750,6 +750,19 @@
         </div>
         <div class="card-body" id="sim-chat-log" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; background: var(--bg-surface);"></div>
         <div class="card-footer" style="padding:12px;">
+          <!-- Director's Console -->
+          <div class="director-toolbar collapsed" id="director-toolbar">
+              <div style="cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:bold; color:var(--text-muted); font-size:10px;" onclick="document.getElementById('director-toolbar').classList.toggle('collapsed')">
+                  <span>🎬 DIRECTOR</span>
+                  <span style="font-size:8px;">▼</span>
+              </div>
+              
+              <div class="director-group" style="flex:1;">
+                  <span class="director-label">Guide</span>
+                  <input type="text" class="director-input" id="dir-guidance" placeholder="Inject instruction for LLM (appended to system prompt)...">
+              </div>
+          </div>
+
           <div style="display:flex; gap:8px; align-items:flex-end;">
             <textarea class="input" id="sim-input" placeholder="Weave a message... (Shift+Enter for new line)" style="flex:1; resize:none; min-height:36px; max-height:120px; line-height:1.4;" rows="1"></textarea>
             <button class="btn btn-primary" id="sim-send" style="height:36px;">Send</button>
@@ -798,6 +811,11 @@
       const input = chatCol.querySelector('#sim-input');
       const sendBtn = chatCol.querySelector('#sim-send');
 
+      // --- Director Console Binders ---
+      const dirGuidance = chatCol.querySelector('#dir-guidance');
+
+      // Guidance handler is in sendMessage - no need for oninput since we capture at send time
+
       const refreshChat = () => {
         const state = A.State.get();
         const history = state.sim.history || [];
@@ -839,7 +857,67 @@
             bubble.appendChild(ts);
           }
 
-          // Actions toolbar
+          // --- AVATAR LOGIC ---
+          const isAI = msg.role === 'model';
+          const avatarSize = 40;
+
+          let avatarHtml = '';
+          if (isAI) {
+            // Find Actor
+            const charId = state.character?.char?.id;
+            const actor = (state.nodes && state.nodes.actors && state.nodes.actors.items && charId)
+              ? state.nodes.actors.items[charId]
+              : null;
+
+            // Get Image
+            const imgParams = (actor && actor.gallery && actor.gallery.primary && actor.gallery.images)
+              ? actor.gallery.images.find(i => i.id === actor.gallery.primary)
+              : null;
+            const imgSrc = imgParams ? imgParams.data : null;
+
+            if (imgSrc) {
+              // Determine Pulse Animation
+              const pulse = msg.emotionalSnapshot ? (msg.emotionalSnapshot.pulse || []) : [];
+              let pulseClass = '';
+
+              if (pulse.includes('ANGER') || pulse.includes('RAGE') || pulse.includes('HATE')) pulseClass = 'avatar-pulse-anger';
+              else if (pulse.includes('JOY') || pulse.includes('HAPPY') || pulse.includes('EXCITED')) pulseClass = 'avatar-pulse-joy';
+              else if (pulse.includes('SADNESS') || pulse.includes('GRIEF') || pulse.includes('DEPRESSED')) pulseClass = 'avatar-pulse-sad';
+              else if (pulse.includes('FEAR') || pulse.includes('TERROR') || pulse.includes('ANXIOUS')) pulseClass = 'avatar-pulse-fear';
+              else if (pulse.includes('SURPRISE') || pulse.includes('SHOCK')) pulseClass = 'avatar-pulse-surprise';
+              else if (pulse.includes('LOVE') || pulse.includes('LUST') || pulse.includes('ADORATION')) pulseClass = 'avatar-pulse-love';
+              else if (pulse.includes('RELAXED') || pulse.includes('CALM')) pulseClass = 'avatar-pulse-relaxed';
+
+              avatarHtml = `
+                 <div class="chat-avatar-frame ${pulseClass}" style="
+                    width:${avatarSize}px; height:${avatarSize}px; 
+                    border-radius:50%; overflow:hidden; flex-shrink:0; 
+                    background:var(--bg-base); margin-top:4px;
+                    border:2px solid ${pulseClass ? 'var(--accent-primary)' : 'var(--border-subtle)'};
+                 ">
+                    <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;">
+                 </div>
+               `;
+            }
+          }
+
+          // Flex layout for avatar + bubble
+          wrapper.style.display = 'flex';
+          wrapper.style.gap = '12px';
+          wrapper.style.alignItems = 'flex-start';
+          if (!isAI) wrapper.style.flexDirection = 'row-reverse'; // User on Right
+
+          if (isAI && avatarHtml) {
+            const avDiv = document.createElement('div');
+            avDiv.innerHTML = avatarHtml;
+            wrapper.appendChild(avDiv.firstElementChild);
+          } else if (isAI) {
+            // Spacer for AI if no avatar found
+            const spacer = document.createElement('div');
+            spacer.style.width = `${avatarSize}px`;
+            wrapper.appendChild(spacer);
+          }
+
           const actions = document.createElement('div');
           actions.className = 'chat-actions';
           actions.innerHTML = `
@@ -850,8 +928,13 @@
             ${msg.role === 'model' ? '<button class="chat-action-btn" data-action="regenerate" title="Regenerate">🔄</button>' : ''}
             <button class="chat-action-btn danger" data-action="delete" title="Delete">🗑️</button>
           `;
-          wrapper.appendChild(actions);
+
           wrapper.appendChild(bubble);
+          bubble.appendChild(actions); // Move actions inside bubble container or keep abs positioned relative to wrapper?
+          // The actions toolbar relies on absolute positioning usually.
+          // Let's attach actions to bubble to keep them together.
+          bubble.style.position = 'relative';
+
 
           // --- Greeting Swipe Arrows (First AI message with alternates) ---
           if (idx === 0 && msg.role === 'model' && Array.isArray(state.seed.firstMessage) && state.seed.firstMessage.length > 1) {
@@ -1150,6 +1233,18 @@
             systemPrompt += `\n[Earlier Context]:\n${state.sim.contextSummary}\n`;
           }
 
+          // --- DIRECTOR'S GUIDANCE (Action 6b) ---
+          // Injected from Director's Console
+          if (state.sim.directorGuidance) {
+            systemPrompt += `\n[SYSTEM INSTRUCTION]: ${state.sim.directorGuidance}\n`;
+            // Clear after use? User might want it persistent?
+            // "Additional prompt to LLM" usually implies "for this turn".
+            // Let's clear it to prevent stuck states, but maybe keep it in UI?
+            // For now, clear logic state but UI might persist if we don't clear input.
+            // We'll clear the input in the Logic binder below.
+            delete state.sim.directorGuidance;
+          }
+
           sendBtn.textContent = 'Thinking...'; // Calling LLM
 
           // Store system prompt for Prompt Inspector
@@ -1241,8 +1336,14 @@
         const txt = input.value.trim();
         if (!txt) return;
 
-        // 0. Push User Message with emotional snapshot
+        // Capture Director's Guidance from DOM at send time (more reliable than oninput)
         const state = A.State.get();
+        if (dirGuidance && dirGuidance.value.trim()) {
+          state.sim.directorGuidance = dirGuidance.value.trim();
+          dirGuidance.value = ''; // Clear after capture
+        }
+
+        // 0. Push User Message with emotional snapshot
         state.sim.history.push({
           role: 'user',
           content: txt,

@@ -303,6 +303,21 @@
                          </select>
                     </div>
 
+                    <div class="loc-image-section" style="margin-bottom:8px; display:flex; gap:8px; align-items:center;">
+                        <input type="file" class="input loc-img-upload" accept="image/*" style="display:none;">
+                        <div class="loc-img-preview" style="width:40px; height:40px; background:var(--bg-base); border-radius:4px; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer; flex-shrink:0;" title="Click to upload image">
+                            ${loc.image ? `<img src="${loc.image}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size:16px;">📷</span>'}
+                        </div>
+                        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                            ${loc.image ? `
+                                <div style="display:flex; gap:8px;">
+                                    <div style="font-size:10px; color:var(--accent-primary); cursor:pointer;" onclick="document.querySelector('.loc-img-upload').click()">Change Image</div>
+                                    <div style="font-size:10px; color:var(--text-muted); cursor:pointer;" class="btn-remove-img">Remove</div>
+                                </div>
+                            ` : `<div style="font-size:10px; color:var(--text-muted); font-style:italic;">No image set</div>`}
+                        </div>
+                    </div>
+
                     <div style="text-align:right;">
                         <button class="btn btn-ghost btn-sm loc-del" style="color:var(--status-error);">Delete</button>
                     </div>
@@ -392,6 +407,70 @@
                     }
                 };
 
+                // Image Upload Logic
+                const imgPreview = el.querySelector('.loc-img-preview');
+                const fileInput = el.querySelector('.loc-img-upload');
+
+                imgPreview.onclick = (e) => {
+                    e.stopPropagation();
+                    if (loc.image) {
+                        // Open Lightbox
+                        const lightbox = document.createElement('div');
+                        lightbox.style.position = 'fixed';
+                        lightbox.style.top = '0';
+                        lightbox.style.left = '0';
+                        lightbox.style.width = '100vw';
+                        lightbox.style.height = '100vh';
+                        lightbox.style.background = 'rgba(0,0,0,0.9)';
+                        lightbox.style.zIndex = '9999';
+                        lightbox.style.display = 'flex';
+                        lightbox.style.alignItems = 'center';
+                        lightbox.style.justifyContent = 'center';
+                        lightbox.style.cursor = 'zoom-out';
+
+                        const img = document.createElement('img');
+                        img.src = loc.image;
+                        img.style.maxWidth = '90%';
+                        img.style.maxHeight = '90%';
+                        img.style.objectFit = 'contain';
+                        img.style.borderRadius = '8px';
+                        img.style.boxShadow = '0 0 40px rgba(0,0,0,0.5)';
+
+                        lightbox.appendChild(img);
+                        document.body.appendChild(lightbox);
+
+                        lightbox.onclick = () => document.body.removeChild(lightbox);
+                    } else {
+                        // Trigger Upload
+                        fileInput.click();
+                    }
+                };
+
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        loc.image = evt.target.result;
+                        A.State.notify();
+                        renderList(); // Refresh to show image
+                        if (A.UI.Toast) A.UI.Toast.show('Image uploaded', 'success');
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const removeBtn = el.querySelector('.btn-remove-img');
+                if (removeBtn) {
+                    removeBtn.onclick = () => {
+                        delete loc.image;
+                        A.State.notify();
+                        renderList();
+                        if (A.UI.Toast) A.UI.Toast.show('Image removed', 'info');
+                    };
+                }
+
+                // Append list item
                 listEl.appendChild(el);
             });
         };
