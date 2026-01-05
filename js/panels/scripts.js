@@ -872,18 +872,9 @@ const Inventory = {
             modal.innerHTML = `
                 <div style="background:var(--bg-elevated);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.4);border:1px solid var(--border-subtle);">
                     <h3 style="margin:0 0 16px 0;font-family:var(--font-serif);font-size:18px;">Export Scripts</h3>
-                    
-                    <div style="margin-bottom:20px; padding:12px; background:var(--bg-surface); border-radius:8px; border:1px solid var(--border-subtle);">
-                        <label style="display:block; font-size:11px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">File Extension</label>
-                        <select id="export-extension" class="input" style="width:100%; height:32px; font-size:13px;">
-                            <option value=".txt">.txt (Standard)</option>
-                            <option value=".js">.js (Javascript)</option>
-                        </select>
-                    </div>
-
                     <div style="display:flex;flex-direction:column;gap:12px;">
                         <button class="btn btn-primary" id="export-selected" ${!currentScriptId ? 'disabled' : ''}>
-                            Export Selected Script
+                            Export Selected Script (.txt)
                         </button>
                         <button class="btn btn-ghost" id="export-all">
                             Export All Scripts (.zip)
@@ -909,13 +900,12 @@ const Inventory = {
                 const script = scripts.find(s => s.id === currentScriptId);
                 if (!script) return;
 
-                const ext = modal.querySelector('#export-extension').value;
                 const code = monacoEditor ? monacoEditor.getValue() : (script.source && script.source.code ? script.source.code : '');
-                const blob = new Blob([code], { type: ext === '.js' ? 'text/javascript' : 'text/plain' });
+                const blob = new Blob([code], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = (script.name || 'script').replace(/[^a-zA-Z0-9_-]/g, '_') + ext;
+                a.download = (script.name || 'script').replace(/[^a-zA-Z0-9_-]/g, '_') + '.txt';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -964,14 +954,12 @@ const Inventory = {
 
                     zip.file('README.txt', readme);
 
-                    const ext = modal.querySelector('#export-extension').value;
-
                     // Add each script
                     scripts.forEach((script, idx) => {
                         const code = script.source && script.source.code ? script.source.code : '';
                         const safeName = (script.name || 'script_' + idx).replace(/[^a-zA-Z0-9_-]/g, '_');
                         const paddedIdx = String(idx + 1).padStart(2, '0');
-                        zip.file(`${paddedIdx}_${safeName}${ext}`, code);
+                        zip.file(`${paddedIdx}_${safeName}.txt`, code);
                     });
 
                     const content = await zip.generateAsync({ type: 'blob' });
