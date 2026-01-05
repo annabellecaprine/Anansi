@@ -84,16 +84,16 @@ npm run check
 ## Development Phases
 
 1. ✅ **Phase 0** – Repo Skeleton
-2. ⬜ **Phase 1** – Web State + Persistence
-3. ⬜ **Phase 2** – Environment Adapters
-4. ⬜ **Phase 3** – env-jai Skeleton
-5. ⬜ **Phase 4** – UI Shell
-6. ⬜ **Phase 5** – Validator System
-7. ⬜ **Phase 6** – Tester Runner
-8. ⬜ **Phase 7** – Scripts System
-9. ⬜ **Phase 8** – Export IR
-10. ⬜ **Phase 9** – Authoring (Lore, Actors, Microcues)
-11. ⬜ **Phase 10** – AURA Modules
+2. ✅ **Phase 1** – Web State + Persistence
+3. ✅ **Phase 2** – Environment Adapters
+4. ✅ **Phase 3** – env-jai Skeleton
+5. ✅ **Phase 4** – UI Shell
+6. ✅ **Phase 5** – Validator System
+7. ✅ **Phase 6** – Tester Runner
+8. ✅ **Phase 7** – Scripts System
+9. ✅ **Phase 8** – Export IR
+10. ✅ **Phase 9** – Authoring (Lore, Actors, Microcues)
+11. ✅ **Phase 10** – AURA Modules
 
 ## License
 
