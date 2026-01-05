@@ -625,102 +625,107 @@
                     importInput.onchange = async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        try {
-                            const cardData = await A.CardEncoder.extract(file);
-                            if (!cardData) {
-                                if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
-                                return;
-                            }
-                            const imported = A.CardEncoder.cardToActor(cardData);
-                            actor.name = imported.name || actor.name;
-                            actor.tags = imported.tags || actor.tags;
-                            actor.notes = imported.notes || actor.notes;
-                            actor.gender = imported.gender || actor.gender;
-                            actor.aliases = imported.aliases || actor.aliases;
-                            actor.traits = { ...actor.traits, ...imported.traits };
-                            actor.cardFields = imported.cardFields || actor.cardFields;
 
-                            // Add imported image to gallery
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                                const newImg = {
-                                    id: 'img_' + crypto.randomUUID().split('-')[0],
-                                    folder: 'sfw',
-                                    data: ev.target.result,
-                                    mimeType: 'image/png',
-                                    caption: 'Imported from Character Card',
-                                    timestamp: Date.now()
-                                };
-                                gallery.images.push(newImg);
-                                if (!gallery.primary) gallery.primary = newImg.id;
+                        // --- Confirmation Modal ---
+                        const doImport = async () => {
+                            try {
+                                const cardData = await A.CardEncoder.extract(file);
+                                if (!cardData) {
+                                    if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
+                                    return;
+                                }
 
-                                // --- Lorebook Import Logic ---
-                                // Check for embedded character_book and handle import with conflict resolution
-                                const handleLoreImport = () => {
-                                    if (!A.Converter || !A.State.get().weaves?.lorebook) return;
+                                const imported = A.CardEncoder.cardToActor(cardData);
 
-                                    try {
-                                        // A.Converter.importLorebook handles detection heuristics (including checking cardData directly)
-                                        // We pass cardData which might contain data.character_book
-                                        const importedEntries = A.Converter.importLorebook(cardData);
-                                        const importedKeys = Object.keys(importedEntries);
+                                actor.name = imported.name || actor.name;
+                                actor.tags = imported.tags || actor.tags;
+                                actor.notes = imported.notes || actor.notes;
+                                actor.gender = imported.gender || actor.gender;
+                                actor.aliases = imported.aliases || actor.aliases;
+                                actor.traits = { ...actor.traits, ...imported.traits };
+                                actor.cardFields = imported.cardFields || actor.cardFields;
 
-                                        if (importedKeys.length === 0) return; // No lore to import
+                                // Add imported image to gallery
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                    const newImg = {
+                                        id: 'img_' + crypto.randomUUID().split('-')[0],
+                                        folder: 'sfw',
+                                        data: ev.target.result,
+                                        mimeType: 'image/png',
+                                        caption: 'Imported from Character Card',
+                                        timestamp: Date.now()
+                                    };
+                                    gallery.images.push(newImg);
+                                    if (!gallery.primary) gallery.primary = newImg.id;
 
-                                        const state = A.State.get();
-                                        const existingEntries = state.weaves.lorebook.entries;
-                                        const collisions = importedKeys.filter(k => existingEntries[k]);
+                                    // --- Lorebook Import Logic ---
+                                    // Check for embedded character_book and handle import with conflict resolution
+                                    const handleLoreImport = () => {
+                                        if (!A.Converter || !A.State.get().weaves?.lorebook) return;
 
-                                        // Helper to associate entries with this actor
-                                        const linkToActor = (entry) => {
-                                            if (!entry.associatedActors) entry.associatedActors = [];
-                                            if (!entry.associatedActors.includes(actor.id)) {
-                                                entry.associatedActors.push(actor.id);
+                                        try {
+                                            // A.Converter.importLorebook handles detection heuristics (including checking cardData directly)
+                                            // We pass cardData which might contain data.character_book
+                                            const importedEntries = A.Converter.importLorebook(cardData);
+                                            const importedKeys = Object.keys(importedEntries);
+
+                                            if (importedKeys.length === 0) return; // No lore to import
+
+                                            const state = A.State.get();
+                                            const existingEntries = state.weaves.lorebook.entries;
+                                            const collisions = importedKeys.filter(k => existingEntries[k]);
+
+                                            // Helper to associate entries with this actor
+                                            const linkToActor = (entry) => {
+                                                if (!entry.associatedActors) entry.associatedActors = [];
+                                                if (!entry.associatedActors.includes(actor.id)) {
+                                                    entry.associatedActors.push(actor.id);
+                                                }
+                                            };
+
+                                            // Finalizer
+                                            const finalize = (msg) => {
+                                                A.State.notify();
+                                                if (A.UI?.Toast) A.UI.Toast.show(msg, 'success');
+                                            };
+
+                                            // If no collisions, import directly
+                                            if (collisions.length === 0) {
+                                                let count = 0;
+                                                importedKeys.forEach(k => {
+                                                    const entry = importedEntries[k];
+                                                    linkToActor(entry);
+                                                    existingEntries[k] = entry;
+                                                    count++;
+                                                });
+                                                if (count > 0) finalize(`Imported ${count} associated Lorebook entries.`);
+                                                return;
                                             }
-                                        };
 
-                                        // Finalizer
-                                        const finalize = (msg) => {
-                                            A.State.notify();
-                                            if (A.UI?.Toast) A.UI.Toast.show(msg, 'success');
-                                        };
+                                            // --- Conflict Resolution Modal (Adapted from Lorebook.js) ---
+                                            const decisions = {};
+                                            collisions.forEach(k => decisions[k] = 'skip'); // Default to skip
 
-                                        // If no collisions, import directly
-                                        if (collisions.length === 0) {
-                                            let count = 0;
-                                            importedKeys.forEach(k => {
-                                                const entry = importedEntries[k];
-                                                linkToActor(entry);
-                                                existingEntries[k] = entry;
-                                                count++;
-                                            });
-                                            if (count > 0) finalize(`Imported ${count} associated Lorebook entries.`);
-                                            return;
-                                        }
-
-                                        // --- Conflict Resolution Modal (Adapted from Lorebook.js) ---
-                                        const decisions = {};
-                                        collisions.forEach(k => decisions[k] = 'skip'); // Default to skip
-
-                                        const overlay = document.createElement('div');
-                                        overlay.style.cssText = `
+                                            const overlay = document.createElement('div');
+                                            overlay.style.cssText = `
                                             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                                             background: rgba(0,0,0,0.6); z-index: 10000;
                                             display: flex; align-items: center; justify-content: center;
                                             backdrop-filter: blur(4px);
                                         `;
 
-                                        const modal = document.createElement('div');
-                                        modal.style.cssText = `
+                                            const modal = document.createElement('div');
+                                            modal.style.cssText = `
                                             background: var(--bg-panel); border: 1px solid var(--border-default);
                                             border-radius: var(--radius-lg); width: 600px; max-height: 80vh;
                                             box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;
                                         `;
 
-                                        // Header
-                                        const header = document.createElement('div');
-                                        header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
-                                        header.innerHTML = `
+                                            // Header
+                                            const header = document.createElement('div');
+                                            header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
+                                            header.innerHTML = `
                                             <div>
                                                 <h3 style="margin:0; font-size:16px; color:var(--text-primary);">Character Book Conflicts</h3>
                                                 <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${collisions.length} existing entries found.</div>
@@ -733,19 +738,19 @@
                                             </div>
                                         `;
 
-                                        // List
-                                        const listBody = document.createElement('div');
-                                        listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
+                                            // List
+                                            const listBody = document.createElement('div');
+                                            listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
 
-                                        const renderConflictList = () => {
-                                            listBody.innerHTML = collisions.map(id => {
-                                                const entry = importedEntries[id];
-                                                const action = decisions[id];
-                                                let actionColor = 'var(--text-muted)';
-                                                if (action === 'overwrite') actionColor = 'var(--status-warning)';
-                                                if (action === 'copy') actionColor = 'var(--accent-primary)';
+                                            const renderConflictList = () => {
+                                                listBody.innerHTML = collisions.map(id => {
+                                                    const entry = importedEntries[id];
+                                                    const action = decisions[id];
+                                                    let actionColor = 'var(--text-muted)';
+                                                    if (action === 'overwrite') actionColor = 'var(--status-warning)';
+                                                    if (action === 'copy') actionColor = 'var(--accent-primary)';
 
-                                                return `
+                                                    return `
                                                     <div class="conflict-row" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--border-subtle); gap:12px;">
                                                         <div style="flex:1; overflow:hidden;">
                                                             <div style="font-weight:bold; font-size:13px; color:var(--text-primary); white-space:nowrap; text-overflow:ellipsis;">${entry.title || 'Untitled'}</div>
@@ -765,96 +770,132 @@
                                                         </div>
                                                     </div>
                                                 `;
-                                            }).join('');
+                                                }).join('');
 
-                                            // Re-bind
-                                            listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
-                                                btn.onclick = (e) => {
-                                                    decisions[btn.dataset.id] = btn.dataset.act;
-                                                    renderConflictList();
-                                                };
-                                            });
-                                        };
+                                                // Re-bind
+                                                listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
+                                                    btn.onclick = (e) => {
+                                                        decisions[btn.dataset.id] = btn.dataset.act;
+                                                        renderConflictList();
+                                                    };
+                                                });
+                                            };
 
-                                        renderConflictList();
+                                            renderConflictList();
 
-                                        // Footer
-                                        const footer = document.createElement('div');
-                                        footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
-                                        footer.innerHTML = `
+                                            // Footer
+                                            const footer = document.createElement('div');
+                                            footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
+                                            footer.innerHTML = `
                                             <button id="btn-resolve-cancel" class="btn btn-ghost">Skip Lorebook</button>
                                             <button id="btn-resolve-apply" class="btn btn-primary">Complete Import</button>
                                         `;
 
-                                        modal.appendChild(header);
-                                        modal.appendChild(listBody);
-                                        modal.appendChild(footer);
-                                        overlay.appendChild(modal);
-                                        document.body.appendChild(overlay);
+                                            modal.appendChild(header);
+                                            modal.appendChild(listBody);
+                                            modal.appendChild(footer);
+                                            overlay.appendChild(modal);
+                                            document.body.appendChild(overlay);
 
-                                        // Handlers
-                                        const setAll = (act) => { collisions.forEach(k => decisions[k] = act); renderConflictList(); };
-                                        modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
-                                        modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
-                                        modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
+                                            // Handlers
+                                            const setAll = (act) => { collisions.forEach(k => decisions[k] = act); renderConflictList(); };
+                                            modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
+                                            modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
+                                            modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
 
-                                        modal.querySelector('#btn-resolve-cancel').onclick = () => {
-                                            overlay.remove();
-                                            if (A.UI?.Toast) A.UI.Toast.show('Lorebook import skipped.', 'info');
-                                        };
+                                            modal.querySelector('#btn-resolve-cancel').onclick = () => {
+                                                overlay.remove();
+                                                if (A.UI?.Toast) A.UI.Toast.show('Lorebook import skipped.', 'info');
+                                            };
 
-                                        modal.querySelector('#btn-resolve-apply').onclick = () => {
-                                            let added = 0;
-                                            let updated = 0;
+                                            modal.querySelector('#btn-resolve-apply').onclick = () => {
+                                                let added = 0;
+                                                let updated = 0;
 
-                                            // Process non-collisions
-                                            importedKeys.forEach(k => {
-                                                if (!collisions.includes(k)) {
+                                                // Process non-collisions
+                                                importedKeys.forEach(k => {
+                                                    if (!collisions.includes(k)) {
+                                                        const entry = importedEntries[k];
+                                                        linkToActor(entry);
+                                                        existingEntries[k] = entry;
+                                                        added++;
+                                                    }
+                                                });
+
+                                                // Process conflicts
+                                                collisions.forEach(k => {
+                                                    const act = decisions[k];
                                                     const entry = importedEntries[k];
-                                                    linkToActor(entry);
-                                                    existingEntries[k] = entry;
-                                                    added++;
-                                                }
-                                            });
 
-                                            // Process conflicts
-                                            collisions.forEach(k => {
-                                                const act = decisions[k];
-                                                const entry = importedEntries[k];
+                                                    if (act === 'overwrite') {
+                                                        linkToActor(entry);
+                                                        existingEntries[k] = entry;
+                                                        updated++;
+                                                    } else if (act === 'copy') {
+                                                        entry.id = A.ProjectDB.generateId();
+                                                        entry.uuid = A.ProjectDB.generateId();
+                                                        linkToActor(entry);
+                                                        existingEntries[entry.id] = entry;
+                                                        added++;
+                                                    }
+                                                    // skip does nothing
+                                                });
 
-                                                if (act === 'overwrite') {
-                                                    linkToActor(entry);
-                                                    existingEntries[k] = entry;
-                                                    updated++;
-                                                } else if (act === 'copy') {
-                                                    entry.id = A.ProjectDB.generateId();
-                                                    entry.uuid = A.ProjectDB.generateId();
-                                                    linkToActor(entry);
-                                                    existingEntries[entry.id] = entry;
-                                                    added++;
-                                                }
-                                                // skip does nothing
-                                            });
+                                                finalize(`Lorebook Import: ${added} added, ${updated} updated.`);
+                                                overlay.remove();
+                                            };
 
-                                            finalize(`Lorebook Import: ${added} added, ${updated} updated.`);
-                                            overlay.remove();
-                                        };
+                                        } catch (err) {
+                                            console.error('[Actors] Lorebook Import Error:', err);
+                                        }
+                                    };
 
-                                    } catch (err) {
-                                        console.error('[Actors] Lorebook Import Error:', err);
-                                    }
+                                    handleLoreImport();
+
+                                    A.State.notify();
+                                    renderTab();
                                 };
+                                reader.readAsDataURL(file);
+                                if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
+                            } catch (err) {
+                                console.error('[Gallery] Import error:', err);
+                                if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                            }
+                        }; // End doImport
 
-                                handleLoreImport();
-
-                                A.State.notify();
-                                renderTab();
-                            };
-                            reader.readAsDataURL(file);
-                            if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
-                        } catch (err) {
-                            console.error('[Gallery] Import error:', err);
-                            if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                        if (A.UI && A.UI.Modal) {
+                            A.UI.Modal.show({
+                                title: 'Overwrite Character Data?',
+                                content: `
+                            <p style="margin-bottom:12px; color:var(--text-primary);">
+                                You are about to import <strong>${file.name}</strong>. 
+                                This will <strong>overwrite</strong> the current Name, Description, Personality, and other fields.
+                            </p>
+                            <p style="font-size:12px; color:var(--text-muted);">
+                                Existing images will remain in the gallery, but the primary image will be updated.
+                            </p>
+                        `,
+                                actions: [
+                                    {
+                                        label: 'Cancel',
+                                        class: 'btn-ghost',
+                                        onclick: () => true
+                                    },
+                                    {
+                                        label: 'Overwrite',
+                                        class: 'btn-primary',
+                                        onclick: async () => {
+                                            await doImport();
+                                            return true;
+                                        }
+                                    }
+                                ]
+                            });
+                        } else {
+                            // Fallback if modal system missing/limited
+                            if (confirm('Overwrite existing character data with this card?')) {
+                                doImport();
+                            }
                         }
                     };
                 }
