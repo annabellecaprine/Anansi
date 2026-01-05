@@ -381,11 +381,12 @@
 
                     // Actions
                     headHtml += `
-               <div style="margin-top:8px;">
-                 <div style="font-size:11px; font-weight:bold; margin-bottom:4px;">ACTIONS (Then...)</div>
-                 <div class="act-list" id="acts-${block.id}"></div>
-               </div>
-             `;
+                <div style="margin-top:8px;">
+                  <div style="font-size:11px; font-weight:bold; margin-bottom:4px;">ACTIONS (Then...)</div>
+                  <div class="act-list" id="acts-${block.id}"></div>
+                  <button class="btn btn-ghost btn-xs add-act" data-idx="${idx}" style="margin-top:4px;">+ Add Action</button>
+                </div>
+              `;
 
                     card.innerHTML = headHtml;
                     rootEl.appendChild(card);
@@ -444,6 +445,12 @@
                     if (card.querySelector('.add-cond')) {
                         card.querySelector('.add-cond').onclick = () => {
                             block.conditions.push({ type: 'anyInList', listId: '', op: '>=', threshold: 1 });
+                            renderChain(); A.State.notify();
+                        };
+                    }
+                    if (card.querySelector('.add-act')) {
+                        card.querySelector('.add-act').onclick = () => {
+                            block.actions.push({ type: 'modify', target: 'character.personality', text: '' });
                             renderChain(); A.State.notify();
                         };
                     }
