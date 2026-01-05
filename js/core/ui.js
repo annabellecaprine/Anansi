@@ -144,6 +144,14 @@
                 }
             });
 
+            // Global Guides Binding
+            const btnGuide = document.getElementById('btn-global-guide');
+            if (btnGuide) {
+                btnGuide.onclick = () => {
+                    UI.switchPanel('guide');
+                };
+            }
+
             // Tour Binding
             if (this.els.btnHelp) {
                 this.els.btnHelp.onclick = () => {
@@ -245,6 +253,7 @@
                 };
 
                 groupItems.forEach(section => {
+                    if (section.hidden) return;
                     const btn = document.createElement('button');
                     btn.className = `nav-item ${section.id === activePanelId ? 'active' : ''}`;
                     btn.style.paddingLeft = '12px';
@@ -417,12 +426,16 @@
 
             // Handle content as string or DOM element
             const contentIsElement = config.content instanceof HTMLElement;
+            const bodyStyle = config.height
+                ? `height:${config.height}; overflow:hidden;`
+                : `max-height:70vh; overflow-y:auto;`;
+
             modal.innerHTML = `
                 <div class="card-header">
                     <strong>${config.title || 'Dialog'}</strong>
                     <button class="btn btn-ghost btn-sm" id="modal-close-x">&times;</button>
                 </div>
-                <div class="card-body modal-body" style="max-height:70vh; overflow-y:auto;">
+                <div class="card-body modal-body" style="${bodyStyle}">
                     ${contentIsElement ? '' : (config.content || '')}
                 </div>
                 <div class="card-footer" style="padding:12px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;">

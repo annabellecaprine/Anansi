@@ -68,7 +68,8 @@
 
         // Helper for JS string escaping
         _jsStr: function (s) {
-            return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
+            const str = s == null ? '' : String(s);
+            return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
         },
 
         /**
@@ -107,13 +108,13 @@
         },
 
         _buildInstrumentedVoicesScript: function (state) {
-            const voices = Object.values(state?.nodes?.voices?.items || {});
+            const voices = state?.weaves?.voices?.voices || [];
             const jsStr = this._jsStr;
             let s = '/* === VOICES (Instrumented) === */\n';
             s += '(function(){\n';
 
             voices.forEach((v, i) => {
-                const actorName = state.nodes.actors.items[v.actorId]?.name || 'Unknown';
+                const actorName = state.nodes?.actors?.items?.[v.actorId]?.name || v.characterName || 'Unknown';
                 const name = `Voice ${i + 1}: ${actorName}`;
 
                 s += `  (function(){\n`;
@@ -262,11 +263,12 @@
 
         _buildInstrumentedActorCuesScript: function (state) {
             const actors = Object.values(state?.nodes?.actors?.items || {});
-            const actorsWithCues = actors.filter(a =>
-                Object.keys(a.pulseCues || {}).length > 0 ||
-                Object.keys(a.erosCues || {}).length > 0 ||
-                Object.keys(a.intentCues || {}).length > 0
-            );
+            const actorsWithCues = actors.filter(a => {
+                const T = a.traits || {};
+                return Object.keys(T.pulseCues || {}).length > 0 ||
+                    Object.keys(T.erosCues || {}).length > 0 ||
+                    Object.keys(T.intentCues || {}).length > 0;
+            });
 
             if (!actorsWithCues.length) return '// No Actor Cues';
 
@@ -278,9 +280,10 @@
 
             actorsWithCues.forEach(actor => {
                 const actorName = actor.name || 'Unknown Actor';
+                const T = actor.traits || {};
 
                 // PULSE
-                const pulseCues = Object.entries(actor.pulseCues || {});
+                const pulseCues = Object.entries(T.pulseCues || {});
                 if (pulseCues.length > 0) {
                     s += `  // ${actorName} - PULSE\n`;
                     pulseCues.forEach(([emotion, cue]) => {
@@ -295,7 +298,7 @@
                 }
 
                 // EROS
-                const erosCues = Object.entries(actor.erosCues || {});
+                const erosCues = Object.entries(T.erosCues || {});
                 if (erosCues.length > 0) {
                     s += `  // ${actorName} - EROS\n`;
                     erosCues.forEach(([level, cue]) => {
@@ -310,7 +313,7 @@
                 }
 
                 // INTENT
-                const intentCues = Object.entries(actor.intentCues || {});
+                const intentCues = Object.entries(T.intentCues || {});
                 if (intentCues.length > 0) {
                     s += `  // ${actorName} - INTENT\n`;
                     intentCues.forEach(([intent, cue]) => {

@@ -1673,7 +1673,7 @@
         renderEmotions(lensContent);
         renderEros(lensContent);
         renderIntents(lensContent);
-        renderActors(lensContent);
+        renderActors(lensContent.querySelector('#sim-actors'));
 
         const tagInput = lensContent.querySelector('#sim-add-tag');
         if (tagInput) {

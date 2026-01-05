@@ -217,6 +217,7 @@
 ## 📜 Change Log
 
 ### v1.6.3 - January 5, 2026
+- **New Feature**: **Platform Guides**. Added a Help icon in the Top Bar that opens comprehensive instructions for exporting to platforms like SillyTavern, JanitorAI, and Chub.ai.
 - **New Feature**: **Lorebook Mobile Export**. Export lorebooks as `.txt` files to support mobile/tablet devices where `.json` handling is difficult.
 - **New Feature**: **Multi-Select Deletion**. Added bulk selection and deletion capability to Lorebook, Actors, Events, Scripts, and Locations panels. Protection for System Scripts included.
 - **New Feature**: **About Modal**. Click the Anansi logo to view version info and credits. Customizable via `ABOUT.html`.
