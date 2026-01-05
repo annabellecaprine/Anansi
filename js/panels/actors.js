@@ -500,7 +500,7 @@
                             const seed = state.seed || {};
                             const response = await fetch(primary.data);
                             const blob = await response.blob();
-                            const cardData = A.CardEncoder.actorToCard(actor, seed);
+                            const cardData = A.CardEncoder.actorToCard(actor, seed, state);
                             const cardPng = await A.CardEncoder.embed(blob, cardData);
                             const url = URL.createObjectURL(cardPng);
                             const a = document.createElement('a');

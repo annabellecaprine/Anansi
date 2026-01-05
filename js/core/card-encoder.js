@@ -233,10 +233,47 @@
     /**
      * Convert actor data to Character Card v2 format
      * Prioritizes actor.cardFields for standalone export, falls back to seed
+     * @param {Object} actor - The actor to export
+     * @param {Object} seed - Seed data (scenario, firstMessage, etc.)
+     * @param {Object} state - Full Anansi state (for lorebook access)
      */
-    function actorToCharaCard(actor, seed = {}) {
+    function actorToCharaCard(actor, seed = {}, state = null) {
         const cf = actor.cardFields || {};
-        return {
+
+        // Build character_book from associated lorebook entries
+        let characterBook = null;
+        if (state && state.weaves && state.weaves.lorebook && state.weaves.lorebook.entries) {
+            const entries = Object.values(state.weaves.lorebook.entries);
+            const associatedEntries = entries.filter(entry =>
+                entry.associatedActors && entry.associatedActors.includes(actor.id) && entry.enabled !== false
+            );
+
+            if (associatedEntries.length > 0) {
+                characterBook = {
+                    entries: associatedEntries.map((entry, idx) => ({
+                        keys: entry.keywords || [],
+                        secondary_keys: entry.secondaryKeys ? entry.secondaryKeys.split(',').map(s => s.trim()).filter(Boolean) : [],
+                        content: entry.content || '',
+                        enabled: entry.enabled !== false,
+                        insertion_order: entry.insertion_order || idx,
+                        case_sensitive: entry.caseSensitive || false,
+                        priority: entry.priority || 50,
+                        comment: entry.title || '',
+                        extensions: {
+                            anansi: {
+                                id: entry.id,
+                                category: entry.category,
+                                requireTags: entry.requireTags,
+                                blocksTags: entry.blocksTags,
+                                emitTags: entry.tags
+                            }
+                        }
+                    }))
+                };
+            }
+        }
+
+        const cardData = {
             spec: 'chara_card_v2',
             spec_version: '2.0',
             data: {
@@ -262,6 +299,13 @@
                 }
             }
         };
+
+        // Add character_book if we have associated entries
+        if (characterBook) {
+            cardData.data.character_book = characterBook;
+        }
+
+        return cardData;
     }
 
     /**
