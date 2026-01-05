@@ -232,6 +232,7 @@
 - **Fix**: Lorebook Shift delete button now works correctly.
 - **Fix**: Removed missing `utils.js` reference (404 error).
 - **Fix**: API key reading now uses consolidated config system.
+- **New Feature**: **Character Book Export**. Character Cards now include associated lorebook entries (those with "Associate with Actors" checked) as embedded `character_book` data.
 
 ---
 
