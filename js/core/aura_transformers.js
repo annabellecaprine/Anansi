@@ -105,9 +105,9 @@
                     associatedActors: entry.associatedActors || []
                 };
 
-                // Injection target
-                const target = entry.injectionTarget || 'personality';
-                auraEntry[target] = entry.content || '';
+                // Injection target & Content
+                auraEntry.target = entry.injectionTarget || 'personality';
+                auraEntry.content = entry.content || '';
 
                 // Text gates
                 if (entry.requireTags?.length > 0) {
@@ -175,8 +175,8 @@
                         };
 
                         // Shift target (inherits from parent or uses its own)
-                        const shiftTarget = entry.injectionTarget || 'personality';
-                        shiftEntry[shiftTarget] = shift.content || shift.text || '';
+                        shiftEntry.target = entry.injectionTarget || 'personality';
+                        shiftEntry.content = shift.content || shift.text || '';
 
                         // Shift gates
                         if (shift.requireTags?.length > 0) {
@@ -210,23 +210,33 @@
             Object.values(state.aura.events.items).forEach(event => {
                 if (!event.enabled) return;
 
-                const entry = {
-                    tag: event.id,
+                const baseEntry = {
                     keywords: event.keywords || [],
                     triggers: event.emitTags || [],
                     priority: event.priority || 50
                 };
 
-                // Event targets
-                if (event.personality) entry.personality = event.personality;
-                if (event.scenario) entry.scenario = event.scenario;
-
-                // Emotion gate (if set)
                 if (event.emotion) {
-                    entry.andAnyEmotion = [event.emotion.toUpperCase()];
+                    baseEntry.andAnyEmotion = [event.emotion.toUpperCase()];
                 }
 
-                emotionEntries.push(entry);
+                if (event.personality) {
+                    emotionEntries.push({
+                        ...baseEntry,
+                        tag: event.id + '_p',
+                        target: 'personality',
+                        content: event.personality
+                    });
+                }
+
+                if (event.scenario) {
+                    emotionEntries.push({
+                        ...baseEntry,
+                        tag: event.id + '_s',
+                        target: 'scenario',
+                        content: event.scenario
+                    });
+                }
             });
 
             return emotionEntries;
@@ -241,20 +251,16 @@
             if (!state?.aura?.scoring?.items) return scoringEntries;
 
             Object.values(state.aura.scoring.items).forEach(rule => {
-                if (!rule.enabled) return;
+                if (!rule.enabled || !rule.text) return;
 
-                const entry = {
+                scoringEntries.push({
                     tag: rule.id,
                     keywords: rule.keywords || [],
                     priority: rule.weight || 50,
-                    probability: 1
-                };
-
-                if (rule.text) {
-                    entry.personality = rule.text;
-                }
-
-                scoringEntries.push(entry);
+                    probability: 1,
+                    target: 'personality',
+                    content: rule.text
+                });
             });
 
             return scoringEntries;

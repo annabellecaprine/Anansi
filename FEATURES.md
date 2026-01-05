@@ -221,6 +221,7 @@
 - **New Feature**: **Procedural Avatars**. Character portraits in chat animate based on emotional state (shake, glow, bounce effects).
 - **Fix**: JanitorAI lorebook import now correctly reads `key` field (was only checking `keys`/`keywords`).
 - **Fix**: Dropdown option visibility in dark mode improved.
+- **Fix**: Export generation now correctly handles `character.scenario` injection targets for Lorebook, Events, and Scoring.
 
 ### v1.6.0 - January 4, 2026
 - **New Feature**: **Script Repository** added to Scripts panel. Includes checked-in presets:

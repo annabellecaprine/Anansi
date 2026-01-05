@@ -150,10 +150,17 @@ ${entriesCode}
   LORE_ENTRIES.forEach(function(entry){
       if (AURA.gates.checkWords(entry, msg) && AURA.gates.checkTags(entry, {}, 'Tags')) {
           // Injection Logic
-          var content = entry.personality || entry.content || "";
+          var content = entry.content || entry.personality || "";
+          var target = entry.target || "personality";
+
           if (content) {
-              context.character.personality = (context.character.personality || "") + "\\n" + content;
-              if (AURA.utils && AURA.utils.dbg) AURA.utils.dbg("Injected Lore: " + entry.tag);
+              if (target === "character.scenario" || target === "scenario") {
+                  context.character.scenario = (context.character.scenario || "") + "\\n" + content;
+              } else {
+                  context.character.personality = (context.character.personality || "") + "\\n" + content;
+              }
+              
+              if (AURA.utils && AURA.utils.dbg) AURA.utils.dbg("Injected Lore: " + entry.tag + " into " + target);
           }
       }
   });
