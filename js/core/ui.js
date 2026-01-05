@@ -99,18 +99,28 @@
             this.els.btnNew.onclick = () => {
                 if (confirm('Create new project? Unsaved changes will be lost.')) {
                     A.State.reset();
+                    if (A.UI.Toast) A.UI.Toast.show('New project created', 'info');
                 }
             };
 
-            this.els.btnExport.onclick = () => A.IO.exportToFile();
-            this.els.btnBuild.onclick = () => A.Export.build();
+            this.els.btnExport.onclick = () => {
+                A.IO.exportToFile();
+                // Toast appears in IO.exportToFile, no need for duplicate
+            };
+            this.els.btnBuild.onclick = () => {
+                A.Export.build();
+                // Toast confirmation handled in Export.build method
+            };
 
             this.els.btnImport.onclick = () => {
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.json,.anansi.json';
                 input.onchange = (e) => {
-                    if (e.target.files[0]) A.IO.importFromFile(e.target.files[0]);
+                    if (e.target.files[0]) {
+                        A.IO.importFromFile(e.target.files[0]);
+                        // Toast appears in IO.importFromFile on success
+                    }
                 };
                 input.click();
             };
@@ -169,6 +179,59 @@
                 if (!state) return;
                 this.els.displayName.textContent = state.meta.name + (state.isDirty ? ' •' : '');
                 this.updateIntegrityBadge(state);
+
+                // Update save button visual state
+                if (state.isDirty) {
+                    this.els.btnSave.classList.add('btn-unsaved');
+                } else {
+                    this.els.btnSave.classList.remove('btn-unsaved');
+                }
+            });
+
+            // Global Keyboard Shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Detect Ctrl (Windows/Linux) or Cmd (Mac)
+                const cmdKey = e.metaKey || e.ctrlKey;
+
+                // Ignore if typing in an input field
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+                    return;
+                }
+
+                // Ctrl/Cmd + S → Save
+                if (cmdKey && e.key === 's') {
+                    e.preventDefault();
+                    if (this.els.btnSave) this.els.btnSave.click();
+                }
+
+                // Ctrl/Cmd + B → Build (AURA export)
+                else if (cmdKey && e.key === 'b') {
+                    e.preventDefault();
+                    if (this.els.btnBuild) this.els.btnBuild.click();
+                }
+
+                // Ctrl/Cmd + N → New Project
+                else if (cmdKey && e.key === 'n') {
+                    e.preventDefault();
+                    if (this.els.btnNew) this.els.btnNew.click();
+                }
+
+                // Ctrl/Cmd + , → Project Settings
+                else if (cmdKey && e.key === ',') {
+                    e.preventDefault();
+                    this.switchPanel('project');
+                }
+
+                // Number keys 1-9 → Jump to panels (if not in input)
+                else if (!cmdKey && e.key >= '1' && e.key <= '9') {
+                    const index = parseInt(e.key) - 1;
+                    const allPanels = this.panels.filter(p => !p.hidden);
+                    if (allPanels[index]) {
+                        e.preventDefault();
+                        this.switchPanel(allPanels[index].id);
+                    }
+                }
             });
 
             // Render Initial Nav
