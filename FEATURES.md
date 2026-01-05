@@ -226,7 +226,12 @@
 - **New Feature**: **Bi-directional Location Linking**. Creating an exit automatically links the return path.
 - **New Feature**: **Alternate Initial Messages**. Define multiple greetings and swipe through them in the Simulator. Index tracked via `state.sim.greetingIndex`.
 - **New Feature**: **Consolidated API Configuration Modal**. Tabbed interface with provider presets (OpenAI, Anthropic, Gemini, Kobold, Chutes, Custom) that auto-fill URLs.
+- **New Feature**: **Generation Settings**. Full control over Temperature, Max Tokens, Context Size, Top P/K, Repetition/Frequency/Presence Penalties.
+- **Improvement**: **Import/Export Terminology Standardized**. Scripts panel now uses "Import/Export". AURA Bundle merged into Export modal.
 - **Fix**: Lorebook Export button now correctly triggers download.
+- **Fix**: Lorebook Shift delete button now works correctly.
+- **Fix**: Removed missing `utils.js` reference (404 error).
+- **Fix**: API key reading now uses consolidated config system.
 
 ---
 
