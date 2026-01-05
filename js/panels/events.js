@@ -276,16 +276,12 @@
     function renderEditor() {
       editorCol.innerHTML = '';
       if (!currentId) {
-        editorCol.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
-                    <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <div style="margin-bottom:16px;">Select an Event or Group to edit</div>
-                <button class="btn btn-secondary" id="btn-empty-create">Create New</button>
-            </div>
-        `;
-        editorCol.querySelector('#btn-empty-create').onclick = () => listCol.querySelector('#btn-add').click();
+        editorCol.innerHTML = A.UI.getEmptyStateHTML(
+          'No Event Selected',
+          'Events track narrative milestones and unlock new story branches.',
+          'Create First Event',
+          "document.getElementById('btn-add').click()"
+        );
         return;
       }
 

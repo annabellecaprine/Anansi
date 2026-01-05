@@ -160,7 +160,12 @@
             else item = state.scoring.advanced.find(t => t.id === currentId);
 
             if (!item) {
-                editorCol.innerHTML = '<div class="muted" style="padding:20px; text-align:center;">Select an item</div>';
+                editorCol.innerHTML = A.UI.getEmptyStateHTML(
+                    'No Scoring Rule Selected',
+                    'Track player choices and story outcomes with custom scoring logic.',
+                    'Create First Rule',
+                    "document.getElementById('btn-add').click()"
+                );
                 return;
             }
 

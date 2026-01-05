@@ -258,16 +258,12 @@
       editorCol.innerHTML = '';
       const v = data.voices[currentVoiceIndex];
       if (!v) {
-        editorCol.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-                <div style="margin-bottom:16px;">Select a Voice to edit</div>
-                <button class="btn btn-secondary" id="btn-empty-create">Create New Voice</button>
-            </div>
-        `;
-        editorCol.querySelector('#btn-empty-create').onclick = () => listCol.querySelector('#btn-add-voice').click();
+        editorCol.innerHTML = A.UI.getEmptyStateHTML(
+          'No Voice Selected',
+          'Voice profiles customize how each actor speaks and expresses themselves.',
+          'Create First Voice',
+          "document.getElementById('btn-add-voice').click()"
+        );
         return;
       }
 
