@@ -980,7 +980,16 @@
 
       // === ENTITY GATES ===
       const entityContent = document.createElement('div');
-      entityContent.innerHTML = `<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">Restrict this entry to fire only when specific actors are present.</div>`;
+      entityContent.innerHTML = `
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;">
+          <strong>Restrict to Actors:</strong> This entry only fires when selected actors are <em>mentioned</em> in recent chat messages.
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:12px;padding:8px;background:var(--bg-elevated);border-radius:var(--radius-sm);border-left:3px solid var(--accent-primary);">
+          <strong>How detection works:</strong> AURA scans chat for actor <strong>names</strong> and <strong>aliases</strong>. 
+          Pronouns (he/she/they) are resolved to the last mentioned actor of that gender.
+          <br><em>Example: If "Aria" is selected, the entry fires when "aria", her aliases, or "she" (after mentioning Aria) appear in chat.</em>
+        </div>
+      `;
 
       // Get actors from state
       const actors = state.nodes?.actors?.items ? Object.values(state.nodes.actors.items) : [];

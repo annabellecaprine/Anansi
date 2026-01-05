@@ -2564,7 +2564,7 @@ CRITICAL: Respond ONLY with valid JSON:
   A.registerPanel('parlor', {
     label: "The Spider's Parlor",
     subtitle: 'AI Character Creator',
-    category: 'Forbidden Secrets',
+    category: 'Sacred Tools',
     render: render
   });
 

@@ -233,6 +233,7 @@
 - **Fix**: Removed missing `utils.js` reference (404 error).
 - **Fix**: API key reading now uses consolidated config system.
 - **New Feature**: **Character Book Export**. Character Cards now include associated lorebook entries (those with "Associate with Actors" checked) as embedded `character_book` data.
+- **Fix**: **Character Book Import**. Importing V2 cards now correctly restores embedded character_book entries (with conflict resolution).
 
 ---
 
