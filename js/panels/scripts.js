@@ -952,7 +952,7 @@ const Inventory = {
                     readme += `- SYSTEM scripts are built-in engine components\n`;
                     readme += `- GENERATED scripts are auto-created from panel configurations\n`;
 
-                    zip.file('README.txt', readme);
+                    zip.file('Loading Instructions.txt', readme);
 
                     // Add each script
                     scripts.forEach((script, idx) => {
