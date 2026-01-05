@@ -934,23 +934,24 @@ const Inventory = {
                     const zip = new JSZip();
                     const projectName = A.State.get().meta?.name || 'Anansi Project';
 
-                    // Generate README
-                    let readme = `# ${projectName} - Script Bundle\n\n`;
+                    // Generate Instructions (plain text, no markdown)
+                    let readme = `${projectName} - Script Bundle\n`;
+                    readme += `${'='.repeat(projectName.length + 16)}\n\n`;
                     readme += `Exported: ${new Date().toISOString()}\n\n`;
-                    readme += `## Script Order (Execution Sequence)\n\n`;
+                    readme += `Script Order (Execution Sequence):\n\n`;
 
                     scripts.forEach((script, idx) => {
                         const flags = [];
                         if (script.system) flags.push('SYSTEM');
                         if (script.managed) flags.push('GENERATED');
                         const flagStr = flags.length ? ` [${flags.join(', ')}]` : '';
-                        readme += `${idx + 1}. ${script.name || 'Untitled'}${flagStr}\n`;
+                        readme += `  ${idx + 1}. ${script.name || 'Untitled'}${flagStr}\n`;
                     });
 
-                    readme += `\n## Notes\n\n`;
-                    readme += `- Scripts should be executed in the order listed above\n`;
-                    readme += `- SYSTEM scripts are built-in engine components\n`;
-                    readme += `- GENERATED scripts are auto-created from panel configurations\n`;
+                    readme += `\nNotes:\n\n`;
+                    readme += `  * Scripts should be executed in the order listed above\n`;
+                    readme += `  * SYSTEM scripts are built-in engine components\n`;
+                    readme += `  * GENERATED scripts are auto-created from panel configurations\n`;
 
                     zip.file('Loading Instructions.txt', readme);
 
