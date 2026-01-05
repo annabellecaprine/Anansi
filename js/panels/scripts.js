@@ -931,7 +931,41 @@ const Inventory = {
                 if (confirm(`This will download ${scripts.length} files individually to avoid Windows security quarantine.\n\nPlease allow multiple file downloads if prompted.`)) {
                     modal.remove();
 
-                    // Sequential download loop
+                    // 1. Generate Instructions (plain text)
+                    const projectName = A.State.get().meta?.name || 'Anansi Project';
+                    let readme = `${projectName} - Script Bundle\n`;
+                    readme += `${'='.repeat(projectName.length + 16)}\n\n`;
+                    readme += `Exported: ${new Date().toISOString()}\n\n`;
+                    readme += `Script Order (Execution Sequence):\n\n`;
+
+                    scripts.forEach((script, idx) => {
+                        const flags = [];
+                        if (script.system) flags.push('SYSTEM');
+                        if (script.managed) flags.push('GENERATED');
+                        const flagStr = flags.length ? ` [${flags.join(', ')}]` : '';
+                        readme += `  ${idx + 1}. ${script.name || 'Untitled'}${flagStr}\n`;
+                    });
+
+                    readme += `\nNotes:\n\n`;
+                    readme += `  * Scripts should be executed in the order listed above\n`;
+                    readme += `  * SYSTEM scripts are built-in engine components\n`;
+                    readme += `  * GENERATED scripts are auto-created from panel configurations\n`;
+
+                    // Download Instructions First
+                    const readmeBlob = new Blob([readme], { type: 'text/plain' });
+                    const readmeUrl = URL.createObjectURL(readmeBlob);
+                    const readmeLink = document.createElement('a');
+                    readmeLink.href = readmeUrl;
+                    readmeLink.download = 'Loading Instructions.txt';
+                    document.body.appendChild(readmeLink);
+                    readmeLink.click();
+                    document.body.removeChild(readmeLink);
+                    setTimeout(() => URL.revokeObjectURL(readmeUrl), 1000);
+
+                    // Small delay before scripts start
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    // 2. Sequential download loop
                     for (let i = 0; i < scripts.length; i++) {
                         const script = scripts[i];
                         const code = script.source && script.source.code ? script.source.code : '';
