@@ -8,6 +8,10 @@
     'use strict';
 
     let activePanelId = 'project';
+    let navSearchTerm = ''; // Search filter for sidebar
+    let panelHistory = []; // Track last 5 visited panels
+    const MAX_HISTORY = 5;
+
     // Define Category Order (Updated structure)
     const categoryOrder = ['Loom', 'Seeds', 'Weave', 'Magic', 'Sacred Tools', 'Deep', 'Forbidden Secrets'];
 
@@ -55,6 +59,7 @@
                 displayEnv: document.getElementById('display-env-badge'),
                 btnToggleLens: document.getElementById('btn-toggle-lens'),
                 btnHelp: document.getElementById('btn-help'),
+                btnBack: document.getElementById('btn-back'),
                 lensRoot: document.getElementById('lens-root'),
                 appShell: document.getElementById('app-shell')
             };
@@ -223,6 +228,12 @@
                     this.switchPanel('project');
                 }
 
+                // Ctrl/Cmd + [ → Back
+                else if (cmdKey && e.key === '[') {
+                    e.preventDefault();
+                    this.goBack();
+                }
+
                 // Number keys 1-9 → Jump to panels (if not in input)
                 else if (!cmdKey && e.key >= '1' && e.key <= '9') {
                     const index = parseInt(e.key) - 1;
@@ -233,6 +244,20 @@
                     }
                 }
             });
+
+            // Bind search input
+            const navSearchInput = document.getElementById('nav-search-input');
+            if (navSearchInput) {
+                navSearchInput.addEventListener('input', (e) => {
+                    navSearchTerm = e.target.value.toLowerCase();
+                    this.refreshNav();
+                });
+            }
+
+            // Bind back button
+            if (this.els.btnBack) {
+                this.els.btnBack.onclick = () => this.goBack();
+            }
 
             // Render Initial Nav
             this.refreshNav();
@@ -317,6 +342,15 @@
 
                 groupItems.forEach(section => {
                     if (section.hidden) return;
+
+                    // Search filtering
+                    if (navSearchTerm) {
+                        const label = (section.label || '').toLowerCase();
+                        if (!label.includes(navSearchTerm)) {
+                            return; // Skip this item if it doesn't match search
+                        }
+                    }
+
                     const btn = document.createElement('button');
                     btn.className = `nav-item ${section.id === activePanelId ? 'active' : ''}`;
                     btn.style.paddingLeft = '12px';
@@ -351,6 +385,23 @@
 
         switchPanel: function (id, context) {
             try {
+                // Track panel history (skip if it's the same panel)
+                if (id !== activePanelId) {
+                    // Add current panel to history before switching
+                    if (activePanelId && !panelHistory.includes(activePanelId)) {
+                        panelHistory.push(activePanelId);
+                        // Keep only last MAX_HISTORY panels
+                        if (panelHistory.length > MAX_HISTORY) {
+                            panelHistory.shift();
+                        }
+                    }
+
+                    // Update back button visibility
+                    if (this.els.btnBack) {
+                        this.els.btnBack.style.display = panelHistory.length > 0 ? 'inline-flex' : 'none';
+                    }
+                }
+
                 activePanelId = id;
                 this.refreshNav(); // Update active state
 
@@ -412,6 +463,23 @@
                 return;
             }
             renderFn(this.els.lensRoot);
+        },
+
+        goBack: function () {
+            if (panelHistory.length === 0) return;
+
+            const previousPanel = panelHistory.pop();
+
+            // Update back button visibility
+            if (this.els.btnBack) {
+                this.els.btnBack.style.display = panelHistory.length > 0 ? 'inline-flex' : 'none';
+            }
+
+            // Switch to previous panel without adding to history
+            const temp = activePanelId;
+            activePanelId = previousPanel;
+            this.switchPanel(previousPanel);
+            activePanelId = temp; // Prevent switchPanel from re-adding to history
         },
 
         toggleLens: function (force) {

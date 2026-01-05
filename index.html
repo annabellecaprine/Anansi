@@ -138,6 +138,10 @@
 
     <!-- Web Navigator (Left Sidebar) -->
     <nav class="web-navigator">
+      <div class="nav-search" style="padding: 8px; border-bottom: 1px solid var(--border-subtle);">
+        <input type="text" id="nav-search-input" class="input" placeholder="Search panels..."
+          style="width: 100%; font-size: 12px; height: 28px;" />
+      </div>
       <div class="nav-sections" id="nav-container">
         <!-- Injected by Anansi.UI -->
       </div>
@@ -152,6 +156,12 @@
             <span class="panel-subtitle" id="panel-subtitle">Subtitle</span>
           </div>
           <div class="panel-actions">
+            <button class="btn btn-ghost btn-sm" id="btn-back" title="Back" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
             <button class="btn btn-secondary btn-sm" id="btn-help">Help</button>
             <button class="btn btn-primary btn-sm" id="btn-save">Save</button>
           </div>
