@@ -877,7 +877,7 @@ const Inventory = {
                             Export Selected Script (.txt)
                         </button>
                         <button class="btn btn-ghost" id="export-all">
-                            Export All Scripts (.zip)
+                            Export All Scripts (Individual Files)
                         </button>
                         <button class="btn btn-ghost" id="export-aura" style="color:var(--accent-secondary);">
                             Export SPIDER_AURA (.js)
@@ -918,7 +918,7 @@ const Inventory = {
                 modal.remove();
             };
 
-            // Download All Scripts as ZIP
+            // Download All Scripts Sequentially (Files)
             modal.querySelector('#export-all').onclick = async () => {
                 const scripts = A.Scripts.getAll();
                 if (!scripts.length) {
@@ -927,41 +927,37 @@ const Inventory = {
                     return;
                 }
 
-                if (typeof JSZip === 'undefined') {
-                    if (A.UI.Toast) A.UI.Toast.show('JSZip not loaded', 'error');
+                // Workaround for Windows "Mark of the Web" flagging ZIPs
+                if (confirm(`This will download ${scripts.length} files individually to avoid Windows security quarantine.\n\nPlease allow multiple file downloads if prompted.`)) {
                     modal.remove();
-                    return;
-                }
 
-                try {
-                    const zip = new JSZip();
-                    const projectName = A.State.get().meta?.name || 'Anansi Project';
-
-                    // Add each script (no readme file to avoid security flags)
-                    scripts.forEach((script, idx) => {
-
+                    // Sequential download loop
+                    for (let i = 0; i < scripts.length; i++) {
+                        const script = scripts[i];
                         const code = script.source && script.source.code ? script.source.code : '';
-                        const safeName = (script.name || 'script_' + idx).replace(/[^a-zA-Z0-9_-]/g, '_');
-                        const paddedIdx = String(idx + 1).padStart(2, '0');
-                        zip.file(`${paddedIdx}_${safeName}.txt`, code);
-                    });
+                        const safeName = (script.name || 'script_' + i).replace(/[^a-zA-Z0-9_-]/g, '_');
+                        const paddedIdx = String(i + 1).padStart(2, '0');
+                        const filename = `${paddedIdx}_${safeName}.txt`;
 
-                    const content = await zip.generateAsync({ type: 'blob' });
-                    const url = URL.createObjectURL(content);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = (projectName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'scripts') + '_bundle.zip';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                        const blob = new Blob([code], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
 
-                    if (A.UI.Toast) A.UI.Toast.show(`Exported ${scripts.length} scripts as ZIP`, 'success');
-                } catch (err) {
-                    console.error('ZIP export error:', err);
-                    if (A.UI.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        // Revoke after small delay
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+                        // Pace downloads to avoid browser throttling
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+
+                    if (A.UI.Toast) A.UI.Toast.show(`Downloaded ${scripts.length} files.`, 'success');
                 }
-                modal.remove();
             };
 
             // Export AURA Bundle
