@@ -10,6 +10,9 @@
     let currentScriptId = null;
     let monacoEditor = null;
     let searchTerm = ''; // Search Filter
+    // State for Multi-Select
+    let selectionMode = false;
+    let selectedIds = new Set();
 
     function render(container, context) {
         // Handle context for auto-selecting a script (e.g., from Voices panel)
@@ -45,21 +48,43 @@
         listHeader.style.alignItems = 'stretch';
         listHeader.style.gap = '8px';
 
+        // Footer for Multi-Select
+        const listFooter = document.createElement('div');
+        listFooter.className = 'card-footer';
+        listFooter.style.flexDirection = 'column';
+        listFooter.style.gap = '8px';
+        listFooter.style.padding = '8px';
+        listFooter.style.borderTop = '1px solid var(--border-subtle)';
+        listFooter.style.display = 'block';
+
         listHeader.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
           <strong>Scripts</strong>
-          <div style="display:flex; gap:4px;">
-            <button class="btn btn-ghost btn-sm" id="btn-repo-script" title="Script Repository (Presets)" style="color:var(--accent-primary);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </button>
-            <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Import Script">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-add-script">+ New</button>
-          </div>
+            <div style="display:flex; gap:4px;">
+                <button class="btn btn-ghost btn-sm" id="btn-repo-script" title="Script Repository (Presets)" style="color:var(--accent-primary);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </button>
+                <div id="header-std-act" style="display:flex; gap:4px;">
+                    <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Import Script">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" id="btn-add-script">+ New</button>
+                </div>
+            </div>
+      </div>
       </div>
       <input class="input" id="search-scripts" placeholder="Filter scripts..." style="width:100%; font-size:12px; height:28px;" value="${searchTerm}">
     `;
+
+        listFooter.innerHTML = `
+           <div id="footer-std-act" style="width:100%;">
+              <button class="btn btn-ghost btn-sm" id="btn-select-mode" style="width:100%;">Select...</button>
+           </div>
+           <div id="footer-sel-act" style="display:none; flex-direction:column; gap:8px;">
+              <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
+              <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+           </div>
+        `;
 
         const listBody = document.createElement('div');
         listBody.className = 'card-body';
@@ -70,11 +95,83 @@
 
         listCol.appendChild(listHeader);
         listCol.appendChild(listBody);
+        listCol.appendChild(listFooter);
+        listCol.appendChild(listFooter);
 
         // Search Bind
         listHeader.querySelector('#search-scripts').oninput = (e) => {
             searchTerm = e.target.value.toLowerCase();
             refreshList();
+        };
+
+        // --- Multi-Select Handlers ---
+        const updateFooterState = () => {
+            const fStd = listFooter.querySelector('#footer-std-act');
+            const fSel = listFooter.querySelector('#footer-sel-act');
+            const hStd = listHeader.querySelector('#header-std-act');
+
+            if (selectionMode) {
+                fStd.style.display = 'none';
+                fSel.style.display = 'flex';
+                hStd.style.visibility = 'hidden'; // Hide top actions to reduce visual clutter? Or keep them?
+                // Actually keep them accessible if needed, but 'New' might confuse selection.
+                // Let's just focus on selection
+                hStd.style.opacity = '0.3';
+                hStd.style.pointerEvents = 'none';
+
+                fSel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
+                fSel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
+                fSel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+            } else {
+                fStd.style.display = 'block';
+                fSel.style.display = 'none';
+                hStd.style.visibility = 'visible';
+                hStd.style.opacity = '1';
+                hStd.style.pointerEvents = 'auto';
+            }
+        };
+
+        listFooter.querySelector('#btn-select-mode').onclick = () => {
+            selectionMode = true;
+            selectedIds.clear();
+            updateFooterState();
+            refreshList();
+        };
+
+        listFooter.querySelector('#btn-cancel-select').onclick = () => {
+            selectionMode = false;
+            selectedIds.clear();
+            updateFooterState();
+            refreshList();
+        };
+
+        listFooter.querySelector('#btn-del-multi').onclick = () => {
+            if (selectedIds.size === 0) return;
+            if (confirm(`Delete ${selectedIds.size} scripts?`)) {
+                let count = 0;
+                selectedIds.forEach(id => {
+                    // Check if system? A.Scripts.delete handles checks implicitly?
+                    // Better to check here to be safe, though scripts.delete usually allows it unless protected.
+                    // Scripts.delete does not seem to return success/fail, assuming success.
+                    const script = A.Scripts.getAll().find(s => s.id === id);
+                    if (script && !script.system) { // Prevent system delete
+                        A.Scripts.delete(id);
+                        count++;
+                    }
+                });
+
+                selectionMode = false;
+                selectedIds.clear();
+                if (A.UI.Toast) A.UI.Toast.show(`Deleted ${count} scripts.`, 'success');
+
+                // If current selected was deleted, clear editor
+                if (!A.Scripts.getAll().find(s => s.id === currentScriptId)) {
+                    selectScript(null);
+                }
+
+                updateFooterState();
+                refreshList();
+            }
         };
 
         // 2. Editor Column
@@ -309,10 +406,15 @@
                 item.style.alignItems = 'center';
                 item.style.gap = '8px';
 
-                if (script.id === currentScriptId) {
+                if (script.id === currentScriptId && !selectionMode) {
                     item.style.backgroundColor = 'var(--bg-surface)';
                     item.style.borderLeft = script.system ? '3px solid var(--accent-secondary)' : '3px solid var(--accent-primary)';
                     item.style.paddingLeft = '9px';
+                }
+
+                if (selectionMode && selectedIds.has(script.id)) {
+                    item.style.backgroundColor = 'rgba(218, 165, 32, 0.1)';
+                    item.style.borderColor = 'var(--accent-primary)';
                 }
 
                 const infoDiv = document.createElement('div');
@@ -325,18 +427,28 @@
                     badges += '<span style="font-size:9px; background:var(--bg-base); padding:1px 4px; border-radius:3px; border:1px solid var(--border-subtle); color:var(--text-muted);">🔒 SYS</span>';
                 }
 
-
                 // Safe accessor for code length
                 const codeLength = script.source && script.source.code ? script.source.code.length : 0;
 
                 infoDiv.innerHTML = `
           <div style="font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:6px;">
+            ${selectionMode && !script.system ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(script.id) ? 'checked' : ''}>` : ''}
             ${displayName}
             ${badges}
           </div>
-          <div style="font-size:10px; color:var(--text-muted);">${codeLength} chars</div>
+          <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode && !script.system ? '24px' : '0'};">${codeLength} chars</div>
         `;
-                infoDiv.onclick = () => selectScript(script.id);
+                infoDiv.onclick = () => {
+                    if (selectionMode) {
+                        if (script.system) return; // Cannot select system scripts
+                        if (selectedIds.has(script.id)) selectedIds.delete(script.id);
+                        else selectedIds.add(script.id);
+                        updateFooterState();
+                        refreshList();
+                    } else {
+                        selectScript(script.id);
+                    }
+                };
 
                 const reorderDiv = document.createElement('div');
                 reorderDiv.style.display = 'flex';

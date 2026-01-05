@@ -11,6 +11,10 @@
     let activeTab = 'profile'; // profile, appearance, cues
     let searchTerm = ''; // Search Filter
 
+    // State for Multi-Select
+    let selectionMode = false;
+    let selectedIds = new Set();
+
     // --- Constants ---
     // AURA Tag Systems (aligned with AURA Black Magic Edition)
     const PULSE_TAGS = ['joy', 'sadness', 'anger', 'fear', 'romance', 'neutral', 'confusion', 'positive', 'negative'];
@@ -145,10 +149,24 @@
         listCol.innerHTML = `
       <div class="card-header" style="flex-wrap:wrap; gap:8px;">
         <strong style="flex:1;">Actors</strong>
-        <button class="btn btn-secondary btn-sm" id="btn-add-actor">+ New</button>
+        <div style="flex:1;"></div>
+        <div id="header-actions" style="display:flex; gap:4px;">
+            <button class="btn btn-secondary btn-sm" id="btn-add-actor">+ New</button>
+            <button class="btn btn-ghost btn-sm" id="btn-select-mode">Select</button>
+        </div>
+        
+        <!-- Selection Actions Header (Alternate) -->
+        <div id="header-selection" style="display:none; gap:4px; align-items:center; width:100%;">
+             <span id="sel-count" style="font-size:11px; font-weight:bold; flex:1;">0 Selected</span>
+             <button class="btn btn-sm btn-ghost" id="btn-cancel-select">Cancel</button>
+        </div>
+
         <input class="input" id="search-actors" placeholder="Search..." style="width:100%; font-size:12px; height:28px;" value="${searchTerm}">
       </div>
       <div class="card-body" id="actor-list" style="padding:0; flex:1; overflow-y:auto;"></div>
+      <div class="card-footer" id="footer-actions" style="display:none; padding:8px; border-top:1px solid var(--border-subtle);">
+         <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected</button>
+      </div>
     `;
 
         // ... [Rest of layout identical] ...
@@ -222,92 +240,183 @@
             searchTerm = e.target.value.toLowerCase();
             refreshList();
         };
+    };
 
-        function refreshList() {
-            const state = A.State.get();
-            if (!state) return;
+    // --- Multi-Select Handlers ---
+    const updateHeaderState = () => {
+        const hId = listCol.querySelector('#header-actions');
+        const hSel = listCol.querySelector('#header-selection');
+        const footer = listCol.querySelector('#footer-actions');
+        const addBtn = listCol.querySelector('#btn-add-actor');
 
-            // Ensure actors node exists
-            if (!state.nodes) state.nodes = {};
-            if (!state.nodes.actors) state.nodes.actors = { items: {} };
-            if (!state.nodes.actors.items) state.nodes.actors.items = {};
-
-            let actors = Object.values(state.nodes.actors.items);
-
-            // Filter
-            if (searchTerm) {
-                actors = actors.filter(a => (a.name || '').toLowerCase().includes(searchTerm));
-            }
-
-            listBody.innerHTML = '';
-
-            if (actors.length === 0) {
-                listBody.innerHTML = `<div style="padding:16px; text-align:center; color:gray;">${searchTerm ? 'No matches.' : 'No actors.'}</div>`;
-                return;
-            }
-
-            actors.forEach(actor => {
-                const item = document.createElement('div');
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-subtle)';
-                item.style.cursor = 'pointer';
-                item.style.fontSize = '13px';
-
-                if (actor.id === currentId) {
-                    item.style.backgroundColor = 'var(--bg-surface)';
-                    item.style.borderLeft = '3px solid var(--accent-primary)';
-                }
-
-                item.innerHTML = `<strong>${actor.name || 'Unnamed'}</strong>`;
-                item.onclick = () => selectActor(actor.id);
-                listBody.appendChild(item);
-            });
+        if (selectionMode) {
+            hId.style.display = 'none';
+            hSel.style.display = 'flex';
+            footer.style.display = 'block';
+            listCol.querySelector('#sel-count').textContent = `${selectedIds.size} Selected`;
+            listCol.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
+            listCol.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+            //search is still visible
+        } else {
+            hId.style.display = 'flex';
+            hSel.style.display = 'none';
+            footer.style.display = 'none';
         }
+    };
 
-        function selectActor(id) {
-            currentId = id;
+    listCol.querySelector('#btn-select-mode').onclick = () => {
+        selectionMode = true;
+        selectedIds.clear();
+        updateHeaderState();
+        refreshList();
+    };
+
+    listCol.querySelector('#btn-cancel-select').onclick = () => {
+        selectionMode = false;
+        selectedIds.clear();
+        updateHeaderState();
+        refreshList();
+    };
+
+    listCol.querySelector('#btn-del-multi').onclick = () => {
+        if (selectedIds.size === 0) return;
+        if (confirm(`Delete ${selectedIds.size} actors? This cannot be undone.`)) {
+            let count = 0;
+            const state = A.State.get();
+            selectedIds.forEach(id => {
+                if (state.nodes.actors.items[id]) {
+                    delete state.nodes.actors.items[id];
+                    count++;
+                }
+            });
+            selectionMode = false;
+            selectedIds.clear();
+            A.State.notify(); // Implicitly re-renders logic via main loop if strictly bound, but here we manually refresh
+
+            if (A.UI.Toast) A.UI.Toast.show(`Deleted ${count} actors.`, 'success');
+            updateHeaderState();
             refreshList();
 
-            const state = A.State.get();
-            const actor = state.nodes.actors.items[id];
-
-            if (actor) {
-                nameInput.disabled = false;
-                delBtn.disabled = false;
-                nameInput.value = actor.name || '';
-                renderTab();
-            } else {
-                nameInput.disabled = true;
+            // Clear editor if current was deleted
+            if (!state.nodes.actors.items[currentId]) {
+                currentId = null;
                 nameInput.value = '';
-                delBtn.disabled = true;
-                content.innerHTML = '<div style="padding:40px; text-align:center; color:gray; font-size:14px;">Select or Create an Actor</div>';
+                nameInput.disabled = true;
+                content.innerHTML = '<div style="padding:40px; text-align:center; color:gray;">Select or Create an Actor</div>';
             }
         }
+    };
 
-        // --- Tab Rendering ---
-        function renderTab() {
-            const state = A.State.get();
-            const actor = state.nodes.actors.items[currentId];
-            if (!actor) return;
+    function refreshList() {
+        const state = A.State.get();
+        if (!state) return;
 
-            // Init traits if missing
-            actor.traits = actor.traits || {};
-            const T = actor.traits;
+        // Ensure actors node exists
+        if (!state.nodes) state.nodes = {};
+        if (!state.nodes.actors) state.nodes.actors = { items: {} };
+        if (!state.nodes.actors.items) state.nodes.actors.items = {};
 
-            content.innerHTML = '';
+        let actors = Object.values(state.nodes.actors.items);
 
-            // Update Tab Buttons
-            tabs.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === activeTab);
-                btn.onclick = () => {
-                    activeTab = btn.dataset.tab;
-                    renderTab();
-                };
-            });
+        // Filter
+        if (searchTerm) {
+            actors = actors.filter(a => (a.name || '').toLowerCase().includes(searchTerm));
+        }
 
-            // Styles
-            const style = document.createElement('style');
-            style.textContent = `
+        listBody.innerHTML = '';
+
+        if (actors.length === 0) {
+            listBody.innerHTML = `<div style="padding:16px; text-align:center; color:gray;">${searchTerm ? 'No matches.' : 'No actors.'}</div>`;
+            return;
+        }
+
+        actors.forEach(actor => {
+            const item = document.createElement('div');
+            item.style.padding = '8px 12px';
+            item.style.borderBottom = '1px solid var(--border-subtle)';
+            item.style.cursor = 'pointer';
+            item.style.fontSize = '13px';
+
+            if (actor.id === currentId && !selectionMode) {
+                item.style.backgroundColor = 'var(--bg-surface)';
+                item.style.borderLeft = '3px solid var(--accent-primary)';
+            }
+
+            // Selection Styles
+            if (selectionMode && selectedIds.has(actor.id)) {
+                item.style.backgroundColor = 'rgba(218, 165, 32, 0.1)';
+                item.style.borderColor = 'var(--accent-primary)';
+                // Force border left logic override or standard border logic
+                item.style.borderLeft = '3px solid var(--accent-primary)';
+            }
+
+            item.innerHTML = `
+                    <div style="display:flex; align-items:center;">
+                        ${selectionMode ?
+                    `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(actor.id) ? 'checked' : ''}>`
+                    : ''}
+                        <strong>${actor.name || 'Unnamed'}</strong>
+                    </div>
+                `;
+
+            item.onclick = () => {
+                if (selectionMode) {
+                    if (selectedIds.has(actor.id)) selectedIds.delete(actor.id);
+                    else selectedIds.add(actor.id);
+                    updateHeaderState();
+                    refreshList();
+                } else {
+                    selectActor(actor.id);
+                }
+            };
+            listBody.appendChild(item);
+        });
+    }
+
+    function selectActor(id) {
+        currentId = id;
+        refreshList();
+
+        const state = A.State.get();
+        const actor = state.nodes.actors.items[id];
+
+        if (actor) {
+            nameInput.disabled = false;
+            delBtn.disabled = false;
+            nameInput.value = actor.name || '';
+            renderTab();
+        } else {
+            nameInput.disabled = true;
+            nameInput.value = '';
+            delBtn.disabled = true;
+            content.innerHTML = '<div style="padding:40px; text-align:center; color:gray; font-size:14px;">Select or Create an Actor</div>';
+        }
+    }
+
+    // --- Tab Rendering ---
+    function renderTab() {
+        const state = A.State.get();
+        const actor = state.nodes.actors.items[currentId];
+        if (!actor) return;
+
+        // Init traits if missing
+        actor.traits = actor.traits || {};
+        const T = actor.traits;
+
+        content.innerHTML = '';
+
+        // Update Tab Buttons
+        tabs.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === activeTab);
+            btn.onclick = () => {
+                activeTab = btn.dataset.tab;
+                renderTab();
+            };
+        });
+
+        // Styles
+        const style = document.createElement('style');
+        style.textContent = `
         .tab-btn { padding: 8px 16px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; }
         .tab-btn:hover { color: var(--text-primary); }
         .tab-btn.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
@@ -317,56 +426,56 @@
         .cue-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 8px; align-items: center; }
         .cue-header { font-weight: bold; font-size: 11px; text-align: center; color: var(--text-muted); }
       `;
-            content.appendChild(style);
+        content.appendChild(style);
 
-            if (activeTab === 'profile') {
-                // ========== GALLERY SYSTEM ==========
-                // Configuration
-                const MAX_GALLERY_IMAGES = 20;
-                const FOLDERS = ['all', 'sfw', 'nsfw'];
+        if (activeTab === 'profile') {
+            // ========== GALLERY SYSTEM ==========
+            // Configuration
+            const MAX_GALLERY_IMAGES = 20;
+            const FOLDERS = ['all', 'sfw', 'nsfw'];
 
-                // Migrate legacy portrait to gallery
-                if (actor.portrait && !actor.gallery) {
-                    actor.gallery = {
-                        primary: 'migrated_0',
-                        showNsfw: false,
-                        images: [{
-                            id: 'migrated_0',
-                            folder: 'sfw',
-                            data: actor.portrait.data,
-                            mimeType: actor.portrait.mimeType || 'image/png',
-                            caption: '',
-                            timestamp: Date.now()
-                        }]
-                    };
-                    actor.portrait = null; // Clear legacy
-                    A.State.notify();
-                }
+            // Migrate legacy portrait to gallery
+            if (actor.portrait && !actor.gallery) {
+                actor.gallery = {
+                    primary: 'migrated_0',
+                    showNsfw: false,
+                    images: [{
+                        id: 'migrated_0',
+                        folder: 'sfw',
+                        data: actor.portrait.data,
+                        mimeType: actor.portrait.mimeType || 'image/png',
+                        caption: '',
+                        timestamp: Date.now()
+                    }]
+                };
+                actor.portrait = null; // Clear legacy
+                A.State.notify();
+            }
 
-                // Ensure gallery exists
-                actor.gallery = actor.gallery || { primary: null, showNsfw: false, images: [] };
-                const gallery = actor.gallery;
+            // Ensure gallery exists
+            actor.gallery = actor.gallery || { primary: null, showNsfw: false, images: [] };
+            const gallery = actor.gallery;
 
-                // ID display
-                const idRow = `<div style="font-size:11px; color:gray; margin-bottom:12px;">ID: ${actor.id}</div>`;
+            // ID display
+            const idRow = `<div style="font-size:11px; color:gray; margin-bottom:12px;">ID: ${actor.id}</div>`;
 
-                // Get primary image
-                const primaryImg = gallery.images.find(img => img.id === gallery.primary) || gallery.images[0];
-                const primarySrc = primaryImg?.data || '';
+            // Get primary image
+            const primaryImg = gallery.images.find(img => img.id === gallery.primary) || gallery.images[0];
+            const primarySrc = primaryImg?.data || '';
 
-                // Build gallery card
-                const galleryCard = document.createElement('div');
-                galleryCard.style.cssText = 'margin-bottom: 16px; padding: 12px; background: var(--bg-inset); border-radius: var(--radius-md);';
+            // Build gallery card
+            const galleryCard = document.createElement('div');
+            galleryCard.style.cssText = 'margin-bottom: 16px; padding: 12px; background: var(--bg-inset); border-radius: var(--radius-md);';
 
-                // State for folder filter
-                let currentFolder = 'all';
+            // State for folder filter
+            let currentFolder = 'all';
 
-                function renderGalleryCard() {
-                    const filteredImages = currentFolder === 'all'
-                        ? gallery.images.filter(img => gallery.showNsfw || img.folder !== 'nsfw')
-                        : gallery.images.filter(img => img.folder === currentFolder && (gallery.showNsfw || img.folder !== 'nsfw'));
+            function renderGalleryCard() {
+                const filteredImages = currentFolder === 'all'
+                    ? gallery.images.filter(img => gallery.showNsfw || img.folder !== 'nsfw')
+                    : gallery.images.filter(img => img.folder === currentFolder && (gallery.showNsfw || img.folder !== 'nsfw'));
 
-                    galleryCard.innerHTML = `
+                galleryCard.innerHTML = `
                         <div style="display: flex; gap: 16px; align-items: flex-start;">
                             <!-- Primary Image -->
                             <div style="flex-shrink: 0;">
@@ -382,9 +491,9 @@
                                     overflow: hidden;
                                 ">
                                     ${primarySrc
-                            ? `<img src="${primarySrc}" style="width: 100%; height: 100%; object-fit: cover;">`
-                            : `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`
-                        }
+                        ? `<img src="${primarySrc}" style="width: 100%; height: 100%; object-fit: cover;">`
+                        : `<span style="color: var(--text-muted); font-size: 10px; text-align: center; padding: 4px;">No image</span>`
+                    }
                                 </div>
                                 <div style="font-size: 9px; color: var(--text-muted); text-align: center; margin-top: 4px;">Primary</div>
                             </div>
@@ -428,8 +537,8 @@
                             overflow-y: auto;
                         ">
                             ${filteredImages.length === 0
-                            ? `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 11px; padding: 20px;">No images</div>`
-                            : filteredImages.map(img => `
+                        ? `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-size: 11px; padding: 20px;">No images</div>`
+                        : filteredImages.map(img => `
                                     <div class="gallery-thumb" data-id="${img.id}" style="
                                         width: 60px;
                                         height: 80px;
@@ -443,109 +552,109 @@
                                         ${img.folder === 'nsfw' ? `<span style="position: absolute; top: 2px; right: 2px; font-size: 8px;">🔒</span>` : ''}
                                     </div>
                                 `).join('')
-                        }
+                    }
                         </div>
                     `;
 
-                    // Wire folder tabs
-                    galleryCard.querySelectorAll('.folder-tab').forEach(btn => {
-                        btn.onclick = () => {
-                            currentFolder = btn.dataset.folder;
-                            renderGalleryCard();
-                        };
-                    });
-
-                    // Wire NSFW toggle
-                    const nsfwChk = galleryCard.querySelector('#chk-show-nsfw');
-                    if (nsfwChk) {
-                        nsfwChk.onchange = () => {
-                            gallery.showNsfw = nsfwChk.checked;
-                            A.State.notify();
-                            renderGalleryCard();
-                        };
-                    }
-
-                    // Wire primary image click to open lightbox
-                    const primaryContainer = galleryCard.querySelector('#gallery-primary');
-                    if (primaryContainer) {
-                        const primaryImgEl = primaryContainer.querySelector('img');
-                        if (primaryImgEl) {
-                            primaryImgEl.onclick = () => {
-                                const primaryImg = gallery.images.find(img => img.id === gallery.primary) || gallery.images[0];
-                                if (primaryImg) {
-                                    const visibleImages = gallery.showNsfw ? gallery.images : gallery.images.filter(i => i.folder !== 'nsfw');
-                                    const idx = visibleImages.findIndex(i => i.id === primaryImg.id);
-                                    if (idx !== -1) openLightbox(visibleImages, idx, gallery.showNsfw);
-                                }
-                            };
-                        }
-                    }
-
-                    // Wire Add button
-                    const addBtn = galleryCard.querySelector('#btn-gallery-add');
-                    const fileInput = galleryCard.querySelector('#gallery-input');
-
-                    addBtn.onclick = () => fileInput.click();
-                    fileInput.onchange = (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        if (gallery.images.length >= MAX_GALLERY_IMAGES) {
-                            if (A.UI?.Toast) A.UI.Toast.show(`Gallery full (${MAX_GALLERY_IMAGES} max)`, 'warning');
-                            return;
-                        }
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            const newImg = {
-                                id: 'img_' + crypto.randomUUID().split('-')[0],
-                                folder: 'sfw', // Default SFW
-                                data: ev.target.result,
-                                mimeType: file.type,
-                                caption: '',
-                                timestamp: Date.now()
-                            };
-                            gallery.images.push(newImg);
-                            if (!gallery.primary) gallery.primary = newImg.id;
-                            A.State.notify();
-                            renderGalleryCard();
-                            if (A.UI?.Toast) A.UI.Toast.show('Image added to gallery', 'success');
-                        };
-                        reader.readAsDataURL(file);
+                // Wire folder tabs
+                galleryCard.querySelectorAll('.folder-tab').forEach(btn => {
+                    btn.onclick = () => {
+                        currentFolder = btn.dataset.folder;
+                        renderGalleryCard();
                     };
+                });
 
-                    // Wire thumbnail clicks (left-click: lightbox, right-click: context menu)
-                    galleryCard.querySelectorAll('.gallery-thumb').forEach(thumb => {
-                        // Left-click opens lightbox
-                        thumb.onclick = (e) => {
-                            e.stopPropagation();
-                            const imgId = thumb.dataset.id;
-                            const visibleImages = currentFolder === 'all'
-                                ? gallery.images.filter(img => gallery.showNsfw || img.folder !== 'nsfw')
-                                : gallery.images.filter(img => img.folder === currentFolder && (gallery.showNsfw || img.folder !== 'nsfw'));
-                            const idx = visibleImages.findIndex(i => i.id === imgId);
-                            if (idx !== -1) {
-                                openLightbox(visibleImages, idx, gallery.showNsfw);
+                // Wire NSFW toggle
+                const nsfwChk = galleryCard.querySelector('#chk-show-nsfw');
+                if (nsfwChk) {
+                    nsfwChk.onchange = () => {
+                        gallery.showNsfw = nsfwChk.checked;
+                        A.State.notify();
+                        renderGalleryCard();
+                    };
+                }
+
+                // Wire primary image click to open lightbox
+                const primaryContainer = galleryCard.querySelector('#gallery-primary');
+                if (primaryContainer) {
+                    const primaryImgEl = primaryContainer.querySelector('img');
+                    if (primaryImgEl) {
+                        primaryImgEl.onclick = () => {
+                            const primaryImg = gallery.images.find(img => img.id === gallery.primary) || gallery.images[0];
+                            if (primaryImg) {
+                                const visibleImages = gallery.showNsfw ? gallery.images : gallery.images.filter(i => i.folder !== 'nsfw');
+                                const idx = visibleImages.findIndex(i => i.id === primaryImg.id);
+                                if (idx !== -1) openLightbox(visibleImages, idx, gallery.showNsfw);
                             }
                         };
+                    }
+                }
 
-                        // Right-click shows context menu
-                        thumb.oncontextmenu = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const imgId = thumb.dataset.id;
-                            const img = gallery.images.find(i => i.id === imgId);
-                            if (!img) return;
+                // Wire Add button
+                const addBtn = galleryCard.querySelector('#btn-gallery-add');
+                const fileInput = galleryCard.querySelector('#gallery-input');
 
-                            // Remove any existing menus
-                            document.querySelectorAll('.gallery-context-menu').forEach(m => m.remove());
+                addBtn.onclick = () => fileInput.click();
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (gallery.images.length >= MAX_GALLERY_IMAGES) {
+                        if (A.UI?.Toast) A.UI.Toast.show(`Gallery full (${MAX_GALLERY_IMAGES} max)`, 'warning');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const newImg = {
+                            id: 'img_' + crypto.randomUUID().split('-')[0],
+                            folder: 'sfw', // Default SFW
+                            data: ev.target.result,
+                            mimeType: file.type,
+                            caption: '',
+                            timestamp: Date.now()
+                        };
+                        gallery.images.push(newImg);
+                        if (!gallery.primary) gallery.primary = newImg.id;
+                        A.State.notify();
+                        renderGalleryCard();
+                        if (A.UI?.Toast) A.UI.Toast.show('Image added to gallery', 'success');
+                    };
+                    reader.readAsDataURL(file);
+                };
 
-                            const menu = document.createElement('div');
-                            menu.className = 'gallery-context-menu';
-                            menu.style.cssText = `
+                // Wire thumbnail clicks (left-click: lightbox, right-click: context menu)
+                galleryCard.querySelectorAll('.gallery-thumb').forEach(thumb => {
+                    // Left-click opens lightbox
+                    thumb.onclick = (e) => {
+                        e.stopPropagation();
+                        const imgId = thumb.dataset.id;
+                        const visibleImages = currentFolder === 'all'
+                            ? gallery.images.filter(img => gallery.showNsfw || img.folder !== 'nsfw')
+                            : gallery.images.filter(img => img.folder === currentFolder && (gallery.showNsfw || img.folder !== 'nsfw'));
+                        const idx = visibleImages.findIndex(i => i.id === imgId);
+                        if (idx !== -1) {
+                            openLightbox(visibleImages, idx, gallery.showNsfw);
+                        }
+                    };
+
+                    // Right-click shows context menu
+                    thumb.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const imgId = thumb.dataset.id;
+                        const img = gallery.images.find(i => i.id === imgId);
+                        if (!img) return;
+
+                        // Remove any existing menus
+                        document.querySelectorAll('.gallery-context-menu').forEach(m => m.remove());
+
+                        const menu = document.createElement('div');
+                        menu.className = 'gallery-context-menu';
+                        menu.style.cssText = `
                                 position: fixed; z-index: 9999;
                                 background: var(--bg-surface); border: 1px solid var(--border-subtle);
                                 border-radius: var(--radius-md); padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
                             `;
-                            menu.innerHTML = `
+                        menu.innerHTML = `
                                 <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left;" data-action="view">🔍 View Full Size</button>
                                 <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left;" data-action="primary">⭐ Set as Primary</button>
                                 <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left;" data-action="toggle-folder">
@@ -554,178 +663,178 @@
                                 <hr style="border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
                                 <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; color: var(--status-error);" data-action="delete">🗑️ Delete</button>
                             `;
-                            menu.style.left = `${e.clientX}px`;
-                            menu.style.top = `${e.clientY}px`;
-                            document.body.appendChild(menu);
+                        menu.style.left = `${e.clientX}px`;
+                        menu.style.top = `${e.clientY}px`;
+                        document.body.appendChild(menu);
 
-                            const closeMenu = () => menu.remove();
-                            // Delay adding the close listener to avoid immediate trigger
-                            setTimeout(() => {
-                                document.addEventListener('click', closeMenu, { once: true });
-                            }, 10);
+                        const closeMenu = () => menu.remove();
+                        // Delay adding the close listener to avoid immediate trigger
+                        setTimeout(() => {
+                            document.addEventListener('click', closeMenu, { once: true });
+                        }, 10);
 
-                            menu.querySelectorAll('button').forEach(btn => {
-                                btn.onclick = (ev) => {
-                                    ev.stopPropagation();
-                                    const action = btn.dataset.action;
-                                    if (action === 'view') {
-                                        const visibleImages = gallery.showNsfw ? gallery.images : gallery.images.filter(i => i.folder !== 'nsfw');
-                                        const idx = visibleImages.findIndex(i => i.id === imgId);
-                                        if (idx !== -1) openLightbox(visibleImages, idx, gallery.showNsfw);
-                                    } else if (action === 'primary') {
-                                        gallery.primary = imgId;
-                                    } else if (action === 'toggle-folder') {
-                                        img.folder = img.folder === 'nsfw' ? 'sfw' : 'nsfw';
-                                    } else if (action === 'delete') {
-                                        gallery.images = gallery.images.filter(i => i.id !== imgId);
-                                        if (gallery.primary === imgId) {
-                                            gallery.primary = gallery.images[0]?.id || null;
-                                        }
+                        menu.querySelectorAll('button').forEach(btn => {
+                            btn.onclick = (ev) => {
+                                ev.stopPropagation();
+                                const action = btn.dataset.action;
+                                if (action === 'view') {
+                                    const visibleImages = gallery.showNsfw ? gallery.images : gallery.images.filter(i => i.folder !== 'nsfw');
+                                    const idx = visibleImages.findIndex(i => i.id === imgId);
+                                    if (idx !== -1) openLightbox(visibleImages, idx, gallery.showNsfw);
+                                } else if (action === 'primary') {
+                                    gallery.primary = imgId;
+                                } else if (action === 'toggle-folder') {
+                                    img.folder = img.folder === 'nsfw' ? 'sfw' : 'nsfw';
+                                } else if (action === 'delete') {
+                                    gallery.images = gallery.images.filter(i => i.id !== imgId);
+                                    if (gallery.primary === imgId) {
+                                        gallery.primary = gallery.images[0]?.id || null;
                                     }
-                                    A.State.notify();
-                                    closeMenu();
-                                    renderGalleryCard();
-                                };
-                            });
-                        };
-                    });
-
-                    // Wire Export button
-                    const exportBtn = galleryCard.querySelector('#btn-gallery-export');
-                    exportBtn.onclick = async () => {
-                        const primary = gallery.images.find(i => i.id === gallery.primary) || gallery.images[0];
-                        if (!primary) {
-                            if (A.UI?.Toast) A.UI.Toast.show('No image to export', 'warning');
-                            return;
-                        }
-                        try {
-                            const state = A.State.get();
-                            const seed = state.seed || {};
-                            const response = await fetch(primary.data);
-                            const blob = await response.blob();
-                            const cardData = A.CardEncoder.actorToCard(actor, seed, state);
-                            const cardPng = await A.CardEncoder.embed(blob, cardData);
-                            const url = URL.createObjectURL(cardPng);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                            if (A.UI?.Toast) A.UI.Toast.show(`Exported: ${actor.name}`, 'success');
-                        } catch (err) {
-                            console.error('[Gallery] Export error:', err);
-                            if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
-                        }
-                    };
-
-                    // Wire Import button
-                    const importBtn = galleryCard.querySelector('#btn-gallery-import');
-                    const importInput = galleryCard.querySelector('#gallery-card-import');
-                    importBtn.onclick = () => importInput.click();
-                    importInput.onchange = async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-
-                        // --- Confirmation Modal ---
-                        const doImport = async () => {
-                            try {
-                                const cardData = await A.CardEncoder.extract(file);
-                                if (!cardData) {
-                                    if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
-                                    return;
                                 }
+                                A.State.notify();
+                                closeMenu();
+                                renderGalleryCard();
+                            };
+                        });
+                    };
+                });
 
-                                const imported = A.CardEncoder.cardToActor(cardData);
+                // Wire Export button
+                const exportBtn = galleryCard.querySelector('#btn-gallery-export');
+                exportBtn.onclick = async () => {
+                    const primary = gallery.images.find(i => i.id === gallery.primary) || gallery.images[0];
+                    if (!primary) {
+                        if (A.UI?.Toast) A.UI.Toast.show('No image to export', 'warning');
+                        return;
+                    }
+                    try {
+                        const state = A.State.get();
+                        const seed = state.seed || {};
+                        const response = await fetch(primary.data);
+                        const blob = await response.blob();
+                        const cardData = A.CardEncoder.actorToCard(actor, seed, state);
+                        const cardPng = await A.CardEncoder.embed(blob, cardData);
+                        const url = URL.createObjectURL(cardPng);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        if (A.UI?.Toast) A.UI.Toast.show(`Exported: ${actor.name}`, 'success');
+                    } catch (err) {
+                        console.error('[Gallery] Export error:', err);
+                        if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
+                    }
+                };
 
-                                actor.name = imported.name || actor.name;
-                                actor.tags = imported.tags || actor.tags;
-                                actor.notes = imported.notes || actor.notes;
-                                actor.gender = imported.gender || actor.gender;
-                                actor.aliases = imported.aliases || actor.aliases;
-                                actor.traits = { ...actor.traits, ...imported.traits };
-                                actor.cardFields = imported.cardFields || actor.cardFields;
+                // Wire Import button
+                const importBtn = galleryCard.querySelector('#btn-gallery-import');
+                const importInput = galleryCard.querySelector('#gallery-card-import');
+                importBtn.onclick = () => importInput.click();
+                importInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
 
-                                // Add imported image to gallery
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                    const newImg = {
-                                        id: 'img_' + crypto.randomUUID().split('-')[0],
-                                        folder: 'sfw',
-                                        data: ev.target.result,
-                                        mimeType: 'image/png',
-                                        caption: 'Imported from Character Card',
-                                        timestamp: Date.now()
-                                    };
-                                    gallery.images.push(newImg);
-                                    if (!gallery.primary) gallery.primary = newImg.id;
+                    // --- Confirmation Modal ---
+                    const doImport = async () => {
+                        try {
+                            const cardData = await A.CardEncoder.extract(file);
+                            if (!cardData) {
+                                if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
+                                return;
+                            }
 
-                                    // --- Lorebook Import Logic ---
-                                    // Check for embedded character_book and handle import with conflict resolution
-                                    const handleLoreImport = () => {
-                                        if (!A.Converter || !A.State.get().weaves?.lorebook) return;
+                            const imported = A.CardEncoder.cardToActor(cardData);
 
-                                        try {
-                                            // A.Converter.importLorebook handles detection heuristics (including checking cardData directly)
-                                            // We pass cardData which might contain data.character_book
-                                            const importedEntries = A.Converter.importLorebook(cardData);
-                                            const importedKeys = Object.keys(importedEntries);
+                            actor.name = imported.name || actor.name;
+                            actor.tags = imported.tags || actor.tags;
+                            actor.notes = imported.notes || actor.notes;
+                            actor.gender = imported.gender || actor.gender;
+                            actor.aliases = imported.aliases || actor.aliases;
+                            actor.traits = { ...actor.traits, ...imported.traits };
+                            actor.cardFields = imported.cardFields || actor.cardFields;
 
-                                            if (importedKeys.length === 0) return; // No lore to import
+                            // Add imported image to gallery
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const newImg = {
+                                    id: 'img_' + crypto.randomUUID().split('-')[0],
+                                    folder: 'sfw',
+                                    data: ev.target.result,
+                                    mimeType: 'image/png',
+                                    caption: 'Imported from Character Card',
+                                    timestamp: Date.now()
+                                };
+                                gallery.images.push(newImg);
+                                if (!gallery.primary) gallery.primary = newImg.id;
 
-                                            const state = A.State.get();
-                                            const existingEntries = state.weaves.lorebook.entries;
-                                            const collisions = importedKeys.filter(k => existingEntries[k]);
+                                // --- Lorebook Import Logic ---
+                                // Check for embedded character_book and handle import with conflict resolution
+                                const handleLoreImport = () => {
+                                    if (!A.Converter || !A.State.get().weaves?.lorebook) return;
 
-                                            // Helper to associate entries with this actor
-                                            const linkToActor = (entry) => {
-                                                if (!entry.associatedActors) entry.associatedActors = [];
-                                                if (!entry.associatedActors.includes(actor.id)) {
-                                                    entry.associatedActors.push(actor.id);
-                                                }
-                                            };
+                                    try {
+                                        // A.Converter.importLorebook handles detection heuristics (including checking cardData directly)
+                                        // We pass cardData which might contain data.character_book
+                                        const importedEntries = A.Converter.importLorebook(cardData);
+                                        const importedKeys = Object.keys(importedEntries);
 
-                                            // Finalizer
-                                            const finalize = (msg) => {
-                                                A.State.notify();
-                                                if (A.UI?.Toast) A.UI.Toast.show(msg, 'success');
-                                            };
+                                        if (importedKeys.length === 0) return; // No lore to import
 
-                                            // If no collisions, import directly
-                                            if (collisions.length === 0) {
-                                                let count = 0;
-                                                importedKeys.forEach(k => {
-                                                    const entry = importedEntries[k];
-                                                    linkToActor(entry);
-                                                    existingEntries[k] = entry;
-                                                    count++;
-                                                });
-                                                if (count > 0) finalize(`Imported ${count} associated Lorebook entries.`);
-                                                return;
+                                        const state = A.State.get();
+                                        const existingEntries = state.weaves.lorebook.entries;
+                                        const collisions = importedKeys.filter(k => existingEntries[k]);
+
+                                        // Helper to associate entries with this actor
+                                        const linkToActor = (entry) => {
+                                            if (!entry.associatedActors) entry.associatedActors = [];
+                                            if (!entry.associatedActors.includes(actor.id)) {
+                                                entry.associatedActors.push(actor.id);
                                             }
+                                        };
 
-                                            // --- Conflict Resolution Modal (Adapted from Lorebook.js) ---
-                                            const decisions = {};
-                                            collisions.forEach(k => decisions[k] = 'skip'); // Default to skip
+                                        // Finalizer
+                                        const finalize = (msg) => {
+                                            A.State.notify();
+                                            if (A.UI?.Toast) A.UI.Toast.show(msg, 'success');
+                                        };
 
-                                            const overlay = document.createElement('div');
-                                            overlay.style.cssText = `
+                                        // If no collisions, import directly
+                                        if (collisions.length === 0) {
+                                            let count = 0;
+                                            importedKeys.forEach(k => {
+                                                const entry = importedEntries[k];
+                                                linkToActor(entry);
+                                                existingEntries[k] = entry;
+                                                count++;
+                                            });
+                                            if (count > 0) finalize(`Imported ${count} associated Lorebook entries.`);
+                                            return;
+                                        }
+
+                                        // --- Conflict Resolution Modal (Adapted from Lorebook.js) ---
+                                        const decisions = {};
+                                        collisions.forEach(k => decisions[k] = 'skip'); // Default to skip
+
+                                        const overlay = document.createElement('div');
+                                        overlay.style.cssText = `
                                             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                                             background: rgba(0,0,0,0.6); z-index: 10000;
                                             display: flex; align-items: center; justify-content: center;
                                             backdrop-filter: blur(4px);
                                         `;
 
-                                            const modal = document.createElement('div');
-                                            modal.style.cssText = `
+                                        const modal = document.createElement('div');
+                                        modal.style.cssText = `
                                             background: var(--bg-panel); border: 1px solid var(--border-default);
                                             border-radius: var(--radius-lg); width: 600px; max-height: 80vh;
                                             box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;
                                         `;
 
-                                            // Header
-                                            const header = document.createElement('div');
-                                            header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
-                                            header.innerHTML = `
+                                        // Header
+                                        const header = document.createElement('div');
+                                        header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
+                                        header.innerHTML = `
                                             <div>
                                                 <h3 style="margin:0; font-size:16px; color:var(--text-primary);">Character Book Conflicts</h3>
                                                 <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${collisions.length} existing entries found.</div>
@@ -738,19 +847,19 @@
                                             </div>
                                         `;
 
-                                            // List
-                                            const listBody = document.createElement('div');
-                                            listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
+                                        // List
+                                        const listBody = document.createElement('div');
+                                        listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
 
-                                            const renderConflictList = () => {
-                                                listBody.innerHTML = collisions.map(id => {
-                                                    const entry = importedEntries[id];
-                                                    const action = decisions[id];
-                                                    let actionColor = 'var(--text-muted)';
-                                                    if (action === 'overwrite') actionColor = 'var(--status-warning)';
-                                                    if (action === 'copy') actionColor = 'var(--accent-primary)';
+                                        const renderConflictList = () => {
+                                            listBody.innerHTML = collisions.map(id => {
+                                                const entry = importedEntries[id];
+                                                const action = decisions[id];
+                                                let actionColor = 'var(--text-muted)';
+                                                if (action === 'overwrite') actionColor = 'var(--status-warning)';
+                                                if (action === 'copy') actionColor = 'var(--accent-primary)';
 
-                                                    return `
+                                                return `
                                                     <div class="conflict-row" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--border-subtle); gap:12px;">
                                                         <div style="flex:1; overflow:hidden;">
                                                             <div style="font-weight:bold; font-size:13px; color:var(--text-primary); white-space:nowrap; text-overflow:ellipsis;">${entry.title || 'Untitled'}</div>
@@ -770,103 +879,103 @@
                                                         </div>
                                                     </div>
                                                 `;
-                                                }).join('');
+                                            }).join('');
 
-                                                // Re-bind
-                                                listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
-                                                    btn.onclick = (e) => {
-                                                        decisions[btn.dataset.id] = btn.dataset.act;
-                                                        renderConflictList();
-                                                    };
-                                                });
-                                            };
+                                            // Re-bind
+                                            listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
+                                                btn.onclick = (e) => {
+                                                    decisions[btn.dataset.id] = btn.dataset.act;
+                                                    renderConflictList();
+                                                };
+                                            });
+                                        };
 
-                                            renderConflictList();
+                                        renderConflictList();
 
-                                            // Footer
-                                            const footer = document.createElement('div');
-                                            footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
-                                            footer.innerHTML = `
+                                        // Footer
+                                        const footer = document.createElement('div');
+                                        footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
+                                        footer.innerHTML = `
                                             <button id="btn-resolve-cancel" class="btn btn-ghost">Skip Lorebook</button>
                                             <button id="btn-resolve-apply" class="btn btn-primary">Complete Import</button>
                                         `;
 
-                                            modal.appendChild(header);
-                                            modal.appendChild(listBody);
-                                            modal.appendChild(footer);
-                                            overlay.appendChild(modal);
-                                            document.body.appendChild(overlay);
+                                        modal.appendChild(header);
+                                        modal.appendChild(listBody);
+                                        modal.appendChild(footer);
+                                        overlay.appendChild(modal);
+                                        document.body.appendChild(overlay);
 
-                                            // Handlers
-                                            const setAll = (act) => { collisions.forEach(k => decisions[k] = act); renderConflictList(); };
-                                            modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
-                                            modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
-                                            modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
+                                        // Handlers
+                                        const setAll = (act) => { collisions.forEach(k => decisions[k] = act); renderConflictList(); };
+                                        modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
+                                        modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
+                                        modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
 
-                                            modal.querySelector('#btn-resolve-cancel').onclick = () => {
-                                                overlay.remove();
-                                                if (A.UI?.Toast) A.UI.Toast.show('Lorebook import skipped.', 'info');
-                                            };
+                                        modal.querySelector('#btn-resolve-cancel').onclick = () => {
+                                            overlay.remove();
+                                            if (A.UI?.Toast) A.UI.Toast.show('Lorebook import skipped.', 'info');
+                                        };
 
-                                            modal.querySelector('#btn-resolve-apply').onclick = () => {
-                                                let added = 0;
-                                                let updated = 0;
+                                        modal.querySelector('#btn-resolve-apply').onclick = () => {
+                                            let added = 0;
+                                            let updated = 0;
 
-                                                // Process non-collisions
-                                                importedKeys.forEach(k => {
-                                                    if (!collisions.includes(k)) {
-                                                        const entry = importedEntries[k];
-                                                        linkToActor(entry);
-                                                        existingEntries[k] = entry;
-                                                        added++;
-                                                    }
-                                                });
-
-                                                // Process conflicts
-                                                collisions.forEach(k => {
-                                                    const act = decisions[k];
+                                            // Process non-collisions
+                                            importedKeys.forEach(k => {
+                                                if (!collisions.includes(k)) {
                                                     const entry = importedEntries[k];
+                                                    linkToActor(entry);
+                                                    existingEntries[k] = entry;
+                                                    added++;
+                                                }
+                                            });
 
-                                                    if (act === 'overwrite') {
-                                                        linkToActor(entry);
-                                                        existingEntries[k] = entry;
-                                                        updated++;
-                                                    } else if (act === 'copy') {
-                                                        entry.id = A.ProjectDB.generateId();
-                                                        entry.uuid = A.ProjectDB.generateId();
-                                                        linkToActor(entry);
-                                                        existingEntries[entry.id] = entry;
-                                                        added++;
-                                                    }
-                                                    // skip does nothing
-                                                });
+                                            // Process conflicts
+                                            collisions.forEach(k => {
+                                                const act = decisions[k];
+                                                const entry = importedEntries[k];
 
-                                                finalize(`Lorebook Import: ${added} added, ${updated} updated.`);
-                                                overlay.remove();
-                                            };
+                                                if (act === 'overwrite') {
+                                                    linkToActor(entry);
+                                                    existingEntries[k] = entry;
+                                                    updated++;
+                                                } else if (act === 'copy') {
+                                                    entry.id = A.ProjectDB.generateId();
+                                                    entry.uuid = A.ProjectDB.generateId();
+                                                    linkToActor(entry);
+                                                    existingEntries[entry.id] = entry;
+                                                    added++;
+                                                }
+                                                // skip does nothing
+                                            });
 
-                                        } catch (err) {
-                                            console.error('[Actors] Lorebook Import Error:', err);
-                                        }
-                                    };
+                                            finalize(`Lorebook Import: ${added} added, ${updated} updated.`);
+                                            overlay.remove();
+                                        };
 
-                                    handleLoreImport();
-
-                                    A.State.notify();
-                                    renderTab();
+                                    } catch (err) {
+                                        console.error('[Actors] Lorebook Import Error:', err);
+                                    }
                                 };
-                                reader.readAsDataURL(file);
-                                if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
-                            } catch (err) {
-                                console.error('[Gallery] Import error:', err);
-                                if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
-                            }
-                        }; // End doImport
 
-                        if (A.UI && A.UI.Modal) {
-                            A.UI.Modal.show({
-                                title: 'Overwrite Character Data?',
-                                content: `
+                                handleLoreImport();
+
+                                A.State.notify();
+                                renderTab();
+                            };
+                            reader.readAsDataURL(file);
+                            if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
+                        } catch (err) {
+                            console.error('[Gallery] Import error:', err);
+                            if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                        }
+                    }; // End doImport
+
+                    if (A.UI && A.UI.Modal) {
+                        A.UI.Modal.show({
+                            title: 'Overwrite Character Data?',
+                            content: `
                             <p style="margin-bottom:12px; color:var(--text-primary);">
                                 You are about to import <strong>${file.name}</strong>. 
                                 This will <strong>overwrite</strong> the current Name, Description, Personality, and other fields.
@@ -875,42 +984,42 @@
                                 Existing images will remain in the gallery, but the primary image will be updated.
                             </p>
                         `,
-                                actions: [
-                                    {
-                                        label: 'Cancel',
-                                        class: 'btn-ghost',
-                                        onclick: () => true
-                                    },
-                                    {
-                                        label: 'Overwrite',
-                                        class: 'btn-primary',
-                                        onclick: async () => {
-                                            await doImport();
-                                            return true;
-                                        }
+                            actions: [
+                                {
+                                    label: 'Cancel',
+                                    class: 'btn-ghost',
+                                    onclick: () => true
+                                },
+                                {
+                                    label: 'Overwrite',
+                                    class: 'btn-primary',
+                                    onclick: async () => {
+                                        await doImport();
+                                        return true;
                                     }
-                                ]
-                            });
-                        } else {
-                            // Fallback if modal system missing/limited
-                            if (confirm('Overwrite existing character data with this card?')) {
-                                doImport();
-                            }
+                                }
+                            ]
+                        });
+                    } else {
+                        // Fallback if modal system missing/limited
+                        if (confirm('Overwrite existing character data with this card?')) {
+                            doImport();
                         }
-                    };
-                }
+                    }
+                };
+            }
 
-                renderGalleryCard();
+            renderGalleryCard();
 
-                // Container for Smart Inputs
-                const smartContainer = document.createElement('div');
+            // Container for Smart Inputs
+            const smartContainer = document.createElement('div');
 
-                // Gender (for AURA pronoun resolution)
-                actor.gender = actor.gender || 'N';
-                const genderWrap = document.createElement('div');
-                genderWrap.className = 'form-col';
-                genderWrap.style.marginBottom = '12px';
-                genderWrap.innerHTML = `
+            // Gender (for AURA pronoun resolution)
+            actor.gender = actor.gender || 'N';
+            const genderWrap = document.createElement('div');
+            genderWrap.className = 'form-col';
+            genderWrap.style.marginBottom = '12px';
+            genderWrap.innerHTML = `
                     <label class="field-label">Gender & Pronouns</label>
                     <select class="input" id="sel-gender" style="width:150px;">
                         <option value="M" ${actor.gender === 'M' ? 'selected' : ''}>Male (he/him)</option>
@@ -918,64 +1027,64 @@
                         <option value="N" ${actor.gender === 'N' ? 'selected' : ''}>Neutral (they/them)</option>
                     </select>
                 `;
-                smartContainer.appendChild(genderWrap);
+            smartContainer.appendChild(genderWrap);
 
-                // Aliases (for AURA entity detection)
-                actor.aliases = actor.aliases || [];
-                const aliasesWrap = document.createElement('div');
-                aliasesWrap.className = 'form-col';
-                aliasesWrap.style.marginBottom = '12px';
-                new A.UI.Components.TagInput(aliasesWrap, actor.aliases, {
-                    label: 'Aliases (Nicknames, Titles)',
-                    placeholder: '+ alias',
-                    bg: 'var(--accent-secondary)',
-                    color: 'var(--text-primary)',
-                    onChange: (aliases) => { actor.aliases = aliases; A.State.notify(); }
+            // Aliases (for AURA entity detection)
+            actor.aliases = actor.aliases || [];
+            const aliasesWrap = document.createElement('div');
+            aliasesWrap.className = 'form-col';
+            aliasesWrap.style.marginBottom = '12px';
+            new A.UI.Components.TagInput(aliasesWrap, actor.aliases, {
+                label: 'Aliases (Nicknames, Titles)',
+                placeholder: '+ alias',
+                bg: 'var(--accent-secondary)',
+                color: 'var(--text-primary)',
+                onChange: (aliases) => { actor.aliases = aliases; A.State.notify(); }
+            });
+            smartContainer.appendChild(aliasesWrap);
+
+            // Tags
+            const tagsWrap = document.createElement('div');
+            tagsWrap.className = 'form-col';
+            new A.UI.Components.TagInput(tagsWrap, actor.tags || [], {
+                label: 'Tags',
+                onChange: (tags) => { actor.tags = tags; A.State.notify(); }
+            });
+
+            smartContainer.appendChild(tagsWrap);
+
+
+            // Quirks (moved from Voice tab)
+            T.quirks = T.quirks || { physical: [], mental: [], emotional: [] };
+
+            const quirksHeader = document.createElement('h3');
+            quirksHeader.style.marginTop = '20px';
+            quirksHeader.style.fontSize = '13px';
+            quirksHeader.style.color = 'var(--text-primary)';
+            quirksHeader.textContent = 'Quirks';
+            smartContainer.appendChild(quirksHeader);
+
+            ['physical', 'mental', 'emotional'].forEach(kind => {
+                const qWrap = document.createElement('div');
+                qWrap.className = 'form-col';
+                qWrap.style.marginBottom = '12px';
+                new A.UI.Components.TagInput(qWrap, T.quirks[kind] || [], {
+                    label: `${kind} Quirks`,
+                    placeholder: '+ quirk',
+                    bg: 'var(--bg-surface)',
+                    color: 'var(--text-secondary)',
+                    onChange: (tags) => { T.quirks[kind] = tags; A.State.notify(); }
                 });
-                smartContainer.appendChild(aliasesWrap);
+                smartContainer.appendChild(qWrap);
+            });
 
-                // Tags
-                const tagsWrap = document.createElement('div');
-                tagsWrap.className = 'form-col';
-                new A.UI.Components.TagInput(tagsWrap, actor.tags || [], {
-                    label: 'Tags',
-                    onChange: (tags) => { actor.tags = tags; A.State.notify(); }
-                });
+            // ========== CHARACTER CARD EXPORT FIELDS ==========
+            // These fields enable standalone Character Card v2 export
+            actor.cardFields = actor.cardFields || {};
+            const cf = actor.cardFields;
 
-                smartContainer.appendChild(tagsWrap);
-
-
-                // Quirks (moved from Voice tab)
-                T.quirks = T.quirks || { physical: [], mental: [], emotional: [] };
-
-                const quirksHeader = document.createElement('h3');
-                quirksHeader.style.marginTop = '20px';
-                quirksHeader.style.fontSize = '13px';
-                quirksHeader.style.color = 'var(--text-primary)';
-                quirksHeader.textContent = 'Quirks';
-                smartContainer.appendChild(quirksHeader);
-
-                ['physical', 'mental', 'emotional'].forEach(kind => {
-                    const qWrap = document.createElement('div');
-                    qWrap.className = 'form-col';
-                    qWrap.style.marginBottom = '12px';
-                    new A.UI.Components.TagInput(qWrap, T.quirks[kind] || [], {
-                        label: `${kind} Quirks`,
-                        placeholder: '+ quirk',
-                        bg: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        onChange: (tags) => { T.quirks[kind] = tags; A.State.notify(); }
-                    });
-                    smartContainer.appendChild(qWrap);
-                });
-
-                // ========== CHARACTER CARD EXPORT FIELDS ==========
-                // These fields enable standalone Character Card v2 export
-                actor.cardFields = actor.cardFields || {};
-                const cf = actor.cardFields;
-
-                const cardSection = document.createElement('div');
-                cardSection.innerHTML = `
+            const cardSection = document.createElement('div');
+            cardSection.innerHTML = `
                     <details style="margin-top:16px;">
                         <summary style="font-size:13px; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 0;">
                             📋 Character Card Fields
@@ -1001,77 +1110,77 @@
                         </div>
                     </details>
                 `;
-                smartContainer.appendChild(cardSection);
+            smartContainer.appendChild(cardSection);
 
-                // Card field bindings
-                function bindCardField(id, field) {
-                    const el = cardSection.querySelector('#' + id);
-                    if (el) {
-                        el.onchange = (e) => {
-                            cf[field] = e.target.value;
-                            A.State.notify();
-                        };
-                    }
+            // Card field bindings
+            function bindCardField(id, field) {
+                const el = cardSection.querySelector('#' + id);
+                if (el) {
+                    el.onchange = (e) => {
+                        cf[field] = e.target.value;
+                        A.State.notify();
+                    };
                 }
-                bindCardField('cf-personality', 'personality');
-                bindCardField('cf-description', 'description');
-                bindCardField('cf-scenario', 'scenario');
-                bindCardField('cf-firstmessage', 'firstMessage');
+            }
+            bindCardField('cf-personality', 'personality');
+            bindCardField('cf-description', 'description');
+            bindCardField('cf-scenario', 'scenario');
+            bindCardField('cf-firstmessage', 'firstMessage');
 
-                // Attach AI Assistant to Card Fields
-                if (A.UI.Assistant) {
-                    A.UI.Assistant.attach(cardSection.querySelector('#cf-personality'), {
-                        label: 'Actor Personality',
-                        system: 'You are an expert character designer. Improve this personality summary.'
-                    });
-                    A.UI.Assistant.attach(cardSection.querySelector('#cf-description'), {
-                        label: 'Actor Description',
-                        system: 'You are an expert character designer. Improve this character description.'
-                    });
-                    A.UI.Assistant.attach(cardSection.querySelector('#cf-scenario'), {
-                        label: 'Actor Scenario',
-                        system: 'You are an expert scenario writer. Improve this character scenario.'
-                    });
-                    A.UI.Assistant.attach(cardSection.querySelector('#cf-firstmessage'), {
-                        label: 'Actor First Message',
-                        system: 'You are a roleplay character. Improve this first message.'
-                    });
-                }
+            // Attach AI Assistant to Card Fields
+            if (A.UI.Assistant) {
+                A.UI.Assistant.attach(cardSection.querySelector('#cf-personality'), {
+                    label: 'Actor Personality',
+                    system: 'You are an expert character designer. Improve this personality summary.'
+                });
+                A.UI.Assistant.attach(cardSection.querySelector('#cf-description'), {
+                    label: 'Actor Description',
+                    system: 'You are an expert character designer. Improve this character description.'
+                });
+                A.UI.Assistant.attach(cardSection.querySelector('#cf-scenario'), {
+                    label: 'Actor Scenario',
+                    system: 'You are an expert scenario writer. Improve this character scenario.'
+                });
+                A.UI.Assistant.attach(cardSection.querySelector('#cf-firstmessage'), {
+                    label: 'Actor First Message',
+                    system: 'You are a roleplay character. Improve this first message.'
+                });
+            }
 
-                // Notes (internal, not exported)
-                actor.notes = actor.notes || '';
-                const notesSection = document.createElement('div');
-                notesSection.innerHTML = `
+            // Notes (internal, not exported)
+            actor.notes = actor.notes || '';
+            const notesSection = document.createElement('div');
+            notesSection.innerHTML = `
                   <h3 style="margin-top:20px; font-size:13px; color:var(--text-primary);">Notes</h3>
                   <div class="form-col">
                     <textarea class="input" id="inp-notes" style="height:150px; resize:vertical;" placeholder="Internal notes (not exported). E.g., 'Main love interest' or 'Acts differently when angry'">${actor.notes}</textarea>
                   </div>
                 `;
-                smartContainer.appendChild(notesSection);
+            smartContainer.appendChild(notesSection);
 
-                content.innerHTML = idRow;
-                content.appendChild(galleryCard);
-                content.appendChild(smartContainer);
+            content.innerHTML = idRow;
+            content.appendChild(galleryCard);
+            content.appendChild(smartContainer);
 
-                // Notes Binding
-                content.querySelector('#inp-notes').onchange = (e) => {
-                    actor.notes = e.target.value;
-                    A.State.notify();
-                    if (A.UI.Toast) A.UI.Toast.show('Notes saved', 'info');
-                };
+            // Notes Binding
+            content.querySelector('#inp-notes').onchange = (e) => {
+                actor.notes = e.target.value;
+                A.State.notify();
+                if (A.UI.Toast) A.UI.Toast.show('Notes saved', 'info');
+            };
 
-                // Gender Binding
-                content.querySelector('#sel-gender').onchange = (e) => {
-                    actor.gender = e.target.value;
-                    A.State.notify();
-                    if (A.UI.Toast) A.UI.Toast.show('Gender updated', 'info');
-                };
+            // Gender Binding
+            content.querySelector('#sel-gender').onchange = (e) => {
+                actor.gender = e.target.value;
+                A.State.notify();
+                if (A.UI.Toast) A.UI.Toast.show('Gender updated', 'info');
+            };
 
-            } else if (activeTab === 'appearance') {
-                T.appearance = T.appearance || {};
-                const app = T.appearance;
+        } else if (activeTab === 'appearance') {
+            T.appearance = T.appearance || {};
+            const app = T.appearance;
 
-                const basicFields = `
+            const basicFields = `
           <div class="form-row">
             <div class="form-col"><label class="field-label">Hair</label><input class="input" id="app-hair" value="${app.hair || ''}"></div>
             <div class="form-col"><label class="field-label">Eyes</label><input class="input" id="app-eyes" value="${app.eyes || ''}"></div>
@@ -1081,20 +1190,20 @@
           </div>
         `;
 
-                // Description field (new)
-                app.description = app.description || '';
-                const descField = `
+            // Description field (new)
+            app.description = app.description || '';
+            const descField = `
           <div class="form-col" style="margin-top:12px; margin-bottom:16px;">
             <label class="field-label">Description (open notes)</label>
             <textarea class="input" id="app-desc" style="height:80px; resize:vertical;" placeholder="Additional appearance details...">${app.description}</textarea>
           </div>
         `;
 
-                // Appendages
-                app.appendages = app.appendages || {};
-                const parts = PARTS.map(p => {
-                    const dat = app.appendages[p] || {};
-                    return `
+            // Appendages
+            app.appendages = app.appendages || {};
+            const parts = PARTS.map(p => {
+                const dat = app.appendages[p] || {};
+                return `
             <div class="form-row" style="align-items:center; border:1px solid var(--border-subtle); padding:8px; border-radius:4px;">
                <div style="width:80px; font-weight:bold; text-transform:capitalize;">${p}</div>
                <label style="font-size:12px; display:flex; align-items:center; gap:4px; margin-right:12px;">
@@ -1103,52 +1212,52 @@
                <input class="input" style="flex:1;" id="app-${p}-style" placeholder="Style/Description" value="${dat.style || ''}" ${!dat.present ? 'disabled' : ''}>
             </div>
           `;
-                }).join('');
+            }).join('');
 
-                content.innerHTML += `<h3>Basic</h3>${basicFields}${descField}<h3>Appendages</h3>${parts}`;
+            content.innerHTML += `<h3>Basic</h3>${basicFields}${descField}<h3>Appendages</h3>${parts}`;
 
-                // Bindings
-                content.querySelector('#app-hair').onchange = e => { app.hair = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
-                content.querySelector('#app-eyes').onchange = e => { app.eyes = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
-                content.querySelector('#app-build').onchange = e => { app.build = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
-                content.querySelector('#app-desc').onchange = e => { app.description = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
+            // Bindings
+            content.querySelector('#app-hair').onchange = e => { app.hair = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
+            content.querySelector('#app-eyes').onchange = e => { app.eyes = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
+            content.querySelector('#app-build').onchange = e => { app.build = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
+            content.querySelector('#app-desc').onchange = e => { app.description = e.target.value; A.State.notify(); if (A.UI.Toast) A.UI.Toast.show('Saved', 'info'); };
 
-                // Attach AI Assistant to Appearance Description
-                if (A.UI.Assistant) {
-                    A.UI.Assistant.attach(content.querySelector('#app-desc'), {
-                        label: 'Appearance Description',
-                        system: 'You are a visual design expert. Describe this character\'s appearance in vivid detail.'
-                    });
-                }
-
-                PARTS.forEach(p => {
-                    content.querySelector(`#app-${p}-present`).onchange = e => {
-                        app.appendages[p] = app.appendages[p] || {};
-                        app.appendages[p].present = e.target.checked;
-                        A.State.notify();
-                        renderTab(); // Re-render to toggle disable state
-                    };
-                    content.querySelector(`#app-${p}-style`).onchange = e => {
-                        app.appendages[p] = app.appendages[p] || {};
-                        app.appendages[p].style = e.target.value;
-                        A.State.notify(); // No toast for style tweaks to avoid spam, or add one if desired.
-                    };
+            // Attach AI Assistant to Appearance Description
+            if (A.UI.Assistant) {
+                A.UI.Assistant.attach(content.querySelector('#app-desc'), {
+                    label: 'Appearance Description',
+                    system: 'You are a visual design expert. Describe this character\'s appearance in vivid detail.'
                 });
+            }
+
+            PARTS.forEach(p => {
+                content.querySelector(`#app-${p}-present`).onchange = e => {
+                    app.appendages[p] = app.appendages[p] || {};
+                    app.appendages[p].present = e.target.checked;
+                    A.State.notify();
+                    renderTab(); // Re-render to toggle disable state
+                };
+                content.querySelector(`#app-${p}-style`).onchange = e => {
+                    app.appendages[p] = app.appendages[p] || {};
+                    app.appendages[p].style = e.target.value;
+                    A.State.notify(); // No toast for style tweaks to avoid spam, or add one if desired.
+                };
+            });
 
 
-            } else if (activeTab === 'cues') {
-                // Initialize new cue structures
-                T.pulseCues = T.pulseCues || {};
-                T.erosCues = T.erosCues || {};
-                T.intentCues = T.intentCues || {};
+        } else if (activeTab === 'cues') {
+            // Initialize new cue structures
+            T.pulseCues = T.pulseCues || {};
+            T.erosCues = T.erosCues || {};
+            T.intentCues = T.intentCues || {};
 
-                // Helper to build a cue grid section
-                const buildCueSection = (sectionId, title, subtitle, tags, cueData, colorAccent, presetListFn) => {
-                    // Get preset options
-                    const presets = (A.Presets && presetListFn) ? presetListFn() : [];
-                    const presetOptions = presets.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+            // Helper to build a cue grid section
+            const buildCueSection = (sectionId, title, subtitle, tags, cueData, colorAccent, presetListFn) => {
+                // Get preset options
+                const presets = (A.Presets && presetListFn) ? presetListFn() : [];
+                const presetOptions = presets.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
 
-                    let html = `
+                let html = `
                     <div class="cue-section" data-section="${sectionId}" style="margin-bottom:16px; border:1px solid var(--border-subtle); border-radius:6px; overflow:hidden;">
                         <div class="cue-section-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-elevated); cursor:pointer; border-bottom:1px solid var(--border-subtle);">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1175,19 +1284,19 @@
                                 <div class="cue-header" style="font-weight:bold; font-size:10px; text-align:center; color:var(--text-muted);">HORNS</div>
                             </div>`;
 
-                    // Check appendages status for disabling inputs
-                    const appConfig = T.appearance?.appendages || {};
-                    const getDisabledAttr = (part) => {
-                        if (part === 'basic') return '';
-                        if (!appConfig[part] || !appConfig[part].present) {
-                            return 'disabled style="font-size:11px; padding:4px 6px; opacity:0.3; background:var(--bg-base); cursor:not-allowed;" title="Appendage not present"';
-                        }
-                        return 'style="font-size:11px; padding:4px 6px;"';
-                    };
+                // Check appendages status for disabling inputs
+                const appConfig = T.appearance?.appendages || {};
+                const getDisabledAttr = (part) => {
+                    if (part === 'basic') return '';
+                    if (!appConfig[part] || !appConfig[part].present) {
+                        return 'disabled style="font-size:11px; padding:4px 6px; opacity:0.3; background:var(--bg-base); cursor:not-allowed;" title="Appendage not present"';
+                    }
+                    return 'style="font-size:11px; padding:4px 6px;"';
+                };
 
-                    tags.forEach(tag => {
-                        const cue = cueData[tag] || {};
-                        html += `
+                tags.forEach(tag => {
+                    const cue = cueData[tag] || {};
+                    html += `
                             <div class="cue-grid" style="display:grid; grid-template-columns:90px repeat(5, 1fr); gap:6px; align-items:center; margin-bottom:4px;">
                                 <div style="font-size:11px; font-weight:600; text-transform:uppercase; color:${colorAccent};">${tag}</div>
                                 <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="basic" value="${cue.basic || ''}" ${getDisabledAttr('basic')}>
@@ -1196,17 +1305,17 @@
                                 <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="wings" value="${cue.wings || ''}" ${getDisabledAttr('wings')}>
                                 <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="horns" value="${cue.horns || ''}" ${getDisabledAttr('horns')}>
                             </div>`;
-                    });
+                });
 
-                    html += `</div></div>`;
-                    return html;
-                };
+                html += `</div></div>`;
+                return html;
+            };
 
-                // Build all three sections with their respective preset lists
-                let cuesHTML = '';
+            // Build all three sections with their respective preset lists
+            let cuesHTML = '';
 
-                // Add explanatory tip for first-time users
-                cuesHTML += `
+            // Add explanatory tip for first-time users
+            cuesHTML += `
                 <div style="background:var(--accent-soft); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; line-height:1.5; border-left:3px solid var(--accent-primary);">
                   <strong style="color:var(--accent-primary);">💡 What are Cues?</strong><br>
                   Cues are short behavioral snippets triggered by emotional states. 
@@ -1217,256 +1326,256 @@
                 </div>
                 `;
 
-                cuesHTML += buildCueSection('pulse', 'PULSE Cues', 'Emotional Expression', PULSE_TAGS, T.pulseCues, 'var(--status-info)', A.Presets?.getPulsePresetList);
-                cuesHTML += buildCueSection('eros', 'EROS Cues', 'Intimacy Response', EROS_TAGS, T.erosCues, 'var(--status-error)', A.Presets?.getErosPresetList);
-                cuesHTML += buildCueSection('intent', 'INTENT Cues', 'Behavioral Response', INTENT_TAGS, T.intentCues, 'var(--status-success)', A.Presets?.getIntentPresetList);
+            cuesHTML += buildCueSection('pulse', 'PULSE Cues', 'Emotional Expression', PULSE_TAGS, T.pulseCues, 'var(--status-info)', A.Presets?.getPulsePresetList);
+            cuesHTML += buildCueSection('eros', 'EROS Cues', 'Intimacy Response', EROS_TAGS, T.erosCues, 'var(--status-error)', A.Presets?.getErosPresetList);
+            cuesHTML += buildCueSection('intent', 'INTENT Cues', 'Behavioral Response', INTENT_TAGS, T.intentCues, 'var(--status-success)', A.Presets?.getIntentPresetList);
 
-                content.innerHTML = cuesHTML;
+            content.innerHTML = cuesHTML;
 
-                // Accordion toggle behavior (only on the toggle icon, not the whole header now)
-                content.querySelectorAll('.cue-toggle').forEach(toggle => {
-                    toggle.onclick = (e) => {
-                        e.stopPropagation();
-                        const section = toggle.closest('.cue-section');
-                        const body = section.querySelector('.cue-section-body');
-                        const isCollapsed = body.style.display === 'none';
-                        body.style.display = isCollapsed ? 'block' : 'none';
-                        toggle.textContent = isCollapsed ? '▼' : '▶';
-                    };
-                });
+            // Accordion toggle behavior (only on the toggle icon, not the whole header now)
+            content.querySelectorAll('.cue-toggle').forEach(toggle => {
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    const section = toggle.closest('.cue-section');
+                    const body = section.querySelector('.cue-section-body');
+                    const isCollapsed = body.style.display === 'none';
+                    body.style.display = isCollapsed ? 'block' : 'none';
+                    toggle.textContent = isCollapsed ? '▼' : '▶';
+                };
+            });
 
-                // Preset Apply buttons
-                content.querySelectorAll('.preset-apply').forEach(btn => {
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        const sectionId = btn.dataset.section;
-                        const select = content.querySelector(`.preset-select[data-section="${sectionId}"]`);
-                        const presetId = select?.value;
+            // Preset Apply buttons
+            content.querySelectorAll('.preset-apply').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const sectionId = btn.dataset.section;
+                    const select = content.querySelector(`.preset-select[data-section="${sectionId}"]`);
+                    const presetId = select?.value;
 
-                        if (!presetId) {
-                            if (A.UI.Toast) A.UI.Toast.show('Select a preset first', 'warning');
-                            return;
-                        }
+                    if (!presetId) {
+                        if (A.UI.Toast) A.UI.Toast.show('Select a preset first', 'warning');
+                        return;
+                    }
 
-                        // Get the preset data
-                        let presetData, targetCues;
-                        if (sectionId === 'pulse' && A.Presets?.Pulse?.[presetId]) {
-                            presetData = A.Presets.Pulse[presetId].cues;
-                            targetCues = T.pulseCues;
-                        } else if (sectionId === 'eros' && A.Presets?.Eros?.[presetId]) {
-                            presetData = A.Presets.Eros[presetId].cues;
-                            targetCues = T.erosCues;
-                        } else if (sectionId === 'intent' && A.Presets?.Intent?.[presetId]) {
-                            presetData = A.Presets.Intent[presetId].cues;
-                            targetCues = T.intentCues;
-                        }
+                    // Get the preset data
+                    let presetData, targetCues;
+                    if (sectionId === 'pulse' && A.Presets?.Pulse?.[presetId]) {
+                        presetData = A.Presets.Pulse[presetId].cues;
+                        targetCues = T.pulseCues;
+                    } else if (sectionId === 'eros' && A.Presets?.Eros?.[presetId]) {
+                        presetData = A.Presets.Eros[presetId].cues;
+                        targetCues = T.erosCues;
+                    } else if (sectionId === 'intent' && A.Presets?.Intent?.[presetId]) {
+                        presetData = A.Presets.Intent[presetId].cues;
+                        targetCues = T.intentCues;
+                    }
 
-                        if (!presetData) {
-                            if (A.UI.Toast) A.UI.Toast.show('Preset not found', 'error');
-                            return;
-                        }
+                    if (!presetData) {
+                        if (A.UI.Toast) A.UI.Toast.show('Preset not found', 'error');
+                        return;
+                    }
 
-                        // Get actor appendages configuration
-                        const appConfig = T.appearance?.appendages || {};
+                    // Get actor appendages configuration
+                    const appConfig = T.appearance?.appendages || {};
 
-                        // Apply preset data to cues, respecting appendages
-                        Object.keys(presetData).forEach(tag => {
-                            const src = presetData[tag];
-                            const dest = { basic: src.basic || '' };
+                    // Apply preset data to cues, respecting appendages
+                    Object.keys(presetData).forEach(tag => {
+                        const src = presetData[tag];
+                        const dest = { basic: src.basic || '' };
 
-                            PARTS.forEach(p => {
-                                // Only clean copy if actor HAS this part
-                                if (appConfig[p] && appConfig[p].present) {
-                                    if (src[p]) dest[p] = src[p];
-                                }
-                            });
-
-                            targetCues[tag] = dest;
+                        PARTS.forEach(p => {
+                            // Only clean copy if actor HAS this part
+                            if (appConfig[p] && appConfig[p].present) {
+                                if (src[p]) dest[p] = src[p];
+                            }
                         });
 
-                        A.State.notify();
-                        renderTab(); // Re-render to show new values
-                        if (A.UI.Toast) A.UI.Toast.show(`Applied "${presetId}" preset`, 'success');
-                    };
-                });
-
-                // Clear buttons
-                content.querySelectorAll('.preset-clear').forEach(btn => {
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        const sectionId = btn.dataset.section;
-
-                        // Clear the appropriate cue object
-                        if (sectionId === 'pulse') {
-                            T.pulseCues = {};
-                        } else if (sectionId === 'eros') {
-                            T.erosCues = {};
-                        } else if (sectionId === 'intent') {
-                            T.intentCues = {};
-                        }
-
-                        A.State.notify();
-                        renderTab();
-                        if (A.UI.Toast) A.UI.Toast.show(`Cleared ${sectionId.toUpperCase()} cues`, 'info');
-                    };
-                });
-
-                // Input bindings
-                content.querySelectorAll('.cue-input').forEach(el => {
-                    el.oninput = e => {
-                        const section = el.dataset.section;
-                        const tag = el.dataset.tag;
-                        const part = el.dataset.part;
-                        const val = e.target.value;
-
-                        // Get the right cue object
-                        let cueObj;
-                        if (section === 'pulse') cueObj = T.pulseCues;
-                        else if (section === 'eros') cueObj = T.erosCues;
-                        else cueObj = T.intentCues;
-
-                        if (!cueObj[tag]) cueObj[tag] = {};
-                        cueObj[tag][part] = val;
-                        A.State.notify();
-
-                        // Update token counters for this section
-                        updateCueTokenCounter(section);
-                    };
-                });
-
-                // Helper to calculate and display total tokens for a cue section
-                const updateCueTokenCounter = (sectionId) => {
-                    let cueObj;
-                    if (sectionId === 'pulse') cueObj = T.pulseCues;
-                    else if (sectionId === 'eros') cueObj = T.erosCues;
-                    else cueObj = T.intentCues;
-
-                    // Calculate total tokens from all cue inputs
-                    let totalText = '';
-                    Object.values(cueObj || {}).forEach(cue => {
-                        ['basic', 'ears', 'tail', 'wings', 'horns'].forEach(part => {
-                            if (cue[part]) totalText += cue[part] + ' ';
-                        });
+                        targetCues[tag] = dest;
                     });
 
-                    const tokens = A.Utils.estimateTokens(totalText);
-                    const section = content.querySelector(`.cue-section[data-section="${sectionId}"]`);
-                    if (section) {
-                        let badge = section.querySelector('.cue-token-badge');
-                        if (!badge) {
-                            badge = document.createElement('span');
-                            badge.className = 'cue-token-badge token-badge';
-                            badge.style.marginLeft = '8px';
-                            const header = section.querySelector('.cue-section-header strong');
-                            if (header) header.parentNode.appendChild(badge);
-                        }
-                        badge.textContent = `${tokens} tkn`;
-                        if (tokens > 500) badge.style.color = 'var(--status-warning)';
-                        else if (tokens > 1000) badge.style.color = 'var(--status-error)';
-                        else badge.style.color = 'var(--text-muted)';
-                    }
+                    A.State.notify();
+                    renderTab(); // Re-render to show new values
+                    if (A.UI.Toast) A.UI.Toast.show(`Applied "${presetId}" preset`, 'success');
                 };
+            });
 
-                // Initial token count display for all sections
-                updateCueTokenCounter('pulse');
-                updateCueTokenCounter('eros');
-                updateCueTokenCounter('intent');
-            }
+            // Clear buttons
+            content.querySelectorAll('.preset-clear').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const sectionId = btn.dataset.section;
 
-            // Add token counter for appearance description
-            if (activeTab === 'appearance') {
-                const appDesc = content.querySelector('#app-desc');
-                if (appDesc) {
-                    const label = appDesc.previousElementSibling;
-                    if (label) {
-                        A.Utils.addTokenCounter(appDesc, label);
+                    // Clear the appropriate cue object
+                    if (sectionId === 'pulse') {
+                        T.pulseCues = {};
+                    } else if (sectionId === 'eros') {
+                        T.erosCues = {};
+                    } else if (sectionId === 'intent') {
+                        T.intentCues = {};
                     }
+
+                    A.State.notify();
+                    renderTab();
+                    if (A.UI.Toast) A.UI.Toast.show(`Cleared ${sectionId.toUpperCase()} cues`, 'info');
+                };
+            });
+
+            // Input bindings
+            content.querySelectorAll('.cue-input').forEach(el => {
+                el.oninput = e => {
+                    const section = el.dataset.section;
+                    const tag = el.dataset.tag;
+                    const part = el.dataset.part;
+                    const val = e.target.value;
+
+                    // Get the right cue object
+                    let cueObj;
+                    if (section === 'pulse') cueObj = T.pulseCues;
+                    else if (section === 'eros') cueObj = T.erosCues;
+                    else cueObj = T.intentCues;
+
+                    if (!cueObj[tag]) cueObj[tag] = {};
+                    cueObj[tag][part] = val;
+                    A.State.notify();
+
+                    // Update token counters for this section
+                    updateCueTokenCounter(section);
+                };
+            });
+
+            // Helper to calculate and display total tokens for a cue section
+            const updateCueTokenCounter = (sectionId) => {
+                let cueObj;
+                if (sectionId === 'pulse') cueObj = T.pulseCues;
+                else if (sectionId === 'eros') cueObj = T.erosCues;
+                else cueObj = T.intentCues;
+
+                // Calculate total tokens from all cue inputs
+                let totalText = '';
+                Object.values(cueObj || {}).forEach(cue => {
+                    ['basic', 'ears', 'tail', 'wings', 'horns'].forEach(part => {
+                        if (cue[part]) totalText += cue[part] + ' ';
+                    });
+                });
+
+                const tokens = A.Utils.estimateTokens(totalText);
+                const section = content.querySelector(`.cue-section[data-section="${sectionId}"]`);
+                if (section) {
+                    let badge = section.querySelector('.cue-token-badge');
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'cue-token-badge token-badge';
+                        badge.style.marginLeft = '8px';
+                        const header = section.querySelector('.cue-section-header strong');
+                        if (header) header.parentNode.appendChild(badge);
+                    }
+                    badge.textContent = `${tokens} tkn`;
+                    if (tokens > 500) badge.style.color = 'var(--status-warning)';
+                    else if (tokens > 1000) badge.style.color = 'var(--status-error)';
+                    else badge.style.color = 'var(--text-muted)';
+                }
+            };
+
+            // Initial token count display for all sections
+            updateCueTokenCounter('pulse');
+            updateCueTokenCounter('eros');
+            updateCueTokenCounter('intent');
+        }
+
+        // Add token counter for appearance description
+        if (activeTab === 'appearance') {
+            const appDesc = content.querySelector('#app-desc');
+            if (appDesc) {
+                const label = appDesc.previousElementSibling;
+                if (label) {
+                    A.Utils.addTokenCounter(appDesc, label);
                 }
             }
         }
+    }
 
 
-        // Events
-        listCol.querySelector('#btn-add-actor').onclick = () => {
+    // Events
+    listCol.querySelector('#btn-add-actor').onclick = () => {
+        const state = A.State.get();
+        // Ensure node
+        if (!state.nodes) state.nodes = {};
+        if (!state.nodes.actors) state.nodes.actors = { items: {} };
+        if (!state.nodes.actors.items) state.nodes.actors.items = {};
+
+        const id = 'actor_' + Math.random().toString(36).substr(2, 9);
+        const actorName = 'New Actor';
+        state.nodes.actors.items[id] = {
+            id: id,
+            name: actorName,
+            traits: {},
+            tags: [],
+            notes: ''
+        };
+
+        // Auto-create voice entry
+        syncActorToVoices(id, actorName);
+
+        A.State.notify();
+        if (A.UI.Toast) A.UI.Toast.show('New Actor created', 'success');
+        selectActor(id);
+    };
+
+    delBtn.onclick = () => {
+        if (confirm('Delete actor?')) {
             const state = A.State.get();
-            // Ensure node
-            if (!state.nodes) state.nodes = {};
-            if (!state.nodes.actors) state.nodes.actors = { items: {} };
-            if (!state.nodes.actors.items) state.nodes.actors.items = {};
 
-            const id = 'actor_' + Math.random().toString(36).substr(2, 9);
-            const actorName = 'New Actor';
-            state.nodes.actors.items[id] = {
-                id: id,
-                name: actorName,
-                traits: {},
-                tags: [],
-                notes: ''
-            };
+            // Remove actor from items
+            delete state.nodes.actors.items[currentId];
 
-            // Auto-create voice entry
-            syncActorToVoices(id, actorName);
+            // Remove from Voices panel
+            removeActorFromVoices(currentId);
+
+            currentId = null;
+            A.State.notify();
+            if (A.UI.Toast) A.UI.Toast.show('Actor deleted', 'info');
+            refreshList();
+            selectActor(null);
+        }
+    };
+
+    nameInput.oninput = (e) => {
+        const state = A.State.get();
+        if (state.nodes.actors.items[currentId]) {
+            const newName = e.target.value;
+            state.nodes.actors.items[currentId].name = newName;
+
+            // Sync name to Voices panel
+            syncActorToVoices(currentId, newName);
 
             A.State.notify();
-            if (A.UI.Toast) A.UI.Toast.show('New Actor created', 'success');
-            selectActor(id);
-        };
+            refreshList(); // Update sidebar name
+            // Keep focus
+            nameInput.focus();
+        }
+    };
 
-        delBtn.onclick = () => {
-            if (confirm('Delete actor?')) {
-                const state = A.State.get();
-
-                // Remove actor from items
-                delete state.nodes.actors.items[currentId];
-
-                // Remove from Voices panel
-                removeActorFromVoices(currentId);
-
-                currentId = null;
-                A.State.notify();
-                if (A.UI.Toast) A.UI.Toast.show('Actor deleted', 'info');
-                refreshList();
-                selectActor(null);
-            }
-        };
-
-        nameInput.oninput = (e) => {
-            const state = A.State.get();
-            if (state.nodes.actors.items[currentId]) {
-                const newName = e.target.value;
-                state.nodes.actors.items[currentId].name = newName;
-
-                // Sync name to Voices panel
-                syncActorToVoices(currentId, newName);
-
-                A.State.notify();
-                refreshList(); // Update sidebar name
-                // Keep focus
-                nameInput.focus();
-            }
-        };
-
-        // Auto-save feedback not typically needed on input, but let's add a "Saved" toast on implicit or explicit save if we had a button.
-        // For now, let's just ensure manual actions feel good.
-        // Actually, let's add a 'Flash' effect to the sidebar item on change? No, toast is for discrete actions.
-        // Actors is auto-save.
+    // Auto-save feedback not typically needed on input, but let's add a "Saved" toast on implicit or explicit save if we had a button.
+    // For now, let's just ensure manual actions feel good.
+    // Actually, let's add a 'Flash' effect to the sidebar item on change? No, toast is for discrete actions.
+    // Actors is auto-save.
 
 
-        refreshList();
-        // Show empty state initially
-        // Show empty state initially if list is empty, otherwise standard select prompt
-        if (!currentId) {
-            const hasActors = state && Object.keys(state.nodes?.actors?.items || {}).length > 0;
-            if (!hasActors) {
-                content.innerHTML = A.UI.getEmptyStateHTML(
-                    'No Actors Found',
-                    'Create your first actor to begin building your cast.',
-                    'Create New Actor',
-                    "document.getElementById('btn-add-actor').click()"
-                );
-            } else {
-                // Select prompt
-                content.innerHTML = `
+    refreshList();
+    // Show empty state initially
+    // Show empty state initially if list is empty, otherwise standard select prompt
+    if (!currentId) {
+        const hasActors = state && Object.keys(state.nodes?.actors?.items || {}).length > 0;
+        if (!hasActors) {
+            content.innerHTML = A.UI.getEmptyStateHTML(
+                'No Actors Found',
+                'Create your first actor to begin building your cast.',
+                'Create New Actor',
+                "document.getElementById('btn-add-actor').click()"
+            );
+        } else {
+            // Select prompt
+            content.innerHTML = `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -1476,16 +1585,16 @@
                         <button class="btn btn-secondary" onclick="document.getElementById('btn-add-actor').click()">Create New Actor</button>
                     </div>
                 `;
-            }
         }
     }
+}
 
     A.registerPanel('actors', {
-        label: 'Actors',
-        subtitle: 'Nodes',
-        category: 'Seeds',
-        render: render
-    });
+    label: 'Actors',
+    subtitle: 'Nodes',
+    category: 'Seeds',
+    render: render
+});
 
-})(window.Anansi);
+}) (window.Anansi);
 

@@ -216,6 +216,15 @@
 
 ## 📜 Change Log
 
+### v1.6.3 - January 5, 2026
+- **New Feature**: **Lorebook Mobile Export**. Export lorebooks as `.txt` files to support mobile/tablet devices where `.json` handling is difficult.
+- **New Feature**: **Multi-Select Deletion**. Added bulk selection and deletion capability to Lorebook, Actors, Events, Scripts, and Locations panels. Protection for System Scripts included.
+- **New Feature**: **About Modal**. Click the Anansi logo to view version info and credits. Customizable via `ABOUT.html`.
+- **Fix**: **Lorebook Import**. Added support for Chub.ai "Dictionary" style lorebooks.
+- **Fix**: **Lorebook UI**. Entry count now updates immediately upon import.
+- **Fix**: **Tokens Panel Scroll**. Added vertical scrolling for reports on smaller screens.
+- **Technical**: Improved local file support for About modal (iframe) and added cache-busting.
+
 ### v1.6.2 - January 5, 2026
 - **New Feature**: **Director's Console**. Collapsible toolbar in Live Chat with Guidance injection field for direct LLM prompt control.
 - **New Feature**: **Procedural Avatars**. Character portraits in chat animate based on emotional state (shake, glow, bounce effects).

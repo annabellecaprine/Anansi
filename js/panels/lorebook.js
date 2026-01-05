@@ -207,6 +207,10 @@
     container.innerHTML = ''; // Clear previous render
     const state = A.State.get();
 
+    // State for Multi-Select
+    let selectionMode = false;
+    let selectedIds = new Set();
+
     // Ensure Data Structure
     if (!state.weaves) state.weaves = {};
     if (!state.weaves.lorebook) state.weaves.lorebook = { entries: {} };
@@ -227,7 +231,7 @@
       <div class="card-header">
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <strong>Lorebook</strong>
-            <div style="font-size:10px;">${Object.keys(state.weaves.lorebook.entries).length} entries</div>
+            <div id="lore-count-display" style="font-size:10px;">${Object.keys(state.weaves.lorebook.entries).length} entries</div>
         </div>
       </div>
       <div style="padding:8px; border-bottom:1px solid var(--border-subtle); display:flex; gap:8px;">
@@ -238,14 +242,24 @@
         </div>
       </div>
       <div class="card-body" id="lore-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer" style="display:flex; flex-direction:column; gap:8px;">
-        <button class="btn btn-primary btn-sm" id="btn-add-lore" style="width:100%;">+ Add Entry</button>
-        <div style="display:flex; gap:8px;">
-            <button class="btn btn-ghost btn-sm" id="btn-import-lore" style="flex:1; font-size:10px;">Import</button>
-            <button class="btn btn-ghost btn-sm" id="btn-export-lore" style="flex:1; font-size:10px;">Export</button>
+      <div class="card-footer" id="lore-footer" style="display:flex; flex-direction:column; gap:8px;">
+        <!-- Standard Actions -->
+        <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-primary btn-sm" id="btn-add-lore" style="width:100%;">+ Add Entry</button>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-ghost btn-sm" id="btn-select-mode" style="flex:1; font-size:10px;">Select...</button>
+                <button class="btn btn-ghost btn-sm" id="btn-import-lore" style="flex:1; font-size:10px;">Import</button>
+                <button class="btn btn-ghost btn-sm" id="btn-export-lore" style="flex:1; font-size:10px;">Export</button>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+            <input type="file" id="file-import-hidden" style="display:none;" accept=".json,.png,.txt">
         </div>
-        <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
-        <input type="file" id="file-import-hidden" style="display:none;" accept=".json,.png">
+
+        <!-- Selection Actions -->
+        <div id="footer-selection" style="display:none; flex-direction:column; gap:8px;">
+            <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+        </div>
       </div>
     `;
 
@@ -461,21 +475,112 @@
 
     // Export
     // Export
+    // Export
     listCol.querySelector('#btn-export-lore').onclick = () => {
-      const entries = state.weaves.lorebook.entries;
-      // Native Export
-      const blob = new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      // Create Format Selection Modal
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        `;
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `lorebook_export_${new Date().getTime()}.json`;
-      document.body.appendChild(a); // Required for Firefox
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const modal = document.createElement('div');
+      modal.className = 'card';
+      modal.style.cssText = `
+            width: 300px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border-default);
+        `;
 
-      if (A.UI.Toast) A.UI.Toast.show('Lorebook exported successfully.', 'success');
+      modal.innerHTML = `
+            <h3 style="margin:0; font-size:16px;">Export Lorebook</h3>
+            <div style="font-size:12px; color:var(--text-secondary);">Select file format:</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn btn-secondary" id="exp-json">
+                    <div style="font-weight:bold;">JSON (.json)</div>
+                    <div style="font-size:10px; opacity:0.7;">Standard Anansi format</div>
+                </button>
+                <button class="btn btn-secondary" id="exp-txt">
+                    <div style="font-weight:bold;">Text (.txt)</div>
+                    <div style="font-size:10px; opacity:0.7;">Mobile/Tablet compatible</div>
+                </button>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="exp-cancel" style="margin-top:4px;">Cancel</button>
+        `;
+
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      const performExport = (ext) => {
+        const entries = state.weaves.lorebook.entries;
+        const blob = new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: 'application/json' }); // Mime always JSON
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lorebook_export_${new Date().getTime()}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        overlay.remove();
+        if (A.UI.Toast) A.UI.Toast.show(`Lorebook exported as .${ext}`, 'success');
+      };
+
+      modal.querySelector('#exp-json').onclick = () => performExport('json');
+      modal.querySelector('#exp-txt').onclick = () => performExport('txt');
+      modal.querySelector('#exp-cancel').onclick = () => overlay.remove();
+    };
+
+    // --- Multi-Select Handlers ---
+    const updateFooterState = () => {
+      const std = listCol.querySelector('#footer-standard');
+      const sel = listCol.querySelector('#footer-selection');
+      if (selectionMode) {
+        std.style.display = 'none';
+        sel.style.display = 'flex';
+        sel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
+        sel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
+        sel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+      } else {
+        std.style.display = 'flex';
+        sel.style.display = 'none';
+      }
+    };
+
+    listCol.querySelector('#btn-select-mode').onclick = () => {
+      selectionMode = true;
+      selectedIds.clear();
+      updateFooterState();
+      renderList();
+    };
+
+    listCol.querySelector('#btn-cancel-select').onclick = () => {
+      selectionMode = false;
+      selectedIds.clear();
+      updateFooterState();
+      renderList();
+    };
+
+    listCol.querySelector('#btn-del-multi').onclick = () => {
+      if (selectedIds.size === 0) return;
+      if (confirm(`Delete ${selectedIds.size} entries? This cannot be undone.`)) {
+        let count = 0;
+        selectedIds.forEach(id => {
+          if (state.weaves.lorebook.entries[id]) {
+            delete state.weaves.lorebook.entries[id];
+            count++;
+          }
+        });
+        selectionMode = false;
+        selectedIds.clear();
+        A.State.notify();
+        if (A.UI.Toast) A.UI.Toast.show(`Deleted ${count} entries.`, 'success');
+
+        // Re-renders implicitly via State notify, but we ensure mode reset
+        updateFooterState();
+        renderList();
+        renderEditor(); // Clear editor if currentId was deleted
+      }
     };
 
     // Handle Context
@@ -493,6 +598,10 @@
       listBody.innerHTML = '';
 
       const entries = Object.values(state.weaves.lorebook.entries);
+
+      // Update Count
+      const countDisplay = listCol.querySelector('#lore-count-display');
+      if (countDisplay) countDisplay.textContent = entries.length + ' entries';
 
       // Sort: Priority DESC, Title ASC
       entries.sort((a, b) => {
@@ -520,9 +629,15 @@
         row.style.borderBottom = '1px solid var(--border-subtle)';
         row.style.cursor = 'pointer';
 
-        if (e.id === currentId) {
+        if (e.id === currentId && !selectionMode) {
           row.style.backgroundColor = 'var(--bg-surface)';
           row.style.borderLeft = '3px solid var(--accent-primary)';
+        }
+
+        // Selection Styles
+        if (selectionMode && selectedIds.has(e.id)) {
+          row.style.backgroundColor = 'rgba(218, 165, 32, 0.1)'; // Gold tint
+          row.style.borderColor = 'var(--accent-primary)';
         }
 
         const enabled = e.enabled !== false;
@@ -536,20 +651,30 @@
         row.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center;">
              <span style="font-weight:bold; font-size:12px; display:flex; align-items:center; ${!enabled ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">
+                ${selectionMode ?
+            `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(e.id) ? 'checked' : ''}>`
+            : ''}
                 ${hasLogic ? '<span style="color:var(--accent-primary); margin-right:4px;">⚡</span>' : ''}${e.title || 'Untitled'}
              </span>
              <span style="font-size:10px; padding:2px 4px; border-radius:4px; background:var(--bg-base); color:var(--text-muted);">${e.category || 'uncategorized'}</span>
           </div>
-          <div style="font-size:10px; color:var(--text-muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+          <div style="font-size:10px; color:var(--text-muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:${selectionMode ? '24px' : '0'};">
             ${(e.keywords || []).join(', ')}
           </div>
         `;
 
         row.onclick = () => {
-          currentId = e.id;
-          editingShiftIndex = null; // Reset sub-edit state on entry switch
-          renderList();
-          renderEditor();
+          if (selectionMode) {
+            if (selectedIds.has(e.id)) selectedIds.delete(e.id);
+            else selectedIds.add(e.id);
+            updateFooterState();
+            renderList(); // Re-render to update checks
+          } else {
+            currentId = e.id;
+            editingShiftIndex = null;
+            renderList();
+            renderEditor();
+          }
         };
         listBody.appendChild(row);
       });

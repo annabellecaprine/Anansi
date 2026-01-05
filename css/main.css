@@ -373,7 +373,7 @@ body {
     flex-direction: column;
     min-height: 0;
     /* Critical: Allow flex children to shrink below content size */
-    overflow: hidden;
+    overflow-y: auto;
     /* Let individual panel grids/cards handle scrolling */
     animation: panelFadeIn 0.2s ease-out;
 }

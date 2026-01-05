@@ -15,6 +15,10 @@
         selection: null
     };
 
+    // Multi-Select State
+    let selectionMode = false;
+    let selectedIds = new Set();
+
     function elNS(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
     function clientToSVGPoint(x, y) {
         if (!G.svg) return { x: 0, y: 0 };
@@ -151,18 +155,32 @@
 
         // --- Left: List & Editor ---
         const leftCol = document.createElement('div');
+        // Change from simple flex/scroll to structured container
         leftCol.style.display = 'flex';
         leftCol.style.flexDirection = 'column';
-        leftCol.style.gap = '12px';
-        leftCol.style.overflowY = 'auto'; // content scrolls
-        leftCol.style.height = '100%'; // explicit height for scrolling
+        leftCol.style.height = '100%';
+        leftCol.style.overflow = 'hidden'; // Inner containers handle scroll
 
         leftCol.innerHTML = `
-            <div class="card" style="padding:12px; display:flex; gap:8px; flex-shrink:0;">
-                <input class="input" id="new-loc-name" placeholder="New Location Name" style="flex:1;">
-                <button class="btn btn-primary btn-sm" id="btn-add-loc">+</button>
+            <div class="card" id="loc-header" style="padding:12px; display:flex; flex-direction:column; gap:8px; flex-shrink:0; border-bottom:1px solid var(--border-subtle); margin-bottom:0;">
+                <div id="header-std-act" style="display:flex; gap:8px;">
+                     <input class="input" id="new-loc-name" placeholder="New Location Name" style="flex:1;">
+                     <button class="btn btn-primary btn-sm" id="btn-add-loc">+</button>
+                </div>
+                <!-- Optional: Add handy filter or just space? -->
             </div>
-            <div id="loc-list" style="display:flex; flex-direction:column; gap:8px; flex-shrink:0;"></div>
+            
+            <div id="loc-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:12px;"></div>
+            
+            <div class="card" id="loc-footer" style="padding:8px; border-top:1px solid var(--border-subtle); flex-shrink:0; margin-top:0;">
+                 <div id="footer-std-act">
+                    <button class="btn btn-ghost btn-sm" id="btn-select-mode" style="width:100%;">Select...</button>
+                 </div>
+                 <div id="footer-sel-act" style="display:none; flex-direction:column; gap:8px;">
+                    <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
+                    <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+                 </div>
+            </div>
         `;
 
         container.appendChild(leftCol);
@@ -274,6 +292,72 @@
         };
         mapCard.querySelector('#chk-snap').onchange = (e) => { G.opts.snap = e.target.checked; };
 
+        // --- Multi-Select Handlers ---
+        const updateFooterState = () => {
+            const fStd = leftCol.querySelector('#footer-std-act');
+            const fSel = leftCol.querySelector('#footer-sel-act');
+
+            if (selectionMode) {
+                fStd.style.display = 'none';
+                fSel.style.display = 'flex';
+                fSel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
+                fSel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
+                fSel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+                // Disable Add Input?
+                leftCol.querySelector('#new-loc-name').disabled = true;
+                leftCol.querySelector('#btn-add-loc').disabled = true;
+            } else {
+                fStd.style.display = 'block';
+                fSel.style.display = 'none';
+                leftCol.querySelector('#new-loc-name').disabled = false;
+                leftCol.querySelector('#btn-add-loc').disabled = false;
+            }
+        };
+
+        leftCol.querySelector('#btn-select-mode').onclick = () => {
+            selectionMode = true;
+            selectedIds.clear();
+            updateFooterState();
+            renderList();
+        };
+        leftCol.querySelector('#btn-cancel-select').onclick = () => {
+            selectionMode = false;
+            selectedIds.clear();
+            updateFooterState();
+            renderList();
+        };
+        leftCol.querySelector('#btn-del-multi').onclick = () => {
+            if (selectedIds.size === 0) return;
+            if (confirm(`Delete ${selectedIds.size} locations?`)) {
+                let count = 0;
+                // Delete logic: need to remove from list AND clear exits pointing to them
+                state.weaves.locations = state.weaves.locations.filter(l => {
+                    if (selectedIds.has(l.id)) {
+                        count++;
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Cleanup Exits
+                state.weaves.locations.forEach(l => {
+                    if (l.exits) {
+                        l.exits = l.exits.filter(eid => !selectedIds.has(eid));
+                    }
+                });
+
+                selectionMode = false;
+                selectedIds.clear();
+                G.selection = null;
+
+                A.State.notify();
+                if (A.UI.Toast) A.UI.Toast.show(`Deleted ${count} locations.`, 'success');
+                updateFooterState();
+                renderList();
+                renderAll();
+            }
+        };
+
         // --- List Rendering ---
         const listEl = leftCol.querySelector('#loc-list');
         const renderList = () => {
@@ -283,16 +367,21 @@
                 const el = document.createElement('div');
                 el.className = 'card';
                 el.style.padding = '12px';
-                if (isSel) el.style.border = '1px solid var(--accent-primary)';
+                if (isSel && !selectionMode) el.style.border = '1px solid var(--accent-primary)';
+                if (selectionMode && selectedIds.has(loc.id)) {
+                    el.style.border = '1px solid var(--accent-primary)';
+                    el.style.backgroundColor = 'rgba(218, 165, 32, 0.1)';
+                }
 
                 el.style.flexShrink = '0'; // Prevent squashing
 
                 el.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <input class="input loc-name" value="${loc.name}" style="font-weight:bold; width:100%;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-left:8px; align-self:center; cursor:pointer; font-family:var(--font-mono); opacity:0.7;" title="Click to copy ID" onclick="navigator.clipboard.writeText('${loc.id}'); Anansi.UI.Toast.show('ID copied', 'info');">Ref: ${loc.id}</div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
+                        ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(loc.id) ? 'checked' : ''}>` : ''}
+                        <input class="input loc-name" value="${loc.name}" style="font-weight:bold; width:100%;" ${selectionMode ? 'disabled' : ''}>
+                        <div style="font-size:10px; color:var(--text-muted); margin-left:8px; align-self:center; cursor:pointer; font-family:var(--font-mono); opacity:0.7;" title="Click to copy ID" onclick="navigator.clipboard.writeText('${loc.id}'); Anansi.UI.Toast.show('ID copied', 'info');">Ref</div>
                     </div>
-                    <textarea class="input loc-desc" placeholder="Description..." rows="2" style="width:100%; font-size:11px; margin-bottom:8px;">${loc.description || ''}</textarea>
+                    <textarea class="input loc-desc" placeholder="Description..." rows="2" style="width:100%; font-size:11px; margin-bottom:8px;" ${selectionMode ? 'disabled' : ''}>${loc.description || ''}</textarea>
                     
                     <div style="margin-bottom:8px;">
                          <div style="font-size:10px; color:var(--text-muted);">EXITS</div>
@@ -350,6 +439,14 @@
 
                 // Bindings
                 el.onclick = (e) => {
+                    if (selectionMode) {
+                        e.preventDefault(); e.stopPropagation();
+                        if (selectedIds.has(loc.id)) selectedIds.delete(loc.id); else selectedIds.add(loc.id);
+                        updateFooterState();
+                        renderList();
+                        return;
+                    }
+
                     if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
                         G.selection = loc.id;
                         renderList(); // Highlight selection

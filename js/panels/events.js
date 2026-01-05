@@ -10,6 +10,9 @@
 
   let currentTab = 'logic'; // logic, probability
   let currentId = null;
+  // State for Multi-Select
+  let selectionMode = false;
+  let selectedIds = new Set();
 
   function render(container) {
     const state = A.State.get();
@@ -39,8 +42,17 @@
          <div class="tab-btn" id="tab-prob" style="flex:1; text-align:center; padding:10px; cursor:pointer; font-weight:bold; color:var(--text-muted);">Chaos</div>
       </div>
       <div class="card-body" id="event-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer">
-        <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ New</button>
+      <div class="card-footer" id="events-footer" style="display:flex; flex-direction:column; gap:8px; padding:8px; border-top:1px solid var(--border-subtle);">
+        <!-- Standard Actions -->
+        <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ New</button>
+            <button class="btn btn-ghost btn-sm" id="btn-select-mode">Select...</button>
+        </div>
+        <!-- Selection Actions -->
+        <div id="footer-selection" style="display:none; flex-direction:column; gap:8px;">
+            <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+        </div>
       </div>
     `;
 
@@ -65,6 +77,9 @@
     function switchTab(tab) {
       currentTab = tab;
       currentId = null; // reset selection
+      selectionMode = false; // reset selection mode on tab switch
+      selectedIds.clear();
+      updateFooterState();
 
       // Update Tab UI
       if (tab === 'logic') {
@@ -102,13 +117,28 @@
           row.style.borderBottom = '1px solid var(--border-subtle)';
           row.style.cursor = 'pointer';
           row.style.fontSize = '12px';
-          if (ev.id === currentId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
+          if (ev.id === currentId && !selectionMode) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
+
+          if (selectionMode && selectedIds.has(ev.id)) {
+            row.style.background = 'rgba(218, 165, 32, 0.1)';
+            row.style.borderColor = 'var(--accent-primary)';
+          }
 
           row.innerHTML = `
-             <div style="font-weight:bold; ${!ev.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${ev.label || 'Untitled'}</div>
-             <div style="font-size:10px; color:var(--text-muted);">Prob: ${ev.probability || 100}%</div>
+             <div style="font-weight:bold; display:flex; align-items:center; ${!ev.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
+                ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(ev.id) ? 'checked' : ''}>` : ''}
+                ${ev.label || 'Untitled'}
+             </div>
+             <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Prob: ${ev.probability || 100}%</div>
            `;
-          row.onclick = () => { currentId = ev.id; refreshList(); renderEditor(); };
+          row.onclick = () => {
+            if (selectionMode) {
+              if (selectedIds.has(ev.id)) selectedIds.delete(ev.id); else selectedIds.add(ev.id);
+              updateFooterState(); refreshList();
+            } else {
+              currentId = ev.id; refreshList(); renderEditor();
+            }
+          };
           listBody.appendChild(row);
         });
 
@@ -125,19 +155,102 @@
           row.style.fontSize = '12px';
           // Use index as ID for array items logic
           const thisId = 'g-' + idx;
-          if (thisId === currentId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
+          if (thisId === currentId && !selectionMode) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
+          if (selectionMode && selectedIds.has(thisId)) {
+            row.style.background = 'rgba(218, 165, 32, 0.1)';
+            row.style.borderColor = 'var(--accent-primary)';
+          }
 
           row.innerHTML = `
-             <div style="font-weight:bold; ${!g.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${g.name || 'Group'}</div>
-             <div style="font-size:10px; color:var(--text-muted);">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
-           `;
-          row.onclick = () => { currentId = thisId; refreshList(); renderEditor(); };
+              <div style="font-weight:bold; display:flex; align-items:center; ${!g.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
+                 ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(thisId) ? 'checked' : ''}>` : ''}
+                 ${g.name || 'Group'}
+              </div>
+              <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
+            `;
+          row.onclick = () => {
+            if (selectionMode) {
+              if (selectedIds.has(thisId)) selectedIds.delete(thisId); else selectedIds.add(thisId);
+              updateFooterState(); refreshList();
+            } else {
+              currentId = thisId; refreshList(); renderEditor();
+            }
+          };
           listBody.appendChild(row);
         });
       }
     }
 
+    // --- Multi-Select Handlers ---
+    const updateFooterState = () => {
+      const std = listCol.querySelector('#footer-standard');
+      const sel = listCol.querySelector('#footer-selection');
+      if (selectionMode) {
+        std.style.display = 'none';
+        sel.style.display = 'flex';
+        sel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
+        sel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
+        sel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+      } else {
+        std.style.display = 'flex';
+        sel.style.display = 'none';
+        // Update label based on tab
+        std.querySelector('#btn-add').textContent = currentTab === 'logic' ? '+ New Event' : '+ New Group';
+      }
+    };
+
+    listCol.querySelector('#btn-select-mode').onclick = () => {
+      selectionMode = true;
+      selectedIds.clear();
+      updateFooterState();
+      refreshList();
+    };
+
+    listCol.querySelector('#btn-cancel-select').onclick = () => {
+      selectionMode = false;
+      selectedIds.clear();
+      updateFooterState();
+      refreshList();
+    };
+
+    listCol.querySelector('#btn-del-multi').onclick = () => {
+      if (selectedIds.size === 0) return;
+      if (confirm(`Delete ${selectedIds.size} items?`)) {
+        let count = 0;
+        if (currentTab === 'logic') {
+          // Dictionary Delete
+          selectedIds.forEach(id => {
+            if (state.aura.events.items[id]) {
+              delete state.aura.events.items[id];
+              count++;
+            }
+          });
+        } else {
+          // Array Delete (Chaos/Probability)
+          // IDs are 'g-0', 'g-1'. Parse to integers.
+          const indicesToDelete = new Set();
+          selectedIds.forEach(id => {
+            const idx = parseInt(id.split('-')[1]);
+            if (!isNaN(idx)) indicesToDelete.add(idx);
+          });
+          // Filter out deleted
+          state.aura.probability.groups = state.aura.probability.groups.filter((_, idx) => !indicesToDelete.has(idx));
+          count = indicesToDelete.size;
+        }
+
+        selectionMode = false;
+        selectedIds.clear();
+        A.State.notify();
+        if (A.UI.Toast) A.UI.Toast.show(`Deleted ${count} items.`, 'success');
+
+        updateFooterState();
+        refreshList();
+        renderEditor();
+      }
+    };
+
     btnAdd.onclick = () => {
+      // (Keep existing logic, just refresh footer too)
       if (currentTab === 'logic') {
         const id = 'ev_' + Math.random().toString(36).substr(2, 9);
         state.aura.events.items[id] = { id: id, label: 'New Event', enabled: true, probability: 100, condition: 'true', effect: '// code' };

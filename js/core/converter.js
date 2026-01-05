@@ -37,18 +37,24 @@
                 console.log('[Converter] Detected Standard/ST Lorebook');
                 sourceEntries = data.entries;
             }
+            // --- Heuristic 2.5: Chub.ai / Dictionary JSON (root.entries is object) ---
+            else if (data.entries && typeof data.entries === 'object') {
+                console.log('[Converter] Detected Chub.ai Dictionary Lorebook');
+                sourceEntries = Object.values(data.entries);
+            }
             // --- Heuristic 3: Anansi Native Export (weaves.lorebook.entries object) ---
             else if (data.weaves && data.weaves.lorebook && data.weaves.lorebook.entries) {
                 console.log('[Converter] Detected Anansi Native Project');
                 return data.weaves.lorebook.entries; // Already valid
             }
-            // --- Heuristic 4: Direct Object Map (Anansi snippet) ---
+            // --- Heuristic 4: Dictionary / Object Map (Chub.ai or Anansi Native) ---
             else if (typeof data === 'object' && !Array.isArray(data)) {
-                // Check if it looks like a dictionary of entries
                 const values = Object.values(data);
-                if (values.length > 0 && values[0].content && values[0].keywords) {
-                    console.log('[Converter] Detected Anansi Entry Map');
-                    return data;
+                // Check if the first value looks like an entry (has content/key/keys/keywords)
+                if (values.length > 0 && (values[0].content || values[0].entry) &&
+                    (values[0].key || values[0].keys || values[0].keywords)) {
+                    console.log('[Converter] Detected Entry Map (Chub/Anansi)');
+                    sourceEntries = values;
                 }
             }
 

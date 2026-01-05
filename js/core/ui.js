@@ -73,6 +73,29 @@
                 };
             }
 
+
+            // About Modal (Clicking Logo)
+            const logo = document.querySelector('.app-logo');
+            if (logo) {
+                logo.style.cursor = 'pointer';
+                logo.title = 'About Anansi';
+                logo.onclick = () => {
+                    // Use iframe to support local file:// access where fetch() is blocked
+                    const cacheBust = '?v=' + Date.now();
+                    const frameHtml = `
+                        <iframe src="ABOUT.html${cacheBust}" 
+                                style="width:100%; height:400px; border:none; display:block;"
+                                title="About Anansi">
+                        </iframe>`;
+
+                    A.UI.Modal.show({
+                        title: 'About',
+                        content: frameHtml,
+                        width: 520
+                    });
+                };
+            }
+
             this.els.btnNew.onclick = () => {
                 if (confirm('Create new project? Unsaved changes will be lost.')) {
                     A.State.reset();
