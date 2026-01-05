@@ -475,6 +475,32 @@
                 state.sbx.lists.forEach(l => listOpts += `<option value="${l.id}" ${l.id === c.listId ? 'selected' : ''}>${l.name}</option>`);
                 html = `<select class="input btn-xs" id="c-lst">${listOpts}</select>`;
             }
+            else if (c.type === 'countInHistory') {
+                let listOpts = `<option value="">(Select List)</option>`;
+                state.sbx.lists.forEach(l => listOpts += `<option value="${l.id}" ${l.id === c.listId ? 'selected' : ''}>${l.name}</option>`);
+                html = `
+                    <select class="input btn-xs" id="c-lst">${listOpts}</select>
+                    <select class="input btn-xs" id="c-op" style="width:40px;">
+                      <option value=">=" ${c.op === '>=' ? 'selected' : ''}>≥</option>
+                      <option value="<=" ${c.op === '<=' ? 'selected' : ''}>≤</option>
+                      <option value="==" ${c.op === '==' ? 'selected' : ''}>=</option>
+                    </select>
+                    <input type="number" class="input btn-xs" id="c-val" value="${c.threshold || 1}" style="width:60px;">
+                  `;
+            }
+            else if (c.type === 'derivedNumberComparison') {
+                let derivedOpts = `<option value="">(Select Metric)</option>`;
+                state.sbx.derived.forEach(d => derivedOpts += `<option value="${d.id}" ${d.id === c.derivedId ? 'selected' : ''}>${d.name}</option>`);
+                html = `
+                    <select class="input btn-xs" id="c-derived">${derivedOpts}</select>
+                    <select class="input btn-xs" id="c-op" style="width:40px;">
+                      <option value=">=" ${c.op === '>=' ? 'selected' : ''}>≥</option>
+                      <option value="<=" ${c.op === '<=' ? 'selected' : ''}>≤</option>
+                      <option value="==" ${c.op === '==' ? 'selected' : ''}>=</option>
+                    </select>
+                    <input type="number" class="input btn-xs" id="c-val" value="${c.threshold || 1}" style="width:60px;">
+                  `;
+            }
             else if (c.type === 'messageCountComparison') {
                 html = `
             <select class="input btn-xs" id="c-op" style="width:40px;">
@@ -489,6 +515,7 @@
 
             // Wire
             if (el.querySelector('#c-lst')) el.querySelector('#c-lst').onchange = e => { c.listId = e.target.value; A.State.notify(); };
+            if (el.querySelector('#c-derived')) el.querySelector('#c-derived').onchange = e => { c.derivedId = e.target.value; A.State.notify(); };
             if (el.querySelector('#c-op')) el.querySelector('#c-op').onchange = e => { c.op = e.target.value; A.State.notify(); };
             if (el.querySelector('#c-val')) el.querySelector('#c-val').oninput = e => { c.threshold = parseInt(e.target.value); A.State.notify(); };
         }
