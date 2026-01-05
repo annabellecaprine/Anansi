@@ -1112,8 +1112,9 @@
         };
         form.appendChild(head);
 
-        // Fields
-        form.innerHTML += `
+        // Fields (create as DOM elements to avoid destroying event handlers)
+        const fieldsDiv = document.createElement('div');
+        fieldsDiv.innerHTML = `
            <div class="l-col">
               <label class="l-lab">Trigger Keys (comma)</label>
               <input class="input" id="inp-sh-keys" value="${(shift.keywords || []).join(', ')}">
@@ -1123,12 +1124,13 @@
               <textarea class="input" id="inp-sh-content" style="height:60px; font-family:var(--font-mono); resize:none;">${shift.content || ''}</textarea>
            </div>
         `;
+        form.appendChild(fieldsDiv);
 
-        form.querySelector('#inp-sh-keys').onchange = (e) => {
+        fieldsDiv.querySelector('#inp-sh-keys').onchange = (e) => {
           shift.keywords = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
           A.State.notify();
         };
-        form.querySelector('#inp-sh-content').onchange = (e) => {
+        fieldsDiv.querySelector('#inp-sh-content').onchange = (e) => {
           shift.content = e.target.value;
           A.State.notify();
         };
