@@ -216,7 +216,7 @@
 
 ## 📜 Change Log
 
-### v1.6.1 - January 5, 2026
+### v1.6.2 - January 5, 2026
 - **New Feature**: **Director's Console**. Collapsible toolbar in Live Chat with Guidance injection field for direct LLM prompt control.
 - **New Feature**: **Procedural Avatars**. Character portraits in chat animate based on emotional state (shake, glow, bounce effects).
 - **Fix**: JanitorAI lorebook import now correctly reads `key` field (was only checking `keys`/`keywords`).
