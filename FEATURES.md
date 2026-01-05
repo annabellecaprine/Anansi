@@ -222,6 +222,9 @@
 - **Fix**: JanitorAI lorebook import now correctly reads `key` field (was only checking `keys`/`keywords`).
 - **Fix**: Dropdown option visibility in dark mode improved.
 - **Fix**: Export generation now correctly handles `character.scenario` injection targets for Lorebook, Events, and Scoring.
+- **Fix**: Resolved silent failure during project import caused by masked IndexedDB errors.
+- **Fix**: Fixed UI crash (Modal error) occurring after successful project import.
+- **Improved**: Enhanced error reporting for import failures to show specific causes (e.g., storage quotas).
 
 ### v1.6.0 - January 4, 2026
 - **New Feature**: **Script Repository** added to Scripts panel. Includes checked-in presets:

@@ -31,8 +31,8 @@
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
                 request.onerror = (e) => {
-                    console.error('[ProjectDB] Failed to open database:', e);
-                    reject(e);
+                    console.error('[ProjectDB] Failed to open database:', e.target.error);
+                    reject(e.target.error || e);
                 };
 
                 request.onsuccess = (e) => {
@@ -94,7 +94,7 @@
                 const request = store.count();
 
                 request.onsuccess = () => resolve(request.result);
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => reject(e.target.error || e);
             });
         },
 
@@ -145,7 +145,7 @@
                     }
                 };
 
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => reject(e.target.error || e);
             });
         },
 
@@ -161,7 +161,7 @@
                 const request = store.get(id);
 
                 request.onsuccess = () => resolve(request.result || null);
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => reject(e.target.error || e);
             });
         },
 
@@ -200,7 +200,7 @@
                     resolve(project.id);
                 };
 
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => reject(e.target.error || e);
             });
         },
 
@@ -223,7 +223,7 @@
                     resolve();
                 };
 
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => reject(e.target.error || e);
             });
         },
 
