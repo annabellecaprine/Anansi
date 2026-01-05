@@ -883,6 +883,9 @@ const Inventory = {
                             Export SPIDER_AURA (.js)
                         </button>
                     </div>
+                    <div style="margin-top:16px; padding:10px; background:rgba(218,165,32,0.1); border:1px solid rgba(218,165,32,0.3); border-radius:6px; font-size:11px; color:var(--text-muted);">
+                        <strong style="color:var(--accent-primary);">Note:</strong> If Windows flags these files, right-click the ZIP → Properties → check "Unblock" before extracting.
+                    </div>
                     <div style="margin-top:16px;text-align:right;">
                         <button class="btn btn-ghost btn-sm" id="export-cancel">Cancel</button>
                     </div>
@@ -934,29 +937,9 @@ const Inventory = {
                     const zip = new JSZip();
                     const projectName = A.State.get().meta?.name || 'Anansi Project';
 
-                    // Generate Instructions (plain text, no markdown)
-                    let readme = `${projectName} - Script Bundle\n`;
-                    readme += `${'='.repeat(projectName.length + 16)}\n\n`;
-                    readme += `Exported: ${new Date().toISOString()}\n\n`;
-                    readme += `Script Order (Execution Sequence):\n\n`;
-
+                    // Add each script (no readme file to avoid security flags)
                     scripts.forEach((script, idx) => {
-                        const flags = [];
-                        if (script.system) flags.push('SYSTEM');
-                        if (script.managed) flags.push('GENERATED');
-                        const flagStr = flags.length ? ` [${flags.join(', ')}]` : '';
-                        readme += `  ${idx + 1}. ${script.name || 'Untitled'}${flagStr}\n`;
-                    });
 
-                    readme += `\nNotes:\n\n`;
-                    readme += `  * Scripts should be executed in the order listed above\n`;
-                    readme += `  * SYSTEM scripts are built-in engine components\n`;
-                    readme += `  * GENERATED scripts are auto-created from panel configurations\n`;
-
-                    zip.file('Loading Instructions.txt', readme);
-
-                    // Add each script
-                    scripts.forEach((script, idx) => {
                         const code = script.source && script.source.code ? script.source.code : '';
                         const safeName = (script.name || 'script_' + idx).replace(/[^a-zA-Z0-9_-]/g, '_');
                         const paddedIdx = String(idx + 1).padStart(2, '0');
