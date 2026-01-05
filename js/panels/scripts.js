@@ -49,14 +49,10 @@
       <div style="display:flex; justify-content:space-between; align-items:center;">
           <strong>Scripts</strong>
           <div style="display:flex; gap:4px;">
-            <button class="btn btn-ghost btn-sm" id="btn-preview-aura" title="Preview AURA Export" style="color:var(--accent-secondary);">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              AURA
-            </button>
             <button class="btn btn-ghost btn-sm" id="btn-repo-script" title="Script Repository (Presets)" style="color:var(--accent-primary);">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             </button>
-            <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Upload Script">
+            <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Import Script">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </button>
             <button class="btn btn-secondary btn-sm" id="btn-add-script">+ New</button>
@@ -96,7 +92,7 @@
         editorHeader.innerHTML = `
       <input type="text" id="script-name-input" class="input" style="width:200px; padding:2px 8px; height:24px;" placeholder="Script Name" disabled>
       <div style="flex:1;"></div>
-      <button class="btn btn-ghost btn-sm" id="btn-download-script" title="Download Script" disabled>
+      <button class="btn btn-ghost btn-sm" id="btn-download-script" title="Export Script" disabled>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
       <button class="btn btn-ghost btn-sm" id="btn-delete-script" title="Delete Script" disabled>
@@ -452,58 +448,6 @@
             selectScript(id);
         };
 
-        // Preview AURA Export - shows the merged AURA.js with all Anansi content
-        container.querySelector('#btn-preview-aura').onclick = () => {
-            if (!A.AuraBuilder) {
-                if (A.UI?.Toast) A.UI.Toast.show('AuraBuilder not loaded', 'error');
-                return;
-            }
-
-            const preview = A.AuraBuilder.preview(A.State.get());
-
-            // Create modal with preview
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;';
-            modal.innerHTML = `
-                <div style="background:var(--bg-elevated);border-radius:12px;overflow:hidden;max-width:900px;width:95%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid var(--border-subtle);">
-                    <div style="padding:16px 20px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <h3 style="margin:0;font-family:var(--font-serif);font-size:18px;">AURA Export Preview</h3>
-                            <span style="font-size:11px;color:var(--text-muted);">This is the merged AURA.js that will be exported</span>
-                        </div>
-                        <div style="display:flex;gap:8px;">
-                            <button class="btn btn-primary btn-sm" id="preview-download">Download</button>
-                            <button class="btn btn-ghost btn-sm" id="preview-close">Close</button>
-                        </div>
-                    </div>
-                    <div style="flex:1;overflow:auto;padding:0;">
-                        <pre style="margin:0;padding:16px;font-family:var(--font-mono);font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;background:var(--bg-base);color:var(--text-secondary);min-height:300px;"><code id="preview-code"></code></pre>
-                    </div>
-                    <div style="padding:12px 20px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);">
-                        <span>Lines: <strong id="preview-lines">0</strong> | Characters: <strong id="preview-chars">0</strong></span>
-                        <span style="color:var(--accent-secondary);">✓ Content merged from Actors, Pairs, Lorebook, Events</span>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Set preview content
-            const codeEl = modal.querySelector('#preview-code');
-            codeEl.textContent = preview;
-            modal.querySelector('#preview-lines').textContent = preview.split('\n').length;
-            modal.querySelector('#preview-chars').textContent = preview.length.toLocaleString();
-
-            // Close handlers
-            modal.querySelector('#preview-close').onclick = () => modal.remove();
-            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-            // Download handler
-            modal.querySelector('#preview-download').onclick = () => {
-                A.AuraBuilder.download(A.State.get());
-                modal.remove();
-            };
-        };
-
         container.querySelector('#btn-repo-script').onclick = () => {
             const repoPoints = [
                 {
@@ -818,10 +762,13 @@ const Inventory = {
                     <h3 style="margin:0 0 16px 0;font-family:var(--font-serif);font-size:18px;">Export Scripts</h3>
                     <div style="display:flex;flex-direction:column;gap:12px;">
                         <button class="btn btn-primary" id="export-selected" ${!currentScriptId ? 'disabled' : ''}>
-                            Download Selected Script (.txt)
+                            Export Selected Script (.txt)
                         </button>
                         <button class="btn btn-ghost" id="export-all">
-                            Download All Scripts (ZIP)
+                            Export All Scripts (.zip)
+                        </button>
+                        <button class="btn btn-ghost" id="export-aura" style="color:var(--accent-secondary);">
+                            Export AURA Bundle (.js)
                         </button>
                     </div>
                     <div style="margin-top:16px;text-align:right;">
@@ -917,6 +864,16 @@ const Inventory = {
                 } catch (err) {
                     console.error('ZIP export error:', err);
                     if (A.UI.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
+                }
+                modal.remove();
+            };
+
+            // Export AURA Bundle
+            modal.querySelector('#export-aura').onclick = () => {
+                if (A.AuraBuilder && A.AuraBuilder.download) {
+                    A.AuraBuilder.download(A.State.get());
+                } else {
+                    if (A.UI.Toast) A.UI.Toast.show('AURA Builder not available', 'error');
                 }
                 modal.remove();
             };
