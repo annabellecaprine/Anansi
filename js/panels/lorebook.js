@@ -1359,6 +1359,7 @@
       };
       currentId = id;
       A.State.notify();
+      if (A.UI.Toast) A.UI.Toast.show('New lorebook entry created', 'success');
       renderList();
       renderEditor();
     };

@@ -148,6 +148,7 @@
             }
             currentId = id;
             A.State.notify();
+            if (A.UI.Toast) A.UI.Toast.show(currentTab === 'basic' ? 'New scoring topic created' : 'New advanced rule created', 'success');
             refreshList();
             renderEditor();
         };

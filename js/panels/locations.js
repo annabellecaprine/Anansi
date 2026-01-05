@@ -593,6 +593,7 @@
             state.weaves.locations.push(newLoc);
             inp.value = '';
             G.selection = newLoc.id;
+            if (A.UI.Toast) A.UI.Toast.show(`Location "${name}" created`, 'success');
             renderList(); // Fix: Actually update the list UI!
             renderAll();
             updateLens();

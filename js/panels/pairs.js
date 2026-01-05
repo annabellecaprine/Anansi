@@ -310,6 +310,7 @@
             };
             currentId = id;
             A.State.notify();
+            if (A.UI.Toast) A.UI.Toast.show('New relationship pair created', 'success');
             renderList();
             renderEditor();
         };
