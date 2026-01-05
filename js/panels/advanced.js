@@ -131,6 +131,12 @@
         }
 
         sideCol.querySelector('#btn-add-side').onclick = () => {
+            // Ensure structure
+            if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
+            if (!state.sbx.lists) state.sbx.lists = [];
+            if (!state.sbx.derived) state.sbx.derived = [];
+            if (!state.sbx.rules) state.sbx.rules = [];
+
             if (activeTab === 'lists') {
                 const id = uid('lst');
                 state.sbx.lists.push({ id: id, name: 'New List', itemsText: '' });
