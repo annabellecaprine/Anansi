@@ -739,7 +739,7 @@
           <input class="input" id="inp-title" value="${entry.title || ''}" placeholder="e.g., The Crimson Order, Magic System" style="font-weight:bold; font-size:14px;">
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-ghost btn-sm" id="btn-logic" style="color:var(--accent-primary); font-weight:bold; ${logicCount > 0 ? 'background:var(--accent-soft);' : ''}">⚡ Logic ${logicCount > 0 ? '(' + logicCount + ')' : ''}</button>
+          <button class="btn btn-ghost btn-sm" id="btn-logic" style="display:none; color:var(--accent-primary); font-weight:bold; ${logicCount > 0 ? 'background:var(--accent-soft);' : ''}">⚡ Logic ${logicCount > 0 ? '(' + logicCount + ')' : ''}</button>
           <label style="display:flex; align-items:center; gap:4px; font-size:12px;"><input type="checkbox" id="chk-en" ${entry.enabled !== false ? 'checked' : ''}> Enabled</label>
           <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
         </div>
