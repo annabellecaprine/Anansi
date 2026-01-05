@@ -142,13 +142,25 @@ ${entriesCode}
 
   // --- EXECUTION LOOP ---
   var msg = (context.chat && context.chat.length) ? context.chat[context.chat.length-1].mes : '';
-  // Normalize once for perf
-  // Note: AURA.gates expects raw strings usually and handles normalization, 
-  // but if we want to optimize we could pass normalized text.
-  // For now, standard pass.
+  
+  // 1. Build comprehensive tag map from all AURA sources
+  var tags = {};
+  if (context.pulse && context.pulse.activeTags) context.pulse.activeTags.forEach(function(t){ tags[t.toUpperCase()] = true; });
+  if (context.intent && context.intent.activeTags) context.intent.activeTags.forEach(function(t){ tags[t.toUpperCase()] = true; });
+  if (context.eros && context.eros.activeTags) context.eros.activeTags.forEach(function(t){ tags[t.toUpperCase()] = true; });
+  if (context.emotions && context.emotions.current) tags[context.emotions.current.toUpperCase()] = true;
 
   LORE_ENTRIES.forEach(function(entry){
-      if (AURA.gates.checkWords(entry, msg) && AURA.gates.checkTags(entry, {}, 'Tags')) {
+      // Check word gates
+      var pass = AURA.gates.checkWords(entry, msg);
+      
+      // Check tag-based gates across all possible categories
+      if (pass) pass = AURA.gates.checkTags(entry, tags, 'Tags');
+      if (pass) pass = AURA.gates.checkTags(entry, tags, 'Emotion');
+      if (pass) pass = AURA.gates.checkTags(entry, tags, 'Intent');
+      if (pass) pass = AURA.gates.checkTags(entry, tags, 'Eros');
+
+      if (pass) {
           // Injection Logic
           var content = entry.content || entry.personality || "";
           var target = entry.target || "personality";

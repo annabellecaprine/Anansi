@@ -52,6 +52,9 @@
 
                 if (!cleanTerm) return false;
 
+                // Normalize haystack to ensure punctuation doesn't block matches
+                const cleanHaystack = AURA.utils.normalize(haystack);
+
                 const patternKey = isWildcard ? `w:${cleanTerm}` : `s:${cleanTerm}`;
 
                 let re = _regexCache.get(patternKey);
@@ -67,7 +70,7 @@
                     _regexCache.set(patternKey, re);
                 }
 
-                return re.test(haystack);
+                return re.test(cleanHaystack);
             }
         },
 
@@ -108,7 +111,7 @@
 
                     const p = prefix || "";
                     return {
-                        any: getList([`${p}requireAny`, `${p}andAny`, 'any']),
+                        any: getList([`${p}requireAny`, `${p}andAny`, 'any', 'keywords']),
                         all: getList([`${p}requireAll`, `${p}andAll`, 'all']),
                         none: getList([`${p}requireNone`, `${p}notAny`, 'none', `${p}block`, 'block']),
                         nall: getList([`${p}notAll`])
