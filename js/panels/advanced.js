@@ -60,12 +60,17 @@
         <div id="side-list" style="flex:1; overflow-y:auto; padding:0;"></div>
         <div class="card-footer" id="side-footer">
           <button class="btn btn-primary btn-sm" id="btn-add-side" style="width:100%;">+ Add Logic Chain</button>
+          <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:4px;">📥 Import Chain</button>
         </div>
        `;
             sideCol.querySelector('#btn-back-adv').onclick = () => {
                 // Clear binding
                 render(container, null);
             };
+            // Side Import (Bound) - logic reused below?
+            // Actually we need to bind it.
+            const btnImp = sideCol.querySelector('#btn-vault-import');
+            if (btnImp) btnImp.onclick = () => importHandler('rule');
         } else {
             sideCol.innerHTML = `
         <div style="display:flex; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
@@ -76,6 +81,7 @@
         <div id="side-list" style="flex:1; overflow-y:auto; padding:0;"></div>
         <div class="card-footer" id="side-footer">
           <button class="btn btn-primary btn-sm" id="btn-add-side" style="width:100%;">+ Add Item</button>
+          <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:4px;">📥 Import</button>
         </div>
       `;
         }
@@ -164,6 +170,51 @@
             renderMain();
         };
 
+        // Import Handler
+        function importHandler(defaultType) {
+            if (!A.VaultUI) return;
+            // Map activeTab to vault types?
+            // user requested "Custom Rules", likely just Chains.
+            // But we have Lists and Derived too.
+            // Let's support Chains primarily (rule-block subtype custom-chain).
+            // Lists as 'rule-block' subtype 'list'?
+            // For now, let's assume 'rule-block' subtype 'custom-chain' for Rules tab.
+
+            let type = 'rule-block';
+            let subtype = 'custom-chain';
+            let title = '📥 Import Logic Chain';
+
+            if (activeTab === 'lists') { subtype = 'custom-list'; title = '📥 Import List'; }
+            else if (activeTab === 'derived') { subtype = 'custom-derived'; title = '📥 Import Metric'; }
+
+            A.VaultUI.showBlockPickerDialog({
+                type: type,
+                title: title,
+                onSelect: (item) => {
+                    const payload = item.payload || item;
+                    // Filter by subtype? VaultUI doesn't support subtype filter yet in List, but we can browse.
+
+                    const newItem = JSON.parse(JSON.stringify(payload));
+                    newItem.id = uid('imp');
+                    newItem.vaultLink = { vaultId: item.id, version: item.version, lastSync: Date.now() };
+
+                    if (activeTab === 'lists') state.sbx.lists.push(newItem);
+                    else if (activeTab === 'derived') state.sbx.derived.push(newItem);
+                    else {
+                        if (isBound) newItem.boundTo = context.boundTo;
+                        else newItem.boundTo = null;
+                        state.sbx.rules.push(newItem);
+                    }
+
+                    if (A.UI.Toast) A.UI.Toast.show('Imported from Vault', 'success');
+                    refreshSidebar();
+                }
+            });
+        }
+
+        const btnImp = sideCol.querySelector('#btn-vault-import');
+        if (btnImp) btnImp.onclick = () => importHandler();
+
         function refreshSidebar() {
             const listEl = sideCol.querySelector('#side-list');
             listEl.innerHTML = '';
@@ -190,7 +241,13 @@
                 row.style.cursor = 'pointer';
                 if (item.id === activeId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
 
-                row.innerHTML = `<div style="font-weight:bold; font-size:13px;">${item.name || item.key || 'Unnamed'}</div>`;
+                let syncBadge = '';
+                if (item.vaultLink && item.vaultLink.vaultId) {
+                    syncBadge = item.vaultLink.locallyModified
+                        ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
+                        : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
+                }
+                row.innerHTML = `<div style="font-weight:bold; font-size:13px;">${item.name || item.key || 'Unnamed'}${syncBadge}</div>`;
                 row.onclick = () => { activeId = item.id; refreshSidebar(); renderMain(); };
                 listEl.appendChild(row);
             });
@@ -223,6 +280,7 @@
             header.className = 'card-header';
             header.innerHTML = `
           <input class="input" id="main-name" value="${item.name || ''}" placeholder="Name/Label" style="font-weight:bold; font-size:14px; flex:1;">
+          <button class="btn btn-ghost btn-sm" id="btn-vault-pub" title="Publish to Vault">📤</button>
           <button class="btn btn-ghost btn-sm" id="main-del" style="color:var(--status-error); margin-left:8px;">Delete</button>
        `;
 
@@ -236,7 +294,30 @@
                     A.State.notify(); refreshSidebar(); renderMain();
                 }
             };
-            header.querySelector('#main-name').oninput = (e) => { item.name = e.target.value; A.State.notify(); refreshSidebar(); }; // Sync sidebar name
+
+            // Mark Mod
+            const markMod = () => { if (item.vaultLink && item.vaultLink.vaultId) item.vaultLink.locallyModified = true; };
+
+            header.querySelector('#main-name').oninput = (e) => { item.name = e.target.value; markMod(); A.State.notify(); refreshSidebar(); }; // Sync sidebar name
+
+            // Publish
+            header.querySelector('#btn-vault-pub').onclick = () => {
+                if (A.VaultUI) {
+                    let subtype = 'custom-chain';
+                    if (activeTab === 'lists') subtype = 'custom-list';
+                    else if (activeTab === 'derived') subtype = 'custom-derived';
+
+                    A.VaultUI.showPublishDialog({
+                        type: 'rule-block',
+                        subtype: subtype,
+                        title: `📤 Publish ${activeTab === 'derived' ? 'Metric' : (activeTab === 'lists' ? 'List' : 'Chain')}`,
+                        payload: item,
+                        defaultName: item.name || 'Untitled',
+                        contentPreview: activeTab === 'lists' ? `${(item.itemsText || '').split('\n').length} items` : (activeTab === 'rules' ? `Blocks: ${item.chain.length}` : ''),
+                        onSuccess: () => refreshSidebar()
+                    });
+                }
+            };
 
             container.appendChild(header);
 
@@ -247,10 +328,10 @@
             body.style.overflowY = 'auto';
             body.style.paddingBottom = '60px';
 
-            if (activeTab === 'lists') renderListEditor(body, item);
-            else if (activeTab === 'derived') renderDerivedEditor(body, item, state);
+            if (activeTab === 'lists') renderListEditor(body, item, markMod);
+            else if (activeTab === 'derived') renderDerivedEditor(body, item, state, markMod);
             else {
-                renderRuleChainEditor(body, item, state);
+                renderRuleChainEditor(body, item, state, markMod);
 
                 // Actor Association (Flow Explorer) for Rules
                 const actorSec = document.createElement('div');
@@ -293,16 +374,16 @@
 
         // --- Sub-Editors ---
 
-        function renderListEditor(container, item) {
+        function renderListEditor(container, item, markMod) {
             container.innerHTML = `
          <div style="font-size:12px; font-weight:bold; margin-bottom:6px; color:var(--text-muted);">List Items (One per line)</div>
          <textarea class="input" id="inp-items" style="width:100%; height:300px; resize:vertical; font-family:monospace;">${item.itemsText || ''}</textarea>
          <div class="muted" style="margin-top:8px; font-size:11px;">These normalized keywords can be referenced by 'Any In List' conditions.</div>
        `;
-            container.querySelector('#inp-items').oninput = e => { item.itemsText = e.target.value; A.State.notify(); };
+            container.querySelector('#inp-items').oninput = e => { item.itemsText = e.target.value; markMod(); A.State.notify(); };
         }
 
-        function renderDerivedEditor(container, item, state) {
+        function renderDerivedEditor(container, item, state, markMod) {
             // List Options
             let listOpts = '<option value="">(Select List)</option>';
             state.sbx.lists.forEach(l => {
@@ -327,8 +408,8 @@
          <div class="muted" style="font-size:11px;">Calculates the frequency of keywords from the selected list in the text history.</div>
        `;
 
-            container.querySelector('#sel-list').onchange = e => { item.listId = e.target.value; A.State.notify(); };
-            container.querySelector('#inp-win').oninput = e => { item.window = parseInt(e.target.value); A.State.notify(); };
+            container.querySelector('#sel-list').onchange = e => { item.listId = e.target.value; markMod(); A.State.notify(); };
+            container.querySelector('#inp-win').oninput = e => { item.window = parseInt(e.target.value); markMod(); A.State.notify(); };
         }
 
         // --- Rule Chain Logic ---
@@ -343,7 +424,7 @@
             };
         }
 
-        function renderRuleChainEditor(container, item, state) {
+        function renderRuleChainEditor(container, item, state, markMod) {
             // Chain visualization
             container.innerHTML = `<div id="chain-root" style="display:flex; flex-direction:column; gap:16px;"></div>
                               <div style="margin-top:20px; border-top:1px dashed var(--border-subtle); padding-top:10px;">
@@ -416,8 +497,8 @@
                             renderConditionDetail(detail, c, state); // Helper
 
                             // Bindings
-                            cRow.querySelector('.c-type').onchange = e => { c.type = e.target.value; renderChain(); A.State.notify(); };
-                            cRow.querySelector('.c-del').onclick = () => { block.conditions.splice(cIdx, 1); renderChain(); A.State.notify(); };
+                            cRow.querySelector('.c-type').onchange = e => { c.type = e.target.value; markMod(); renderChain(); A.State.notify(); };
+                            cRow.querySelector('.c-del').onclick = () => { block.conditions.splice(cIdx, 1); markMod(); renderChain(); A.State.notify(); };
 
                             condRoot.appendChild(cRow);
                         });
@@ -436,8 +517,8 @@
                     </select>
                   </div>
                 `;
-                        aRow.querySelector('textarea').oninput = e => { a.text = e.target.value; A.State.notify(); };
-                        aRow.querySelector('select').onchange = e => { a.target = e.target.value; A.State.notify(); };
+                        aRow.querySelector('textarea').oninput = e => { a.text = e.target.value; markMod(); A.State.notify(); };
+                        aRow.querySelector('select').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
                         actRoot.appendChild(aRow);
                     });
 
@@ -527,10 +608,10 @@
             el.innerHTML = `<div style="display:flex; gap:4px;">${html}</div>`;
 
             // Wire
-            if (el.querySelector('#c-lst')) el.querySelector('#c-lst').onchange = e => { c.listId = e.target.value; A.State.notify(); };
-            if (el.querySelector('#c-derived')) el.querySelector('#c-derived').onchange = e => { c.derivedId = e.target.value; A.State.notify(); };
-            if (el.querySelector('#c-op')) el.querySelector('#c-op').onchange = e => { c.op = e.target.value; A.State.notify(); };
-            if (el.querySelector('#c-val')) el.querySelector('#c-val').oninput = e => { c.threshold = parseInt(e.target.value); A.State.notify(); };
+            if (el.querySelector('#c-lst')) el.querySelector('#c-lst').onchange = e => { c.listId = e.target.value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-derived')) el.querySelector('#c-derived').onchange = e => { c.derivedId = e.target.value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-op')) el.querySelector('#c-op').onchange = e => { c.op = e.target.value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-val')) el.querySelector('#c-val').oninput = e => { c.threshold = parseInt(e.target.value); markMod(); A.State.notify(); };
         }
 
 

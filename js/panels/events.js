@@ -46,6 +46,7 @@
         <!-- Standard Actions -->
         <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
             <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ New</button>
+            <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%;">📥 Import from Vault</button>
             <button class="btn btn-ghost btn-sm" id="btn-select-mode">Select...</button>
         </div>
         <!-- Selection Actions -->
@@ -73,6 +74,56 @@
     const tabProb = listCol.querySelector('#tab-prob');
     const listBody = listCol.querySelector('#event-list');
     const btnAdd = listCol.querySelector('#btn-add');
+    const btnImport = listCol.querySelector('#btn-vault-import');
+
+    btnImport.onclick = () => {
+      if (!A.VaultUI) return;
+      const isLogic = currentTab === 'logic';
+      A.VaultUI.showBlockPickerDialog({
+        type: 'rule-block',
+        title: isLogic ? '📥 Import Event Logic' : '📥 Import Probability Group',
+        onSelect: (data) => {
+          // Data is the published object
+          // For events: data = { label, condition, ... }
+          // For groups: data = { name, items, ... }
+          const payload = data.payload || data; // Handle wrapper if present
+
+          // Filter by subtype check? 
+          const subtype = data.subtype || (isLogic ? 'event' : 'chaos');
+          if (isLogic && subtype !== 'event') {
+            if (!confirm('This item is marked as "' + subtype + '". Import anyway?')) return;
+          }
+
+          if (isLogic) {
+            const id = A.Util.generateId();
+            // Ensure it has required fields
+            const newEv = {
+              id: id,
+              label: payload.label || payload.name || 'Imported Event',
+              condition: payload.condition || 'true',
+              effect: payload.effect || '',
+              enabled: payload.enabled !== false,
+              probability: payload.probability || 100,
+              _ui: payload._ui || { condType: 'raw', effType: 'raw' }
+            };
+            state.aura.events.items[id] = newEv;
+          } else {
+            // Chaos Group
+            const newGrp = {
+              id: A.Util.generateId(),
+              name: payload.name || 'Imported Group',
+              enabled: payload.enabled !== false,
+              triggerChancePct: payload.triggerChancePct || 10,
+              target: payload.target || 'character.personality',
+              items: payload.items || []
+            };
+            state.aura.probability.groups.push(newGrp);
+          }
+          refreshList();
+          if (A.UI.Toast) A.UI.Toast.show('Imported from Vault', 'success');
+        }
+      });
+    };
 
     function switchTab(tab) {
       currentTab = tab;
@@ -124,10 +175,17 @@
             row.style.borderColor = 'var(--accent-primary)';
           }
 
+          let syncBadge = '';
+          if (ev.vaultLink && ev.vaultLink.vaultId) {
+            syncBadge = ev.vaultLink.locallyModified
+              ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
+              : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
+          }
+
           row.innerHTML = `
              <div style="font-weight:bold; display:flex; align-items:center; ${!ev.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
                 ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(ev.id) ? 'checked' : ''}>` : ''}
-                ${ev.label || 'Untitled'}
+                ${ev.label || 'Untitled'}${syncBadge}
              </div>
              <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Prob: ${ev.probability || 100}%</div>
            `;
@@ -161,10 +219,17 @@
             row.style.borderColor = 'var(--accent-primary)';
           }
 
+          let syncBadge = '';
+          if (g.vaultLink && g.vaultLink.vaultId) {
+            syncBadge = g.vaultLink.locallyModified
+              ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
+              : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
+          }
+
           row.innerHTML = `
               <div style="font-weight:bold; display:flex; align-items:center; ${!g.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
                  ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(thisId) ? 'checked' : ''}>` : ''}
-                 ${g.name || 'Group'}
+                 ${g.name || 'Group'}${syncBadge}
               </div>
               <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
             `;
@@ -335,6 +400,7 @@
                <input class="input" id="inp-lbl" value="${ev.label || ''}" style="font-weight:bold;" placeholder="Event Label">
             </div>
             <label style="display:flex; align-items:center; gap:4px; font-size:12px; margin-left:12px;"><input type="checkbox" id="chk-en" ${ev.enabled ? 'checked' : ''}> Enabled</label>
+            <button class="btn btn-ghost btn-sm" id="btn-vault-pub" style="margin-left:8px;" title="Publish to Vault">📤</button>
             <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error); margin-left:8px;">Delete</button>
           `;
 
@@ -550,7 +616,7 @@
         inpEff.oninput = e => { if (ev._ui.effType === 'raw') { ev.effect = e.target.value; A.State.notify(); } };
 
         // Common Bindings
-        const upd = () => { A.State.notify(); refreshList(); };
+        const upd = () => { markMod(ev); A.State.notify(); refreshList(); };
         header.querySelector('#inp-lbl').oninput = e => { ev.label = e.target.value; upd(); };
         header.querySelector('#inp-lbl').onchange = e => { if (A.UI.Toast) A.UI.Toast.show('Label saved', 'info'); };
 
@@ -568,8 +634,31 @@
             if (A.UI.Toast) A.UI.Toast.show('Event deleted', 'info');
           }
         };
+        header.querySelector('#btn-vault-pub').onclick = () => {
+          if (A.VaultUI) {
+            A.VaultUI.showPublishDialog({
+              type: 'rule-block',
+              subtype: 'event',
+              title: '📤 Publish Event Logic',
+              payload: ev, // Publish whole event object
+              defaultName: ev.label || 'Untitled Event',
+              contentPreview: `Condition: ${ev.condition}\nEffect: ${ev.effect}`
+            });
+          }
+        };
 
-        body.querySelector('#inp-prob').oninput = e => { ev.probability = parseInt(e.target.value); A.State.notify(); };
+        // Logic Specific Bindings (Probability, etc)
+
+        body.querySelector('#inp-prob').oninput = e => { ev.probability = parseInt(e.target.value); markMod(ev); A.State.notify(); };
+
+        // For dynamic content (conditions/effects) we need to assume modification if editor is open? 
+        // Or update bindings inside the dynamic renderers?
+        // Since condition/effect inputs are rendered dynamically in updateUI(), we need to hook there.
+        // But updateUI is complex. For now, let's rely on Main Inputs. 
+        // Actually, we can hook into updateUI inputs if we can find them.
+
+        // Let's hook into the global change for this item if possible.
+
 
       } else {
         // Probability Group
@@ -580,6 +669,7 @@
         header.innerHTML = `
             <input class="input" id="inp-name" value="${grp.name || ''}" style="font-weight:bold;">
             <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="chk-en" ${grp.enabled ? 'checked' : ''}> Enabled</label>
+            <button class="btn btn-ghost btn-sm" id="btn-vault-pub" style="margin-left:8px;" title="Publish to Vault">📤</button>
             <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
           `;
 
@@ -604,13 +694,25 @@
           `;
 
         // Bindings
-        const upd = () => { A.State.notify(); refreshList(); };
+        const upd = () => { markMod(grp); A.State.notify(); refreshList(); };
         header.querySelector('#inp-name').oninput = e => { grp.name = e.target.value; upd(); };
         header.querySelector('#chk-en').onchange = e => { grp.enabled = e.target.checked; upd(); };
         header.querySelector('#btn-del').onclick = () => { if (confirm('Delete group?')) { state.aura.probability.groups.splice(idx, 1); currentId = null; upd(); renderEditor(); } };
+        header.querySelector('#btn-vault-pub').onclick = () => {
+          if (A.VaultUI) {
+            A.VaultUI.showPublishDialog({
+              type: 'rule-block',
+              subtype: 'chaos',
+              title: '📤 Publish Chaos Group',
+              payload: grp,
+              defaultName: grp.name || 'Untitled Group',
+              contentPreview: `Target: ${grp.target}\nItems: ${grp.items ? grp.items.length : 0}`
+            });
+          }
+        };
 
-        body.querySelector('#inp-ch').oninput = e => { grp.triggerChancePct = parseInt(e.target.value); A.State.notify(); };
-        body.querySelector('#sel-tgt').onchange = e => { grp.target = e.target.value; A.State.notify(); };
+        body.querySelector('#inp-ch').oninput = e => { grp.triggerChancePct = parseInt(e.target.value); markMod(grp); A.State.notify(); };
+        body.querySelector('#sel-tgt').onchange = e => { grp.target = e.target.value; markMod(grp); A.State.notify(); };
 
         // Render Items
         const itemsContainer = body.querySelector('#prob-items');
@@ -630,8 +732,8 @@
                   <textarea class="input" rows="2" placeholder="Text content..." oninput="this.getRootNode().host_edit(${iIdx}, 'text', this.value)">${it.text || ''}</textarea>
                 `;
 
-            div.host_edit = (i, k, val) => { grp.items[i][k] = (k === 'weight' ? parseInt(val) : val); A.State.notify(); };
-            div.host_del = (i) => { grp.items.splice(i, 1); renderItems(); A.State.notify(); };
+            div.host_edit = (i, k, val) => { grp.items[i][k] = (k === 'weight' ? parseInt(val) : val); markMod(grp); A.State.notify(); };
+            div.host_del = (i) => { grp.items.splice(i, 1); renderItems(); markMod(grp); A.State.notify(); };
             itemsContainer.appendChild(div);
           });
         }

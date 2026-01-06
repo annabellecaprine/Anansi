@@ -16,8 +16,10 @@
          */
         init: async function () {
             try {
-                // Initialize ProjectDB first
+                // Initialize databases
                 await A.ProjectDB.init();
+                await A.VaultDB.init();
+                console.log('[IO] Databases initialized');
 
                 // Check for legacy localStorage data to migrate
                 const legacyData = localStorage.getItem(LEGACY_STORAGE_KEY);

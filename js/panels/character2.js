@@ -8,6 +8,10 @@
 (function (A) {
   'use strict';
 
+
+
+
+
   // --- State Schema Extension ---
   // Ensures state.character exists with proper structure
   function ensureCharacterState(state) {
@@ -1156,6 +1160,8 @@ ${firstMsg || '(empty)'}
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Personality</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm btn-vault-publish" data-field="personality" title="Save to Vault" style="margin-right:4px;">📤</button>
+                <button class="btn btn-ghost btn-sm btn-vault-import" data-field="personality" title="Import from Vault" style="margin-right:4px;">📥</button>
                 <button class="btn btn-ghost btn-sm" id="reset-personality" title="Reset from Actors">↺ Reset</button>
                 <span class="status-badge ${ensemble.overrides.personality.dirty ? 'edited' : 'synced'}" 
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${ensemble.overrides.personality.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -1175,6 +1181,8 @@ ${firstMsg || '(empty)'}
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Scenario</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm btn-vault-publish" data-field="scenario" title="Save to Vault" style="margin-right:4px;">📤</button>
+                <button class="btn btn-ghost btn-sm btn-vault-import" data-field="scenario" title="Import from Vault" style="margin-right:4px;">📥</button>
                 <button class="btn btn-ghost btn-sm" id="reset-scenario" title="Reset from Actors">↺ Reset</button>
                 <span class="status-badge ${ensemble.overrides.scenario.dirty ? 'edited' : 'synced'}"
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${ensemble.overrides.scenario.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -1194,6 +1202,8 @@ ${firstMsg || '(empty)'}
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Example Dialogue</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm btn-vault-publish" data-field="exampleDialogue" title="Save to Vault" style="margin-right:4px;">📤</button>
+                <button class="btn btn-ghost btn-sm btn-vault-import" data-field="exampleDialogue" title="Import from Vault" style="margin-right:4px;">📥</button>
                 <button class="btn btn-ghost btn-sm" id="reset-exampleDialogue" title="Reset from Actors">↺ Reset</button>
                 <span class="status-badge ${ensemble.overrides.exampleDialogue.dirty ? 'edited' : 'synced'}"
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${ensemble.overrides.exampleDialogue.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -1605,6 +1615,48 @@ ${firstMsg || '(empty)'}
           exportCardAsPng(state, 'ensemble', personality, scenario, examples, firstMsg, portraitData);
         });
       }
+    });
+
+    // Vault Publish/Import Handlers
+    container.querySelectorAll('.btn-vault-publish').forEach(btn => {
+      btn.onclick = () => {
+        const field = btn.dataset.field;
+        const textarea = container.querySelector('#field-' + field);
+        if (textarea && A.VaultUI) {
+          A.VaultUI.showPublishDialog({
+            type: 'scenario-block',
+            title: '📤 Publish to Vault',
+            payload: { content: textarea.value, category: field },
+            defaultName: textarea.value.slice(0, 30).split('\\n')[0],
+            contentPreview: textarea.value.slice(0, 300)
+          });
+        }
+      };
+    });
+
+    container.querySelectorAll('.btn-vault-import').forEach(btn => {
+      btn.onclick = () => {
+        const field = btn.dataset.field;
+        if (A.VaultUI) {
+          A.VaultUI.showBlockPickerDialog({
+            type: 'scenario-block',
+            onSelect: (data) => {
+              const content = data.content || data.payload?.content || '';
+              const textarea = container.querySelector('#field-' + field);
+              if (textarea) {
+                if (textarea.value.trim()) {
+                  textarea.value = (textarea.value.trim() + '\\n\\n' + content).trim();
+                } else {
+                  textarea.value = content;
+                }
+                // Trigger input to update dirty state
+                textarea.dispatchEvent(new Event('input'));
+                if (A.UI.Toast) A.UI.Toast.show('Appended block from Vault', 'success');
+              }
+            }
+          });
+        }
+      };
     });
   }
 

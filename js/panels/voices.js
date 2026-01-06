@@ -184,8 +184,13 @@
       </div>
       <div class="card-body" id="voice-list" style="padding:0; flex:1; overflow-y:auto;"></div>
       <div class="card-footer" style="display:flex; justify-content:space-between; align-items:center;">
-        <label style="font-size:11px; cursor:pointer;"><input type="checkbox" id="chk-debug" ${data.debug ? 'checked' : ''}> Debug Crumbs</label>
-        <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:11px; cursor:pointer;"><input type="checkbox" id="chk-debug" ${data.debug ? 'checked' : ''}> Debug Crumbs</label>
+        </div>
+        <div style="display:flex; gap:8px;">
+           <button class="btn btn-ghost btn-sm" id="btn-vault-import" title="Import from Vault">📥</button>
+           <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+        </div>
       </div>
     `;
 
@@ -244,7 +249,9 @@
         }
 
         row.innerHTML = `
-           <div style="font-weight:bold;">${v.characterName || 'Unnamed Voice'}</div>
+           <div style="font-weight:bold;">${v.characterName || 'Unnamed Voice'}
+           ${v.vaultLink && v.vaultLink.vaultId ? (v.vaultLink.locallyModified ? '<span style="color:var(--status-warning);"> ●</span>' : '<span style="color:var(--text-muted);"> ✓</span>') : ''}
+           </div>
            <div style="font-size:10px; color:var(--text-muted);">${v.chatName ? 'Chat: ' + v.chatName : ''} • ${v.subtones ? v.subtones.length : 0} subtones</div>
         `;
         row.onclick = () => { currentVoiceIndex = v.originalIndex; refreshList(); renderEditor(); };
@@ -284,6 +291,7 @@
           <input class="input" id="inp-chatname" value="${v.chatName || ''}" placeholder="Chat Name (in messages)" style="font-size:12px;">
         </div>
         <label style="display:flex; align-items:center; gap:4px; font-size:12px;"><input type="checkbox" id="chk-en" ${v.enabled ? 'checked' : ''}> Enabled</label>
+        <button class="btn btn-ghost btn-sm" id="btn-vault-pub" style="margin-left:8px;" title="Publish to Vault">📤</button>
         <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
       `;
       editorCol.appendChild(header);
@@ -325,7 +333,8 @@
       editorCol.appendChild(body);
 
       // --- Bindings ---
-      const upd = () => { A.State.notify(); syncScript(); };
+      const markMod = () => { if (v.vaultLink && v.vaultLink.vaultId) v.vaultLink.locallyModified = true; };
+      const upd = () => { markMod(); A.State.notify(); syncScript(); };
 
       header.querySelector('#inp-charname').oninput = e => { v.characterName = e.target.value; upd(); refreshList(); };
       header.querySelector('#inp-chatname').oninput = e => { v.chatName = e.target.value; upd(); refreshList(); };
@@ -339,6 +348,19 @@
           refreshList();
           renderEditor();
           if (A.UI.Toast) A.UI.Toast.show('Voice deleted', 'info');
+        }
+      };
+
+      header.querySelector('#btn-vault-pub').onclick = () => {
+        if (A.VaultUI) {
+          A.VaultUI.showPublishDialog({
+            type: 'voice-config',
+            title: '📤 Publish Voice Config',
+            payload: v,
+            defaultName: v.characterName || 'Untitled Voice',
+            contentPreview: `Tag: ${v.tag}\nSubtones: ${v.subtones?.length || 0}`,
+            // We don't subtype voices usually, but we could if needed
+          });
         }
       };
 
@@ -440,6 +462,32 @@
       A.State.notify();
       if (A.UI && A.UI.switchPanel) {
         A.UI.switchPanel('scripts', { selectScript: 'gen_voices' });
+      }
+    };
+
+    listCol.querySelector('#btn-vault-import').onclick = () => {
+      if (A.VaultUI) {
+        A.VaultUI.showBlockPickerDialog({
+          type: 'voice-config',
+          title: '📥 Import Voice Config',
+          onSelect: (item) => {
+            const payload = item.payload || item;
+            // Reset ID/status to make it a new copy?
+            // Actually, we want to keep it linked if possible, or usually import makes a copy.
+            // The standardVault logic usually sets vaultLink if we want to track it.
+            // Let's create a new object but attach the link.
+
+            const newVoice = JSON.parse(JSON.stringify(payload));
+            newVoice.vaultLink = { vaultId: item.id, version: item.version, lastSync: Date.now() };
+
+            data.voices.push(newVoice);
+            currentVoiceIndex = data.voices.length - 1;
+            if (A.UI.Toast) A.UI.Toast.show('Imported voice from Vault', 'success');
+            refreshList();
+            renderEditor();
+            syncScript();
+          }
+        });
       }
     };
 

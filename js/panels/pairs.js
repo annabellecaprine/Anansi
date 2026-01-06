@@ -45,6 +45,9 @@
                 <button class="btn btn-secondary btn-sm" id="btn-add-pair">+ New</button>
             </div>
             <div class="card-body" id="pair-list" style="padding:0; flex:1; overflow-y:auto;"></div>
+            <div class="card-footer">
+               <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%;">📥 Import from Vault</button>
+            </div>
         `;
 
         // 2. Editor Column
@@ -59,6 +62,40 @@
         // --- Logic ---
         const listBody = listCol.querySelector('#pair-list');
         const addBtn = listCol.querySelector('#btn-add-pair');
+        const importBtn = listCol.querySelector('#btn-vault-import');
+
+        importBtn.onclick = () => {
+            if (A.VaultUI) {
+                A.VaultUI.showBlockPickerDialog({
+                    type: 'pairing-rule',
+                    title: '📥 Import Relationship',
+                    onSelect: (item) => {
+                        const payload = item.payload || item;
+                        const newPair = JSON.parse(JSON.stringify(payload));
+                        newPair.id = 'pair_' + uuidv4(); // Always new ID for pairs logic locally?
+                        // Actually, if we want sync, we should respect external ID or link.
+                        // But pairs are linked to specific actors. If we import a Rule, it might be abstract?
+                        // "Rivals" rule.
+                        // So we probably want to Apply this rule to current selection?
+                        // Or create a new pair entry.
+                        // Let's create new pair entry with the imported data.
+                        newPair.vaultLink = { vaultId: item.id, version: item.version, lastSync: Date.now() };
+
+                        // Reset actors if they don't match?
+                        // Usually we import the CONTENT (Type, Description, Shifts).
+                        // We keep the imported actor IDs? No, likely different project.
+                        newPair.actor1 = '';
+                        newPair.actor2 = '';
+
+                        state.nodes.pairs.items[newPair.id] = newPair;
+                        currentId = newPair.id;
+                        if (A.UI.Toast) A.UI.Toast.show('Imported pair rule', 'success');
+                        renderList();
+                        renderEditor();
+                    }
+                });
+            }
+        };
 
         // Functions
         const renderList = () => {
@@ -85,8 +122,15 @@
                 const n1 = actors[pair.actor1]?.name || 'Unknown';
                 const n2 = actors[pair.actor2]?.name || 'Unknown';
 
+                let syncBadge = '';
+                if (pair.vaultLink && pair.vaultLink.vaultId) {
+                    syncBadge = pair.vaultLink.locallyModified
+                        ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
+                        : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
+                }
+
                 item.innerHTML = `
-                    <div style="font-weight:bold; font-size:12px;">${n1} & ${n2}</div>
+                    <div style="font-weight:bold; font-size:12px;">${n1} & ${n2}${syncBadge}</div>
                     <div style="font-size:10px; color:var(--text-muted);">${pair.type || 'Unspecified'}</div>
                 `;
                 item.onclick = () => {
@@ -123,6 +167,7 @@
             editorCol.innerHTML = `
                 <div class="card-header">
                      <strong style="flex:1;">Edit Relationship</strong>
+                     <button class="btn btn-ghost btn-sm" id="btn-vault-pub" title="Publish to Vault">📤</button>
                      <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
                 </div>
                 <div class="card-body" style="overflow-y:auto; flex:1;">
@@ -189,10 +234,13 @@
             `;
 
             // Bindings
+            const markMod = () => { if (pair.vaultLink && pair.vaultLink.vaultId) pair.vaultLink.locallyModified = true; };
+
             const bind = (sel, field) => {
                 const el = editorCol.querySelector(sel);
                 if (el) el.onchange = (e) => {
                     pair[field] = e.target.value;
+                    markMod();
                     A.State.notify();
                     if (field === 'actor1' || field === 'actor2' || field === 'type') renderList();
                 };
@@ -217,6 +265,20 @@
                     A.State.notify();
                     renderList();
                     renderEditor();
+                }
+            };
+
+            // Vault Publish
+            editorCol.querySelector('#btn-vault-pub').onclick = () => {
+                if (A.VaultUI) {
+                    A.VaultUI.showPublishDialog({
+                        type: 'pairing-rule',
+                        title: '📤 Publish Relationship Rule',
+                        payload: pair,
+                        defaultName: pair.type || 'Relationships',
+                        contentPreview: `Type: ${pair.type}\nShifts: ${pair.shifts?.length || 0}`,
+                        onSuccess: () => renderList() // Update sync badge
+                    });
                 }
             };
 
@@ -251,18 +313,21 @@
                 shiftsContainer.querySelectorAll('.shift-tag').forEach(el => {
                     el.onchange = (e) => {
                         pair.shifts[el.dataset.idx].emotion = e.target.value;
+                        markMod();
                         A.State.notify();
                     };
                 });
                 shiftsContainer.querySelectorAll('.shift-content').forEach(el => {
                     el.onchange = (e) => {
                         pair.shifts[el.dataset.idx].content = e.target.value;
+                        markMod();
                         A.State.notify();
                     };
                 });
                 shiftsContainer.querySelectorAll('.btn-del-shift').forEach(el => {
                     el.onclick = () => {
                         pair.shifts.splice(el.dataset.idx, 1);
+                        markMod();
                         A.State.notify();
                         renderShifts();
                     };
@@ -272,6 +337,7 @@
 
             editorCol.querySelector('#btn-add-shift').onclick = () => {
                 pair.shifts.push({ emotion: '', content: '' });
+                markMod();
                 A.State.notify();
                 renderShifts();
                 // Re-add token counters after shift is added

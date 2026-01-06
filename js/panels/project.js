@@ -107,8 +107,16 @@
                           </div>
                           <div class="form-group">
                             <label class="label">Manifesto (Description)</label>
-                            <textarea class="input" id="inp-proj-desc" style="min-height: 80px; resize: vertical;" placeholder="What is this project about?">${state.meta.description || ''}</textarea>
+                            <textarea class="input" id="inp-proj-desc" style="min-height: 80px; resize: vertical; width: 100%;" placeholder="What is this project about?">${state.meta.description || ''}</textarea>
                           </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><strong>Privacy Policy</strong></div>
+                    <div class="card-body" style="font-size:11px; color:var(--text-secondary);">
+                        <strong>Local Only & Private</strong><br>
+                        Anansi operates entirely offline. All files, including projects, actors, and vault items, are stored locally on your device. We do not collect telemetry, personal data, or story content. "We know nothing."
                     </div>
                 </div>
 

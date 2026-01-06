@@ -186,6 +186,7 @@
         header.innerHTML = `
       <input type="text" id="actor-name" class="input" style="width:200px; font-weight:bold;" placeholder="e.g., Seraphine, The Merchant" disabled>
       <div style="flex:1;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-vault-actor" disabled>📤 Vault</button>
       <button class="btn btn-ghost btn-sm" id="btn-del-actor" style="color:var(--status-error);" disabled>Delete</button>
     `;
 
@@ -227,6 +228,7 @@
         const listBody = listCol.querySelector('#actor-list');
         const nameInput = header.querySelector('#actor-name');
         const delBtn = header.querySelector('#btn-del-actor');
+        const vaultBtn = header.querySelector('#btn-vault-actor');
         const searchInput = listCol.querySelector('#search-actors');
         const addBtn = listCol.querySelector('#btn-add-actor');
 
@@ -349,12 +351,23 @@
                     item.style.borderLeft = '3px solid var(--accent-primary)';
                 }
 
+                // Vault sync badge
+                let syncBadge = '';
+                if (actor.vaultLink && actor.vaultLink.vaultId) {
+                    if (actor.vaultLink.locallyModified) {
+                        syncBadge = '<span title="Modified - Push to sync" style="font-size:10px; margin-left:6px; color:var(--status-warning);">🔄</span>';
+                    } else {
+                        syncBadge = '<span title="Synced with Vault" style="font-size:10px; margin-left:6px; color:var(--text-muted);">✅</span>';
+                    }
+                }
+
                 item.innerHTML = `
                     <div style="display:flex; align-items:center;">
                         ${selectionMode ?
                         `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(actor.id) ? 'checked' : ''}>`
                         : ''}
                         <strong>${actor.name || 'Unnamed'}</strong>
+                        ${syncBadge}
                     </div>
                 `;
 
@@ -382,12 +395,40 @@
             if (actor) {
                 nameInput.disabled = false;
                 delBtn.disabled = false;
+                vaultBtn.disabled = false;
                 nameInput.value = actor.name || '';
+
+                // Update vault button based on vaultLink state
+                if (actor.vaultLink && actor.vaultLink.vaultId) {
+                    // Already published - check if modified
+                    if (actor.vaultLink.locallyModified) {
+                        vaultBtn.innerHTML = '📤 Push Update';
+                        vaultBtn.style.background = 'var(--status-warning)';
+                        vaultBtn.style.color = 'var(--bg-base)';
+                        vaultBtn.title = 'Modified since last sync - push changes to Vault';
+                    } else {
+                        vaultBtn.innerHTML = '✅ Synced';
+                        vaultBtn.style.background = '';
+                        vaultBtn.style.color = 'var(--text-muted)';
+                        vaultBtn.title = `Synced with Vault v${actor.vaultLink.pulledVersion}`;
+                    }
+                } else {
+                    // Not published yet
+                    vaultBtn.innerHTML = '📤 Vault';
+                    vaultBtn.style.background = '';
+                    vaultBtn.style.color = '';
+                    vaultBtn.title = 'Publish to Vault archive';
+                }
+
                 renderTab();
             } else {
                 nameInput.disabled = true;
                 nameInput.value = '';
                 delBtn.disabled = true;
+                vaultBtn.disabled = true;
+                vaultBtn.innerHTML = '📤 Vault';
+                vaultBtn.style.background = '';
+                vaultBtn.style.color = '';
                 content.innerHTML = '<div style="padding:40px; text-align:center; color:gray; font-size:14px;">Select or Create an Actor</div>';
             }
         }
@@ -1538,11 +1579,167 @@
             }
         };
 
+        // Vault Button - Publish to Vault
+        vaultBtn.onclick = async () => {
+            const state = A.State.get();
+            const actor = state.nodes.actors.items[currentId];
+            if (!actor) return;
+
+            // Get existing universes and tags for autocomplete
+            let universes = [];
+            let existingTags = [];
+            try {
+                universes = await A.VaultDB.getUniverses();
+                existingTags = await A.VaultDB.getTags();
+            } catch (e) {
+                console.warn('[Actors] Could not load vault data:', e);
+            }
+
+            // Check if already published
+            const isUpdate = actor.vaultLink && actor.vaultLink.vaultId;
+
+            // Create Publish Modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-backdrop"></div>
+                <div class="modal-content" style="max-width:500px;">
+                    <div class="modal-header">
+                        <h3>${isUpdate ? '📤 Push Update to Vault' : '📤 Publish to Vault'}</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <div style="margin-bottom:16px;">
+                            <strong>Actor:</strong> ${actor.name || 'Unnamed Actor'}
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Source Project</label>
+                            <div style="color:var(--text-secondary);font-size:13px;">${state.meta?.name || 'Untitled Project'}</div>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Universe</label>
+                            <input type="text" id="vault-universe" class="input" list="universe-list" 
+                                   placeholder="e.g., Obsidian Chronicles" 
+                                   value="${actor.vaultLink?.universe || ''}"
+                                   style="width:100%;">
+                            <datalist id="universe-list">
+                                ${universes.map(u => `<option value="${u}">`).join('')}
+                            </datalist>
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Group related items by universe</div>
+                        </div>
+
+                        <div style="margin-bottom:16px;">
+                            <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Tags</label>
+                            <input type="text" id="vault-tags" class="input" 
+                                   placeholder="fantasy, protagonist, dark-themes" 
+                                   value="${(actor.vaultLink?.tags || []).join(', ')}"
+                                   style="width:100%;">
+                            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Comma-separated tags for filtering</div>
+                        </div>
+
+                        ${isUpdate ? `
+                        <div style="margin-bottom:16px;">
+                            <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Commit Message</label>
+                            <input type="text" id="vault-message" class="input" 
+                                   placeholder="What changed?" 
+                                   style="width:100%;">
+                        </div>
+                        ` : ''}
+
+                        <div style="padding:12px;background:var(--bg-inset);border-radius:var(--radius-md);font-size:12px;color:var(--text-muted);">
+                            ${isUpdate
+                    ? '⚠️ This will update the existing Vault entry and increment the version.'
+                    : 'ℹ️ This creates a snapshot in your Vault. Future changes require a new Push.'}
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:16px;">
+                        <button class="btn btn-ghost" id="vault-cancel">Cancel</button>
+                        <button class="btn btn-primary" id="vault-confirm">${isUpdate ? '📤 Push Update' : '📤 Publish'}</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Focus universe input
+            setTimeout(() => modal.querySelector('#vault-universe').focus(), 100);
+
+            // Close handlers
+            const closeModal = () => modal.remove();
+            modal.querySelector('.modal-backdrop').onclick = closeModal;
+            modal.querySelector('.modal-close').onclick = closeModal;
+            modal.querySelector('#vault-cancel').onclick = closeModal;
+
+            // Confirm handler
+            modal.querySelector('#vault-confirm').onclick = async () => {
+                const universe = modal.querySelector('#vault-universe').value.trim();
+                const tagsStr = modal.querySelector('#vault-tags').value;
+                const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+                const message = modal.querySelector('#vault-message')?.value || '';
+
+                try {
+                    let vaultItem;
+                    if (isUpdate) {
+                        // Push update
+                        vaultItem = await A.VaultDB.push(actor.vaultLink.vaultId, actor, message);
+
+                        // Update metadata if changed
+                        if (universe !== actor.vaultLink.universe || JSON.stringify(tags) !== JSON.stringify(actor.vaultLink.tags)) {
+                            await A.VaultDB.updateMetadata(vaultItem.id, { universe, tags });
+                        }
+                    } else {
+                        // New publish
+                        vaultItem = await A.VaultDB.publish('actor', actor, {
+                            sourceProjectId: state.meta?.id,
+                            sourceProjectName: state.meta?.name || 'Untitled Project',
+                            universe: universe,
+                            tags: tags,
+                            message: 'Initial publish'
+                        });
+                    }
+
+                    // Update actor with vaultLink
+                    actor.vaultLink = {
+                        vaultId: vaultItem.id,
+                        pulledVersion: vaultItem.version,
+                        locallyModified: false,
+                        lastSyncedAt: new Date().toISOString(),
+                        universe: universe,
+                        tags: tags
+                    };
+                    A.State.notify();
+
+                    closeModal();
+                    if (A.UI.Toast) {
+                        A.UI.Toast.show(
+                            isUpdate ? `Pushed ${actor.name} v${vaultItem.version} to Vault` : `Published ${actor.name} to Vault`,
+                            'success'
+                        );
+                    }
+                } catch (err) {
+                    console.error('[Vault] Publish failed:', err);
+                    if (A.UI.Toast) A.UI.Toast.show('Failed to publish to Vault', 'error');
+                }
+            };
+        };
+
         nameInput.oninput = (e) => {
             const state = A.State.get();
             if (state.nodes.actors.items[currentId]) {
+                const actor = state.nodes.actors.items[currentId];
                 const newName = e.target.value;
-                state.nodes.actors.items[currentId].name = newName;
+                actor.name = newName;
+
+                // Mark as locally modified if linked to vault
+                if (actor.vaultLink && actor.vaultLink.vaultId) {
+                    actor.vaultLink.locallyModified = true;
+                    // Update vault button appearance
+                    vaultBtn.innerHTML = '📤 Push Update';
+                    vaultBtn.style.background = 'var(--status-warning)';
+                    vaultBtn.style.color = 'var(--bg-base)';
+                }
 
                 // Sync name to Voices panel
                 syncActorToVoices(currentId, newName);

@@ -603,11 +603,34 @@
       const countDisplay = listCol.querySelector('#lore-count-display');
       if (countDisplay) countDisplay.textContent = entries.length + ' entries';
 
-      // Sort: Priority DESC, Title ASC
+      // Ensure sortOrder exists
+      let needsSave = false;
+      const sortedByOrder = [...entries].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+      // If we have no sortOrder, initialize it based on title or Priority
+      if (entries.length > 0 && entries.every(e => e.sortOrder === undefined)) {
+        // First time initialization
+        entries.sort((a, b) => a.title.localeCompare(b.title));
+        entries.forEach((e, i) => {
+          e.sortOrder = i * 10;
+          needsSave = true;
+        });
+      }
+
+      if (needsSave) {
+        A.State.notify(); // Persist initial order
+      }
+
+      // Final Sort: SortOrder ASC -> Priority DESC -> Title ASC
       entries.sort((a, b) => {
+        const sA = a.sortOrder !== undefined ? a.sortOrder : 999999;
+        const sB = b.sortOrder !== undefined ? b.sortOrder : 999999;
+        if (sA !== sB) return sA - sB;
+
         const pA = a.priority !== undefined ? a.priority : 50;
         const pB = b.priority !== undefined ? b.priority : 50;
         if (pA !== pB) return pB - pA;
+
         return (a.title || '').localeCompare(b.title || '');
       });
 
@@ -623,7 +646,33 @@
         return;
       }
 
-      filtered.forEach(e => {
+      const moveEntry = (id, direction) => {
+        const index = entries.findIndex(e => e.id === id);
+        if (index === -1) return;
+
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= entries.length) return;
+
+        // Swap
+        const itemA = entries[index];
+        const itemB = entries[newIndex];
+
+        // Swap sortOrder is not enough if values are messy, better to re-normalize all
+        // But for a simple swap, we can swap their position in array and re-assign all sortOrders
+        const temp = entries[index];
+        entries[index] = entries[newIndex];
+        entries[newIndex] = temp;
+
+        // Re-assign all sortOrders to clean numbers
+        entries.forEach((e, i) => {
+          e.sortOrder = i * 10;
+        });
+
+        A.State.notify();
+        renderList();
+      };
+
+      filtered.forEach((e, i) => {
         const row = document.createElement('div');
         row.style.padding = '8px 12px';
         row.style.borderBottom = '1px solid var(--border-subtle)';
@@ -640,6 +689,18 @@
           row.style.borderColor = 'var(--accent-primary)';
         }
 
+        // Reordering UI (Only when not filtering)
+        let arrows = '';
+        if (!filter && !selectionMode) {
+          const isFirst = i === 0;
+          const isLast = i === filtered.length - 1;
+          arrows = `
+             <div style="display:flex; flex-direction:column; margin-right:8px;">
+                 <div class="move-up" style="font-size:10px; line-height:1; cursor:pointer; opacity:${isFirst ? 0.2 : 0.7};" title="Move Up">▲</div>
+                 <div class="move-down" style="font-size:10px; line-height:1; cursor:pointer; opacity:${isLast ? 0.2 : 0.7}; margin-top:2px;" title="Move Down">▼</div>
+             </div>`;
+        }
+
         const enabled = e.enabled !== false;
 
         // Logic Indicator
@@ -648,18 +709,33 @@
           hasLogic = state.sbx.rules.some(r => r.boundTo === e.uuid);
         }
 
+        // Vault sync badge
+        let syncBadge = '';
+        if (e.vaultLink && e.vaultLink.vaultId) {
+          if (e.vaultLink.locallyModified) {
+            syncBadge = '<span title="Modified - Push to sync" style="font-size:10px; margin-left:6px; color:var(--status-warning);">🔄</span>';
+          } else {
+            syncBadge = '<span title="Synced with Vault" style="font-size:10px; margin-left:6px; color:var(--text-muted);">✅</span>';
+          }
+        }
+
         row.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-             <span style="font-weight:bold; font-size:12px; display:flex; align-items:center; ${!enabled ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">
-                ${selectionMode ?
+          <div style="display:flex; align-items:center;">
+             ${arrows}
+             <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:bold; font-size:12px; display:flex; align-items:center; ${!enabled ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">
+                        ${selectionMode ?
             `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(e.id) ? 'checked' : ''}>`
             : ''}
-                ${hasLogic ? '<span style="color:var(--accent-primary); margin-right:4px;">⚡</span>' : ''}${e.title || 'Untitled'}
-             </span>
-             <span style="font-size:10px; padding:2px 4px; border-radius:4px; background:var(--bg-base); color:var(--text-muted);">${e.category || 'uncategorized'}</span>
-          </div>
-          <div style="font-size:10px; color:var(--text-muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:${selectionMode ? '24px' : '0'};">
-            ${(e.keywords || []).join(', ')}
+                        ${hasLogic ? '<span style="color:var(--accent-primary); margin-right:4px;">⚡</span>' : ''}${e.title || 'Untitled'}${syncBadge}
+                    </span>
+                    <span style="font-size:10px; padding:2px 4px; border-radius:4px; background:var(--bg-base); color:var(--text-muted);">${e.category || 'uncategorized'}</span>
+                </div>
+                <div style="font-size:10px; color:var(--text-muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:${selectionMode ? '24px' : '0'};">
+                    ${(e.keywords || []).join(', ')}
+                </div>
+             </div>
           </div>
         `;
 
@@ -669,13 +745,22 @@
             else selectedIds.add(e.id);
             updateFooterState();
             renderList(); // Re-render to update checks
-          } else {
+          } else if (e.id !== currentId) {
             currentId = e.id;
             editingShiftIndex = null;
             renderList();
             renderEditor();
           }
         };
+
+        if (arrows) {
+          const upBtn = row.querySelector('.move-up');
+          const downBtn = row.querySelector('.move-down');
+          // Prevent selection when clicking arrows
+          if (upBtn) upBtn.onclick = (ev) => { ev.stopPropagation(); moveEntry(e.id, -1); };
+          if (downBtn) downBtn.onclick = (ev) => { ev.stopPropagation(); moveEntry(e.id, 1); };
+        }
+
         listBody.appendChild(row);
       });
     };
@@ -741,6 +826,7 @@
         <div style="display:flex; gap:8px;">
           <button class="btn btn-ghost btn-sm" id="btn-logic" style="display:none; color:var(--accent-primary); font-weight:bold; ${logicCount > 0 ? 'background:var(--accent-soft);' : ''}">⚡ Logic ${logicCount > 0 ? '(' + logicCount + ')' : ''}</button>
           <label style="display:flex; align-items:center; gap:4px; font-size:12px;"><input type="checkbox" id="chk-en" ${entry.enabled !== false ? 'checked' : ''}> Enabled</label>
+          <button class="btn btn-secondary btn-sm" id="btn-vault-lore">📤 Vault</button>
           <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
         </div>
       `;
@@ -777,9 +863,155 @@
         }
       };
 
+      // Vault Hook - Publish to Vault
+      header.querySelector('#btn-vault-lore').onclick = async () => {
+        // Get existing universes and tags for autocomplete
+        let universes = [];
+        let existingTags = [];
+        try {
+          universes = await A.VaultDB.getUniverses();
+          existingTags = await A.VaultDB.getTags();
+        } catch (e) {
+          console.warn('[Lorebook] Could not load vault data:', e);
+        }
+
+        // Check if already published
+        const isUpdate = entry.vaultLink && entry.vaultLink.vaultId;
+
+        // Create Publish Modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-backdrop"></div>
+          <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+              <h3>${isUpdate ? '📤 Push Update to Vault' : '📤 Publish to Vault'}</h3>
+              <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+              <div style="margin-bottom:16px;">
+                <strong>Lorebook Entry:</strong> ${entry.title || 'Untitled'}
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Source Project</label>
+                <div style="color:var(--text-secondary);font-size:13px;">${state.meta?.name || 'Untitled Project'}</div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Universe</label>
+                <input type="text" id="vault-universe" class="input" list="universe-list" 
+                       placeholder="e.g., Obsidian Chronicles" 
+                       value="${entry.vaultLink?.universe || ''}"
+                       style="width:100%;">
+                <datalist id="universe-list">
+                  ${universes.map(u => `<option value="${u}">`).join('')}
+                </datalist>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Group related items by universe</div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Tags</label>
+                <input type="text" id="vault-tags" class="input" 
+                       placeholder="worldbuilding, magic-system, faction" 
+                       value="${(entry.vaultLink?.tags || []).join(', ')}"
+                       style="width:100%;">
+                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Comma-separated tags for filtering</div>
+              </div>
+
+              ${isUpdate ? `
+              <div style="margin-bottom:16px;">
+                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Commit Message</label>
+                <input type="text" id="vault-message" class="input" 
+                       placeholder="What changed?" 
+                       style="width:100%;">
+              </div>
+              ` : ''}
+
+              <div style="padding:12px;background:var(--bg-inset);border-radius:var(--radius-md);font-size:12px;color:var(--text-muted);">
+                ${isUpdate
+            ? '⚠️ This will update the existing Vault entry and increment the version.'
+            : 'ℹ️ This creates a snapshot in your Vault. Future changes require a new Push.'}
+              </div>
+            </div>
+            <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:16px;">
+              <button class="btn btn-ghost" id="vault-cancel">Cancel</button>
+              <button class="btn btn-primary" id="vault-confirm">${isUpdate ? '📤 Push Update' : '📤 Publish'}</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Focus universe input
+        setTimeout(() => modal.querySelector('#vault-universe').focus(), 100);
+
+        // Close handlers
+        const closeModal = () => modal.remove();
+        modal.querySelector('.modal-backdrop').onclick = closeModal;
+        modal.querySelector('.modal-close').onclick = closeModal;
+        modal.querySelector('#vault-cancel').onclick = closeModal;
+
+        // Confirm handler
+        modal.querySelector('#vault-confirm').onclick = async () => {
+          const universe = modal.querySelector('#vault-universe').value.trim();
+          const tagsStr = modal.querySelector('#vault-tags').value;
+          const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+          const message = modal.querySelector('#vault-message')?.value || '';
+
+          try {
+            let vaultItem;
+            if (isUpdate) {
+              // Push update
+              vaultItem = await A.VaultDB.push(entry.vaultLink.vaultId, entry, message);
+
+              // Update metadata if changed
+              if (universe !== entry.vaultLink.universe || JSON.stringify(tags) !== JSON.stringify(entry.vaultLink.tags)) {
+                await A.VaultDB.updateMetadata(vaultItem.id, { universe, tags });
+              }
+            } else {
+              // New publish
+              vaultItem = await A.VaultDB.publish('lorebook', entry, {
+                sourceProjectId: state.meta?.id,
+                sourceProjectName: state.meta?.name || 'Untitled Project',
+                universe: universe,
+                tags: tags,
+                message: 'Initial publish'
+              });
+            }
+
+            // Update entry with vaultLink
+            entry.vaultLink = {
+              vaultId: vaultItem.id,
+              pulledVersion: vaultItem.version,
+              locallyModified: false,
+              lastSyncedAt: new Date().toISOString(),
+              universe: universe,
+              tags: tags
+            };
+            A.State.notify();
+
+            closeModal();
+            if (A.UI.Toast) {
+              A.UI.Toast.show(
+                isUpdate ? `Pushed "${entry.title}" v${vaultItem.version} to Vault` : `Published "${entry.title}" to Vault`,
+                'success'
+              );
+            }
+          } catch (err) {
+            console.error('[Vault] Publish failed:', err);
+            if (A.UI.Toast) A.UI.Toast.show('Failed to publish to Vault', 'error');
+          }
+        };
+      };
+
       // Inputs Hook
       header.querySelector('#inp-title').onchange = (e) => {
         entry.title = e.target.value;
+        // Mark as locally modified if linked to vault
+        if (entry.vaultLink && entry.vaultLink.vaultId) {
+          entry.vaultLink.locallyModified = true;
+        }
         A.State.notify();
         renderList();
         if (A.UI.Toast) A.UI.Toast.show('Title updated', 'info');
@@ -887,6 +1119,10 @@
         const el = body.querySelector(sel);
         if (el) el.onchange = (e) => {
           entry[field] = parse ? parse(e.target.value) : e.target.value;
+          // Mark as locally modified if linked to vault
+          if (entry.vaultLink && entry.vaultLink.vaultId) {
+            entry.vaultLink.locallyModified = true;
+          }
           A.State.notify();
         };
       };

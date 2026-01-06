@@ -46,6 +46,7 @@
       <div class="card-body" id="sc-list" style="padding:0; flex:1; overflow-y:auto;"></div>
       <div class="card-footer">
         <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ Add Topic</button>
+        <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:8px;">📥 Import from Vault</button>
       </div>
     `;
 
@@ -67,6 +68,56 @@
         const tabBasic = listCol.querySelector('#tab-basic');
         const tabAdv = listCol.querySelector('#tab-adv');
         const btnAdd = listCol.querySelector('#btn-add');
+        const btnImport = listCol.querySelector('#btn-vault-import');
+
+        btnImport.onclick = () => {
+            if (!A.VaultUI) return;
+            const isBasic = currentTab === 'basic';
+            A.VaultUI.showBlockPickerDialog({
+                type: 'rule-block',
+                title: isBasic ? '📥 Import Scoring Topic' : '📥 Import Advanced Rule',
+                onSelect: (data) => {
+                    const payload = data.payload || data;
+                    const id = (isBasic ? 'sc_' : 'adv_') + Math.random().toString(36).substr(2, 9);
+
+                    if (isBasic) {
+                        // Validate/Default Topic
+                        const newTopic = {
+                            id: id,
+                            name: payload.name || 'Imported Topic',
+                            enabled: payload.enabled !== false,
+                            min: payload.min || 1,
+                            max: payload.max || 5,
+                            useMax: payload.useMax || false,
+                            depth: payload.depth || 10,
+                            target: payload.target || 'character.personality',
+                            keywordsText: payload.keywordsText || '',
+                            contextField: payload.contextField || '',
+                            filters: payload.filters || { caseInsensitive: true, wholeWord: true, allowVariants: true, skipNegated: true }
+                        };
+                        state.scoring.topics.push(newTopic);
+                    } else {
+                        // Advanced Rule
+                        const newRule = {
+                            id: id,
+                            name: payload.name || 'Imported Rule',
+                            enabled: payload.enabled !== false,
+                            target: payload.target || 'character.personality',
+                            contextField: payload.contextField || '',
+                            conditions: payload.conditions || {
+                                keywordsEnabled: true, keywordsText: '',
+                                filters: { caseInsensitive: true, wholeWord: true, allowVariants: true, skipNegated: true },
+                                windowEnabled: true, windowMin: 1, windowUseMax: false, windowMax: 100,
+                                scoringEnabled: false, scoringTopicId: ''
+                            }
+                        };
+                        state.scoring.advanced.push(newRule);
+                    }
+                    if (A.UI.Toast) A.UI.Toast.show('Imported from Vault', 'success');
+                    refreshList();
+                }
+            });
+        };
 
         // --- Tab Switching ---
         function switchTab(t) {
@@ -105,16 +156,23 @@
                 row.style.cursor = 'pointer';
                 if (item.id === currentId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
 
+                let syncBadge = '';
+                if (item.vaultLink && item.vaultLink.vaultId) {
+                    syncBadge = item.vaultLink.locallyModified
+                        ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
+                        : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
+                }
+
                 if (currentTab === 'basic') {
                     const kw = splitKeywords(item.keywordsText);
                     row.innerHTML = `
-              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}</div>
+              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
               <div style="font-size:11px; color:var(--text-muted);">Depth ${item.depth} • ${kw.length} keys</div>
             `;
                 } else {
                     // Advanced Summary
                     row.innerHTML = `
-              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}</div>
+              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
               <div style="font-size:11px; color:var(--text-muted);">Combined Logic</div>
             `;
                 }
@@ -160,6 +218,11 @@
             if (currentTab === 'basic') item = state.scoring.topics.find(t => t.id === currentId);
             else item = state.scoring.advanced.find(t => t.id === currentId);
 
+            // Modification Helper
+            const markMod = (it) => {
+                if (it.vaultLink && it.vaultLink.vaultId) it.vaultLink.locallyModified = true;
+            };
+
             if (!item) {
                 editorCol.innerHTML = A.UI.getEmptyStateHTML(
                     'No Scoring Rule Selected',
@@ -186,6 +249,7 @@
             header.innerHTML = `
           <input class="input" id="inp-name" value="${item.name}" style="font-weight:bold; font-size:14px; flex:1;">
           <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" id="chk-en" ${item.enabled ? 'checked' : ''}> Enabled</label>
+          <button class="btn btn-ghost btn-sm" id="btn-vault-pub" style="margin-left:8px;" title="Publish to Vault">📤</button>
           <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error); margin-left:8px;">Delete</button>
        `;
 
@@ -237,7 +301,22 @@
           `;
 
                 // Basic Bindings
-                const upd = () => { A.State.notify(); refreshList(); };
+                const upd = () => { markMod(item); A.State.notify(); refreshList(); };
+                header.querySelector('#inp-name').oninput = e => { item.name = e.target.value; upd(); };
+                header.querySelector('#chk-en').onchange = e => { item.enabled = e.target.checked; upd(); };
+                header.querySelector('#btn-del').onclick = () => { if (confirm('Delete topic?')) { state.scoring.topics = state.scoring.topics.filter(t => t.id !== currentId); currentId = null; A.State.notify(); refreshList(); renderEditor(); } };
+                header.querySelector('#btn-vault-pub').onclick = () => {
+                    if (A.VaultUI) {
+                        A.VaultUI.showPublishDialog({
+                            type: 'rule-block',
+                            subtype: 'topic',
+                            title: '📤 Publish Scoring Topic',
+                            payload: item,
+                            defaultName: item.name || 'Untitled Topic',
+                            contentPreview: `Target: ${item.target}\nKeywords: ${(item.keywordsText || '').split('\n').length}`
+                        });
+                    }
+                };
                 body.querySelector('#inp-min').oninput = e => { item.min = parseInt(e.target.value); upd(); };
                 body.querySelector('#inp-max').oninput = e => { item.max = parseInt(e.target.value); upd(); };
                 body.querySelector('#chk-max').onchange = e => { item.useMax = e.target.checked; renderEditor(); upd(); };
@@ -318,7 +397,22 @@
           `;
 
                 // Advanced Bindings
-                const upd = () => { A.State.notify(); }; // Advanced list doesn't show detail so no need to refreshList constantly
+                const upd = () => { markMod(item); A.State.notify(); }; // Advanced list doesn't show detail so no need to refreshList constantly
+                header.querySelector('#inp-name').oninput = e => { item.name = e.target.value; upd(); refreshList(); };
+                header.querySelector('#chk-en').onchange = e => { item.enabled = e.target.checked; upd(); refreshList(); };
+                header.querySelector('#btn-del').onclick = () => { if (confirm('Delete rule?')) { state.scoring.advanced = state.scoring.advanced.filter(t => t.id !== currentId); currentId = null; A.State.notify(); refreshList(); renderEditor(); } };
+                header.querySelector('#btn-vault-pub').onclick = () => {
+                    if (A.VaultUI) {
+                        A.VaultUI.showPublishDialog({
+                            type: 'rule-block',
+                            subtype: 'advanced',
+                            title: '📤 Publish Advanced Rule',
+                            payload: item,
+                            defaultName: item.name || 'Untitled Rule',
+                            contentPreview: `Target: ${item.target}\nConditions: ${Object.keys(item.conditions).filter(k => k.endsWith('Enabled') && item.conditions[k]).length}`
+                        });
+                    }
+                };
 
                 body.querySelector('#adv-tgt').onchange = e => { item.target = e.target.value; upd(); };
                 body.querySelector('#adv-ctx').oninput = e => { item.contextField = e.target.value; upd(); };
@@ -383,6 +477,19 @@
                     if (currentTab === 'basic') state.scoring.topics = state.scoring.topics.filter(t => t.id !== currentId);
                     else state.scoring.advanced = state.scoring.advanced.filter(t => t.id !== currentId);
                     currentId = null; A.State.notify(); refreshList(); renderEditor();
+                }
+            };
+            header.querySelector('#btn-vault-pub').onclick = () => {
+                if (A.VaultUI) {
+                    const isBasic = currentTab === 'basic';
+                    A.VaultUI.showPublishDialog({
+                        type: 'rule-block',
+                        subtype: isBasic ? 'topic' : 'advanced',
+                        title: isBasic ? '📤 Publish Scoring Topic' : '📤 Publish Advanced Rule',
+                        payload: item,
+                        defaultName: item.name || 'Untitled',
+                        contentPreview: isBasic ? item.keywordsText : 'Combined Logic conditions'
+                    });
                 }
             };
         }

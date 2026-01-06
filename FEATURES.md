@@ -1,6 +1,30 @@
 # Anansi: Feature List by Panel
 
-**As of: January 6, 2026 (v1.6.7)**
+**As of: January 6, 2026 (v1.7.0)**
+
+---
+
+## v1.7.0 - The Vault Update
+**Released: Jan 06, 2026**
+
+The **Vault** is a new local content library that exists outside of your projects, allowing you to easily share and reuse assets across your work.
+
+### 🕸️ The Vault
+*   **Central Archive**: A new global panel for "Seeds" (Actors, Lore, Rules, Scripts).
+*   **Publish & Pull**: Send items to the Vault and pull them into any project.
+*   **Sync Tracking**: Identifies if a local item has been modified since it was pulled from the Vault. Push updates back to the archive with version history.
+*   **Import/Export**: Backup your entire Vault or share specific packs with others.
+
+### 🧩 New Vaultable Types
+*   **Actors & Lorebook**: Share your cast and world details.
+*   **Scenario Blocks**: Reusable narrative structures (rules, templates, dynamics).
+*   **Logic Rule Blocks**: Share complex event triggers, scoring formulas, and logic chains.
+*   **Voice Configs**: Share TTS character profiles.
+*   **Pairing Rules**: Share relationship dynamic definitions.
+
+### 🛠️ Other Improvements
+*   **Privacy Policy**: Added clarity to the Project Dashboard (Local Only).
+*   **UI Polish**: Improved visibility of Vault dialogs and added sync indicators to all lists.
 
 ---
 
