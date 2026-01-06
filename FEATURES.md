@@ -1,6 +1,6 @@
 # Anansi: Feature List by Panel
 
-**As of: January 5, 2026 (v1.6.5)**
+**As of: January 6, 2026 (v1.6.7)**
 
 ---
 
@@ -221,6 +221,19 @@
 
 ## 📜 Change Log
 
+### v1.6.7 - January 6, 2026 (Web Only - A/B Test)
+- **New Feature**: **Character Panel v2** (Card Synthesis). A redesigned character creation panel available for A/B testing in the web and mobile versions only (not included in Tauri desktop build).
+  - **Dual-Mode Interface**: Solo Mode (single Actor) and Ensemble Mode (multi-Actor group cards).
+  - **Profile Image Upload**: Portrait upload with preview, matching the original Character panel layout.
+  - **Character/Chat Name Fields**: Editable name fields at the top of the panel.
+  - **Actor-to-Card Synthesis**: Automatically synthesizes Personality, Scenario, Example Dialogue from Actor data.
+  - **First Message Carousel**: Swipe through Actor greetings or create a Custom slot with AI generation (Magic Wand).
+  - **Field Overrides**: Edit any synthesized field with Reset buttons and Synced/Edited status badges.
+  - **Collapsible Preview Pane**: View formatted card output before export.
+  - **Full PNG Export**: Exports Character Card v2 PNG with embedded metadata using the uploaded portrait.
+  - **Keyboard Shortcuts**: Ctrl+S (Save), Ctrl+E (Export).
+- **Technical**: This feature is being tested in parallel with the existing Character panel.
+
 ### v1.6.6 - January 6, 2026
 - **Fix**: **Character Card Exporter**. Resolved "Invalid PNG tEXt chunk" error when importing Cards into SillyTavern. The exporter now sanitizes source image metadata (removing invalid null bytes from `generation_data` chunks) and correctly preserves the PNG `IEND` header.
 
@@ -284,4 +297,4 @@
 
 ---
 
-*Last updated: January 5, 2026*
+*Last updated: January 6, 2026*
