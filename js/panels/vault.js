@@ -61,7 +61,14 @@
   function applyFilters() {
     filteredItems = items.filter(item => {
       // Type filter
-      if (filters.type && item.type !== filters.type) return false;
+      if (filters.type) {
+        if (filters.type.includes(':')) {
+          const [mainType, subType] = filters.type.split(':');
+          if (item.type !== mainType || item.data?.subtype !== subType) return false;
+        } else {
+          if (item.type !== filters.type) return false;
+        }
+      }
 
       // Universe filter
       if (filters.universe && item.universe !== filters.universe) return false;
@@ -137,7 +144,8 @@
     // --- Left Column: List ---
     const listCol = document.createElement('div');
     listCol.className = 'card';
-    listCol.style.cssText = 'flex:0 0 320px; display:flex; flex-direction:column; height:100%; margin-bottom:0;';
+    // Default to full width (flex:1)
+    listCol.style.cssText = 'flex:1; display:flex; flex-direction:column; height:100%; margin-bottom:0; transition: flex 0.2s ease-in-out;';
 
     listCol.innerHTML = `
       <div class="card-header" style="flex-direction:column; gap:8px;">
@@ -164,15 +172,42 @@
       <div style="display:flex; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
         <select class="input" id="filter-type" style="flex:1; font-size:11px; height:32px;">
           <option value="">All Types</option>
-          ${Object.entries(TYPE_LABELS).map(([k, v]) =>
-      `<option value="${k}" ${filters.type === k ? 'selected' : ''}>${TYPE_ICONS[k]} ${v}</option>`
-    ).join('')}
+          ${(() => {
+        // Dynamic Subtype extraction
+        const extendedTypes = new Set();
+        // Base types
+        Object.keys(TYPE_LABELS).forEach(t => extendedTypes.add(t));
+
+        // Scan items for subtypes
+        const subtypeMap = {};
+        items.forEach(i => {
+          if (i.data?.subtype) {
+            const key = `${i.type}:${i.data.subtype}`;
+            subtypeMap[key] = { type: i.type, subtype: i.data.subtype };
+          }
+        });
+
+        let opts = Object.entries(TYPE_LABELS).map(([k, v]) =>
+          `<option value="${k}" ${filters.type === k ? 'selected' : ''}>${TYPE_ICONS[k] || '📦'} ${v}</option>`
+        ).join('');
+
+        // Add divider if we have subtypes
+        if (Object.keys(subtypeMap).length > 0) {
+          opts += `<option disabled>──────────</option>`;
+          opts += Object.entries(subtypeMap).map(([key, info]) => {
+            const label = `${TYPE_ICONS[info.type] || '📦'} ${info.subtype}`;
+            // If existing filter matches key (e.g. 'scenario-block:personality')
+            return `<option value="${key}" ${filters.type === key ? 'selected' : ''}>${label}</option>`;
+          }).join('');
+        }
+        return opts;
+      })()}
         </select>
         <select class="input" id="filter-universe" style="flex:1; font-size:11px; height:32px;">
           <option value="">All Universes</option>
           ${(registry?.universes || []).map(u =>
-      `<option value="${u}" ${filters.universe === u ? 'selected' : ''}>${u}</option>`
-    ).join('')}
+        `<option value="${u}" ${filters.universe === u ? 'selected' : ''}>${u}</option>`
+      ).join('')}
         </select>
       </div>
 
@@ -201,7 +236,8 @@
     const detailCol = document.createElement('div');
     detailCol.className = 'card';
     detailCol.id = 'vault-detail';
-    detailCol.style.cssText = 'flex:1; display:flex; flex-direction:column; height:100%; margin-bottom:0;';
+    // Default to hidden
+    detailCol.style.cssText = 'display:none; flex-direction:column; height:100%; margin-bottom:0; width:0; overflow:hidden; transition: width 0.2s;';
 
     container.appendChild(listCol);
     container.appendChild(detailCol);
@@ -429,9 +465,9 @@
             <strong style="font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               ${name}
             </strong>
-            <span style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border-radius:8px; color:var(--text-muted);">
               v${item.version}
             </span>
+            ${item.data?.subtype ? `<span style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border:1px solid var(--border-subtle); border-radius:8px; color:var(--text-secondary); margin-left:4px;">${item.data.subtype}</span>` : ''}
           </div>
           <div style="font-size:10px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${selectionMode ? 'margin-left:24px;' : ''}">
             ${item.universe ? `<span style="color:var(--accent-primary);">${item.universe}</span> • ` : ''}
@@ -454,6 +490,7 @@
             renderList();
           } else {
             selectedId = item.id;
+            updateLayout();
             renderList();
             renderDetail(item);
           }
@@ -484,7 +521,10 @@
             <span style="font-size:20px;">${TYPE_ICONS[item.type] || '📦'}</span>
             <div>
               <div style="font-weight:bold; font-size:14px;">${name}</div>
-              <div style="font-size:10px; color:var(--text-muted);">${TYPE_LABELS[item.type] || item.type}</div>
+              <div style="font-size:10px; color:var(--text-muted);">
+                 ${TYPE_LABELS[item.type] || item.type}
+                 ${item.data?.subtype ? `<span style="margin-left:8px; padding:1px 4px; border:1px solid var(--border-subtle); border-radius:4px;">${item.data.subtype}</span>` : ''}
+              </div>
             </div>
           </div>
           <div style="display:flex; gap:8px;">
@@ -601,7 +641,12 @@
         const content = item.data?.content || '';
         navigator.clipboard.writeText(content);
         if (A.UI.Toast) A.UI.Toast.show(`Copied "${name}" to clipboard`, 'success');
+        if (A.UI.Toast) A.UI.Toast.show(`Copied "${name}" to clipboard`, 'success');
         return; // Don't add to project nodes
+      } else if (item.type === 'rule-block') {
+        // Copy to clipboard or warn? Rule blocks are complex.
+        if (A.UI.Toast) A.UI.Toast.show(`Importing rule logic...`, 'info');
+        // TODO: Implement rule block import to Advanced/Scoring
       } else {
         if (A.UI.Toast) A.UI.Toast.show(`Pull not yet supported for ${item.type}`, 'warning');
         return;
@@ -629,7 +674,47 @@
       if (A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
     }
 
+    // --- Dynamic Layout Helper ---
+    function updateLayout() {
+      if (selectedId) {
+        listCol.style.flex = '0 0 320px';
+        detailCol.style.display = 'flex';
+        // Small timeout to allow display:flex to apply before width transition if needed
+        requestAnimationFrame(() => {
+          detailCol.style.width = 'auto';
+          detailCol.style.flex = '1';
+        });
+      } else {
+        listCol.style.flex = '1';
+        detailCol.style.display = 'none';
+        detailCol.style.width = '0';
+      }
+    }
+
+    // --- Global Key Handler for ESC ---
+    const handleKeydown = (e) => {
+      if (!container.isConnected) {
+        document.removeEventListener('keydown', handleKeydown);
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (selectionMode) {
+          selectionMode = false;
+          selectedIds.clear();
+          updateSelectionUI();
+          renderList();
+        } else if (selectedId) {
+          selectedId = null;
+          updateLayout();
+          renderList();
+          renderDetail(null);
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
+
     // Initial render
+    updateLayout();
     renderList();
     renderDetail(null);
   }

@@ -77,13 +77,17 @@
     actors.forEach(actor => {
       output += `\n---\n**[${actor.name || 'Unnamed'}]**\n`;
       if (actor.role) output += `*Role:* ${actor.role}\n`;
-      if (actor.appearance || actor.description) {
-        output += `*Appearance:* ${actor.appearance || actor.description}\n`;
+      const description = actor.appearance || actor.description || actor.traits?.description || actor.cardFields?.description;
+      if (description) {
+        output += `*Appearance:* ${description}\n`;
       }
-      if (actor.personality) output += `*Personality:* ${actor.personality}\n`;
+
+      const personality = actor.personality || actor.traits?.personality || actor.cardFields?.personality;
+      if (personality) output += `*Personality:* ${personality}\n`;
+
       if (actor.quirks) output += `*Quirks:* ${actor.quirks}\n`;
-      // Include traits if available
-      if (actor.traits && actor.traits.length) {
+      // Include traits if available as array
+      if (actor.traits && Array.isArray(actor.traits) && actor.traits.length) {
         output += `*Traits:* ${actor.traits.join(', ')}\n`;
       }
     });
@@ -156,9 +160,10 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
 
     let output = '### ACTOR VOICE SAMPLES\n';
     actors.forEach(actor => {
-      if (actor.exampleDialogue || actor.examples) {
+      const examples = actor.exampleDialogue || actor.examples || actor.cardFields?.mes_example || actor.imported?.examples;
+      if (examples) {
         output += `\n[${actor.name || 'Unknown'} Example]\n`;
-        output += (actor.exampleDialogue || actor.examples || '').trim() + '\n';
+        output += examples.trim() + '\n';
       }
     });
 
@@ -511,9 +516,9 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
     const personalityContent = getSynthOrOverride('personality', () =>
       synthesizePersonality([solo.selectedActorId], state));
     const scenarioContent = getSynthOrOverride('scenario', () =>
-      selectedActor?.scenario || '');
+      selectedActor?.scenario || selectedActor?.cardFields?.scenario || selectedActor?.imported?.scenario || '');
     const examplesContent = getSynthOrOverride('exampleDialogue', () =>
-      selectedActor?.exampleDialogue || selectedActor?.examples || '');
+      selectedActor?.exampleDialogue || selectedActor?.examples || selectedActor?.cardFields?.mes_example || selectedActor?.imported?.examples || '');
 
     // First message options
     const fmOptions = solo.selectedActorId
@@ -620,6 +625,7 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Personality</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm" id="pub-personality" title="Publish to Vault">📤 Publish</button>
                 <button class="btn btn-ghost btn-sm" id="reset-personality" title="Reset from Actor">↺ Reset</button>
                 <span class="status-badge ${solo.overrides.personality.dirty ? 'edited' : 'synced'}" 
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${solo.overrides.personality.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -639,6 +645,7 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Scenario</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm" id="pub-scenario" title="Publish to Vault">📤 Publish</button>
                 <button class="btn btn-ghost btn-sm" id="reset-scenario" title="Reset from Actor">↺ Reset</button>
                 <span class="status-badge ${solo.overrides.scenario.dirty ? 'edited' : 'synced'}"
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${solo.overrides.scenario.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -658,6 +665,7 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>Example Dialogue</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm" id="pub-examples" title="Publish to Vault">📤 Publish</button>
                 <button class="btn btn-ghost btn-sm" id="reset-exampleDialogue" title="Reset from Actor">↺ Reset</button>
                 <span class="status-badge ${solo.overrides.exampleDialogue.dirty ? 'edited' : 'synced'}"
                       style="font-size:10px;padding:2px 8px;border-radius:10px;background:${solo.overrides.exampleDialogue.dirty ? 'var(--status-warning)' : 'var(--status-success)'};color:white;">
@@ -677,6 +685,7 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
               <strong>First Message</strong>
               <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-ghost btn-sm" id="pub-firstmsg" title="Publish to Vault">📤 Publish</button>
                 <button class="btn btn-ghost btn-sm" id="fm-prev" ${currentFmIndex === 0 ? 'disabled' : ''}>◀</button>
                 <span style="font-size:12px;color:var(--text-secondary);">${fmOptions[currentFmIndex]?.label || 'Custom'} (${currentFmIndex + 1}/${fmOptions.length})</span>
                 <button class="btn btn-ghost btn-sm" id="fm-next" ${currentFmIndex >= fmOptions.length - 1 ? 'disabled' : ''}>▶</button>
@@ -798,6 +807,31 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
         render(container);
       };
     }
+
+    // Publish Handlers
+    const bindPublish = (id, subtype, content, defaultName) => {
+      const btn = container.querySelector(id);
+      if (btn) {
+        btn.onclick = () => {
+          if (A.VaultUI?.showPublishDialog) {
+            A.VaultUI.showPublishDialog({
+              type: 'scenario-block',
+              subtype: subtype,
+              title: 'Publish ' + subtype,
+              payload: { content: content },
+              defaultName: defaultName || (solo.characterName || 'Character') + ' - ' + subtype,
+              contentPreview: content,
+              onSuccess: () => { if (A.UI.Toast) A.UI.Toast.show('Published ' + subtype, 'success'); }
+            });
+          }
+        };
+      }
+    };
+
+    bindPublish('#pub-personality', 'personality', personalityContent);
+    bindPublish('#pub-scenario', 'scenario', scenarioContent);
+    bindPublish('#pub-examples', 'examples', examplesContent);
+    bindPublish('#pub-firstmsg', 'first_message', currentFm);
 
     // Character Name and Chat Name
     const charNameInput = container.querySelector('#char-name');

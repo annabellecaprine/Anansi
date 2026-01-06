@@ -794,6 +794,13 @@
                                 actor.traits = { ...actor.traits, ...imported.traits };
                                 actor.cardFields = imported.cardFields || actor.cardFields;
 
+                                // Map to top-level fields for Character V2
+                                actor.personality = imported.traits?.personality || imported.cardFields?.personality || actor.personality;
+                                actor.description = imported.traits?.description || imported.cardFields?.description || actor.description;
+                                actor.scenario = imported.imported?.scenario || imported.cardFields?.scenario || actor.scenario;
+                                actor.exampleDialogue = imported.imported?.examples || actor.exampleDialogue;
+                                actor.firstMessage = imported.imported?.firstMessage || imported.cardFields?.firstMessage || actor.firstMessage;
+
                                 // Add imported image to gallery
                                 const reader = new FileReader();
                                 reader.onload = (ev) => {
@@ -1128,7 +1135,6 @@
                     <details style="margin-top:16px;">
                         <summary style="font-size:13px; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 0;">
                             📋 Character Card Fields
-                            <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(for standalone export)</span>
                         </summary>
                         <div style="padding-top:12px;">
                             <div class="form-col" style="margin-bottom:12px;">
