@@ -52,6 +52,12 @@
                 return `<pre class="chat-code-block"><code>${code.trim()}</code></pre>`;
             });
 
+            // Step 2b: Handle <think> blocks (DeepSeek/CoT)
+            // Match escaped tags since we ran escapeHtml first
+            html = html.replace(/&lt;think&gt;([\s\S]*?)&lt;\/think&gt;/gi, (match, content) => {
+                return `<details class="chat-thinking"><summary>Thought Process</summary><div class="thinking-content">${content}</div></details>`;
+            });
+
             // Step 3: Handle inline code (single backticks)
             // Protect inline code from further transforms
             const codeTokens = [];

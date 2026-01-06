@@ -127,7 +127,13 @@
             }
 
             const data = await resp.json();
-            return data.choices?.[0]?.message?.content || "(No response)";
+            let content = data.choices?.[0]?.message?.content || "";
+            // DeepSeek / Reasoning Extraction
+            const reasoning = data.choices?.[0]?.message?.reasoning_content;
+            if (reasoning) {
+                content = `<think>${reasoning}</think>\n${content}`;
+            }
+            return content || "(No response)";
         }
 
         if (provider === 'anthropic') {

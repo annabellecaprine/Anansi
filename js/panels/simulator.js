@@ -746,9 +746,52 @@
             <button class="btn btn-ghost btn-sm" id="btn-run-all" title="Run Full Simulation Trace">Run Trace</button>
             <button class="btn btn-ghost btn-sm" id="btn-export-story" title="Export as Story">Export</button>
             <button class="btn btn-ghost btn-sm" id="btn-clear-chat" style="color:var(--status-error);">Clear</button>
+            <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
+            <label style="display:flex; align-items:center; gap:4px; font-size:10px; cursor:pointer; user-select:none;">
+               <input type="checkbox" id="chk-show-thinking">
+               <span style="color:var(--text-muted);">Thinking</span>
+            </label>
           </div>
         </div>
         <div class="card-body" id="sim-chat-log" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; background: var(--bg-surface);"></div>
+        
+        <style>
+            /* Thinking Block Styles */
+            .chat-thinking {
+                font-size: 0.85em;
+                margin-bottom: 8px;
+                background: var(--bg-deep);
+                border: 1px solid var(--border-subtle);
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .chat-thinking summary {
+                padding: 6px 10px;
+                cursor: pointer;
+                color: var(--text-muted);
+                font-weight: 600;
+                user-select: none;
+                background: rgba(0,0,0,0.2);
+            }
+            .chat-thinking summary:hover {
+                color: var(--text-primary);
+            }
+            .thinking-content {
+                padding: 10px;
+                white-space: pre-wrap;
+                color: var(--text-secondary);
+                font-family: var(--font-mono);
+                border-top: 1px solid var(--border-subtle);
+                max-height: 300px;
+                overflow-y: auto;
+                opacity: 0.9;
+            }
+            
+            /* Toggle Visibility Logic */
+            #sim-chat-log:not(.show-thoughts) .chat-thinking {
+                display: none;
+            }
+        </style>
         <div class="card-footer" style="padding:12px;">
           <!-- Director's Console -->
           <div class="director-toolbar collapsed" id="director-toolbar">
@@ -810,6 +853,21 @@
       const chatLog = chatCol.querySelector('#sim-chat-log');
       const input = chatCol.querySelector('#sim-input');
       const sendBtn = chatCol.querySelector('#sim-send');
+
+      // --- Thinking Toggle Logic ---
+      const chkThoughts = chatCol.querySelector('#chk-show-thinking');
+      if (chkThoughts) {
+        // Load preference
+        const showThoughts = localStorage.getItem('anansi_show_thoughts') === 'true';
+        chkThoughts.checked = showThoughts;
+        if (showThoughts) chatLog.classList.add('show-thoughts');
+
+        chkThoughts.onchange = (e) => {
+          localStorage.setItem('anansi_show_thoughts', e.target.checked);
+          if (e.target.checked) chatLog.classList.add('show-thoughts');
+          else chatLog.classList.remove('show-thoughts');
+        };
+      }
 
       // --- Director Console Binders ---
       const dirGuidance = chatCol.querySelector('#dir-guidance');
