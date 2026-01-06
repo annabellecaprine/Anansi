@@ -647,6 +647,27 @@
         // Copy to clipboard or warn? Rule blocks are complex.
         if (A.UI.Toast) A.UI.Toast.show(`Importing rule logic...`, 'info');
         // TODO: Implement rule block import to Advanced/Scoring
+      } else if (item.type === 'voice-config') {
+        if (!state.weaves) state.weaves = {};
+        if (!state.weaves.voices) state.weaves.voices = { voices: [], debug: false, enabled: true };
+
+        const copiedData = JSON.parse(JSON.stringify(item.data));
+
+        // Add vaultLink
+        copiedData.vaultLink = {
+          vaultId: item.id,
+          pulledVersion: item.version,
+          locallyModified: false,
+          lastSyncedAt: new Date().toISOString(),
+          universe: item.universe,
+          tags: item.tags
+        };
+
+        state.weaves.voices.voices.push(copiedData);
+        A.State.notify();
+        if (A.UI.Toast) A.UI.Toast.show(`Added voice "${name}" to project`, 'success');
+        return;
+
       } else {
         if (A.UI.Toast) A.UI.Toast.show(`Pull not yet supported for ${item.type}`, 'warning');
         return;

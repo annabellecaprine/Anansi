@@ -1,5 +1,14 @@
 # Features & Changelog
 
+## v1.7.2 - 2026-01-06
+### Improvements
+- **Voices Panel**: Replaced text input with Actor Dropdown for stricter voice-to-actor binding.
+- **Deduplication**: Prevented assigning multiple voices to the same actor.
+
+### Fixes
+- **Voice Import**: Resolved issue where "Pull from Vault" for (Voices) would silent fail.
+- **Auto-Refresh**: Fixed Voices panel not updating list when new items were added remotely.
+
 ## v1.7.1 - 2026-01-06
 ### Improvements
 - **Vault UX**: Enhanced layout with collapsible detail pane and dynamic filtering by content subtype.
