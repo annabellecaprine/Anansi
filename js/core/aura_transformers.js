@@ -342,7 +342,6 @@
       tag: ${jsStr(v.tag || 'V')},
       characterName: ${jsStr(v.characterName)},
       chatName: ${jsStr(v.chatName)},
-      handle: ${jsStr(v.handle)},
       attempt: {
         baseChance: ${att.baseChance || 0.6},
         contentBoost: ${att.contentBoost || 0.15},

@@ -50,7 +50,6 @@
       tag: ${jsStr(v.tag || 'V')},
       characterName: ${jsStr(v.characterName)},
       chatName: ${jsStr(v.chatName)},
-      handle: ${jsStr(v.handle)},
       attempt: {
         baseChance: ${att.baseChance || 0.6},
         contentBoost: ${att.contentBoost || 0.15},
@@ -297,8 +296,7 @@
 
       body.innerHTML = `
         <div class="v-row">
-           <div class="v-col"><label class="v-lab">Tag</label><input class="input" id="inp-tag" value="${v.tag || 'V'}"></div>
-           <div class="v-col"><label class="v-lab">Handle</label><input class="input" id="inp-handle" value="${v.handle || ''}"></div>
+           <div class="v-col"><label class="v-lab">Tag (Debug Trace)</label><input class="input" id="inp-tag" value="${v.tag || 'V'}"></div>
         </div>
 
         <div class="v-sec">
@@ -345,7 +343,6 @@
       };
 
       body.querySelector('#inp-tag').oninput = e => { v.tag = e.target.value; upd(); };
-      body.querySelector('#inp-handle').oninput = e => { v.handle = e.target.value; upd(); };
 
       body.querySelector('#inp-mark').oninput = e => { v.baselineMarker = e.target.value; upd(); };
       body.querySelector('#inp-base').oninput = e => { v.baselineRail = e.target.value; upd(); };
