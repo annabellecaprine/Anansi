@@ -224,6 +224,7 @@
 ### v1.6.5 - January 5, 2026
 - **Fix**: **Custom Rules UI**. Added missing configuration inputs for "Count in History" (list selector, operator, threshold) and "Derived Value Check" (metric selector, operator, threshold) conditions.
 - **Fix**: **Lorebook UI**. Hidden the deprecated "Logic" button from the entry header to prevent confusion and unnecessary redirects.
+- **New Feature**: **Show Thinking**. Added support for displaying Chain of Thought (CoT) reasoning blocks (e.g., DeepSeek R1). Includes a "Thinking" checkbox in the Live Simulator to toggle visibility of `<think>` blocks.
 
 ### v1.6.4 - January 5, 2026
 - **New Feature**: **Keyboard Shortcuts**. Global shortcuts for common actions:
