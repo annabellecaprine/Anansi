@@ -179,14 +179,43 @@
         const buffer = png instanceof Blob ? await png.arrayBuffer() : png;
         const chunks = parsePngChunks(buffer);
 
-        // Remove existing chara chunks
-        const filteredChunks = chunks.filter(chunk => {
-            if (chunk.type !== 'tEXt') return true;
-            const nullIndex = chunk.data.indexOf(0);
-            if (nullIndex === -1) return true;
-            const keyword = new TextDecoder().decode(chunk.data.slice(0, nullIndex));
-            return keyword !== CHARA_KEY;
-        });
+        // Process chunks: remove old chara, sanitize tEXt, keep others
+        const processedChunks = [];
+        for (const chunk of chunks) {
+            // Remove existing chara chunks
+            if (chunk.type === 'tEXt') {
+                const nullIndex = chunk.data.indexOf(0);
+                if (nullIndex !== -1) {
+                    const keyword = new TextDecoder().decode(chunk.data.slice(0, nullIndex));
+                    if (keyword === CHARA_KEY) continue; // Skip existing chara
+
+                    // Sanitize other tEXt chunks (e.g. generation_data)
+                    // Extract text part
+                    const textStart = nullIndex + 1;
+                    let textData = new TextDecoder().decode(chunk.data.slice(textStart));
+
+                    // Check for invalid nulls in text
+                    if (textData.includes('\0')) {
+                        console.warn(`[CardEncoder] Sanitizing tEXt chunk '${keyword}' (found nulls)`);
+                        textData = textData.replace(/\0/g, ''); // Remove nulls
+
+                        // Recreate chunk with sanitized text
+                        const newChunk = createTextChunk(keyword, textData);
+                        processedChunks.push(newChunk);
+                        continue;
+                    }
+                }
+            }
+
+            // If we get here, keep the original chunk bytes
+            // We need the full chunk data (Length + Type + Data + CRC)
+            // chunk.offset points to the start of Length (see parsePngChunks)
+            // Total length = 12 + chunk.length (4 len + 4 type + len data + 4 crc)
+            const chunkTotalLength = 12 + chunk.length;
+            const chunkBytes = new Uint8Array(buffer, chunk.offset, chunkTotalLength);
+            // Note: buffer is ArrayBuffer, so we can view it directly
+            processedChunks.push(chunkBytes);
+        }
 
         // Create new chara chunk
         const jsonStr = JSON.stringify(cardData);
@@ -195,16 +224,15 @@
 
         // Rebuild PNG
         const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-        const originalBytes = new Uint8Array(buffer);
 
         // Calculate total size
         let totalSize = 8; // signature
-        for (const chunk of filteredChunks) {
-            totalSize += 12 + chunk.length;
+        for (const chunk of processedChunks) {
+            totalSize += chunk.length;
         }
         totalSize += charaChunk.length;
+        // We need an IEND if it wasn't in processedChunks (it should be)
 
-        // Build new PNG
         const newPng = new Uint8Array(totalSize);
         let offset = 0;
 
@@ -212,15 +240,25 @@
         newPng.set(signature, offset);
         offset += 8;
 
-        // Insert chara chunk after IHDR (first chunk)
+        // Insert chunks
         let insertedChara = false;
-        for (const chunk of filteredChunks) {
-            const chunkBytes = originalBytes.slice(chunk.offset, chunk.offset + 12 + chunk.length);
-            newPng.set(chunkBytes, offset);
-            offset += 12 + chunk.length;
 
-            // Insert chara chunk after IHDR
-            if (!insertedChara && chunk.type === 'IHDR') {
+        for (const chunkBytes of processedChunks) {
+            // Check if this chunk is IHDR to know when to insert chara
+            // We can check the Type bytes at offset 4
+            // But simpler: we know the structure.
+            // We want to insert Chara after IHDR.
+
+            // Check type of current chunkBytes to see if it is IHDR
+            // chunkBytes is Uint8Array. 
+            // Length (4), Type (4).
+            const typeDecoder = new TextDecoder();
+            const type = typeDecoder.decode(chunkBytes.slice(4, 8));
+
+            newPng.set(chunkBytes, offset);
+            offset += chunkBytes.length;
+
+            if (!insertedChara && type === 'IHDR') {
                 newPng.set(charaChunk, offset);
                 offset += charaChunk.length;
                 insertedChara = true;

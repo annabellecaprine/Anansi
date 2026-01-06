@@ -221,6 +221,9 @@
 
 ## 📜 Change Log
 
+### v1.6.6 - January 6, 2026
+- **Fix**: **Character Card Exporter**. Resolved "Invalid PNG tEXt chunk" error when importing Cards into SillyTavern. The exporter now sanitizes source image metadata (removing invalid null bytes from `generation_data` chunks) and correctly preserves the PNG `IEND` header.
+
 ### v1.6.5 - January 5, 2026
 - **Fix**: **Custom Rules UI**. Added missing configuration inputs for "Count in History" (list selector, operator, threshold) and "Derived Value Check" (metric selector, operator, threshold) conditions.
 - **Fix**: **Lorebook UI**. Hidden the deprecated "Logic" button from the entry header to prevent confusion and unnecessary redirects.
