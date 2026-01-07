@@ -1343,9 +1343,9 @@
               loreEntries: state.sim.lastLogicResult ? state.sim.lastLogicResult.filter(r => r.type === 'entry').length : 0,
               // Store original vs final for diff highlighting
               original: {
-                personality: state.character?.char?.personality || '',
-                scenario: state.character?.char?.scenario || '',
-                exampleDialogue: state.character?.char?.example_dialogue || ''
+                personality: state.character?.compiled?.personality || state.seed?.persona || '',
+                scenario: state.character?.compiled?.scenario || state.seed?.scenario || '',
+                exampleDialogue: state.character?.compiled?.examples || state.seed?.examples || ''
               },
               final: {
                 personality: finalContext.character?.personality || '',
@@ -1533,7 +1533,7 @@
         }
 
         // Get character name for the story
-        const characterName = state.character?.char?.name || 'Character';
+        const characterName = state.character?.compiled?.name || state.seed?.name || 'Character';
 
         // Convert chat to prose
         const storyLines = [];
@@ -2408,12 +2408,26 @@
         const src = definedSources[key] || { id: key, defaultValue: '' };
         let val = state.sim?.simSources?.[key]; // Priority 1: Sim
 
-        if (!val) { // Priority 2: Seed
-          if (!state.seed) state.seed = {}; // Safeguard
-          if (key === 'character.name' || key === 'name') val = state.seed.name;
-          else if (key === 'character.personality' || key === 'personality') val = state.seed.persona;
-          else if (key === 'character.scenario' || key === 'scenario') val = state.seed.scenario;
-          else if (key === 'user.name') val = state.meta?.author || 'User';
+        if (!val) { // Priority 2: Compiled V2 > Seed V1
+          const compiled = state.character?.compiled;
+
+          if (compiled) {
+            if (key === 'character.name' || key === 'name') val = compiled.name;
+            else if (key === 'character.personality' || key === 'personality') val = compiled.personality;
+            else if (key === 'character.scenario' || key === 'scenario') val = compiled.scenario;
+            else if (key === 'character.exampleDialogs' || key === 'example') val = compiled.examples;
+          }
+
+          if (!val) { // Fallback to Legacy Seed
+            if (!state.seed) state.seed = {}; // Safeguard
+            if (key === 'character.name' || key === 'name') val = state.seed.name || state.seed.characterName;
+            else if (key === 'character.personality' || key === 'personality') val = state.seed.persona;
+            else if (key === 'character.scenario' || key === 'scenario') val = state.seed.scenario;
+            else if (key === 'character.examples' || key === 'example') val = state.seed.examples;
+          }
+
+          // User Name override
+          if (key === 'user.name' && !val) val = state.meta?.author || 'User';
         }
         if (!val && val !== '') val = src.defaultValue; // Priority 3: Default
         rawSources[key] = val || '';

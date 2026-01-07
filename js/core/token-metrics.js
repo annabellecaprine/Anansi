@@ -28,9 +28,11 @@
          * Calculate Permanent tokens (sent every turn)
          */
         getPermanent: function (state, ratio) {
+            // Priority: V2 Compiled > V1 Seed
+            const source = state.character?.compiled || state.seed || {};
             const content = {
-                personality: state.seed?.persona || '',
-                scenario: state.seed?.scenario || ''
+                personality: source.personality || source.persona || '',
+                scenario: source.scenario || ''
             };
 
             const chars = content.personality.length + content.scenario.length;
@@ -56,7 +58,9 @@
          * Calculate Temporary tokens (sent initially only)
          */
         getTemporary: function (state, ratio) {
-            const examples = state.seed?.examples || '';
+            // Priority: V2 Compiled > V1 Seed
+            const source = state.character?.compiled || state.seed || {};
+            const examples = source.examples || source.exampleDialogue || ''; // Handle both field names
             const chars = examples.length;
             const tokens = Math.ceil(chars / ratio);
 

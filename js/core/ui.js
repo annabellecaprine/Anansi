@@ -86,7 +86,7 @@
                 logo.title = 'About Anansi';
                 logo.onclick = () => {
                     // Use iframe to support local file:// access where fetch() is blocked
-                    const cacheBust = '?v=' + Date.now();
+                    const cacheBust = '?v=' + (A.VERSION || Date.now());
                     const frameHtml = `
                         <iframe src="ABOUT.html${cacheBust}" 
                                 style="width:100%; height:400px; border:none; display:block;"

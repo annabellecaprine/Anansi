@@ -1009,7 +1009,7 @@
                                     handleLoreImport();
 
                                     A.State.notify();
-                                    renderTab();
+                                    selectActor(actor.id); // Refresh sidebar list and name header
                                 };
                                 reader.readAsDataURL(file);
                                 if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
@@ -1090,11 +1090,12 @@
                 });
                 smartContainer.appendChild(aliasesWrap);
 
-                // Tags
+                // AURA Tags (Logic Triggers)
                 const tagsWrap = document.createElement('div');
                 tagsWrap.className = 'form-col';
                 new A.UI.Components.TagInput(tagsWrap, actor.tags || [], {
-                    label: 'Tags',
+                    label: 'AURA Tags (Logic Triggers)',
+                    placeholder: '+ aura tag (e.g. demon, noble)',
                     onChange: (tags) => { actor.tags = tags; A.State.notify(); }
                 });
 

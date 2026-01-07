@@ -462,9 +462,20 @@
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             ${selectionMode ? `<input type="checkbox" style="pointer-events:none;" ${isSelected ? 'checked' : ''}>` : ''}
             <span style="font-size:14px;">${TYPE_ICONS[item.type] || '📦'}</span>
-            <strong style="font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <strong style="font-size:12px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               ${name}
             </strong>
+            
+            <!-- Tags as Pills -->
+            <div style="flex:1; display:flex; gap:6px; overflow:hidden; margin-left:8px;">
+              ${(item.tags || []).map(t => `
+                <span style="font-size:10px; padding:2px 10px; background:rgba(218, 165, 32, 0.1); border:1px solid rgba(218, 165, 32, 0.2); border-radius:12px; color:var(--accent-primary); white-space:nowrap; font-weight:500;">
+                  ${t}
+                </span>
+              `).join('')}
+            </div>
+
+            <span style="font-size:10px; color:var(--text-muted); opacity:0.8;">
               v${item.version}
             </span>
             ${item.data?.subtype ? `<span style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border:1px solid var(--border-subtle); border-radius:8px; color:var(--text-secondary); margin-left:4px;">${item.data.subtype}</span>` : ''}
@@ -668,6 +679,26 @@
         if (A.UI.Toast) A.UI.Toast.show(`Added voice "${name}" to project`, 'success');
         return;
 
+      } else if (item.type === 'script') {
+        // Scripts use the Scripts manager instead of direct state path
+        const copiedData = JSON.parse(JSON.stringify(item.data));
+        const newId = A.Scripts.create(copiedData.name || 'Imported Script', copiedData.source?.code || '');
+
+        // Add vaultLink
+        A.Scripts.update(newId, {
+          vaultLink: {
+            vaultId: item.id,
+            pulledVersion: item.version,
+            locallyModified: false,
+            lastSyncedAt: new Date().toISOString(),
+            universe: item.universe,
+            tags: item.tags
+          }
+        });
+
+        if (A.UI.Toast) A.UI.Toast.show(`Added script "${name}" to project`, 'success');
+        return;
+
       } else {
         if (A.UI.Toast) A.UI.Toast.show(`Pull not yet supported for ${item.type}`, 'warning');
         return;
@@ -746,5 +777,31 @@
     category: 'Seeds',
     render: render
   });
+
+  // Local Tour Registration (Fallback)
+  if (A.UI && A.UI.Tour) {
+    A.UI.Tour.register('vault', [
+      {
+        target: '#vault-search',
+        title: 'Search & Filtering',
+        content: 'Find assets by name, tag, or content. You can also filter by <strong>Universe</strong> to keep your assets organized.'
+      },
+      {
+        target: '#filter-type',
+        title: 'Content Discovery',
+        content: 'Filter by Actors, Lore, Scripts, or even specific subtypes like "Personality" or "Voice".'
+      },
+      {
+        target: '#vault-list',
+        title: 'Your Archive',
+        content: 'The list shows your stored assets. The ✅ icon means an item is in sync, while 🔄 indicates a local update is available.'
+      },
+      {
+        target: '#btn-pull',
+        title: 'Pull into Project',
+        content: 'Click <strong>Pull to Project</strong> to import an asset from your Vault. It will be added to your current workspace instantly.'
+      }
+    ]);
+  }
 
 })(window.Anansi);

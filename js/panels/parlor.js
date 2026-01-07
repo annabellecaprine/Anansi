@@ -1794,6 +1794,7 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
             const name = modal.querySelector('#preview-name').value.trim();
             const personality = modal.querySelector('#preview-personality').value.trim();
             const scenario = modal.querySelector('#preview-scenario').value.trim();
+            const appearance = modal.querySelector('#preview-appearance')?.value.trim() || '';
 
             if (!name) {
               if (A.UI.Toast) A.UI.Toast.show('Your character needs a name!', 'warning');
@@ -1814,11 +1815,61 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
             state.meta.name = name;
             state.meta.description = `Woven by Anansi (${answers.genre}, ${answers.tone})`;
 
+            // 1. Populate Legacy Seed (Backward Compatibility)
             state.seed = state.seed || {};
             state.seed.characterName = name;
             state.seed.chatName = name;
             state.seed.persona = personality;
             state.seed.scenario = scenario;
+            state.seed.portrait = selectedPortrait;
+
+            // 2. Create V2 Actor
+            const gender = answers.gender || answers.quick_gender || 'any';
+            // createActorFromParlor(name, _personality, appearance, gender, extraNotes, portrait)
+            const actorId = createActorFromParlor(name, personality, appearance, gender, 'Protagonist', selectedPortrait);
+
+            // 3. Setup V2 Character State
+            if (!state.character) state.character = {};
+            state.character.activeMode = 'solo';
+            state.character.solo = {
+              selectedActorId: actorId,
+              characterName: name,
+              chatName: name,
+              portrait: selectedPortrait,
+              overrides: {
+                personality: { content: null, dirty: false },
+                scenario: { content: null, dirty: false },
+                exampleDialogue: { content: null, dirty: false },
+                firstMessage: { content: null, dirty: false }
+              },
+              firstMessageIndex: 0
+            };
+
+            // Also init ensemble for safety
+            state.character.ensemble = {
+              selectedActorIds: [],
+              portrait: null,
+              characterName: '',
+              chatName: '',
+              options: { includeNarrator: false, includeMoodTags: false },
+              overrides: {
+                personality: { content: null, dirty: false },
+                scenario: { content: null, dirty: false },
+                exampleDialogue: { content: null, dirty: false },
+                firstMessage: { content: null, dirty: false }
+              },
+              firstMessageIndex: 0
+            };
+
+            // Compile immediate state
+            state.character.compiled = {
+              name: name,
+              personality: personality,
+              scenario: scenario,
+              firstMessage: '',
+              exampleDialogue: '',
+              portrait: selectedPortrait
+            };
 
             await A.ProjectDB.save(state);
             A.ProjectDB.setCurrentId(state.meta.id);
@@ -1827,6 +1878,8 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
             A.UI.refresh();
 
             if (A.UI.Toast) A.UI.Toast.show(`"${name}" has been woven into existence!`, 'success');
+
+            // Switch to Character panel (now V2)
             A.UI.switchPanel('character');
 
             return true;
@@ -1919,6 +1972,45 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
                       createPairFromParlor(mainId, compId, companionRelType);
                     }
 
+                    // V2 State Setup (Solo Mode with Main Actor)
+                    if (!state.character) state.character = {};
+                    state.character.activeMode = 'solo';
+                    state.character.solo = {
+                      selectedActorId: mainId,
+                      characterName: name,
+                      chatName: name,
+                      portrait: selectedPortrait,
+                      overrides: {
+                        personality: { content: null, dirty: false },
+                        scenario: { content: null, dirty: false },
+                        exampleDialogue: { content: null, dirty: false },
+                        firstMessage: { content: null, dirty: false }
+                      },
+                      firstMessageIndex: 0
+                    };
+                    state.character.ensemble = {
+                      selectedActorIds: [],
+                      portrait: null,
+                      characterName: '',
+                      chatName: '',
+                      options: { includeNarrator: false, includeMoodTags: false },
+                      overrides: {
+                        personality: { content: null, dirty: false },
+                        scenario: { content: null, dirty: false },
+                        exampleDialogue: { content: null, dirty: false },
+                        firstMessage: { content: null, dirty: false }
+                      },
+                      firstMessageIndex: 0
+                    };
+                    state.character.compiled = {
+                      name: name,
+                      personality: personality,
+                      scenario: scenario,
+                      firstMessage: '',
+                      exampleDialogue: '',
+                      portrait: selectedPortrait
+                    };
+
                     await A.ProjectDB.save(state);
                     A.ProjectDB.setCurrentId(state.meta.id);
                     A.State.notify();
@@ -1926,8 +2018,8 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
 
                     if (A.UI.Toast) A.UI.Toast.show(`New project "${name}" created!`, 'success');
 
-                    // Force switch to Character panel
-                    setTimeout(() => A.UI.switchPanel('character'), 100);
+                    // Switch to Character panel (now V2)
+                    A.UI.switchPanel('character');
                     return true;
                   }
                 }
@@ -2324,10 +2416,83 @@ CRITICAL: Respond ONLY with valid JSON:
             await A.ProjectDB.save(state);
             A.ProjectDB.setCurrentId(state.meta.id);
 
+            // V2 Ensemble Setup
+            if (!state.character) state.character = {};
+            state.character.activeMode = 'ensemble';
+            state.character.solo = { selectedActorId: null, characterName: '', chatName: '', overrides: {}, firstMessageIndex: 0 };
+            state.character.ensemble = {
+              selectedActorIds: [],
+              portrait: null,
+              characterName: mainName,
+              chatName: mainName,
+              options: { includeNarrator: false, includeMoodTags: false },
+              overrides: {
+                personality: { content: null, dirty: false },
+                scenario: { content: null, dirty: false },
+                exampleDialogue: { content: null, dirty: false },
+                firstMessage: { content: null, dirty: false }
+              },
+              firstMessageIndex: 0
+            };
+
+            // Create Actors & Populate V2 State
+            const gender = answers.gender || 'any';
+            let createdCount = 0;
+            const actorIds = [];
+
+            for (let i = 0; i < charNames.length; i++) {
+              const name = charNames[i]?.value.trim() || `Character ${i + 1}`;
+              const personality = charPersonalities[i]?.value.trim() || '';
+              // Try to get appearance if available (might not be in this view, but accessible via DOM?)
+              // The loop in the view code above shows char-appearance textarea exists
+              const appearance = modal.querySelectorAll('.char-appearance')[i]?.value.trim() || '';
+
+              if (name) {
+                // createActorFromParlor(name, _personality, appearance, gender, extraNotes, portrait)
+                const role = i === 0 ? 'Ensemble Protagonist' : 'Ensemble Member';
+                const actorId = createActorFromParlor(name, personality, appearance, i === 0 ? gender : 'any', role);
+                actorIds.push(actorId);
+                createdCount++;
+              }
+            }
+
+            state.character.ensemble.selectedActorIds = actorIds;
+
+            // Compile State (Ensemble Scenario)
+            state.character.compiled = {
+              name: mainName,
+              personality: '', // synthesized on load
+              scenario: scenarioText,
+              firstMessage: '',
+              exampleDialogue: '',
+              portrait: null
+            };
+
+            // Maintain Legacy Seed (Notes)
+            if (characters.length > 1) {
+              let ensembleNotes = '=== ENSEMBLE CAST ===\n\n';
+              for (let i = 0; i < charNames.length; i++) {
+                const name = charNames[i]?.value.trim() || `Character ${i + 1}`;
+                const personality = charPersonalities[i]?.value.trim() || '';
+                ensembleNotes += `## ${name}\n${personality}\n\n`;
+              }
+              if (relationships.length > 0) {
+                ensembleNotes += '=== RELATIONSHIPS ===\n\n';
+                relationships.forEach(r => {
+                  const between = Array.isArray(r.between) ? r.between.join(' ↔ ') : 'Connection';
+                  ensembleNotes += `${between}: ${r.dynamic || ''}\n`;
+                });
+              }
+              state.seed.characterNotes = ensembleNotes;
+            }
+
+            await A.ProjectDB.save(state);
             A.State.notify();
             A.UI.refresh();
 
             if (A.UI.Toast) A.UI.Toast.show(`Ensemble "${mainName}" has been woven!`, 'success');
+
+            // Switch to Character panel (now V2)
             A.UI.switchPanel('character');
 
             return true;
@@ -2411,15 +2576,48 @@ CRITICAL: Respond ONLY with valid JSON:
                     // Add actors
                     const gender = answers.gender || 'any';
                     let createdCount = 0;
+                    const actorIds = [];
+
                     for (let i = 0; i < charNames.length; i++) {
                       const name = charNames[i]?.value.trim() || `Character ${i + 1}`;
                       const personality = charPersonalities[i]?.value.trim() || '';
                       const appearance = charAppearances[i]?.value.trim() || '';
                       if (name) {
-                        createActorFromParlor(name, personality, appearance, i === 0 ? gender : 'any', i === 0 ? 'Ensemble Protagonist' : 'Ensemble Member');
+                        const role = i === 0 ? 'Ensemble Protagonist' : 'Ensemble Member';
+                        const actorId = createActorFromParlor(name, personality, appearance, i === 0 ? gender : 'any', role);
+                        actorIds.push(actorId);
                         createdCount++;
                       }
                     }
+
+                    // V2 Ensemble Setup
+                    if (!state.character) state.character = {};
+                    state.character.activeMode = 'ensemble';
+                    state.character.solo = { selectedActorId: null, characterName: '', chatName: '', overrides: {}, firstMessageIndex: 0 };
+                    state.character.ensemble = {
+                      selectedActorIds: actorIds,
+                      portrait: null,
+                      characterName: mainName,
+                      chatName: mainName,
+                      options: { includeNarrator: false, includeMoodTags: false },
+                      overrides: {
+                        personality: { content: null, dirty: false },
+                        scenario: { content: null, dirty: false },
+                        exampleDialogue: { content: null, dirty: false },
+                        firstMessage: { content: null, dirty: false }
+                      },
+                      firstMessageIndex: 0
+                    };
+
+                    // Compile State (Ensemble Scenario)
+                    state.character.compiled = {
+                      name: mainName,
+                      personality: '', // synthesized on load
+                      scenario: scenario,
+                      firstMessage: '',
+                      exampleDialogue: '',
+                      portrait: null
+                    };
 
                     await A.ProjectDB.save(state);
                     A.ProjectDB.setCurrentId(state.meta.id);
@@ -2427,7 +2625,9 @@ CRITICAL: Respond ONLY with valid JSON:
                     A.UI.refresh();
 
                     if (A.UI.Toast) A.UI.Toast.show(`New project "${mainName}" created with ${createdCount} actors!`, 'success');
-                    A.UI.switchPanel('character'); // Switch to Character panel
+
+                    // Switch to Character panel (now V2)
+                    A.UI.switchPanel('character');
                     return true;
                   }
                 }

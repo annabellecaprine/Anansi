@@ -10,9 +10,20 @@
     let currentScriptId = null;
     let monacoEditor = null;
     let searchTerm = ''; // Search Filter
-    // State for Multi-Select
     let selectionMode = false;
     let selectedIds = new Set();
+
+    // --- Vault Helpers ---
+    function markMod(id) {
+        if (!id) return;
+        const scripts = A.Scripts.getAll();
+        const s = scripts.find(x => x.id === id);
+        if (s && s.vaultLink) {
+            s.vaultLink.locallyModified = true;
+            A.State.notify();
+        }
+    }
+
 
     function render(container, context) {
         // Handle context for auto-selecting a script (e.g., from Voices panel)
@@ -65,11 +76,15 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                 </button>
                 <div id="header-std-act" style="display:flex; gap:4px;">
-                    <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Import Script">
+                    <button class="btn btn-ghost btn-sm" id="btn-import-vault" title="Import from Vault" style="color:var(--accent-primary);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="btn-upload-script" title="Import Script File">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </button>
                     <button class="btn btn-secondary btn-sm" id="btn-add-script">+ New</button>
                 </div>
+
             </div>
       </div>
       </div>
@@ -189,9 +204,11 @@
         editorHeader.innerHTML = `
       <input type="text" id="script-name-input" class="input" style="width:200px; padding:2px 8px; height:24px;" placeholder="Script Name" disabled>
       <div style="flex:1;"></div>
+      <button class="btn btn-secondary btn-sm" id="btn-publish-vault" style="display:none;">📤 Publish to Vault</button>
       <button class="btn btn-ghost btn-sm" id="btn-download-script" title="Export Script" disabled>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
+
       <button class="btn btn-ghost btn-sm" id="btn-delete-script" title="Delete Script" disabled>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--status-error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
       </button>
@@ -329,8 +346,10 @@
                     A.Scripts.update(currentScriptId, {
                         source: { code: monacoEditor.getValue(), type: 'inline' }
                     });
+                    markMod(currentScriptId);
                 }
             });
+
 
             // If a script was already selected, load it
             if (currentScriptId) {
@@ -430,14 +449,26 @@
                 // Safe accessor for code length
                 const codeLength = script.source && script.source.code ? script.source.code.length : 0;
 
+                // Sync Badge
+                let syncBadge = '';
+                if (script.vaultLink && script.vaultLink.vaultId) {
+                    if (script.vaultLink.locallyModified) {
+                        syncBadge = '<span title="Modified - Push to sync" style="font-size:10px; margin-left:6px; color:var(--status-warning);">🔄</span>';
+                    } else {
+                        syncBadge = '<span title="Synced with Vault" style="font-size:10px; margin-left:6px; color:var(--text-muted);">✅</span>';
+                    }
+                }
+
                 infoDiv.innerHTML = `
           <div style="font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:6px;">
             ${selectionMode && !script.system ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(script.id) ? 'checked' : ''}>` : ''}
             ${displayName}
             ${badges}
+            ${syncBadge}
           </div>
           <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode && !script.system ? '24px' : '0'};">${codeLength} chars</div>
         `;
+
                 infoDiv.onclick = () => {
                     if (selectionMode) {
                         if (script.system) return; // Cannot select system scripts
@@ -527,6 +558,7 @@
             const nameInput = container.querySelector('#script-name-input');
             const delBtn = container.querySelector('#btn-delete-script');
             const downloadBtn = container.querySelector('#btn-download-script');
+            const publishBtn = container.querySelector('#btn-publish-vault');
 
             if (script) {
                 // System scripts are read-only
@@ -535,6 +567,32 @@
                 nameInput.value = script.name;
                 delBtn.disabled = isReadOnly;
                 downloadBtn.disabled = false;
+
+                // Vault Button Logic
+                if (isReadOnly) {
+                    publishBtn.style.display = 'none';
+                } else {
+                    publishBtn.style.display = 'block';
+                    if (script.vaultLink && script.vaultLink.vaultId) {
+                        if (script.vaultLink.locallyModified) {
+                            publishBtn.innerHTML = '📤 Push Update';
+                            publishBtn.style.background = 'var(--status-warning)';
+                            publishBtn.style.color = 'var(--bg-base)';
+                            publishBtn.title = 'Modified since last sync - push changes to Vault';
+                        } else {
+                            publishBtn.innerHTML = '✅ Synced';
+                            publishBtn.style.background = '';
+                            publishBtn.style.color = 'var(--text-muted)';
+                            publishBtn.title = `Synced with Vault v${script.vaultLink.pulledVersion}`;
+                        }
+                    } else {
+                        publishBtn.innerHTML = '📤 Publish to Vault';
+                        publishBtn.style.background = '';
+                        publishBtn.style.color = '';
+                        publishBtn.title = 'Publish this script to your Vault archive';
+                    }
+                }
+
 
                 if (monacoEditor) {
                     monacoEditor.setValue(script.source.code);
@@ -545,6 +603,7 @@
                 nameInput.value = '';
                 delBtn.disabled = true;
                 downloadBtn.disabled = true;
+                publishBtn.style.display = 'none';
 
                 if (monacoEditor) {
                     monacoEditor.setValue('');
@@ -553,12 +612,65 @@
             }
         }
 
+
         // Event Listeners
 
         container.querySelector('#btn-add-script').onclick = () => {
             const id = A.Scripts.create('New Script');
             selectScript(id);
         };
+
+        const publishBtn = container.querySelector('#btn-publish-vault');
+        publishBtn.onclick = async () => {
+            if (!currentScriptId) return;
+            const scripts = A.Scripts.getAll();
+            const script = scripts.find(s => s.id === currentScriptId);
+            if (!script || script.system) return;
+
+            try {
+                const vaultId = script.vaultLink?.vaultId || null;
+                const result = await A.VaultDB.publish({
+                    id: vaultId,
+                    type: 'script',
+                    name: script.name,
+                    data: {
+                        name: script.name,
+                        source: script.source
+                    }
+                });
+
+                if (result) {
+                    script.vaultLink = {
+                        vaultId: result.id,
+                        pulledVersion: result.version,
+                        locallyModified: false,
+                        lastSyncedAt: new Date().toISOString()
+                    };
+                    A.State.notify();
+                    selectScript(currentScriptId);
+                    if (A.UI.Toast) A.UI.Toast.show(`Published "${script.name}" to Vault`, 'success');
+                }
+            } catch (err) {
+                console.error('[Scripts] Publish failed:', err);
+                if (A.UI.Toast) A.UI.Toast.show('Publish failed', 'error');
+            }
+        };
+
+        container.querySelector('#btn-import-vault').onclick = () => {
+            A.UI.switchPanel('vault', { filter: 'script' });
+        };
+
+        const nameInput = container.querySelector('#script-name-input');
+        nameInput.oninput = () => {
+            if (currentScriptId) {
+                A.Scripts.update(currentScriptId, { name: nameInput.value });
+                markMod(currentScriptId);
+                // We don't refresh list on every keystroke to avoid focus loss, 
+                // but we should update the sidebar eventually. 
+                // Usually refreshList() is called on blur or similar if needed.
+            }
+        };
+        nameInput.onblur = () => refreshList();
 
         container.querySelector('#btn-repo-script').onclick = () => {
             const repoPoints = [

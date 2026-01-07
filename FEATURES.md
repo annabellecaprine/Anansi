@@ -1,60 +1,71 @@
-# Features & Changelog
+# Features of Anansi
 
-## v1.7.2 - 2026-01-06
-### Improvements
-- **Voices Panel**: Replaced text input with Actor Dropdown for stricter voice-to-actor binding.
-- **Deduplication**: Prevented assigning multiple voices to the same actor.
+Anansi is a professional-grade narrative simulation engine and character authoring suite designed to bridge the gap between static character cards and dynamic, logic-driven AI personalities.
 
-### Fixes
-- **Voice Import**: Resolved issue where "Pull from Vault" for (Voices) would silent fail.
-- **Auto-Refresh**: Fixed Voices panel not updating list when new items were added remotely.
+---
 
-## v1.7.1 - 2026-01-06
-### Improvements
-- **Vault UX**: Enhanced layout with collapsible detail pane and dynamic filtering by content subtype.
-- **Vault Integration**: Added Vault support for Voices, Pairs, and Custom Rules (Logic).
-- **Character Panel**: Improved data synthesis logic to robustly handle legacy and imported actor data.
+## 🏛️ The Anansi Vault
+*A centralized, cross-project asset management system.*
+The Vault acts as your personal "GitHub" for creative assets, allowing you to build a reusable library of narrative blocks.
 
-### Fixes
-- **Import**: Fixed issue where imported Character Cards would display empty profiles in the Character V2 panel.
-- **UI**: Cleanup of outdated labels in Actors panel.
+- **Localized Asset Library**: Store Actors, Lorebook entries, Voice Configs, and Logic Rules in a persistent database separate from your projects.
+- **Publish-Push-Pull Workflow**: 
+  - **Publish**: Ship local items to the Vault with unique identifiers.
+  - **Pull**: Import Vault assets into any new or existing project.
+  - **Push**: Update the master copy in the Vault when you improve an item locally.
+- **Universal Organization**: Group your assets into **Universes** (e.g., *Cyberpunk*, *Dark Fantasy*) and use a robust tagging system for instant discovery.
+- **Asset Portability**: Export your entire Vault to `.vault` files for backup or sharing.
 
-## v1.7.0 - 2026-01-06
-### New Features
-- **Anansi Vault**: A centralized snippet library for storing and reusing content across projects.
-  - **Vault Panel**: specialized interface for browsing, searching, and managing your Vault library.
-  - **Integration**: "Publish to Vault" buttons added to Character, Script, and Location panels.
-  - **Import**: Easily import snippets from the Vault directly into your active project.
-- **Smart Linking**: Vault items track their origin and version history.
-- **Snippet Management**: Organize snippets by Universe and Tags.
+---
 
-### Improvements
-- **UI Refresh**: Minor polish to header and tooltips.
+## 🎭 Unified Character Designer
+*Deep character synthesis with Actor-driven logic.*
+The Character panel replaces traditional text boxes with a structured data engine.
 
-### Fixes
-- **Performance**: Optimized list rendering for large projects.
+- **Dual-Mode Construction**:
+  - **Solo Mode**: Draft a single, high-fidelity character profile.
+  - **Ensemble Mode**: Build a cast-based scenario where multiple actors interact.
+- **Actor-to-Text Synthesis**: Character personality and scenario fields are automatically generated based on the traits, aliases, and tags of the assigned Actors.
+- **One-Way Compilation**: Edits happen in the Designer, but the AI only sees the "Compiled" result, ensuring project-wide consistency and preventing "context drift."
+- **Legacy Support**: Older projects are seamlessly migrated into the V2 structure upon loading.
 
-## v1.6.3 - 2026-01-05
-### Mobile Build
-- **Android APK**: Added build config for Android export.
-- **Optimizations**: Improved touch handling in Simulator.
+---
 
-## v1.6.2 - 2026-01-05
-### Simulator
-- **Fix**: Resolved issue where Actors were not appearing in the Simulator panel.
-- **Display**: Improved actor avatar rendering in chat bubbles.
+## 🌦️ AURA Logic System
+*A modular ecosystem for simulating complex narrative states.*
+AURA (Anansi Unified Relationship & Ambience) allows you to "code" your character's behavior without writing a single line of JavaScript.
 
-## v1.6.1 - 2026-01-05
-### Documentation
-- **Platform Guides**: Added comprehensive guides for exporting to SillyTavern, JanitorAI, and Chub.ai.
-- **Access**: Guide button added to top toolbar.
+- **Logic Rules (SBX)**: Create "If/Else" chains that respond to message length, keyword counts, and custom variables.
+- **Narrative Events**: Trigger specific text injections or "mood shifts" based on user keywords or active tags.
+- **Weighted Scoring**: Influence the LLM’s focus by assigning weights to specific narrative concepts.
+- **AuraBuilder**: Export your logic as a standalone `AURA.js` payload that can run inside frontends like SillyTavern or JanitorAI.
 
-## v1.6.0 - 2025-12-28
-### Logic Engine
-- **Persistent Variables**: Scripts can now read/write persistent global variables.
-- **Cross-Project Memory**: Variables can persist between different project sessions.
+---
 
-## v1.5.0 - 2025-12-15
-### Core
-- **Project Database**: Migrated to IndexedDB for robust local storage.
-- **Auto-Save**: Background saving is now more reliable.
+## 🗣️ Voice Rails & Subtones
+*Giving character speech distinct patterns and cadence.*
+The Voices system ensures that your characters don't just "talk," but have a recognizable "voice."
+
+- **Actor-Voice Binding**: Directly link voice configurations to specific Actors in your project.
+- **Cadence & Baseline Rails**: Define the underlying rhythm and core speech quirks of a character.
+- **Dynamic Subtones**: Use weighted probability to trigger "Subtones" (e.g., *Sarcastic*, *Whispering*, *Aggressive*) that modify speech patterns turn-by-turn.
+
+---
+
+## 🌀 The Spindle (Simulator)
+*The ultimate testing ground for narrative logic.*
+The Simulator provides a "transparent" chat experience where you can see exactly how your logic is firing.
+
+- **Context Inspector**: View the raw system prompt and see every AURA injection in real-time.
+- **Injection Diffs**: Visual highlight of how logic rules transformed the base character card into the final prompt.
+- **Live State Toggles**: Manually adjust Stats, Tags, and Active Actors mid-conversation to test different narrative branches.
+
+---
+
+## �️ Deployment & Portability
+- **Universal Backup System**: Export and import your entire **Vault** as `.vault` files.
+- **Project Portability**: Save and load full **Projects** as `.json` or `.anansi` bundles, containing all actors, lore, and logic.
+- **Narrative Archiving**: Export your **Live Chat Stories** directly from the Simulator as formatted Markdown logs.
+- **Multi-Platform Adapters**: One-click exports optimized for **SillyTavern**, **JanitorAI**, and **Chub.ai** formats.
+- **Mobile Native**: Full support for Android builds (APK targets) with touch-optimized controls.
+- **Private & Local**: All data is stored locally via IndexedDB, ensuring your work is yours alone.

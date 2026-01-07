@@ -113,10 +113,15 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header"><strong>Privacy Policy</strong></div>
+                    <div class="card-header"><strong>Privacy & Security</strong></div>
                     <div class="card-body" style="font-size:11px; color:var(--text-secondary);">
-                        <strong>Local Only & Private</strong><br>
-                        Anansi operates entirely offline. All files, including projects, actors, and vault items, are stored locally on your device. We do not collect telemetry, personal data, or story content. "We know nothing."
+                        <strong>Local-First & Private</strong><br>
+                        Anansi prioritizes your privacy. All project data, actors, and vault items are stored in your device's local browser storage (IndexedDB). We do not collect telemetry or story content. 
+                        <strong>External APIs</strong>: When using AI features, data is sent directly to your chosen provider via your own API key. Consult your provider's privacy policy for their data handling practices.
+                        <div style="margin-top:12px; padding-top:10px; border-top:1px dashed var(--border-subtle);">
+                            <a href="TERMS.html" target="_blank" style="color:var(--accent-primary); text-decoration:none; font-weight:500;">📜 Terms of Use & Privacy Policy</a>
+                            <div style="margin-top:6px; font-size:10px; color:var(--text-muted);">By using Anansi, you agree to the Terms of Service.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -124,10 +129,7 @@
                     <div class="card-header"><strong>Platform Compatibility</strong></div>
                     <div class="card-body">
                          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ JanitorAI</span>
-                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ SillyTavern</span>
-                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ Chub.ai</span>
-                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ Kobold</span>
+                            <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ All Major Platforms</span>
                          </div>
                          <div style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
                             Character Card v2 format compatible with most platforms.
@@ -138,8 +140,8 @@
                 <!-- AI Disclaimer -->
                 <div class="card" style="border-left: 3px solid var(--accent-primary);">
                     <div class="card-body" style="font-size: 11px; color: var(--text-secondary);">
-                        <strong>🪄 AI Assistance Available</strong><br>
-                        Look for the magic wand to polish or generate text. These features are optional and require your own API key (configured in the Simulator). Usage consumes tokens.
+                        <strong>🪄 AI Assistant (Optional)</strong><br>
+                        AI features require your own API key. This data is transmitted directly to your selected provider (e.g., Anthropic, OpenAI) to generate or polish content. Your interactions are private to you and governed by their respective service terms. 
                         <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); opacity:0.8;">
                             To configure your API Key, <a href="#" onclick="Anansi.UI.showApiKeyManager(); return false;" style="color:var(--accent-primary); text-decoration:none; border-bottom:1px solid var(--accent-primary);">click here to open the Manager</a>.
                         </div>

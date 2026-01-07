@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anansi - Terms of Use</title>
+    <link rel="stylesheet" href="css/tokens.css">
+    <style>
+        html,
+        body {
+            height: auto;
+            overflow-y: auto;
+        }
+
+        body {
+            background: var(--bg-app);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            color: var(--accent-primary);
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 16px;
+        }
+
+        h2 {
+            margin-top: 32px;
+            color: var(--text-secondary);
+            font-size: 1.2em;
+        }
+
+        p,
+        li {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .highlight-box {
+            background: var(--bg-surface);
+            border-left: 3px solid var(--accent-primary);
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: rgba(255, 100, 100, 0.1);
+            border-left: 3px solid var(--status-error);
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+
+        code {
+            background: var(--bg-elevated);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body data-theme="dark">
+    <script>
+        // Check if opened from Anansi - try to match theme
+        // Default to dark if no preference found
+        function toggleTheme() {
+            const body = document.body;
+            const current = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+        }
+    </script>
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <button onclick="toggleTheme()" style="
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        ">🌓 Toggle Theme</button>
+    </div>
+
+    <h1>Anansi — Terms of Use</h1>
+    <p style="opacity: 0.6; font-size: 12px;">Last Updated: January 6, 2026</p>
+
+    <p>
+        By downloading, installing, or using Anansi ("the Software"), you agree to the following terms.
+        If you do not agree, you must not use this Software.
+    </p>
+
+    <h2>1. License &amp; Permitted Use</h2>
+    <div class="highlight-box">
+        <strong>Non-Commercial Use Only.</strong><br>
+        Anansi is provided for personal, non-commercial use. You may not sell, sublicense, or redistribute the Software
+        or any derivative works for profit without explicit written permission from the author.
+    </div>
+    <p>
+        The source code, design, and underlying logic of Anansi remain the intellectual property of the author
+        ("Scriptorium").
+        You are granted a limited, non-exclusive, revocable license to use the Software as intended.
+    </p>
+
+    <h2>2. User Responsibility &amp; Content</h2>
+    <p>
+        Anansi is a tool for creating narrative content. <strong>You are solely responsible for the content you create,
+            generate, or export using this Software.</strong>
+    </p>
+    <ul>
+        <li>You agree to comply with all applicable laws and regulations within your jurisdiction.</li>
+        <li>You are responsible for ensuring that any content you create does not violate the rights of others,
+            including but not limited to copyright, trademark, or privacy rights.</li>
+        <li>The author of Anansi has no visibility into, control over, or responsibility for the content you produce.
+        </li>
+    </ul>
+
+    <h2>3. Indemnification</h2>
+    <div class="warning-box">
+        By using this Software, you agree to <strong>indemnify, defend, and hold harmless</strong> the author,
+        contributors, and any affiliated parties from and against any claims, damages, losses, liabilities, costs, or
+        expenses (including legal fees) arising out of or related to:
+        <ul style="margin-top: 8px; margin-bottom: 0;">
+            <li>Your use of the Software.</li>
+            <li>Content you create, store, or distribute using the Software.</li>
+            <li>Your violation of these Terms or any applicable law.</li>
+            <li>Your use of third-party services (e.g., AI API providers) in conjunction with the Software.</li>
+        </ul>
+    </div>
+
+    <h2>4. Disclaimer of Warranties</h2>
+    <p>
+        <strong>THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED.</strong>
+    </p>
+    <p>
+        The author makes no guarantees regarding:
+    </p>
+    <ul>
+        <li><strong>Completeness:</strong> The Software may contain bugs, errors, or incomplete features.</li>
+        <li><strong>Service Life:</strong> There is no guarantee of continued development, updates, or support.</li>
+        <li><strong>Fitness for Purpose:</strong> The Software may not be suitable for your specific use case.</li>
+        <li><strong>Data Integrity:</strong> While designed for local storage, data loss may occur due to browser
+            behavior, device issues, or user error.</li>
+    </ul>
+
+    <h2>5. Limitation of Liability</h2>
+    <p>
+        To the maximum extent permitted by law, the author shall not be liable for any indirect, incidental, special,
+        consequential, or punitive damages, including but not limited to loss of data, revenue, or profits, arising out
+        of or related to your use of the Software.
+    </p>
+
+    <hr style="margin: 32px 0; border: none; border-top: 1px solid var(--border-subtle);">
+
+    <h1 style="border-bottom: none; padding-bottom: 0;">Data &amp; Privacy Policy</h1>
+
+    <h2>6. Local-First Architecture</h2>
+    <div class="highlight-box">
+        <strong>Your data never leaves your device unless you explicitly send it to an external service.</strong>
+    </div>
+    <p>
+        Anansi is designed as a <strong>local-first</strong> application. All project data, actors, lorebook entries,
+        scripts, and Vault items are stored entirely within your browser's local storage (IndexedDB).
+    </p>
+    <ul>
+        <li><strong>No Telemetry:</strong> Anansi does not collect analytics, usage data, or error reports.</li>
+        <li><strong>No Remote Servers:</strong> There is no Anansi server. The application runs entirely in your
+            browser.</li>
+        <li><strong>No Account Required:</strong> You do not need to create an account or provide any personal
+            information to use Anansi.</li>
+    </ul>
+
+    <h2>7. Third-Party AI Services</h2>
+    <p>
+        Anansi provides optional integration with third-party AI providers (e.g., OpenAI, Anthropic, Google, OpenRouter,
+        local models via Kobold/Ollama). When you use these features:
+    </p>
+    <ul>
+        <li>Data (such as prompts and character information) is sent <strong>directly from your browser to the
+                provider's API</strong>.</li>
+        <li>You are responsible for providing your own API key.</li>
+        <li>The author of Anansi has <strong>no access</strong> to your API key or the data you transmit.</li>
+        <li>Your use of these services is governed by the respective provider's Terms of Service and Privacy Policy.
+        </li>
+    </ul>
+
+    <h2>8. Data Storage Details</h2>
+    <p>Here is exactly where your data is stored:</p>
+    <table style="width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 12px;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+                <th style="text-align: left; padding: 8px;">Data Type</th>
+                <th style="text-align: left; padding: 8px;">Storage Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 8px;"><code>Projects</code></td>
+                <td style="padding: 8px;">IndexedDB (<code>anansi-projects</code>)</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><code>Vault Snippets</code></td>
+                <td style="padding: 8px;">IndexedDB (<code>anansi-vault</code>)</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><code>API Keys</code></td>
+                <td style="padding: 8px;">LocalStorage (encrypted at rest by browser)</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><code>UI Preferences</code></td>
+                <td style="padding: 8px;">LocalStorage</td>
+            </tr>
+        </tbody>
+    </table>
+    <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">
+        <strong>Note:</strong> Clearing your browser data or using private/incognito mode may result in data loss. Use
+        the Export function to back up your projects.
+    </p>
+
+    <h2>9. No Data Access by Author</h2>
+    <p>
+        To be absolutely clear: <strong>The author of Anansi has no technical means to access, view, retrieve, or
+            analyze any data you create or store using this Software.</strong>
+    </p>
+    <p>
+        There is no backend, no database, no analytics pipeline, and no "phone home" functionality. Your creative work
+        is yours alone.
+    </p>
+
+    <hr style="margin: 32px 0; border: none; border-top: 1px solid var(--border-subtle);">
+
+    <h2>10. Changes to These Terms</h2>
+    <p>
+        These Terms may be updated from time to time. Continued use of the Software after any changes constitutes
+        acceptance of the new Terms. It is your responsibility to review this document periodically.
+    </p>
+
+    <h2>11. Contact</h2>
+    <p>
+        For questions or concerns regarding these Terms, please contact the author via the official project repository
+        or community channels.
+    </p>
+
+    <div class="footer">
+        &copy; 2026 Scriptorium. All rights reserved.<br>
+        Anansi v1.8.0
+    </div>
+
+</body>
+
+</html>

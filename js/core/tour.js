@@ -27,7 +27,7 @@
         start: function (panelId) {
             const config = this.configs[panelId];
             if (!config || !config.length) {
-                if (A.UI.Toast) A.UI.Toast.show('No tour available for this panel.', 'warning');
+                if (A.UI.Toast) A.UI.Toast.show(`No tour available for panel: "${panelId}"`, 'warning');
                 return;
             }
 
@@ -141,8 +141,8 @@
                 return;
             }
 
-            // Scroll into view
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Scroll into view (use auto to ensure rect is calculated correctly immediately)
+            target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
             // Wait a tick for scroll? directly calculating usually works if "smooth" isn't mandatory for calculation
             // For robustness, we calculate immediately.
