@@ -124,8 +124,95 @@
     return data.name || data.title || 'Untitled';
   }
 
+  /**
+   * Translate rule-block data into human-readable text
+   */
+  function translateRuleBlock(data) {
+    const subtype = data.subtype || '';
+    const lines = [];
+
+    // Handle Lists
+    if (subtype === 'custom-list' || subtype === 'list') {
+      const items = (data.itemsText || '').split('\n').filter(s => s.trim());
+      lines.push(`📋 List with ${items.length} keywords`);
+      if (items.length > 0) {
+        lines.push(`Keywords: ${items.slice(0, 5).join(', ')}${items.length > 5 ? '...' : ''}`);
+      }
+      return lines.join('\n');
+    }
+
+    // Handle Derived Values
+    if (subtype === 'custom-derived' || subtype === 'derived') {
+      lines.push(`📊 Derived Metric`);
+      lines.push(`Source: ${data.sourceType || 'listCount'}`);
+      lines.push(`Window: Last ${data.window || 10} messages`);
+      return lines.join('\n');
+    }
+
+    // Handle Scoring Topics
+    if (subtype === 'topic') {
+      const kw = (data.keywordsText || '').split('\n').filter(s => s.trim());
+      lines.push(`🎯 Scoring Topic`);
+      lines.push(`Target: ${data.target || 'personality'}`);
+      lines.push(`Threshold: ${data.min || 1}+ matches`);
+      lines.push(`Keywords: ${kw.slice(0, 5).join(', ')}${kw.length > 5 ? '...' : ''}`);
+      return lines.join('\n');
+    }
+
+    // Handle Advanced Scoring
+    if (subtype === 'advanced') {
+      lines.push(`⚡ Advanced Scoring Rule`);
+      lines.push(`Target: ${data.target || 'personality'}`);
+      const conds = data.conditions || {};
+      if (conds.keywordsEnabled) lines.push(`• Keyword condition enabled`);
+      if (conds.windowEnabled) lines.push(`• Message window: ${conds.windowMin}-${conds.windowMax}`);
+      if (conds.scoringEnabled) lines.push(`• Depends on scoring topic`);
+      return lines.join('\n');
+    }
+
+    // Handle Rule Chains (custom-chain, rule, chain)
+    if (data.chain && Array.isArray(data.chain)) {
+      lines.push(`🔗 Logic Chain with ${data.chain.length} block(s)`);
+
+      data.chain.forEach((block, idx) => {
+        const blockType = (block.type || 'if').toUpperCase();
+        const condCount = (block.conditions || []).length;
+        const actionCount = (block.actions || []).length;
+
+        if (block.type === 'else') {
+          lines.push(`  ${idx + 1}. ELSE → ${actionCount} action(s)`);
+        } else {
+          lines.push(`  ${idx + 1}. ${blockType} ${condCount} condition(s) → ${actionCount} action(s)`);
+
+          // Describe conditions briefly
+          (block.conditions || []).forEach(c => {
+            const condType = c.type || 'unknown';
+            if (condType.includes('List')) {
+              lines.push(`      • Check list match`);
+            } else if (condType === 'derivedNumberComparison') {
+              lines.push(`      • Check derived value ${c.op || '>='} ${c.threshold || 0}`);
+            } else if (condType === 'messageCountComparison') {
+              lines.push(`      • Check message count ${c.op || '>='} ${c.threshold || 0}`);
+            }
+          });
+        }
+      });
+
+      return lines.join('\n');
+    }
+
+    // Fallback
+    return data.contextField || data.content || JSON.stringify(data).slice(0, 200);
+  }
+
   function getItemPreview(item) {
     const data = item.data || {};
+
+    // Use translator for rule-blocks
+    if (item.type === 'rule-block') {
+      return translateRuleBlock(data);
+    }
+
     const val = data.personality || data.description || data.content || '';
     if (typeof val === 'string') return val;
     if (typeof val === 'object') return JSON.stringify(val);
@@ -462,13 +549,16 @@
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             ${selectionMode ? `<input type="checkbox" style="pointer-events:none;" ${isSelected ? 'checked' : ''}>` : ''}
             <span style="font-size:14px;">${TYPE_ICONS[item.type] || '📦'}</span>
-            <strong style="font-size:12px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <strong style="font-size:12px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               ${name}
             </strong>
             
+            <!-- Block Badge -->
+            ${item.blockName ? `<span style="font-size:9px; padding:2px 6px; background:rgba(100, 149, 237, 0.2); border:1px solid rgba(100, 149, 237, 0.4); border-radius:8px; color:cornflowerblue; white-space:nowrap;">📦 ${item.blockName}</span>` : ''}
+            
             <!-- Tags as Pills -->
             <div style="flex:1; display:flex; gap:6px; overflow:hidden; margin-left:8px;">
-              ${(item.tags || []).map(t => `
+              ${(item.tags || []).slice(0, 2).map(t => `
                 <span style="font-size:10px; padding:2px 10px; background:rgba(218, 165, 32, 0.1); border:1px solid rgba(218, 165, 32, 0.2); border-radius:12px; color:var(--accent-primary); white-space:nowrap; font-weight:500;">
                   ${t}
                 </span>
@@ -538,11 +628,22 @@
               </div>
             </div>
           </div>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" id="btn-pull">📥 Add to Project</button>
-            <button class="btn btn-ghost btn-sm" id="btn-delete-vault" style="color:var(--status-error);">🗑️ Remove from Archive</button>
+            ${item.blockId ? `<button class="btn btn-ghost btn-sm" id="btn-pull-block" style="border-color:cornflowerblue; color:cornflowerblue;">📦 Add Block to Project</button>` : ''}
+            <button class="btn btn-ghost btn-sm" id="btn-delete-vault" style="color:var(--status-error);">🗑️ Remove</button>
           </div>
         </div>
+        
+        ${item.blockId ? `
+          <div style="padding:8px 12px; background:rgba(100, 149, 237, 0.1); border-bottom:1px solid rgba(100, 149, 237, 0.3); display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px;">📦</span>
+            <div style="flex:1;">
+              <div style="font-size:11px; font-weight:bold; color:cornflowerblue;">Part of Block: ${item.blockName || 'Unknown'}</div>
+              <div style="font-size:10px; color:var(--text-muted);" id="block-items-count">Loading block items...</div>
+            </div>
+          </div>
+        ` : ''}
 
         <div class="card-body" style="flex:1; overflow-y:auto;">
           <!-- Metadata -->
@@ -608,6 +709,55 @@
       // Pull button
       detailCol.querySelector('#btn-pull').onclick = () => pullToProject(item);
 
+      // Pull Block button (if exists)
+      const btnPullBlock = detailCol.querySelector('#btn-pull-block');
+      if (btnPullBlock && item.blockId) {
+        btnPullBlock.onclick = async () => {
+          try {
+            const blockItems = await A.VaultDB.getBlockItems(item.blockId);
+            if (blockItems.length === 0) {
+              if (A.UI.Toast) A.UI.Toast.show('No items found in this block', 'warning');
+              return;
+            }
+
+            const confirmed = confirm(
+              `Import entire block "${item.blockName}"?\n\n` +
+              `This will add ${blockItems.length} items to your project.`
+            );
+            if (!confirmed) return;
+
+            let imported = 0;
+            for (const blockItem of blockItems) {
+              try {
+                await pullToProject(blockItem, true); // silent mode
+                imported++;
+              } catch (err) {
+                console.warn('[Vault] Failed to import block item:', blockItem.id, err);
+              }
+            }
+
+            if (A.UI.Toast) A.UI.Toast.show(`Imported ${imported} items from block "${item.blockName}"`, 'success');
+          } catch (err) {
+            console.error('[Vault] Block import failed:', err);
+            if (A.UI.Toast) A.UI.Toast.show('Failed to import block', 'error');
+          }
+        };
+
+        // Load block items count
+        A.VaultDB.getBlockItems(item.blockId).then(blockItems => {
+          const countEl = detailCol.querySelector('#block-items-count');
+          if (countEl) {
+            const typeCounts = {};
+            blockItems.forEach(bi => {
+              const t = bi.type || 'unknown';
+              typeCounts[t] = (typeCounts[t] || 0) + 1;
+            });
+            const summary = Object.entries(typeCounts).map(([t, c]) => `${c} ${TYPE_LABELS[t] || t}`).join(', ');
+            countEl.textContent = `${blockItems.length} items: ${summary}`;
+          }
+        }).catch(() => { });
+      }
+
       // Delete button - removes from Vault archive only
       detailCol.querySelector('#btn-delete-vault').onclick = async () => {
         const confirmed = confirm(
@@ -631,12 +781,15 @@
       };
     }
 
-    async function pullToProject(item) {
+    async function pullToProject(item, silent = false) {
       const state = A.State.get();
       const name = getItemName(item);
 
+      // Helper for unique ID
+      const uid = (prefix) => prefix + '_' + Math.random().toString(36).substr(2, 9);
+
       // Determine target based on type
-      let targetPath, existingItems, idField;
+      let targetPath, idField;
       if (item.type === 'actor') {
         if (!state.nodes) state.nodes = {};
         if (!state.nodes.actors) state.nodes.actors = { items: {} };
@@ -651,13 +804,52 @@
         // Copy to clipboard
         const content = item.data?.content || '';
         navigator.clipboard.writeText(content);
-        if (A.UI.Toast) A.UI.Toast.show(`Copied "${name}" to clipboard`, 'success');
-        if (A.UI.Toast) A.UI.Toast.show(`Copied "${name}" to clipboard`, 'success');
-        return; // Don't add to project nodes
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Copied "${name}" to clipboard`, 'success');
+        return;
       } else if (item.type === 'rule-block') {
-        // Copy to clipboard or warn? Rule blocks are complex.
-        if (A.UI.Toast) A.UI.Toast.show(`Importing rule logic...`, 'info');
-        // TODO: Implement rule block import to Advanced/Scoring
+        // Import rule block based on subtype
+        const subtype = item.data?.subtype || '';
+        const copiedData = JSON.parse(JSON.stringify(item.data));
+        copiedData.id = uid('imp');
+        copiedData.vaultLink = {
+          vaultId: item.id,
+          pulledVersion: item.version,
+          locallyModified: false,
+          lastSyncedAt: new Date().toISOString()
+        };
+
+        // Route to correct array based on subtype
+        if (subtype === 'custom-list' || subtype === 'list') {
+          if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
+          if (!state.sbx.lists) state.sbx.lists = [];
+          state.sbx.lists.push(copiedData);
+        } else if (subtype === 'custom-derived' || subtype === 'derived') {
+          if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
+          if (!state.sbx.derived) state.sbx.derived = [];
+          state.sbx.derived.push(copiedData);
+        } else if (subtype === 'custom-chain' || subtype === 'rule' || subtype === 'chain') {
+          if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
+          if (!state.sbx.rules) state.sbx.rules = [];
+          state.sbx.rules.push(copiedData);
+        } else if (subtype === 'topic') {
+          if (!state.scoring) state.scoring = { topics: [], advanced: [] };
+          if (!state.scoring.topics) state.scoring.topics = [];
+          state.scoring.topics.push(copiedData);
+        } else if (subtype === 'advanced') {
+          if (!state.scoring) state.scoring = { topics: [], advanced: [] };
+          if (!state.scoring.advanced) state.scoring.advanced = [];
+          state.scoring.advanced.push(copiedData);
+        } else {
+          // Default to rules
+          if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
+          if (!state.sbx.rules) state.sbx.rules = [];
+          state.sbx.rules.push(copiedData);
+        }
+
+        A.State.notify();
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
+        return;
+
       } else if (item.type === 'voice-config') {
         if (!state.weaves) state.weaves = {};
         if (!state.weaves.voices) state.weaves.voices = { voices: [], debug: false, enabled: true };
@@ -676,7 +868,7 @@
 
         state.weaves.voices.voices.push(copiedData);
         A.State.notify();
-        if (A.UI.Toast) A.UI.Toast.show(`Added voice "${name}" to project`, 'success');
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Added voice "${name}" to project`, 'success');
         return;
 
       } else if (item.type === 'script') {
@@ -696,11 +888,11 @@
           }
         });
 
-        if (A.UI.Toast) A.UI.Toast.show(`Added script "${name}" to project`, 'success');
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Added script "${name}" to project`, 'success');
         return;
 
       } else {
-        if (A.UI.Toast) A.UI.Toast.show(`Pull not yet supported for ${item.type}`, 'warning');
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Pull not yet supported for ${item.type}`, 'warning');
         return;
       }
 
@@ -723,7 +915,7 @@
       targetPath[newId] = copiedData;
       A.State.notify();
 
-      if (A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
+      if (!silent && A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
     }
 
     // --- Dynamic Layout Helper ---

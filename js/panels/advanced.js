@@ -487,7 +487,7 @@
                             CONDITION_TYPES.forEach(t => typeOpts += `<option value="${t.id}" ${t.id === c.type ? 'selected' : ''}>${t.label}</option>`);
 
                             cRow.innerHTML = `
-                     <select class="input btn-xs c-type" style="width:140px;">${typeOpts}</select>
+                     <select class="input btn-xs c-type" style="width:180px;">${typeOpts}</select>
                      <div class="c-detail" style="flex:1;"></div>
                      <button class="btn btn-ghost btn-xs c-del" style="color:var(--status-error);">x</button>
                    `;

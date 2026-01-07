@@ -915,23 +915,29 @@ Use sparingly for pacing. Format: *Narrator: [description]*`;
     }
 
     // Portrait upload/remove
+    const portraitPreview = container.querySelector('#portrait-preview');
     const portraitInput = container.querySelector('#portrait-input');
     const btnUpload = container.querySelector('#btn-upload-portrait');
     const btnRemove = container.querySelector('#btn-remove-portrait');
 
+    const handlePortraitFile = (file) => {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        solo.portrait = { data: ev.target.result, mimeType: file.type };
+        A.State.notify();
+        render(container);
+      };
+      reader.readAsDataURL(file);
+    };
+
     if (btnUpload && portraitInput) {
       btnUpload.onclick = () => portraitInput.click();
-      portraitInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          solo.portrait = { data: ev.target.result, mimeType: file.type };
-          A.State.notify();
-          render(container);
-        };
-        reader.readAsDataURL(file);
-      };
+      portraitInput.onchange = (e) => handlePortraitFile(e.target.files[0]);
+    }
+
+    if (portraitPreview && A.UI.makeDraggable) {
+      A.UI.makeDraggable(portraitPreview, { onDrop: (files) => handlePortraitFile(files[0]) });
     }
 
     if (btnRemove) {

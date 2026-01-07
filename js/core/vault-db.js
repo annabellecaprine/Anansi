@@ -27,6 +27,7 @@
             lastUpdatedAt: new Date().toISOString(),
             universes: [],
             allTags: [],
+            blocks: {},  // { blockId: { id, name, createdAt } }
             itemCounts: {
                 actor: 0,
                 lorebook: 0,
@@ -264,7 +265,7 @@
          * Publish a new item to the Vault
          * @param {string} type - 'actor', 'lorebook', 'script', etc.
          * @param {Object} data - The full item data
-         * @param {Object} metadata - { sourceProjectId, sourceProjectName, universe, tags }
+         * @param {Object} metadata - { sourceProjectId, sourceProjectName, universe, tags, blockId, blockName }
          * @returns {Promise<Object>} - The created vault item
          */
         publish: function (type, data, metadata = {}) {
@@ -288,6 +289,8 @@
                     sourceProjectName: metadata.sourceProjectName || 'Unknown Project',
                     universe: metadata.universe || '',
                     tags: metadata.tags || [],
+                    blockId: metadata.blockId || null,
+                    blockName: metadata.blockName || null,
                     publishedAt: now,
                     updatedAt: now,
                     data: data
@@ -483,6 +486,45 @@
          */
         getTags: function () {
             return VaultDB.getRegistry().then(reg => reg.allTags || []);
+        },
+
+        /**
+         * Get all blocks from registry
+         * @returns {Promise<Object>} - { blockId: { id, name, createdAt } }
+         */
+        getBlocks: function () {
+            return VaultDB.getRegistry().then(reg => reg.blocks || {});
+        },
+
+        /**
+         * Create or update a block in the registry
+         * @param {string} blockId - Block ID (or null to generate)
+         * @param {string} name - Block name
+         * @returns {Promise<Object>} - The block object
+         */
+        createBlock: function (blockId, name) {
+            return VaultDB.getRegistry().then(reg => {
+                const blocks = reg.blocks || {};
+                const id = blockId || ('block_' + crypto.randomUUID().slice(0, 8));
+                blocks[id] = {
+                    id: id,
+                    name: name,
+                    createdAt: new Date().toISOString()
+                };
+                return VaultDB.updateRegistry({ blocks }).then(() => blocks[id]);
+            });
+        },
+
+        /**
+         * Get all vault items belonging to a specific block
+         * @param {string} blockId - The block ID to query
+         * @returns {Promise<Array>} - Array of vault items
+         */
+        getBlockItems: function (blockId) {
+            if (!blockId) return Promise.resolve([]);
+            return VaultDB.list().then(items => {
+                return items.filter(item => item.blockId === blockId);
+            });
         },
 
         /**

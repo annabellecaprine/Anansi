@@ -291,8 +291,8 @@
     const coverPreview = container.querySelector('#project-cover-preview');
     const coverInput = container.querySelector('#cover-input');
     coverPreview.onclick = () => coverInput.click();
-    coverInput.onchange = (e) => {
-      const file = e.target.files[0];
+
+    const handleCoverFile = (file) => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -303,6 +303,11 @@
       };
       reader.readAsDataURL(file);
     };
+
+    coverInput.onchange = (e) => handleCoverFile(e.target.files[0]);
+    if (A.UI.makeDraggable) {
+      A.UI.makeDraggable(coverPreview, { onDrop: (files) => handleCoverFile(files[0]) });
+    }
 
     // Dynamic Integrity Check
     if (A.Validator) {

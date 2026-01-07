@@ -65,6 +65,18 @@
                 intent: 'STATEMENT',
                 actors: [],
                 presets: []
+            },
+            writersBlock: {
+                mode: 'brainstorm', // 'brainstorm' | 'edit'
+                genres: [],
+                emphasis: [],
+                selectedActors: [],
+                selectedLocations: [],
+                history: [],
+                pinnedIds: [],
+                activeBranch: 'main',
+                branches: { main: { history: [] } },
+                sessions: {}
             }
         };
     }
@@ -140,6 +152,6 @@
     };
 
     A.State = State;
-    A.VERSION = '1.8.0';
+    A.VERSION = '1.9.0';
 
 })(window.Anansi);

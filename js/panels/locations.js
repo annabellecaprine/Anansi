@@ -508,6 +508,18 @@
                 const imgPreview = el.querySelector('.loc-img-preview');
                 const fileInput = el.querySelector('.loc-img-upload');
 
+                const handleLocImage = (file) => {
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        loc.image = evt.target.result;
+                        A.State.notify();
+                        renderList(); // Refresh to show image
+                        if (A.UI.Toast) A.UI.Toast.show('Image uploaded', 'success');
+                    };
+                    reader.readAsDataURL(file);
+                };
+
                 imgPreview.onclick = (e) => {
                     e.stopPropagation();
                     if (loc.image) {
@@ -543,19 +555,11 @@
                     }
                 };
 
-                fileInput.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
+                fileInput.onchange = (e) => handleLocImage(e.target.files[0]);
 
-                    const reader = new FileReader();
-                    reader.onload = (evt) => {
-                        loc.image = evt.target.result;
-                        A.State.notify();
-                        renderList(); // Refresh to show image
-                        if (A.UI.Toast) A.UI.Toast.show('Image uploaded', 'success');
-                    };
-                    reader.readAsDataURL(file);
-                };
+                if (imgPreview && A.UI.makeDraggable) {
+                    A.UI.makeDraggable(imgPreview, { onDrop: (files) => handleLocImage(files[0]) });
+                }
 
                 const removeBtn = el.querySelector('.btn-remove-img');
                 if (removeBtn) {

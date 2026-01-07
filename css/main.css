@@ -1660,3 +1660,11 @@ kbd {
     background: transparent;
     box-shadow: none;
 }
+
+/* === Drag-and-Drop Image Upload === */
+.drag-over {
+    outline: 2px dashed var(--accent-primary) !important;
+    outline-offset: -2px;
+    background: rgba(218, 165, 32, 0.08) !important;
+    transition: outline 0.15s ease, background 0.15s ease;
+}

@@ -19,10 +19,20 @@
      * @param {string} options.contentPreview - String to show in preview box
      * @param {Function} options.onSuccess - Callback on success
      */
-    showPublishDialog: function (options) {
+    showPublishDialog: async function (options) {
       const { type, subtype, title, payload, defaultName, contentPreview, onSuccess } = options;
 
       if (!payload && A.UI?.Toast) return A.UI.Toast.show('Cannot publish empty content', 'warning');
+
+      // Load existing blocks for dropdown
+      let existingBlocks = {};
+      try {
+        existingBlocks = await A.VaultDB.getBlocks();
+      } catch (e) { console.warn('[VaultUI] Could not load blocks:', e); }
+
+      const blockOptions = Object.values(existingBlocks)
+        .map(b => `<option value="${b.id}">${b.name}</option>`)
+        .join('');
 
       const dialog = document.createElement('div');
       dialog.className = 'modal-backdrop';
@@ -32,7 +42,7 @@
       const safeName = (defaultName || 'Untitled').replace(/"/g, '&quot;');
 
       dialog.innerHTML = `
-        <div class="card" style="width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.5); background:var(--bg-surface);">
+        <div class="card" style="width:420px; box-shadow:0 4px 20px rgba(0,0,0,0.5); background:var(--bg-surface);">
           <div class="card-header"><strong>${title || '📤 Publish to Vault'}</strong></div>
           <div class="card-body">
             <div class="form-group" style="margin-bottom:12px;">
@@ -40,9 +50,15 @@
               <input type="text" class="input" id="pub-name" value="${safeName}">
             </div>
             <div class="form-group" style="margin-bottom:12px;">
-              <label class="label">System / Group (Optional)</label>
-              <input type="text" class="input" id="pub-group" placeholder="e.g. Combat, Inventory">
-              <div style="font-size:10px; color:var(--text-muted);">Used for grouping related rules.</div>
+              <label class="label">Rule Block (Optional)</label>
+              <div style="display:flex; gap:8px;">
+                <select class="input" id="pub-block" style="flex:1;">
+                  <option value="">None (standalone item)</option>
+                  ${blockOptions}
+                </select>
+                <button class="btn btn-ghost btn-sm" id="btn-new-block" title="Create new block">+ New</button>
+              </div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">Items in the same block can be imported together.</div>
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label class="label">Tags (comma separated)</label>
@@ -62,11 +78,31 @@
 
       document.body.appendChild(dialog);
 
+      // New Block button handler
+      dialog.querySelector('#btn-new-block').onclick = async () => {
+        const blockName = prompt('Enter a name for the new Rule Block:');
+        if (!blockName || !blockName.trim()) return;
+
+        try {
+          const newBlock = await A.VaultDB.createBlock(null, blockName.trim());
+          const select = dialog.querySelector('#pub-block');
+          const opt = document.createElement('option');
+          opt.value = newBlock.id;
+          opt.textContent = newBlock.name;
+          select.appendChild(opt);
+          select.value = newBlock.id;
+          if (A.UI.Toast) A.UI.Toast.show(`Created block: ${newBlock.name}`, 'success');
+        } catch (err) {
+          console.error('[VaultUI] Create block failed:', err);
+          if (A.UI.Toast) A.UI.Toast.show('Failed to create block', 'error');
+        }
+      };
+
       dialog.querySelector('#btn-cancel').onclick = () => dialog.remove();
 
       dialog.querySelector('#btn-pub-confirm').onclick = async () => {
         const name = dialog.querySelector('#pub-name').value.trim() || 'Untitled';
-        const group = dialog.querySelector('#pub-group').value.trim();
+        const blockId = dialog.querySelector('#pub-block').value || null;
         const tagsInput = dialog.querySelector('#pub-tags').value;
         const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
 
@@ -74,7 +110,16 @@
         if (type === 'scenario-block') tags.push('block');
         if (type === 'rule-block') tags.push('rule');
         if (subtype) tags.push(subtype);
-        if (group) tags.push(`group:${group}`);
+
+        // Get block name if block selected
+        let blockName = null;
+        if (blockId && existingBlocks[blockId]) {
+          blockName = existingBlocks[blockId].name;
+        } else if (blockId) {
+          // Might be newly created, refetch
+          const blocks = await A.VaultDB.getBlocks();
+          if (blocks[blockId]) blockName = blocks[blockId].name;
+        }
 
         const btn = dialog.querySelector('#btn-pub-confirm');
         btn.disabled = true;
@@ -86,15 +131,9 @@
           // Construct Data Package
           const dataPackage = {
             name: name,
-            content: payload.content || payload, // For text blocks, payload is { content: ... } or just raw? 
-            // Actually, let's standardize: payload IS the data object.
-            // For Rule Blocks: payload is existing object.
-            // For Scenario Blocks: payload is { content, category }.
             ...payload
           };
 
-          // Add Group metadata to data if provided
-          if (group) dataPackage.group = group;
           if (subtype) dataPackage.subtype = subtype;
 
           await A.VaultDB.publish(
@@ -103,6 +142,8 @@
             {
               universe: 'Universal',
               tags: tags,
+              blockId: blockId,
+              blockName: blockName,
               sourceProjectName: state.meta?.name || 'Unknown Project',
               sourceProjectId: state.meta?.id || null
             }

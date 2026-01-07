@@ -2,6 +2,22 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.0 - 2026-01-07
+### New Features
+- **The Writer's Block**: AI-powered writing assistant panel in Forbidden Secrets. Features Mode toggle (Brainstorm/Edit), multi-select Genre/Emphasis chips, Actor/Location context injection, branching conversations, session save/load, message pinning, smart context management with sliding window + summarization, and Export to Markdown.
+- **Drag-and-Drop Image Upload**: Intuitive image upload support added across Project Cover, Character Portrait, Actor Gallery, and Location editors.
+- **Rule Blocks System**: Implemented grouping of vault logic (Lists, Rules, Derived Values, Scoring Topics) into unified 📦 Blocks for batch management and project importing.
+- **Quirks System Extension**: Added AURA tag integration with exact-case matching and a standardized selection dropdown for cleaner logic triggers.
+
+### Improvements
+- **Centralized Versioning**: Build script now reads version from `package.json` and injects it into `index.html` and `state.js` automatically.
+- **UI Polish**: Widened text input fields for Gender, Lorebook Category/Target, and Advanced Rule conditions.
+- **Visual Hierarchy**: Added indentation for Actor quirks to distinguish between Physical, Mental, and Emotional categories.
+- **Tense Variants**: Updated Cue Presets with proper tense variants for narrative consistency.
+
+### Fixes
+- **AURA Matching**: Validated exact-case tag matching in `quirk-engine.js` for strict AURA compatibility.
+
 ## v1.8.0 - 2026-01-06
 ### New Features
 - **Character V2 Canonicalization**: Renamed `character2.js` to `character.js` and registered as the primary 'Character' panel. The legacy panel has been removed in favor of this more powerful synthesis engine.

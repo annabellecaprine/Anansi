@@ -1043,11 +1043,11 @@
 
       body.innerHTML = `
         <div class="l-row">
-           <div class="l-col" style="flex:0 0 120px;">
+           <div class="l-col" style="flex:0 0 140px;">
              <label class="l-lab">Category</label>
              <select class="input" id="sel-cat">${catOpts}</select>
            </div>
-           <div class="l-col" style="flex:0 0 120px;">
+           <div class="l-col" style="flex:0 0 140px;">
              <label class="l-lab">Target</label>
              <select class="input" id="sel-tgt">${tgtOpts}</select>
            </div>

@@ -22,6 +22,14 @@
     const INTENT_TAGS = ['question', 'disclosure', 'command', 'promise', 'conflict', 'smalltalk', 'meta', 'narrative'];
     const PARTS = ['ears', 'tail', 'wings', 'horns'];
 
+    // AURA Tags for Quirk Triggers (from AURA/Lorebook)
+    const AURA_TAGS = [
+        'JOY', 'SADNESS', 'ANGER', 'FEAR', 'DISGUST', 'SURPRISE',
+        'TRUST', 'ANTICIPATION', 'LOVE', 'AWE', 'CONTEMPT', 'OPTIMISM',
+        'QUESTION', 'COMMAND', 'STATEMENT', 'GREETING', 'FAREWELL',
+        'ROMANCE', 'TENSION', 'CONFLICT', 'NARRATIVE', 'DISCLOSURE'
+    ];
+
     // HTML escape for textarea content
     function escapeForTextarea(str) {
         if (!str) return '';
@@ -633,10 +641,9 @@
                     // Wire Add button
                     const addBtn = galleryCard.querySelector('#btn-gallery-add');
                     const fileInput = galleryCard.querySelector('#gallery-input');
+                    const galleryPrimary = galleryCard.querySelector('#gallery-primary');
 
-                    addBtn.onclick = () => fileInput.click();
-                    fileInput.onchange = (e) => {
-                        const file = e.target.files[0];
+                    const handleGalleryFile = (file) => {
                         if (!file) return;
                         if (gallery.images.length >= MAX_GALLERY_IMAGES) {
                             if (A.UI?.Toast) A.UI.Toast.show(`Gallery full (${MAX_GALLERY_IMAGES} max)`, 'warning');
@@ -660,6 +667,13 @@
                         };
                         reader.readAsDataURL(file);
                     };
+
+                    if (addBtn) addBtn.onclick = () => fileInput.click();
+                    if (fileInput) fileInput.onchange = (e) => handleGalleryFile(e.target.files[0]);
+
+                    if (galleryPrimary && A.UI.makeDraggable) {
+                        A.UI.makeDraggable(galleryPrimary, { onDrop: (files) => handleGalleryFile(files[0]) });
+                    }
 
                     // Wire thumbnail clicks (left-click: lightbox, right-click: context menu)
                     galleryCard.querySelectorAll('.gallery-thumb').forEach(thumb => {
@@ -1068,7 +1082,7 @@
                 genderWrap.style.marginBottom = '12px';
                 genderWrap.innerHTML = `
                     <label class="field-label">Gender & Pronouns</label>
-                    <select class="input" id="sel-gender" style="width:150px;">
+                    <select class="input" id="sel-gender" style="width:180px;">
                         <option value="M" ${actor.gender === 'M' ? 'selected' : ''}>Male (he/him)</option>
                         <option value="F" ${actor.gender === 'F' ? 'selected' : ''}>Female (she/her)</option>
                         <option value="N" ${actor.gender === 'N' ? 'selected' : ''}>Neutral (they/them)</option>
@@ -1102,29 +1116,166 @@
                 smartContainer.appendChild(tagsWrap);
 
 
-                // Quirks (moved from Voice tab)
-                T.quirks = T.quirks || { physical: [], mental: [], emotional: [] };
+                // ========== QUIRKS SYSTEM (AURA-Triggered) ==========
+                // Migrate old format if needed
+                if (A.QuirkEngine?.needsMigration?.(T.quirks)) {
+                    actor.quirks = A.QuirkEngine.migrateQuirks(T.quirks);
+                    delete T.quirks; // Remove old location
+                    A.State.notify();
+                }
 
-                const quirksHeader = document.createElement('h3');
-                quirksHeader.style.marginTop = '20px';
-                quirksHeader.style.fontSize = '13px';
-                quirksHeader.style.color = 'var(--text-primary)';
-                quirksHeader.textContent = 'Quirks';
-                smartContainer.appendChild(quirksHeader);
+                // Ensure new format exists on actor root
+                actor.quirks = actor.quirks || { activationChance: 20, physical: [], mental: [], emotional: [] };
+                const quirks = actor.quirks;
 
-                ['physical', 'mental', 'emotional'].forEach(kind => {
-                    const qWrap = document.createElement('div');
-                    qWrap.className = 'form-col';
-                    qWrap.style.marginBottom = '12px';
-                    new A.UI.Components.TagInput(qWrap, T.quirks[kind] || [], {
-                        label: `${kind} Quirks`,
-                        placeholder: '+ quirk',
-                        bg: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        onChange: (tags) => { T.quirks[kind] = tags; A.State.notify(); }
-                    });
-                    smartContainer.appendChild(qWrap);
+                const quirksSection = document.createElement('div');
+                quirksSection.style.marginTop = '20px';
+
+                // Header with activation slider
+                quirksSection.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h3 style="margin:0; font-size:13px; color:var(--text-primary);">Quirks</h3>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:10px; color:var(--text-muted);">Activation:</label>
+                            <input type="range" id="quirk-activation" min="0" max="100" value="${quirks.activationChance || 20}" style="width:80px;">
+                            <span id="quirk-activation-val" style="font-size:10px; color:var(--text-secondary); width:30px;">${quirks.activationChance || 20}%</span>
+                        </div>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:12px;">
+                        RNG-triggered behaviors tied to AURA scene tags. Use <code>{{name}}</code> and <code>{{pos}}</code> for pronouns.
+                    </div>
+                `;
+
+                // Build quirk list per category
+                const QUIRK_CATEGORIES = ['physical', 'mental', 'emotional'];
+
+                QUIRK_CATEGORIES.forEach(cat => {
+                    const catItems = quirks[cat] || [];
+                    const catDiv = document.createElement('div');
+                    catDiv.style.marginBottom = '16px';
+                    catDiv.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <label style="font-size:11px; font-weight:600; text-transform:capitalize; color:var(--text-secondary);">${cat}</label>
+                            <button class="btn btn-ghost btn-sm quirk-add" data-cat="${cat}" style="font-size:10px; padding:2px 6px;">+ Add</button>
+                        </div>
+                        <div class="quirk-list" data-cat="${cat}" style="display:flex; flex-direction:column; gap:8px; margin-left:12px;"></div>
+                    `;
+                    quirksSection.appendChild(catDiv);
+
+                    const listEl = catDiv.querySelector('.quirk-list');
+
+                    // Render each quirk in this category
+                    const renderQuirkList = () => {
+                        listEl.innerHTML = '';
+                        const items = quirks[cat] || [];
+
+                        if (items.length === 0) {
+                            listEl.innerHTML = `<div style="font-size:10px; color:var(--text-muted); font-style:italic; padding:8px; border:1px dashed var(--border-subtle); border-radius:4px;">No ${cat} quirks defined</div>`;
+                            return;
+                        }
+
+                        items.forEach((q, idx) => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'border:1px solid var(--border-subtle); border-radius:6px; overflow:hidden; background:var(--bg-inset);';
+
+                            const needsTagsFlag = q.needsTags ? `<span title="Add AURA tags to enable triggering" style="color:var(--status-warning); cursor:help; margin-right:4px;">⚠️</span>` : '';
+
+                            row.innerHTML = `
+                                <div style="display:flex; align-items:center; padding:6px 8px; gap:8px; border-bottom:1px solid var(--border-subtle);">
+                                    <input class="input quirk-text" data-idx="${idx}" value="${(q.text || '').replace(/"/g, '&quot;')}" 
+                                           style="flex:1; font-size:11px; font-family:var(--font-mono); border:none; background:transparent;" placeholder="{{name}} does something...">
+                                    <button class="btn btn-ghost btn-sm quirk-remove" data-idx="${idx}" style="color:var(--status-error); padding:2px 6px; font-size:12px;">×</button>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:4px; padding:4px 8px; background:var(--bg-elevated);">
+                                    ${needsTagsFlag}
+                                    ${(q.tags || []).map((t, ti) => `
+                                        <span class="tag-pill" style="font-size:9px; padding:2px 8px; background:var(--accent-primary); color:white; border-radius:10px; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase; font-weight:600;">
+                                            ${t}
+                                            <span class="tag-remove" data-idx="${idx}" data-tidx="${ti}" style="cursor:pointer; opacity:0.7; font-size:10px;">×</span>
+                                        </span>
+                                    `).join('')}
+                                    ${(q.tags || []).length < 2 ? `
+                                        <select class="input quirk-tag-select" data-idx="${idx}" style="font-size:9px; padding:2px 4px; border:1px dashed var(--border-subtle); background:var(--bg-surface); min-width:80px;">
+                                            <option value="">+ TAG</option>
+                                            ${AURA_TAGS.filter(t => !(q.tags || []).includes(t)).map(t => `<option value="${t}">${t}</option>`).join('')}
+                                        </select>
+                                    ` : ''}
+                                </div>
+                            `;
+                            listEl.appendChild(row);
+
+                            // Text change
+                            row.querySelector('.quirk-text').onchange = (e) => {
+                                quirks[cat][idx].text = e.target.value;
+                                if (quirks[cat][idx].needsTags) delete quirks[cat][idx].needsTags;
+                                A.State.notify();
+                            };
+
+                            // Remove quirk
+                            row.querySelector('.quirk-remove').onclick = () => {
+                                quirks[cat].splice(idx, 1);
+                                A.State.notify();
+                                renderQuirkList();
+                            };
+
+                            // Remove tag
+                            row.querySelectorAll('.tag-remove').forEach(btn => {
+                                btn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    const qIdx = parseInt(btn.dataset.idx);
+                                    const tIdx = parseInt(btn.dataset.tidx);
+                                    quirks[cat][qIdx].tags.splice(tIdx, 1);
+                                    A.State.notify();
+                                    renderQuirkList();
+                                };
+                            });
+
+                            // Add tag via dropdown
+                            const tagSelect = row.querySelector('.quirk-tag-select');
+                            if (tagSelect) {
+                                tagSelect.onchange = (e) => {
+                                    const val = e.target.value;
+                                    if (!val) return;
+                                    const qIdx = parseInt(tagSelect.dataset.idx);
+                                    if (!quirks[cat][qIdx].tags) quirks[cat][qIdx].tags = [];
+                                    if (quirks[cat][qIdx].tags.length < 2) {
+                                        quirks[cat][qIdx].tags.push(val);
+                                        if (quirks[cat][qIdx].needsTags) delete quirks[cat][qIdx].needsTags;
+                                        A.State.notify();
+                                        renderQuirkList();
+                                    }
+                                };
+                            }
+                        });
+                    };
+
+                    renderQuirkList();
+
+                    // Add button
+                    catDiv.querySelector('.quirk-add').onclick = () => {
+                        if (!quirks[cat]) quirks[cat] = [];
+                        quirks[cat].push({ text: `{{name}} `, tags: [] });
+                        A.State.notify();
+                        renderQuirkList();
+                        // Focus the new input
+                        setTimeout(() => {
+                            const inputs = listEl.querySelectorAll('.quirk-text');
+                            if (inputs.length) inputs[inputs.length - 1].focus();
+                        }, 50);
+                    };
                 });
+
+                smartContainer.appendChild(quirksSection);
+
+                // Activation slider binding
+                const activationSlider = quirksSection.querySelector('#quirk-activation');
+                const activationVal = quirksSection.querySelector('#quirk-activation-val');
+                activationSlider.oninput = (e) => {
+                    const val = parseInt(e.target.value);
+                    activationVal.textContent = val + '%';
+                    quirks.activationChance = val;
+                    A.State.notify();
+                };
 
                 // ========== CHARACTER CARD EXPORT FIELDS ==========
                 // These fields enable standalone Character Card v2 export
@@ -1311,10 +1462,14 @@
                                 <strong style="color:${colorAccent};">${title}</strong>
                                 <span style="font-size:11px; color:var(--text-muted);">${subtitle}</span>
                             </div>
-                            <div style="display:flex; align-items:center; gap:8px;" onclick="event.stopPropagation();">
+                            <div style="display:flex; align-items:center; gap:6px;" onclick="event.stopPropagation();">
                                 <select class="input preset-select" data-section="${sectionId}" style="font-size:10px; padding:2px 6px; width:auto; min-width:80px;">
                                     <option value="">Preset...</option>
                                     ${presetOptions}
+                                </select>
+                                <select class="input tense-select" data-section="${sectionId}" style="font-size:10px; padding:2px 6px; width:auto; min-width:60px;">
+                                    <option value="present">Present</option>
+                                    <option value="past">Past</option>
                                 </select>
                                 <button class="btn btn-ghost btn-sm preset-apply" data-section="${sectionId}" style="font-size:10px; padding:2px 8px;">Apply</button>
                                 <button class="btn btn-ghost btn-sm preset-clear" data-section="${sectionId}" style="font-size:10px; padding:2px 8px; color:var(--text-muted);">Clear</button>
@@ -1397,30 +1552,38 @@
                         e.stopPropagation();
                         const sectionId = btn.dataset.section;
                         const select = content.querySelector(`.preset-select[data-section="${sectionId}"]`);
+                        const tenseSelect = content.querySelector(`.tense-select[data-section="${sectionId}"]`);
                         const presetId = select?.value;
+                        const tense = tenseSelect?.value || 'present';
 
                         if (!presetId) {
                             if (A.UI.Toast) A.UI.Toast.show('Select a preset first', 'warning');
                             return;
                         }
 
-                        // Get the preset data
-                        let presetData, targetCues;
+                        // Get the preset object
+                        let preset, targetCues;
                         if (sectionId === 'pulse' && A.Presets?.Pulse?.[presetId]) {
-                            presetData = A.Presets.Pulse[presetId].cues;
+                            preset = A.Presets.Pulse[presetId];
                             targetCues = T.pulseCues;
                         } else if (sectionId === 'eros' && A.Presets?.Eros?.[presetId]) {
-                            presetData = A.Presets.Eros[presetId].cues;
+                            preset = A.Presets.Eros[presetId];
                             targetCues = T.erosCues;
                         } else if (sectionId === 'intent' && A.Presets?.Intent?.[presetId]) {
-                            presetData = A.Presets.Intent[presetId].cues;
+                            preset = A.Presets.Intent[presetId];
                             targetCues = T.intentCues;
                         }
 
-                        if (!presetData) {
+                        if (!preset) {
                             if (A.UI.Toast) A.UI.Toast.show('Preset not found', 'error');
                             return;
                         }
+
+                        // Get cue data for selected tense (fallback to .cues for backward compat)
+                        const presetData = preset[tense] || preset.cues || {};
+
+                        // Get actor name for {{name}} replacement
+                        const actorName = actor?.name || 'Actor';
 
                         // Get actor appendages configuration
                         const appConfig = T.appearance?.appendages || {};
@@ -1428,12 +1591,13 @@
                         // Apply preset data to cues, respecting appendages
                         Object.keys(presetData).forEach(tag => {
                             const src = presetData[tag];
-                            const dest = { basic: src.basic || '' };
+                            // Replace {{name}} placeholder with actor name
+                            const dest = { basic: (src.basic || '').replace(/\{\{name\}\}/g, actorName) };
 
                             PARTS.forEach(p => {
-                                // Only clean copy if actor HAS this part
+                                // Only copy if actor HAS this part
                                 if (appConfig[p] && appConfig[p].present) {
-                                    if (src[p]) dest[p] = src[p];
+                                    if (src[p]) dest[p] = src[p].replace(/\{\{name\}\}/g, actorName);
                                 }
                             });
 
@@ -1442,7 +1606,7 @@
 
                         A.State.notify();
                         renderTab(); // Re-render to show new values
-                        if (A.UI.Toast) A.UI.Toast.show(`Applied "${presetId}" preset`, 'success');
+                        if (A.UI.Toast) A.UI.Toast.show(`Applied "${presetId}" (${tense}) preset`, 'success');
                     };
                 });
 
