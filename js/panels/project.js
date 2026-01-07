@@ -193,7 +193,7 @@
 
                 <div class="card">
                     <div class="card-header"><strong>Setup Progress</strong></div>
-                    <div class="card-body" style="font-size:12px;">
+                    <div class="card-body" id="setup-checklist-container" style="font-size:12px;">
                         ${renderSetupChecklist(state)}
                     </div>
                 </div>
@@ -286,9 +286,17 @@
 
 
     // --- Events & Logic ---
+    const refreshChecklist = () => {
+      const checklistContainer = container.querySelector('#setup-checklist-container');
+      if (checklistContainer) {
+        checklistContainer.innerHTML = renderSetupChecklist(A.State.get());
+      }
+    };
+
     const notifySave = () => {
       if (A.UI.Toast) A.UI.Toast.show('Project metadata saved', 'success');
       A.State.notify();
+      refreshChecklist();
     };
 
     container.querySelector('#inp-proj-name').onchange = (e) => { A.State.updateMeta({ name: e.target.value }); notifySave(); };
