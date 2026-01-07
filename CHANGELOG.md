@@ -20,6 +20,7 @@ All notable changes to Anansi will be documented in this file.
 
 ### Fixes
 - **AURA Matching**: Validated exact-case tag matching in `quirk-engine.js` for strict AURA compatibility.
+- **Parlor API**: Resolved "tangled threads" connection error by unifying API client with `A.LLM` service and adding explicit configuration validation.
 
 ## v1.8.0 - 2026-01-06
 ### New Features

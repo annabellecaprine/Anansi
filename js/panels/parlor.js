@@ -1422,18 +1422,12 @@ CRITICAL: Respond ONLY with valid JSON:
       conversationLog.appendChild(msgDiv);
       scrollToBottom();
 
-      // Check API key
-      const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-      const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-      const apiKey = keys[activeKeyName];
-
-      if (!apiKey) {
+      const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+      if (!llmConfig || !llmConfig.apiKey) {
         setSparkle(false);
-        showError("The threads are tangled... I cannot weave without an API key. Configure one in The Spindle → CFG tab.");
+        showError("The threads are tangled... No API Key configured. Open 'The Spindle' to configure.");
         return;
       }
-
-      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
 
       try {
         // Determine which prompt to use
@@ -1448,13 +1442,9 @@ CRITICAL: Respond ONLY with valid JSON:
           systemPrompt = buildSystemPrompt(answers);
         }
 
-        const response = await callParlorLLM(
-          config.provider,
-          config.model,
-          apiKey,
+        const response = await A.LLM.generate(
           systemPrompt,
-          "Please weave the character(s) now.",
-          config.baseUrl
+          [{ role: 'user', content: "Please weave the character(s) now." }]
         );
 
         setSparkle(false);
@@ -1700,64 +1690,22 @@ CRITICAL: Respond ONLY with valid JSON:
         return;
       }
 
+      const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+      if (!llmConfig || !llmConfig.apiKey) {
+        firstMessageField.placeholder = 'No API Key configured!';
+        if (A.UI.Toast) A.UI.Toast.show('No API Key configured', 'error');
+        return;
+      }
+
       generateBtn.disabled = true;
       generateBtn.textContent = '✧ Generating...';
       firstMessageField.value = '';
       firstMessageField.placeholder = 'Weaving an opening...';
 
-      const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-      const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-      const apiKey = keys[activeKeyName];
-
-      if (!apiKey) {
-        generateBtn.disabled = false;
-        generateBtn.textContent = '✨ Generate Opening';
-        firstMessageField.placeholder = 'No API key configured!';
-        return;
-      }
-
-      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
-
-      const povInstruction = answers.pov === '1st' ? '1st person (I/me)' : answers.pov === '2nd' ? '2nd person (you/your)' : '3rd person (he/she/they)';
-      const tenseInstruction = answers.tense === 'past' ? 'past tense' : 'present tense';
-
-      const openingPrompt = `You are "${name}", a character with this personality:
-
-${personality}
-
-The scenario is:
-${scenario}
-
-Write the OPENING MESSAGE of a roleplay as this character. This is the first thing ${name} says or does when the story begins.
-
-NARRATIVE STYLE REQUIRED:
-- Point of View: ${povInstruction}
-- Tense: ${tenseInstruction}
-- Addressing: {{user}}
-
-FORMATTING GUIDE:
-- *Single asterisks* for actions and narration: *She turned slowly, her eyes narrowing.*
-- "Quotation marks" for dialogue: "Who are you?" she demanded.
-- **Double asterisks** for emphasis: **something important**
-- Use paragraph breaks for pacing.
-
-Guidelines:
-- Stay completely in character
-- Set the scene vividly
-- Create intrigue or emotional hook
-- End with something that invites {{user}} to respond
-- Length: 2-4 paragraphs
-
-CRITICAL: Respond ONLY with the opening message in character. No meta-commentary.`;
-
       try {
-        const response = await callParlorLLM(
-          config.provider,
-          config.model,
-          apiKey,
+        const response = await A.LLM.generate(
           openingPrompt,
-          "Write the opening message now.",
-          config.baseUrl
+          [{ role: 'user', content: "Write the opening message now." }]
         );
 
         firstMessageField.value = response.trim();
@@ -2043,61 +1991,19 @@ CRITICAL: Respond ONLY with the opening message in character. No meta-commentary
             }
 
             // Show spinning state
-            scenarioField.value = '✧ Spinning a new scenario...';
-            scenarioField.disabled = true;
-
-            // Get API config
-            const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-            const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-            const apiKey = keys[activeKeyName];
-
-            if (!apiKey) {
-              scenarioField.value = 'No API key configured!';
-              scenarioField.disabled = false;
+            const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+            if (!llmConfig || !llmConfig.apiKey) {
+              scenarioField.value = 'No API Key configured!';
               return false;
             }
 
-            const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
-
-            const povStyle = answers.pov === '1st' ? '1st person (I/me)' : answers.pov === '2nd' ? '2nd person (you/your)' : '3rd person (he/she/they)';
-            const tenseStyle = answers.tense === 'past' ? 'past tense' : 'present tense';
-
-            const spinPrompt = `You are a creative story designer. The character "${name}" already exists with this personality:
-
-${personality}
-
-Generate a NEW and DIFFERENT scenario for this character that:
-1. Has a unique setting and atmosphere
-2. Shows what the character is doing when the story begins
-3. Creates a clear hook for how {{user}} encounters them
-4. Invites dialogue or action from {{user}}
-
-Context from the original request:
-- Genre: ${answers.genre}
-- Tone: ${answers.tone}
-- User's Role: ${answers.user_role}
-- POV: ${povStyle}
-- Tense: ${tenseStyle}
-${answers.concept ? `- Story Concept: ${answers.concept}` : ''}
-
-IMPORTANT: Write the scenario in ${povStyle} and ${tenseStyle}!
-
-FORMATTING GUIDE:
-- *Single asterisks* for actions/narration: *She turned slowly.*
-- "Quotation marks" for dialogue: "Hello," she said.
-- **Double asterisks** for emphasis: **The ancient door** creaked open.
-- Use paragraph breaks for readability.
-
-CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the scenario paragraph(s).`;
+            scenarioField.value = '✧ Spinning a new scenario...';
+            scenarioField.disabled = true;
 
             try {
-              const response = await callParlorLLM(
-                config.provider,
-                config.model,
-                apiKey,
+              const response = await A.LLM.generate(
                 spinPrompt,
-                "Generate the new scenario now.",
-                config.baseUrl
+                [{ role: 'user', content: "Generate the new scenario now." }]
               );
 
               scenarioField.value = response.trim();
@@ -2176,72 +2082,16 @@ CRITICAL: Respond ONLY with the scenario text, no JSON, no explanation. Just the
                 selectorDiv.querySelector('#relation-selector').style.display = 'none';
                 statusDiv.style.display = 'block';
 
-                // Get API config
-                const keys = JSON.parse(localStorage.getItem('anansi_api_keys') || '{}');
-                const activeKeyName = localStorage.getItem('anansi_active_key_name') || 'Default';
-                const apiKey = keys[activeKeyName];
-
-                if (!apiKey) {
-                  statusDiv.textContent = 'No API key configured!';
+                const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+                if (!llmConfig || !llmConfig.apiKey) {
+                  statusDiv.textContent = 'No API Key configured!';
                   return;
                 }
 
-                const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{"provider":"gemini","model":"gemini-2.0-flash"}');
-
-                const relationDescriptions = {
-                  love_interest: 'a love interest - romantic tension, attraction, or deep emotional connection',
-                  rival: 'a rival - competition, conflict, opposing goals, or professional tension',
-                  mentor: 'a mentor - teacher, guide, protector, or wise figure who shapes their path',
-                  protege: 'a protégé - student, ward, or someone they feel protective of',
-                  sibling: 'a sibling - shared blood, family history, and all the complexity that brings',
-                  surprise: 'a compelling connection that fits the story naturally'
-                };
-
-                const companionPrompt = `You are Anansi, the Spider God. A storyteller has woven one soul and now seeks a companion for them.
-
-THE MAIN CHARACTER:
-Name: ${mainName}
-Personality: ${mainPersonality}
-
-CURRENT SCENARIO:
-${scenario}
-
-Create a COMPANION CHARACTER who is ${relationDescriptions[selectedRelation]} for ${mainName}.
-
-The companion must:
-1. Complement or contrast the main character interestingly
-2. Have their own distinct personality, not just exist for the main character
-3. Fit naturally into the existing scenario
-4. Create narrative tension or emotional depth
-
-ALSO update the scenario to include BOTH characters and how {{user}} encounters them together.
-
-FORMATTING:
-- *Asterisks* for actions
-- "Quotes" for dialogue
-- **Bold** for emphasis
-- ESCAPE internal double quotes: "Lila \"Flick\" Kane" OR use single quotes: "Lila 'Flick' Kane"
-
-
-CRITICAL: Respond ONLY with valid JSON:
-{
-  "companion": {
-    "name": "companion name",
-    "appearance": "physical description",
-    "personality": "2-3 paragraphs about who they are"
-  },
-  "relationship": "one paragraph describing the dynamic between ${mainName} and the companion",
-  "scenario": "updated scenario featuring BOTH characters and how {{user}} meets them"
-}`;
-
                 try {
-                  const response = await callParlorLLM(
-                    config.provider,
-                    config.model,
-                    apiKey,
+                  const response = await A.LLM.generate(
                     companionPrompt,
-                    "Generate the companion now.",
-                    config.baseUrl
+                    [{ role: 'user', content: "Generate the companion now." }]
                   );
 
                   // Parse response
@@ -2691,74 +2541,7 @@ CRITICAL: Respond ONLY with valid JSON:
       .replace(/'/g, '&#39;');
   }
 
-  // ============================================
-  // LLM CLIENT
-  // ============================================
-  async function callParlorLLM(provider, model, key, systemPrompt, userMessage, baseUrl) {
-    console.log(`[Parlor] Calling ${provider} (${model})...`);
 
-    if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-
-      const payload = {
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 2048
-        }
-      };
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '(No response)';
-    }
-
-    if (provider === 'openai' || provider === 'chutes' || provider === 'custom') {
-      let url;
-      if (provider === 'openai') url = 'https://api.openai.com/v1/chat/completions';
-      else if (provider === 'chutes') url = 'https://llm.chutes.ai/v1/chat/completions';
-      else url = `${(baseUrl || 'https://api.example.com/v1').replace(/\/$/, '')}/chat/completions`;
-
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ];
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.9
-        })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || '(No response)';
-    }
-
-    throw new Error(`Unknown provider: ${provider}`);
-  }
 
   // Register panel
   A.registerPanel('parlor', {
