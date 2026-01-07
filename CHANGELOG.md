@@ -10,6 +10,7 @@ All notable changes to Anansi will be documented in this file.
 - **Quirks System Extension**: Added AURA tag integration with exact-case matching and a standardized selection dropdown for cleaner logic triggers.
 
 ### Improvements
+- **Centralized Migration Runner**: `State.migrate()` now runs eagerly on load/import, ensuring old project files are fully upgraded to the current schema without requiring panel visits.
 - **Centralized Versioning**: Build script now reads version from `package.json` and injects it into `index.html` and `state.js` automatically.
 - **UI Polish**: Widened text input fields for Gender, Lorebook Category/Target, and Advanced Rule conditions.
 - **Visual Hierarchy**: Added indentation for Actor quirks to distinguish between Physical, Mental, and Emotional categories.
