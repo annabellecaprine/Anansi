@@ -240,10 +240,24 @@
 
     // --- Helper Component: Setup Progress Checklist ---
     function renderSetupChecklist(state) {
-      const hasCharacter = !!(state.character && (state.character.name || state.character.persona));
+      // Step 1: Fill Out Project
+      const hasProjectInfo = !!(state.meta?.name && state.meta?.description);
+
+      // Step 2: Add Actors
       const actorCount = Object.keys(state.nodes?.actors?.items || {}).length;
-      const loreCount = Object.keys(state.weaves?.lorebook?.entries || {}).length;
+
+      // Step 3: Import to Character
+      const hasCharacterImport = !!(
+        state.character?.compiled?.name ||
+        state.character?.solo?.selectedActorId ||
+        state.character?.ensemble?.selectedActorIds?.length > 0
+      );
+
+      // Step 4: Add Voices
       const hasVoices = (state.weaves?.voices?.voices || []).length > 0;
+
+      // Step 5: Add Lorebook
+      const loreCount = Object.keys(state.weaves?.lorebook?.entries || {}).length;
 
       const checkRow = (done, label, hint, panelId) => `
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:6px 8px; border-radius:6px; background:${done ? 'transparent' : 'var(--bg-surface)'}; cursor:pointer;" 
@@ -262,10 +276,11 @@
       `;
 
       return `
-        ${checkRow(hasCharacter, 'Define Main Character', 'Set name, persona, and example dialogue', 'character')}
-        ${checkRow(actorCount > 0, 'Create Actors', actorCount > 0 ? `${actorCount} actor${actorCount > 1 ? 's' : ''} defined` : 'Add NPCs and secondary characters', 'actors')}
-        ${checkRow(loreCount > 0, 'Add Lorebook Entries', loreCount > 0 ? `${loreCount} entr${loreCount > 1 ? 'ies' : 'y'} defined` : 'World info, factions, locations', 'lorebook')}
-        ${checkRow(hasVoices, 'Configure Voices', hasVoices ? 'Voice profiles active' : 'Speaking styles for actors', 'voices')}
+        ${checkRow(hasProjectInfo, 'Fill Out Project', hasProjectInfo ? 'Name and description set' : 'Set project name and description', 'project')}
+        ${checkRow(actorCount > 0, 'Add Actors', actorCount > 0 ? `${actorCount} actor${actorCount > 1 ? 's' : ''} defined` : 'Create your cast of characters', 'actors')}
+        ${checkRow(hasCharacterImport, 'Import to Character', hasCharacterImport ? 'Character configured' : 'Select actors for your story', 'character')}
+        ${checkRow(hasVoices, 'Add Voices', hasVoices ? 'Voice profiles active' : 'Speaking styles for actors', 'voices')}
+        ${checkRow(loreCount > 0, 'Add Lorebook', loreCount > 0 ? `${loreCount} entr${loreCount > 1 ? 'ies' : 'y'} defined` : 'World info, factions, locations', 'lorebook')}
       `;
     }
 
