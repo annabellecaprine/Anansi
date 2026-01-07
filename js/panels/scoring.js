@@ -181,9 +181,9 @@
                 const isFirst = idx === 0;
                 const isLast = idx === items.length - 1;
                 const arrows = `
-                    <div style="display:flex; flex-direction:column; margin-right:6px;">
-                        <button class="btn-up" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isFirst ? 0.2 : 0.6};" ${isFirst ? 'disabled' : ''}>▲</button>
-                        <button class="btn-down" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isLast ? 0.2 : 0.6};" ${isLast ? 'disabled' : ''}>▼</button>
+                    <div style="display:flex; flex-direction:column; margin-right:8px; align-items:center;">
+                        <div class="btn-up" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isFirst ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Up">▲</div>
+                        <div class="btn-down" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isLast ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Down">▼</div>
                     </div>
                 `;
 
