@@ -57,6 +57,7 @@ const statePath = path.join(destDir, 'js', 'core', 'state.js');
 if (fs.existsSync(statePath)) {
     let js = fs.readFileSync(statePath, 'utf8');
     js = js.replace(/A\.VERSION = '[\d.]+';/g, `A.VERSION = '${VERSION}';`);
+    js = js.replace(/version: '[\d.]+',/g, `version: '${VERSION}',`);
     fs.writeFileSync(statePath, js, 'utf8');
     console.log('  → state.js patched');
 }
