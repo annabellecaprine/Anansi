@@ -48,6 +48,8 @@ if (fs.existsSync(indexPath)) {
     html = html.replace(/<title>Anansi - v[\d.]+<\/title>/g, `<title>Anansi - v${VERSION}</title>`);
     // Update comment
     html = html.replace(/<!-- Release Workflow Test [\d.]+ -->/g, `<!-- Release Workflow Test ${VERSION} -->`);
+    // Update header logo version
+    html = html.replace(/>v[\d.]+<\/span><\/span>/g, `>v${VERSION}</span></span>`);
     fs.writeFileSync(indexPath, html, 'utf8');
     console.log('  → index.html patched');
 }
