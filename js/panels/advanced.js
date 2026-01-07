@@ -508,17 +508,78 @@
                     const actRoot = card.querySelector('#acts-' + block.id);
                     block.actions.forEach((a, aIdx) => {
                         const aRow = document.createElement('div');
+
+                        // Action Type Selector (Modify Text vs Execute Shift)
+                        const actionTypeParams = `
+                            <select class="input btn-xs action-type" style="width:100px; margin-bottom:4px;">
+                                <option value="modify" ${a.type === 'modify' || !a.type ? 'selected' : ''}>Modify</option>
+                                <option value="execute_rule" ${a.type === 'execute_rule' ? 'selected' : ''}>Execute Shift</option>
+                            </select>
+                        `;
+
+                        // Content based on Type
+                        let contentHtml = '';
+                        if (a.type === 'execute_rule') {
+                            let ruleOpts = '<option value="">(Select Rule Chain)</option>';
+                            // Filter self to prevent direct recursion
+                            const otherRules = state.sbx.rules.filter(r => r.id !== item.id);
+                            otherRules.forEach(r => {
+                                ruleOpts += `<option value="${r.id}" ${r.id === a.targetRuleId ? 'selected' : ''}>${r.name}</option>`;
+                            });
+                            contentHtml = `
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:11px; color:var(--text-muted);">Shift to:</span>
+                                    <select class="input action-rule-target" style="flex:1;">${ruleOpts}</select>
+                                </div>
+                            `;
+                        } else {
+                            // Default: Modify Text
+                            contentHtml = `
+                                <textarea class="input action-text" style="width:100%; height:60px; resize:vertical;" placeholder="Text to inject...">${a.text || ''}</textarea>
+                                <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+                                    <select class="input btn-xs action-target" style="width:auto;">
+                                        <option value="character.personality" ${a.target === 'character.personality' ? 'selected' : ''}>Personality</option>
+                                        <option value="character.scenario" ${a.target === 'character.scenario' ? 'selected' : ''}>Scenario</option>
+                                        <option value="character.exampleDialogue" ${a.target === 'character.exampleDialogue' ? 'selected' : ''}>Example Dialogue</option>
+                                    </select>
+                                </div>
+                            `;
+                        }
+
                         aRow.innerHTML = `
-                  <textarea class="input" style="width:100%; height:60px; resize:vertical;" placeholder="Text to inject...">${a.text || ''}</textarea>
-                  <div style="display:flex; justify-content:flex-end; margin-top:2px;">
-                    <select class="input btn-xs" style="width:auto;">
-                      <option value="character.personality" ${a.target === 'character.personality' ? 'selected' : ''}>Personality</option>
-                      <option value="character.scenario" ${a.target === 'character.scenario' ? 'selected' : ''}>Scenario</option>
-                    </select>
-                  </div>
-                `;
-                        aRow.querySelector('textarea').oninput = e => { a.text = e.target.value; markMod(); A.State.notify(); };
-                        aRow.querySelector('select').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
+                            <div style="margin-bottom:8px; padding:4px; border:1px dashed var(--border-subtle); border-radius:4px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    ${actionTypeParams}
+                                    <button class="btn btn-ghost btn-xs action-del" style="color:var(--status-error);">x</button>
+                                </div>
+                                ${contentHtml}
+                            </div>
+                        `;
+
+                        // Events
+                        const typeSel = aRow.querySelector('.action-type');
+                        typeSel.onchange = e => {
+                            a.type = e.target.value;
+                            // Reset fields appropriate for type
+                            if (a.type === 'execute_rule') {
+                                delete a.text; delete a.target;
+                                a.targetRuleId = '';
+                            } else {
+                                a.text = ''; a.target = 'character.personality';
+                                delete a.targetRuleId;
+                            }
+                            markMod(); renderChain(); A.State.notify();
+                        };
+
+                        aRow.querySelector('.action-del').onclick = () => { block.actions.splice(aIdx, 1); markMod(); renderChain(); A.State.notify(); };
+
+                        if (a.type === 'execute_rule') {
+                            aRow.querySelector('.action-rule-target').onchange = e => { a.targetRuleId = e.target.value; markMod(); A.State.notify(); };
+                        } else {
+                            aRow.querySelector('.action-text').oninput = e => { a.text = e.target.value; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-target').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
+                        }
+
                         actRoot.appendChild(aRow);
                     });
 

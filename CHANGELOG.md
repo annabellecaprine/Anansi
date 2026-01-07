@@ -4,6 +4,7 @@ All notable changes to Anansi will be documented in this file.
 
 ## v1.9.0 - 2026-01-07
 ### New Features
+- **Nested Logic Rules**: "Logic Chains" now support an `Execute Shift` action, allowing rules to trigger other rules for complex, hierarchical decision trees.
 - **The Writer's Block**: AI-powered writing assistant panel in Forbidden Secrets. Features Mode toggle (Brainstorm/Edit), multi-select Genre/Emphasis chips, Actor/Location context injection, branching conversations, session save/load, message pinning, smart context management with sliding window + summarization, and Export to Markdown.
 - **Drag-and-Drop Image Upload**: Intuitive image upload support added across Project Cover, Character Portrait, Actor Gallery, and Location editors.
 - **Rule Blocks System**: Implemented grouping of vault logic (Lists, Rules, Derived Values, Scoring Topics) into unified 📦 Blocks for batch management and project importing.

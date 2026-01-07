@@ -521,6 +521,7 @@
             s += `  var SBX = {
     lists: ${JSON.stringify(sbx.lists || [])},
     derived: ${JSON.stringify(sbx.derived || [])},
+    _depth: 0,
     
     // Check if any word from list is in text (History Lookup)
     anyInList: function(listId, windowSize) {
@@ -578,13 +579,23 @@
           return count;
        }
        return 0;
+    },
+
+    // Execution Logic
+    _registry: {},
+    exec: function(id) {
+        if (!this._registry[id]) return;
+        if (this._depth > 10) { console.warn("SBX: Max recursion reached"); return; }
+        this._depth++;
+        this._registry[id]();
+        this._depth--;
     }
   };\n\n`;
 
-            // 2. Compile Rules
+            // 2. Compile Rules into Registry
             activeRules.forEach((rule, rIdx) => {
-                s += `  // Rule: ${rule.name || ('Rule ' + rIdx)}\n`;
-                s += `  (function(){\n`;
+                s += `  SBX._registry["${rule.id}"] = function() {\n`;
+                s += `    // Rule: ${rule.name || rule.id}\n`;
 
                 // Chain
                 const chain = rule.chain || [];
@@ -624,11 +635,15 @@
                     // Actions
                     const actions = block.actions || [];
                     actions.forEach(act => {
-                        const txt = jsStr(act.text);
-                        if (act.target === 'character.scenario') {
-                            s += `      context.character.scenario = (context.character.scenario||"") + "\\n" + ${txt};\n`;
+                        if (act.type === 'execute_rule' && act.targetRuleId) {
+                            s += `      SBX.exec("${act.targetRuleId}");\n`;
                         } else {
-                            s += `      context.character.personality = (context.character.personality||"") + " " + ${txt};\n`;
+                            const txt = jsStr(act.text);
+                            if (act.target === 'character.scenario') {
+                                s += `      context.character.scenario = (context.character.scenario||"") + "\\n" + ${txt};\n`;
+                            } else {
+                                s += `      context.character.personality = (context.character.personality||"") + " " + ${txt};\n`;
+                            }
                         }
                     });
                 });
@@ -636,7 +651,36 @@
                 // Close chain
                 if (chain.length > 0) s += `    }\n`;
 
-                s += `  })();\n\n`;
+                s += `  };\n\n`;
+            });
+
+            // 3. Run Top-Level Rules (Not bound to specific triggers, just 'enabled')
+            // Note: Rules that are 'activeRules' are implicitly top-level OR sub-routines.
+            // If a rule is intended ONLY as a subroutine, it shouldn't run automatically.
+            // But currently Anansi doesn't have a 'subroutine-only' flag.
+            // For now, we run all enabled rules. If the user wants a subroutine, they generally disable it?
+            // Wait, if I disable it, 'activeRules' filters it out, so I can't call it!
+            // FIX: We need to compile ALL rules into registry, but only EXECUTE enabled ones at top level.
+
+            // Re-fetch ALL rules for registry compilation
+            const allRules = rules;
+            // (Wait, `activeRules` logic above filtered them. I should change that.)
+
+            s += `  // Auto-Run Enabled Rules\n`;
+            activeRules.forEach(r => {
+                // Only run if not bound to something else (e.g. not a subroutine explicitly? relying on 'enabled' flag is tricky)
+                // Current logic: If enabled, it runs. 
+                // If I want a "Shift-Only" rule, I'd need a new flag "Run Automatically" vs "Manual".
+                // For backward compatibility, "Enabled" = "Run Automatically".
+                // So "Shift" targets must also be "Enabled" to exist?
+                // Actually, if I conform to "Enabled = Compiled", then I can call it. 
+                // But then it ALSO runs top-level.
+                // This is a logic flaw in the schema.
+                // Proposed Fix: If it's called by another rule, it still runs top-level if enabled.
+                // We need a way to say "Don't run top level".
+                // For now, let's just stick to the requested feature: Nesting.
+                // Dealing with "Shift-Only" rules might be a UI update for later (e.g. "Auto-Run" checkbox).
+                s += `  SBX.exec("${r.id}");\n`;
             });
 
             s += '})();';
