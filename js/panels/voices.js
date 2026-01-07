@@ -240,6 +240,21 @@
       const freshData = freshState.weaves?.voices || { voices: [] };
       let voices = freshData.voices || [];
 
+      // Move Helper
+      const moveVoice = (idx, dir) => {
+        if (dir === -1 && idx > 0) {
+          [freshData.voices[idx], freshData.voices[idx - 1]] = [freshData.voices[idx - 1], freshData.voices[idx]];
+        } else if (dir === 1 && idx < freshData.voices.length - 1) {
+          [freshData.voices[idx], freshData.voices[idx + 1]] = [freshData.voices[idx + 1], freshData.voices[idx]];
+        }
+        // Update selection index if involved
+        if (currentVoiceIndex === idx) currentVoiceIndex += dir;
+        else if (currentVoiceIndex === idx + dir) currentVoiceIndex -= dir;
+
+        upd();
+        refreshList();
+      };
+
       if (searchTerm) {
         voices = voices.map((v, i) => ({ ...v, originalIndex: i })) // Keep track of original index
           .filter(v => (v.characterName || '').toLowerCase().includes(searchTerm) || (v.chatName || '').toLowerCase().includes(searchTerm));
@@ -252,24 +267,50 @@
         return;
       }
 
-      voices.forEach((v) => {
+      voices.forEach((v, displayIdx) => {
         const row = document.createElement('div');
-        row.style.padding = '8px 12px';
+        row.style.padding = '8px 4px';
         row.style.borderBottom = '1px solid var(--border-subtle)';
         row.style.cursor = 'pointer';
         row.style.fontSize = '12px';
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+
         if (v.originalIndex === currentVoiceIndex) {
           row.style.backgroundColor = 'var(--bg-surface)';
           row.style.borderLeft = '3px solid var(--accent-primary)';
         }
 
+        // Arrows (Only if not searching)
+        let arrows = '';
+        if (!searchTerm) {
+          const isFirst = displayIdx === 0;
+          const isLast = displayIdx === voices.length - 1;
+          arrows = `
+                <div style="display:flex; flex-direction:column; margin-right:4px;">
+                    <button class="btn-up" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isFirst ? 0.2 : 0.6};" ${isFirst ? 'disabled' : ''}>▲</button>
+                    <button class="btn-down" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isLast ? 0.2 : 0.6};" ${isLast ? 'disabled' : ''}>▼</button>
+                </div>
+            `;
+        }
+
         row.innerHTML = `
-           <div style="font-weight:bold;">${v.characterName || 'Unnamed Voice'}
-           ${v.vaultLink && v.vaultLink.vaultId ? (v.vaultLink.locallyModified ? '<span style="color:var(--status-warning);"> ●</span>' : '<span style="color:var(--text-muted);"> ✓</span>') : ''}
+           ${arrows}
+           <div style="flex:1;">
+               <div style="font-weight:bold;">${v.characterName || 'Unnamed Voice'}
+               ${v.vaultLink && v.vaultLink.vaultId ? (v.vaultLink.locallyModified ? '<span style="color:var(--status-warning);"> ●</span>' : '<span style="color:var(--text-muted);"> ✓</span>') : ''}
+               </div>
+               <div style="font-size:10px; color:var(--text-muted);">${v.chatName ? 'Chat: ' + v.chatName : ''} • ${v.subtones ? v.subtones.length : 0} subtones</div>
            </div>
-           <div style="font-size:10px; color:var(--text-muted);">${v.chatName ? 'Chat: ' + v.chatName : ''} • ${v.subtones ? v.subtones.length : 0} subtones</div>
         `;
+
         row.onclick = () => { currentVoiceIndex = v.originalIndex; refreshList(); renderEditor(); };
+
+        if (!searchTerm) {
+          row.querySelector('.btn-up').onclick = (e) => { e.stopPropagation(); moveVoice(v.originalIndex, -1); };
+          row.querySelector('.btn-down').onclick = (e) => { e.stopPropagation(); moveVoice(v.originalIndex, 1); };
+        }
+
         listBody.appendChild(row);
       });
       syncScript(); // Auto-sync to Scripts panel

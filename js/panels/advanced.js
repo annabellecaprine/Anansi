@@ -219,26 +219,54 @@
             const listEl = sideCol.querySelector('#side-list');
             listEl.innerHTML = '';
 
+            let sourceArr = [];
             let items = [];
-            if (activeTab === 'lists') items = state.sbx.lists;
-            else if (activeTab === 'derived') items = state.sbx.derived;
+
+            if (activeTab === 'lists') { sourceArr = state.sbx.lists; items = sourceArr; }
+            else if (activeTab === 'derived') { sourceArr = state.sbx.derived; items = sourceArr; }
             else {
-                items = state.sbx.rules;
-                if (isBound) items = items.filter(r => r.boundTo === context.boundTo);
-                else items = items.filter(r => !r.boundTo); // Show global rules by default if not bound
+                sourceArr = state.sbx.rules;
+                if (isBound) items = sourceArr.filter(r => r.boundTo === context.boundTo);
+                else items = sourceArr.filter(r => !r.boundTo);
             }
+
+            // Move Helper (Works on visible list to swap with visible neighbor)
+            const moveItem = (visibleIdx, dir) => {
+                if (dir === -1 && visibleIdx <= 0) return;
+                if (dir === 1 && visibleIdx >= items.length - 1) return;
+
+                const itemA = items[visibleIdx];
+                const itemB = items[visibleIdx + dir]; // Neighbor in visible list
+
+                const realIdxA = sourceArr.indexOf(itemA);
+                const realIdxB = sourceArr.indexOf(itemB);
+
+                if (realIdxA !== -1 && realIdxB !== -1) {
+                    // Swap in source
+                    // Make sure we handle if indices are far apart (though unlikely to break swap logic unless using splice)
+                    const temp = sourceArr[realIdxA];
+                    sourceArr[realIdxA] = sourceArr[realIdxB];
+                    sourceArr[realIdxB] = temp;
+
+                    A.State.notify();
+                    refreshSidebar();
+                }
+            };
 
             if (!items.length) {
                 listEl.innerHTML = '<div class="muted" style="padding:12px; text-align:center;">No items.</div>';
                 return;
             }
 
-            items.forEach(item => {
+            items.forEach((item, idx) => {
                 const row = document.createElement('div');
                 row.className = 'list-item';
-                row.style.padding = '10px';
+                row.style.padding = '8px 10px';
                 row.style.borderBottom = '1px solid var(--border-subtle)';
                 row.style.cursor = 'pointer';
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+
                 if (item.id === activeId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
 
                 let syncBadge = '';
@@ -247,8 +275,24 @@
                         ? '<span title="Modified" style="font-size:10px;margin-left:4px;color:var(--status-warning);">●</span>'
                         : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
                 }
-                row.innerHTML = `<div style="font-weight:bold; font-size:13px;">${item.name || item.key || 'Unnamed'}${syncBadge}</div>`;
+
+                // Arrows
+                const isFirst = idx === 0;
+                const isLast = idx === items.length - 1;
+                const arrows = `
+                    <div style="display:flex; flex-direction:column; margin-right:6px;">
+                        <button class="btn-up" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isFirst ? 0.2 : 0.6};" ${isFirst ? 'disabled' : ''}>▲</button>
+                        <button class="btn-down" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isLast ? 0.2 : 0.6};" ${isLast ? 'disabled' : ''}>▼</button>
+                    </div>
+                `;
+
+                row.innerHTML = `${arrows}<div style="flex:1; font-weight:bold; font-size:13px;">${item.name || item.key || 'Unnamed'}${syncBadge}</div>`;
+
                 row.onclick = () => { activeId = item.id; refreshSidebar(); renderMain(); };
+
+                row.querySelector('.btn-up').onclick = (e) => { e.stopPropagation(); moveItem(idx, -1); };
+                row.querySelector('.btn-down').onclick = (e) => { e.stopPropagation(); moveItem(idx, 1); };
+
                 listEl.appendChild(row);
             });
         }

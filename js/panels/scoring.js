@@ -143,17 +143,31 @@
             listBody.innerHTML = '';
             const items = ((currentTab === 'basic') ? state.scoring.topics : state.scoring.advanced) || [];
 
+            // Move Helper
+            const moveItem = (idx, dir) => {
+                if (dir === -1 && idx > 0) {
+                    [items[idx], items[idx - 1]] = [items[idx - 1], items[idx]];
+                } else if (dir === 1 && idx < items.length - 1) {
+                    [items[idx], items[idx + 1]] = [items[idx + 1], items[idx]];
+                }
+                A.State.notify();
+                refreshList();
+            };
+
             if (!items.length) {
                 listBody.innerHTML = '<div class="muted" style="padding:16px; text-align:center;">No items.</div>';
                 return;
             }
 
-            items.forEach((item) => {
+            items.forEach((item, idx) => {
                 const row = document.createElement('div');
                 row.className = 'list-item';
-                row.style.padding = '10px';
+                row.style.padding = '8px 10px';
                 row.style.borderBottom = '1px solid var(--border-subtle)';
                 row.style.cursor = 'pointer';
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+
                 if (item.id === currentId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
 
                 let syncBadge = '';
@@ -163,20 +177,41 @@
                         : '<span title="Synced" style="font-size:10px;margin-left:4px;color:var(--text-muted);">✓</span>';
                 }
 
+                // Arrows
+                const isFirst = idx === 0;
+                const isLast = idx === items.length - 1;
+                const arrows = `
+                    <div style="display:flex; flex-direction:column; margin-right:6px;">
+                        <button class="btn-up" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isFirst ? 0.2 : 0.6};" ${isFirst ? 'disabled' : ''}>▲</button>
+                        <button class="btn-down" style="font-size:8px; padding:0 2px; line-height:1; border:none; background:transparent; cursor:pointer; opacity:${isLast ? 0.2 : 0.6};" ${isLast ? 'disabled' : ''}>▼</button>
+                    </div>
+                `;
+
                 if (currentTab === 'basic') {
                     const kw = splitKeywords(item.keywordsText);
                     row.innerHTML = `
-              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
-              <div style="font-size:11px; color:var(--text-muted);">Depth ${item.depth} • ${kw.length} keys</div>
-            `;
+                      ${arrows}
+                      <div style="flex:1;">
+                          <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
+                          <div style="font-size:11px; color:var(--text-muted);">Depth ${item.depth} • ${kw.length} keys</div>
+                      </div>
+                    `;
                 } else {
                     // Advanced Summary
                     row.innerHTML = `
-              <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
-              <div style="font-size:11px; color:var(--text-muted);">Combined Logic</div>
-            `;
+                      ${arrows}
+                      <div style="flex:1;">
+                          <div style="font-weight:bold; font-size:13px; ${!item.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${item.name}${syncBadge}</div>
+                          <div style="font-size:11px; color:var(--text-muted);">Combined Logic</div>
+                      </div>
+                    `;
                 }
+
                 row.onclick = () => { currentId = item.id; refreshList(); renderEditor(); };
+
+                row.querySelector('.btn-up').onclick = (e) => { e.stopPropagation(); moveItem(idx, -1); };
+                row.querySelector('.btn-down').onclick = (e) => { e.stopPropagation(); moveItem(idx, 1); };
+
                 listBody.appendChild(row);
             });
         }
