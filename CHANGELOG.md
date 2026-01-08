@@ -8,6 +8,8 @@ All notable changes to Anansi will be documented in this file.
   - **Locked Category**: Access required via secret password (`dungeonmaster`) in the About screen.
   - **Roleplay Panel**: A chat interface coupled with a dice/mechanics engine (`processRound` API).
   - **Party & Monsters**: Panels for managing Hero stats (HP/MP) and a Bestiary with spawn capability.
+  - **Combat Engine**: Full Turn-based combat system with Initiative rolling, Rounds, and Turns.
+  - **Monster AI**: Basic automation for enemies to select targets and attack on their turn.
   - **World Map**: A read-only visualization of the Locations graph for players.
   - **DM Map**: A Game Master-exclusive editor for seeding locations with Encounters and Loot.
   - **Armory**: A CRUD database for Weapons, Armor, and Items.

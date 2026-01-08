@@ -1,177 +1,528 @@
 
-// SYSTEM SCRIPT: RPG Mechanics v3.0 (Sorcerer Edition)
-// Managed by: Game Master Panel & Actors Panel
+// SYSTEM SCRIPT: RPG Mechanics v5.0 (Combat System)
+// Managed by: Game Master Panel & Party Panel
 
 const state = A.State.get();
 
-// Force Enable for Prototype
-if (!state.rpg) state.rpg = { enabled: true, stats: [], mechanics: 'd20' };
-state.rpg.enabled = true;
-const rpg = state.rpg;
+// --- Configuration ---
+const DEBUG = true;
+const LOG_PREFIX = '[RPG Engine]';
 
-// --- Helper: Parse Dice (e.g. "1d8") ---
-function rollDice(str) {
-    if (!str) return 0;
-    const [count, face] = str.toLowerCase().split('d').map(x => parseInt(x));
-    if (isNaN(count) || isNaN(face)) return 0;
-    let total = 0;
-    for (let i = 0; i < count; i++) total += Math.floor(Math.random() * face) + 1;
-    return total;
+// Ensure RPG State
+if (!state.rpg) state.rpg = { enabled: true, stats: [], mechanics: 'd20', rulesets: {}, combat: null };
+if (!state.rpg.enabled) return;
+
+// ISOLATION: Only run in RPG Roleplay sessions, not global chat
+if (context.source !== 'rpg_session') return;
+
+const activeMech = state.rpg.mechanics || 'd20';
+let rules = (state.rpg.rulesets && state.rpg.rulesets[activeMech]) ? state.rpg.rulesets[activeMech] : [];
+
+// --- HELPER: Dice Roller ---
+function rollDice(formula) {
+    if (!formula) return { total: 0, str: "0" };
+    if (!isNaN(formula)) return { total: parseInt(formula), str: formula };
+
+    const parts = formula.toLowerCase().replace(/\s/g, '').split('+');
+    let grandTotal = 0;
+    let logStr = [];
+
+    parts.forEach(part => {
+        if (part.includes('d')) {
+            let [count, face] = part.split('d');
+            count = count === '' ? 1 : parseInt(count || 1);
+            face = parseInt(face);
+
+            let subTotal = 0;
+            let rolls = [];
+            for (let i = 0; i < count; i++) {
+                let r = Math.floor(Math.random() * face) + 1;
+                subTotal += r;
+                rolls.push(r);
+            }
+            grandTotal += subTotal;
+            logStr.push(`[${rolls.join(',')}]`);
+        } else {
+            const n = parseInt(part);
+            if (!isNaN(n)) {
+                grandTotal += n;
+                logStr.push(`${n}`);
+            }
+        }
+    });
+
+    return { total: grandTotal, str: logStr.join('+') };
 }
 
-// --- Helper: Find Actor by Name ---
+// --- HELPER: Stat Resolver ---
+function getStat(actor, key) {
+    if (!actor || !key) return 0;
+    key = key.replace(/\+/g, '').replace('Mod', '').trim().toUpperCase();
+    const isMod = arguments[1] && arguments[1].toLowerCase().includes('mod');
+
+    const rpgData = actor.data.rpg || {};
+    // 1. Core
+    if (rpgData[key.toLowerCase()] !== undefined) return parseInt(rpgData[key.toLowerCase()] || 0);
+
+    // 2. Matrix
+    let val = null;
+    if (rpgData.stats_matrix && rpgData.stats_matrix.values) {
+        const blocks = Object.values(rpgData.stats_matrix.values);
+        for (const block of blocks) {
+            if (block[key] !== undefined) {
+                val = parseInt(block[key]);
+                break;
+            }
+        }
+    }
+
+    // 3. Mod Calc
+    if (val !== null) {
+        if (isMod) return Math.floor((val - 10) / 2);
+        return val;
+    }
+    return 0;
+}
+
+// --- HELPER: Actor Discovery ---
 function findActor(name) {
     if (!name) return null;
     const actors = Object.values(state.nodes.actors.items || {});
-    return actors.find(a => a.name.toLowerCase().includes(name.toLowerCase()));
+    let hit = actors.find(a => a.name.toLowerCase() === name.toLowerCase());
+    if (!hit) hit = actors.find(a => a.name.toLowerCase().includes(name.toLowerCase()));
+    return hit;
 }
 
-// --- INPUT PHASE: Mechanics & Dice ---
+// --- COMBAT SYSTEM ---
+function startCombat(sysLogs) {
+    const actors = Object.values(state.nodes.actors.items || {});
+    // Filter for Party + any other actors (e.g. Monsters)
+    // For now, include everyone who has RPG data enabled
+    const combatants = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled);
+
+    const order = combatants.map(a => {
+        const roll = rollDice('1d20');
+        const dex = getStat(a, 'DEX', 'mod');
+        return {
+            id: a.id,
+            name: a.name,
+            init: roll.total + dex,
+            base: roll.total,
+            mod: dex,
+            acted: false
+        };
+    });
+
+    // Sort Descending
+    order.sort((a, b) => b.init - a.init);
+
+    state.rpg.combat = {
+        active: true,
+        round: 1,
+        turn: 0,
+        order: order
+    };
+
+    sysLogs.push(`**Combat Started!**`);
+    order.forEach(c => {
+        sysLogs.push(`> ${c.name}: ${c.init} (${c.base} + ${c.mod})`);
+    });
+    sysLogs.push(`**Round 1 Start**. It is **${order[0].name}**'s turn.`);
+}
+
+function nextTurn(sysLogs) {
+    if (!state.rpg.combat || !state.rpg.combat.active) {
+        sysLogs.push("Combats is not active.");
+        return;
+    }
+
+    const c = state.rpg.combat;
+    c.order[c.turn].acted = true;
+    c.turn++;
+
+    if (c.turn >= c.order.length) {
+        c.turn = 0;
+        c.round++;
+        c.order.forEach(o => o.acted = false);
+        sysLogs.push(`**Round ${c.round} Start**`);
+    }
+
+    let nextActor = c.order[c.turn];
+    sysLogs.push(`It is now **${nextActor.name}**'s turn.`);
+
+    // AI LOOP
+    // We execute AI turns synchronously until we hit a Player or Max Steps
+    let safety = 0;
+    while (safety < 10) {
+        const actorObj = findActor(nextActor.name);
+        if (actorObj && actorObj.data && actorObj.data.rpg && actorObj.data.rpg.type === 'monster') {
+            runAI(actorObj, sysLogs);
+
+            // Auto-End Turn
+            c.order[c.turn].acted = true;
+            c.turn++;
+            if (c.turn >= c.order.length) {
+                c.turn = 0;
+                c.round++;
+                c.order.forEach(o => o.acted = false);
+                sysLogs.push(`**Round ${c.round} Start**`);
+            }
+
+            nextActor = c.order[c.turn]; // Update for next iteration
+            sysLogs.push(`It is now **${nextActor.name}**'s turn.`);
+            safety++;
+        } else {
+            break; // Player Turn
+        }
+    }
+}
+
+function runAI(actor, sysLogs) {
+    sysLogs.push(`*${actor.name} is thinking...*`);
+
+    // Simple AI: 1. Find Target (Random Hero)
+    const actors = Object.values(state.nodes.actors.items || {});
+    const heroes = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled && a.data.rpg.type !== 'monster');
+
+    if (heroes.length === 0) {
+        sysLogs.push(`${actor.name} roars in triumph! (No targets found)`);
+        return;
+    }
+
+    const target = heroes[Math.floor(Math.random() * heroes.length)];
+
+    // 2. Attack (Simulate Input)
+    // We can't easily "simulate input" recursively safely, so we'll just execute the logic directly or 
+    // construct a synthetic rule match.
+    // For MVP, let's just use the logging and rolling helpers directly.
+
+    const attackRule = rules.find(r => r.id === 'atk_melee') || rules[0];
+
+    sysLogs.push(`**${actor.name}** attacks **${target.name}**!`);
+
+    // ROLL
+    const rollResult = rollDice(attackRule.roll);
+    const modVal = getStat(actor, attackRule.mod);
+
+    // TARGET
+    const targetVal = getStat(target, attackRule.target); // AC
+    const tModVal = getStat(target, attackRule.tmod);
+
+    // Equipment AC Check (Target)
+    let effTarget = targetVal + tModVal;
+    // ... (Reuse equipment logic or refactor helper? For MVP, duplicate lightly or ignore advanced AC for now? 
+    // No, let's copy the light logic for correctness)
+    let vsStr = `vs ${effTarget}`;
+
+    if (attackRule.target === 'AC' && target.data.rpg && target.data.rpg.equipped) {
+        let armorAC = 0;
+        const armory = state.rpg.items || [];
+        if (target.data.rpg.equipped.armor) {
+            const arm = armory.find(i => i.id === target.data.rpg.equipped.armor);
+            if (arm && arm.ac) armorAC += parseInt(arm.ac);
+        }
+        if (target.data.rpg.equipped.off_hand) {
+            const off = armory.find(i => i.id === target.data.rpg.equipped.off_hand);
+            if (off && off.type === 'armor' && off.ac) armorAC += parseInt(off.ac);
+        }
+        effTarget += armorAC;
+        if (armorAC !== 0) vsStr += ` + ${armorAC} (Armor)`;
+    }
+
+    const finalRoll = rollResult.total + modVal;
+    const success = finalRoll >= effTarget;
+
+    const outcome = success ? "SUCCESS" : "FAILURE";
+    let calcStr = `${rollResult.total}`;
+    if (rollResult.str !== `${rollResult.total}`) calcStr += ` (${rollResult.str})`;
+    if (modVal !== 0) calcStr += ` ${modVal >= 0 ? '+' : '-'} ${Math.abs(modVal)} (Mod)`;
+
+    sysLogs.push(`🎲 **${outcome}**`);
+    sysLogs.push(`Result: **${finalRoll}** (${calcStr}) >= **${effTarget}** (${vsStr})`);
+
+    if (success) {
+        // DAMAGE
+        // Monsters usually have fixed damage or "equipped" natural weapons.
+        // For MVP: 1d6 + Str
+        const dmgDice = "1d6";
+        const dmgResult = rollDice(dmgDice);
+        const dmgMod = getStat(actor, 'STR', 'mod');
+        const totalDmg = Math.max(1, dmgResult.total + dmgMod);
+
+        if (!target.data.rpg) target.data.rpg = { hp: 10, maxHp: 10 };
+        target.data.rpg.hp = Math.max(0, (target.data.rpg.hp || 0) - totalDmg);
+
+        sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [Natural] -> ${target.name} (HP: ${target.data.rpg.hp})`);
+        A.State.notify();
+    }
+
+    // 3. End Turn (Async to let user see log)
+    // In a synchronous script, we can't really "wait". 
+    // But we can just chain the logic.
+    // However, to avoid stack overflow in auto-battles, ideally we'd setTimeout.
+    // Since sys_rpg runs in the main thread (managed by Scripts), we can't easily setTimeout back into the engine context 
+    // unless we expose a "callback" command.
+    // For now, let's just End Turn immediately in the same tick.
+
+    // RECURSION DANGER: If everyone is a monster, this loops forever until stack crash.
+    // LIMIT: One AI move per trigger? 
+    // User wants "Pass Turn should trigger NPC turns automatically".
+    // So if I manually end turn, AI acts, then AI ends turn... 
+    // IF next is also AI, it should trigger too.
+
+    // Safe Approach: Use a global or state flag to prevent infinite instant loops?
+    // Or just let it run for X iterations.
+
+    // For V1 MVP: Just let it run *one* step. The User might have to click "Pass" if multiple monsters?
+    // No, `nextTurn` calls `runAI` which calls `nextTurn`.
+    // We need a break. 
+
+    // HACK: We can't do async waits here easily without breaking the data flow (context.system_notes might get lost).
+    // So we will just run the logic and say "Turn Ends".
+
+    // Instead of calling nextTurn() recursively, we can just mutate state state to advance turn?
+    // Let's rely on the user seeing the log.
+
+    // ACTUALLY: The best way is to validly allow `state.rpg.combat.turn` to advance here.
+
+    // Let's try forcing a recursion limit.
+}
+
+function endCombat(sysLogs) {
+    state.rpg.combat = null;
+    sysLogs.push("**Combat Ended.**");
+}
+
+
+// --- HELPER: HUD Formatter ---
+function renderCompactHUD(actor) {
+    if (!actor || !actor.data || !actor.data.rpg) return "";
+    const rpg = actor.data.rpg;
+
+    // Core (HP/AC)
+    // Calculate Effective AC for Display
+    let effAC = rpg.ac || 10;
+    if (rpg.equipped) {
+        const armory = state.rpg.items || [];
+        if (rpg.equipped.armor) {
+            const arm = armory.find(i => i.id === rpg.equipped.armor);
+            if (arm && arm.ac) effAC += parseInt(arm.ac);
+        }
+        if (rpg.equipped.off_hand) {
+            const off = armory.find(i => i.id === rpg.equipped.off_hand);
+            if (off && off.type === 'armor' && off.ac) effAC += parseInt(off.ac);
+        }
+    }
+
+    let core = `HP: ${rpg.hp}/${rpg.maxHp} | AC: ${effAC}`;
+    if (rpg.equipped) {
+        if (rpg.equipped.main_hand) core += ` | Wpn: Main`;
+        if (rpg.equipped.armor) core += ` | Arm: Worn`;
+    }
+
+    // Stats
+    const statKeys = state.rpg.stats || ['STR', 'DEX', 'INT'];
+    const statStr = statKeys.map(k => {
+        const val = getStat(actor, k);
+        const mod = Math.floor((val - 10) / 2);
+        return `${k}:${val}(${mod >= 0 ? '+' : ''}${mod})`;
+    }).join(' ');
+
+    let prefix = "";
+    // Combat Status
+    if (state.rpg.combat && state.rpg.combat.active) {
+        const c = state.rpg.combat;
+        const entry = c.order.find(o => o.id === actor.id);
+        if (entry) {
+            if (c.order[c.turn].id === actor.id) prefix = "⚔️ >"; // Active Turn
+            else if (entry.acted) prefix = "💤 "; // Acted
+            else prefix = "⏳ "; // Waiting
+        }
+    }
+
+    // Enemy Flag
+    if (rpg.type === 'monster') {
+        prefix = "💀 " + prefix;
+    }
+
+    return `${prefix}[${actor.name}: Lvl ${rpg.level || 1} ${rpg.class || 'Unknown'}] ${core} | ${statStr}`;
+}
+
+// --- MAIN INPUT LOOP ---
 if (context.phase === 'input') {
     const input = (context.user_input || "").toLowerCase();
-    const log = [];
+    const sysLogs = []; // User-facing system logs
 
-    // --- 1. Identify Combatants (Player) ---
-    let player = findActor("Fechin") || findActor("Player") || findActor("Hero");
-    if (!player) {
-        player = {
-            id: 'virtual_hero', name: 'Hero',
-            data: { rpg: { hp: 20, maxHp: 20, mp: 3, maxMp: 3, ac: 14, str: 2, inventory: [{ name: 'Sword', type: 'weapon', dmg: '1d8' }] } }
-        };
-    }
-    // Ensure Stats
-    if (!player.data) player.data = {};
-    if (!player.data.rpg) player.data.rpg = { hp: 20, maxHp: 20, mp: 3, maxMp: 3, ac: 10, str: 0, inventory: [] };
-    const pStats = player.data.rpg;
-
-    // --- 2. Action Parsing ---
-
-    // A. REST (recover stats)
-    if (input.includes('rest') || input.includes('sleep') || input.includes('camp')) {
-        pStats.hp = Math.min(pStats.maxHp, pStats.hp + 10);
-        pStats.mp = Math.min(pStats.maxMp, pStats.mp + 3);
-        log.push(`[RPG]: ${player.name} rests. Recovered HP and MP.`);
-    }
-
-    // B. SEARCH (Loot)
-    else if (input.includes('search') || input.includes('look around') || input.includes('loot')) {
-        const roll = Math.floor(Math.random() * 6) + 1;
-        if (roll >= 5) {
-            log.push(`[RPG]: searched the area... Found a **Healing Potion**!`);
-            pStats.inventory.push({ name: 'Healing Potion', type: 'consumable', effect: 'heal 1d8' });
-        } else {
-            log.push(`[RPG]: searched the area... Found nothing of interest.`);
-        }
-    }
-
-    // C. COMBAT / MAGIC
-    else if (input.includes('attack') || input.includes('cast') || input.includes('use')) {
-
-        // Find Target
-        let target = null;
-        const actors = Object.values(state.nodes.actors.items || {});
-        target = actors.find(a => input.includes(a.name.toLowerCase()) && a.id !== player.id);
-
-        if (!target) target = findActor("Orc") || findActor("Gladiator") || findActor("Enemy");
-
-        // Virtual Target Fallback
-        if (!target) {
-            target = {
-                id: 'virtual_orc', name: 'Enemy',
-                data: { rpg: { hp: 20, maxHp: 20, mp: 0, maxMp: 0, ac: 12, str: 3, inventory: [{ name: 'Club', type: 'weapon', dmg: '1d6' }] } }
-            };
+    // 1. COMBAT COMMANDS
+    if (input.includes('start combat')) {
+        startCombat(sysLogs);
+    } else if (input.includes('end combat') || input.includes('stop combat')) {
+        endCombat(sysLogs);
+    } else if (input.includes('end turn') || input.includes('pass turn')) {
+        nextTurn(sysLogs);
+    } else {
+        // 2. RULES ENGINE
+        if (!rules || rules.length === 0) {
+            if (!state.rpg.rulesets) state.rpg.rulesets = {};
+            if (!state.rpg.rulesets[activeMech]) {
+                state.rpg.rulesets[activeMech] = [
+                    { id: 'atk_melee', name: 'Melee Attack', roll: '1d20', mod: 'STR', target: 'AC', tmod: '0', op: '>=' },
+                    { id: 'atk_range', name: 'Ranged Attack', roll: '1d20', mod: 'DEX', target: 'AC', tmod: '0', op: '>=' },
+                    { id: 'chk_skill', name: 'Skill Check', roll: '1d20', mod: 'INT', target: '10', tmod: '0', op: '>=' }
+                ];
+                rules = state.rpg.rulesets[activeMech];
+                sysLogs.push("Initialized Default Rules (D20)");
+            }
         }
 
-        // Ensure Target Stats
-        if (!target.data) target.data = {};
-        if (!target.data.rpg) target.data.rpg = { hp: 20, maxHp: 20, mp: 0, maxMp: 0, ac: 10, str: 0, inventory: [] };
-        const tStats = target.data.rpg;
+        const matchedRule = rules.find(r => r.name && input.includes(r.name.toLowerCase()));
 
-        // MAGIC 
-        if (input.includes('magic') || input.includes('cast')) {
-            if (pStats.mp >= 1) {
-                pStats.mp -= 1;
+        if (matchedRule) {
+            // Identify Subject
+            let subject = null;
 
-                if (input.includes('heal')) {
-                    const heal = Math.floor(Math.random() * 6) + 1;
-                    pStats.hp = Math.min(pStats.maxHp, pStats.hp + heal);
-                    log.push(`[COMBAT]: ${player.name} casts HEAL (-1 MP). Restored ${heal} HP.`);
-                } else {
-                    // Magic Attack
-                    const dmg = Math.floor(Math.random() * 6) + 1;
-                    tStats.hp = Math.max(0, tStats.hp - dmg);
-                    log.push(`[COMBAT]: ${player.name} casts ARCANE VELOCITY (-1 MP). Hits ${target.name} for ${dmg} Force damage!`);
+            // Priority 1: Named in Input
+            const potentialSubjects = Object.values(state.nodes.actors.items || {}).filter(a => input.includes(a.name.toLowerCase()));
+            if (potentialSubjects.length > 0) subject = potentialSubjects[0];
+
+            // Priority 2: Active Combatant (Smart Context)
+            if (!subject && state.rpg.combat && state.rpg.combat.active) {
+                const c = state.rpg.combat;
+                if (c.order && c.order[c.turn]) {
+                    const activeId = c.order[c.turn].id;
+                    subject = state.nodes.actors.items[activeId] || findActor(c.order[c.turn].name);
                 }
-            } else {
-                log.push(`[COMBAT]: ${player.name} tries to cast a spell but has **NO MANA**!`);
             }
-        }
-        // PHYSICAL
-        else {
-            const weapon = (pStats.inventory || []).find(i => i.type === 'weapon') || { name: 'Fists', dmg: '1d4' };
-            const armor = (tStats.inventory || []).find(i => i.type === 'armor') || { name: 'Skin', ac: 0 };
 
-            const roll = Math.floor(Math.random() * 20) + 1;
-            const hitMod = pStats.str || 0;
-            const totalHit = roll + hitMod;
-            const totalAc = (tStats.ac || 10) + (armor.ac || 0);
-
-            if (totalHit >= totalAc) {
-                const dmg = rollDice(weapon.dmg) + hitMod;
-                tStats.hp = Math.max(0, tStats.hp - dmg);
-                log.push(`[COMBAT]: ${player.name} attacks with ${weapon.name}. Rolled ${roll}+${hitMod} (${totalHit}) vs AC ${totalAc}. HIT! ${dmg} dmg.`);
-            } else {
-                log.push(`[COMBAT]: ${player.name} attacks with ${weapon.name}. Rolled ${roll}+${hitMod} (${totalHit}) vs AC ${totalAc}. MISS.`);
+            // Priority 3: Default Hero
+            if (!subject) {
+                subject = findActor("Hero") || findActor("Player") || Object.values(state.nodes.actors.items || {})[0];
             }
-        }
 
-        // Active Combat Tracking
-        rpg.activeCombat = { player: player.name, target: target.name };
-        if (target.id === 'virtual_orc') state.rpg.virtualEnemy = target.data.rpg;
-    }
-
-    // --- 3. Inject Logs ---
-    if (log.length > 0) {
-        context.system_notes = (context.system_notes || "") + "\n" + log.join(' ');
-        console.log('[RPG v3] Log:', log.join(' '));
-    }
-}
-
-// --- OUTPUT PHASE: HUD ---
-if (context.phase === 'output') {
-    if (rpg && rpg.activeCombat) {
-        let hud = "\n\n> **COMBAT STATUS**\n";
-
-        [rpg.activeCombat.player, rpg.activeCombat.target].forEach(name => {
-            if (!name) return;
-            let actor = findActor(name);
-
-            // Fallbacks
-            if (!actor && name === 'Hero') actor = { name: 'Hero', data: { rpg: { hp: 20, maxHp: 20, mp: 3, maxMp: 3 } } };
-            if (!actor && name === 'Enemy') actor = { name: 'Enemy', data: { rpg: state.rpg.virtualEnemy || { hp: 20, maxHp: 20, mp: 0, maxMp: 0 } } };
-
-            if (actor && actor.data && actor.data.rpg) {
-                const s = actor.data.rpg;
-
-                // HP Bar
-                const hpPct = Math.max(0, s.hp / s.maxHp);
-                const hpFilled = Math.ceil(hpPct * 10);
-                const hpBar = "█".repeat(hpFilled) + "░".repeat(10 - hpFilled);
-
-                // MP Bar (Small)
-                const mpMax = s.maxMp || 0;
-                let mpDisplay = "";
-                if (mpMax > 0) {
-                    const mpPct = Math.max(0, (s.mp || 0) / mpMax);
-                    const mpFilled = Math.ceil(mpPct * 5); // 5 blocks for MP
-                    const mpBar = "🟦".repeat(mpFilled) + "⬜".repeat(5 - mpFilled);
-                    mpDisplay = ` | MP: [${mpBar}] ${s.mp}/${s.maxMp}`;
+            // TURN ENFORCEMENT
+            let allowed = true;
+            if (state.rpg.combat && state.rpg.combat.active) {
+                const c = state.rpg.combat;
+                const activeActor = c.order[c.turn];
+                if (activeActor && subject.id !== activeActor.id) {
+                    sysLogs.push(`⚠️ **Use Caution**: It is **${activeActor.name}**'s turn, not ${subject.name}'s.`);
+                    // allowed = false; // SOFT Warning for now
                 }
-
-                hud += `> **${name}**: HP [${hpBar}] ${s.hp}/${s.maxHp}${mpDisplay}\n`;
             }
-        });
 
-        context.responseText += hud;
+
+            if (allowed) {
+                // Identify Target
+                let target = null;
+                const potentialTargets = Object.values(state.nodes.actors.items || {});
+                target = potentialTargets.find(a => input.includes(a.name.toLowerCase()) && a.id !== (subject ? subject.id : null));
+
+                if (subject) {
+                    sysLogs.push(`**${subject.name}** triggers **${matchedRule.name}**`);
+
+                    // ROLL
+                    const rollResult = rollDice(matchedRule.roll);
+                    const modVal = getStat(subject, matchedRule.mod); // e.g. STR mod
+
+                    // TARGET
+                    let targetVal = 0;
+                    let tModVal = 0;
+                    if (!isNaN(parseInt(matchedRule.target))) {
+                        targetVal = parseInt(matchedRule.target);
+                    } else if (target) {
+                        targetVal = getStat(target, matchedRule.target);
+                        tModVal = getStat(target, matchedRule.tmod);
+                    }
+
+                    // CALC
+                    const finalTarget = targetVal + tModVal;
+
+                    let vsStr = `vs ${finalTarget}`;
+                    if (tModVal !== 0) vsStr += ` (${targetVal} ${tModVal >= 0 ? '+' : '-'} ${Math.abs(tModVal)})`;
+
+                    // Equipment Modification (AC)
+                    let effTarget = finalTarget;
+                    if (matchedRule.target === 'AC' && target && target.data.rpg && target.data.rpg.equipped) {
+                        let armorAC = 0;
+                        const armory = state.rpg.items || [];
+                        if (target.data.rpg.equipped.armor) {
+                            const arm = armory.find(i => i.id === target.data.rpg.equipped.armor);
+                            if (arm && arm.ac) armorAC += parseInt(arm.ac);
+                        }
+                        if (target.data.rpg.equipped.off_hand) {
+                            const off = armory.find(i => i.id === target.data.rpg.equipped.off_hand);
+                            if (off && off.type === 'armor' && off.ac) armorAC += parseInt(off.ac);
+                        }
+                        effTarget += armorAC;
+                        if (armorAC !== 0) vsStr += ` + ${armorAC} (Armor)`;
+                    }
+
+                    const finalRoll = rollResult.total + modVal;
+
+                    // CHECK SUCCESS
+                    let success = false;
+                    const op = matchedRule.op || '>=';
+                    if (op === '>=') success = finalRoll >= effTarget;
+                    else if (op === '>') success = finalRoll > effTarget;
+                    else if (op === '<=') success = finalRoll <= effTarget;
+                    else if (op === '<') success = finalRoll < effTarget;
+                    else if (op === '==') success = finalRoll === effTarget;
+
+                    // LOG
+                    let calcStr = `${rollResult.total}`;
+                    if (rollResult.str !== `${rollResult.total}`) calcStr += ` (${rollResult.str})`;
+                    if (modVal !== 0) calcStr += ` ${modVal >= 0 ? '+' : '-'} ${Math.abs(modVal)} (Mod)`;
+
+                    const outcome = success ? "SUCCESS" : "FAILURE";
+                    sysLogs.push(`🎲 **${outcome}**`);
+                    sysLogs.push(`Result: **${finalRoll}** (${calcStr}) ${op} **${effTarget}** (${vsStr})`);
+
+                    // DAMAGE LOGIC
+                    if (success && target && (matchedRule.id.includes('atk') || matchedRule.name.includes('Attack'))) {
+                        let dmgDice = "1d4"; // Unarmed
+                        let weaponName = "Unarmed";
+
+                        if (subject.data.rpg && subject.data.rpg.equipped && subject.data.rpg.equipped.main_hand) {
+                            const armory = state.rpg.items || [];
+                            const wpn = armory.find(i => i.id === subject.data.rpg.equipped.main_hand);
+                            if (wpn && (wpn.dmg || wpn.effect)) {
+                                dmgDice = wpn.dmg || wpn.effect;
+                                weaponName = wpn.name;
+                            }
+                        }
+
+                        const dmgResult = rollDice(dmgDice);
+                        const dmgMod = getStat(subject, 'STR', 'mod');
+                        const totalDmg = Math.max(1, dmgResult.total + dmgMod);
+
+                        if (!target.data.rpg) target.data.rpg = { hp: 10, maxHp: 10 };
+                        target.data.rpg.hp = Math.max(0, (target.data.rpg.hp || 0) - totalDmg);
+
+                        // NOTIFY STATE UPDATE
+                        A.State.notify();
+
+                        sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [${weaponName}] -> ${target.name} (HP: ${target.data.rpg.hp})`);
+                    }
+                }
+            }
+        }
+    }
+
+    // INJECTION: HUD
+    // (Render AFTER logic to catch updates)
+    const hudLines = [];
+    const actors = Object.values(state.nodes.actors.items || {});
+    const party = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled);
+    if (state.rpg.combat && state.rpg.combat.active) {
+        hudLines.push(`**COMBAT ROUND ${state.rpg.combat.round}**`);
+    }
+    party.forEach(a => hudLines.push(renderCompactHUD(a)));
+    if (hudLines.length > 0) {
+        context.system_notes = (context.system_notes || "") + "\n--- RPG STATE ---\n" + hudLines.join('\n') + "\n-----------------";
+    }
+
+    // Flush to Context
+    if (sysLogs.length > 0) {
+        context.system_notes = (context.system_notes || "") + "\n\n[RPG System]\n" + sysLogs.join('\n');
     }
 }

@@ -205,14 +205,13 @@
         tabs.style.background = 'var(--bg-elevated)';
 
         // const state = A.State.get(); // Duplicate declaration removed
-        const showRpg = state.rpg && state.rpg.enabled;
 
         tabs.innerHTML = `
       <div class="tab-btn active" data-tab="profile">Profile</div>
       <div class="tab-btn" data-tab="appearance">Appearance</div>
       <div class="tab-btn" data-tab="cues">Cues</div>
-      ${showRpg ? '<div class="tab-btn" data-tab="rpg">RPG</div>' : ''}
     `;
+
 
         // Tab Styles (apply immediately so tabs look styled before any actor is selected)
         const tabStyle = document.createElement('style');
@@ -1696,110 +1695,8 @@
                 updateCueTokenCounter('pulse');
                 updateCueTokenCounter('eros');
                 updateCueTokenCounter('intent');
-            } else if (activeTab === 'rpg') {
-                // ========== RPG STATS ==========
-                // Ensure data structure
-                if (!actor.data) actor.data = {};
-                if (!actor.data.rpg) actor.data.rpg = {
-                    hp: 20, maxHp: 20, ac: 10, str: 0,
-                    inventory: []
-                };
-
-                const rpg = actor.data.rpg;
-
-                content.innerHTML = `
-                    <div style="padding: 16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; margin-bottom:16px;">
-                            <h3 style="margin:0;">Combat Stats</h3>
-                            <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                <input type="checkbox" id="rpg-enabled" ${rpg.enabled ? 'checked' : ''}>
-                                Active in Party
-                            </label>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-col">
-                                <span class="field-label">Current HP</span>
-                                <input type="number" class="input" id="rpg-hp" value="${rpg.hp}">
-                            </div>
-                            <div class="form-col">
-                                <span class="field-label">Max HP</span>
-                                <input type="number" class="input" id="rpg-maxhp" value="${rpg.maxHp}">
-                            </div>
-                            <div class="form-col">
-                                <span class="field-label">Current MP</span>
-                                <input type="number" class="input" id="rpg-mp" value="${rpg.mp !== undefined ? rpg.mp : 3}">
-                            </div>
-                            <div class="form-col">
-                                <span class="field-label">Max MP</span>
-                                <input type="number" class="input" id="rpg-maxmp" value="${rpg.maxMp !== undefined ? rpg.maxMp : 3}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row" style="margin-top:8px;">
-                            <div class="form-col">
-                                <span class="field-label">Armor Class (AC)</span>
-                                <input type="number" class="input" id="rpg-ac" value="${rpg.ac}">
-                            </div>
-                            <div class="form-col">
-                                <span class="field-label">Strength Mod</span>
-                                <input type="number" class="input" id="rpg-str" value="${rpg.str}">
-                            </div>
-                        </div>
-
-                        <h3 style="margin-top:24px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Inventory</h3>
-                        <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">
-                            Define items as a JSON list. Supported types: "weapon", "armor".
-                            <br>Example: <code>[{"name": "Dagger", "type": "weapon", "dmg": "1d4"}]</code>
-                        </div>
-                        <div style="height:300px; border:1px solid var(--border-default);">
-                            <div id="monaco-inventory" style="width:100%; height:100%;"></div>
-                        </div>
-                    </div>
-                `;
-
-                // Wire Inputs
-                content.querySelector('#rpg-hp').onchange = (e) => { rpg.hp = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-maxhp').onchange = (e) => { rpg.maxHp = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-mp').onchange = (e) => { rpg.mp = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-maxmp').onchange = (e) => { rpg.maxMp = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-ac').onchange = (e) => { rpg.ac = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-str').onchange = (e) => { rpg.str = parseInt(e.target.value); A.State.notify(); };
-                content.querySelector('#rpg-enabled').onchange = (e) => { rpg.enabled = e.target.checked; A.State.notify(); };
-
-                // Initialize Monaco for Inventory JSON
-                setTimeout(() => {
-                    if (window.monaco) {
-                        const container = document.getElementById('monaco-inventory');
-                        if (container) {
-                            const editor = monaco.editor.create(container, {
-                                value: JSON.stringify(rpg.inventory || [], null, 2),
-                                language: 'json',
-                                theme: 'anansi-dark',
-                                minimap: { enabled: false },
-                                scrollBeyondLastLine: false,
-                                automaticLayout: true
-                            });
-
-                            editor.onDidChangeModelContent(() => {
-                                try {
-                                    const json = JSON.parse(editor.getValue());
-                                    rpg.inventory = json;
-                                    // A.State.notify(); // Optional: delay notification or wait for blur
-                                } catch (e) {
-                                    // Invalid JSON, ignore
-                                }
-                            });
-
-                            // Save on blur/dispose just in case
-                            editor.onDidBlurEditorWidget(() => {
-                                A.State.notify();
-                            });
-                        }
-                    }
-                }, 50);
-
             }
+
 
             // Add token counter for appearance description
             if (activeTab === 'appearance') {

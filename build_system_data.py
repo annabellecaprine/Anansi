@@ -11,7 +11,8 @@ SCRIPT_MAP = {
     "EROS.js": "sys_eros",
     "INTENT.js": "sys_intent",
     "PULSE.js": "sys_pulse",
-    "../core/aura_lib.js": "sys_aura"
+    "../core/aura_lib.js": "sys_aura",
+    "../core/presets/sys_rpg.js": "sys_rpg"
 }
 
 def main():

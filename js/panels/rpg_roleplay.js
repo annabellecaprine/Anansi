@@ -94,7 +94,7 @@
                     const history = state.sim ? state.sim.history : [];
 
                     // 1. Process Input Phase (Scripts)
-                    const roundResult = A.Simulator.processRound(text, history, 'input');
+                    const roundResult = A.Simulator.processRound(text, history, 'input', { source: 'rpg_session' });
 
                     // 2. Call LLM (Mock for now or real if possible)
                     // We need to construct the prompt from history + roundResult.context
@@ -155,38 +155,37 @@
         A.UI.setLens((lensContent) => {
             const state = A.State.get();
             const actors = state.nodes && state.nodes.actors ? Object.values(state.nodes.actors.items) : [];
-            const party = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled);
 
-            lensContent.innerHTML = `
-                <div style="padding:16px; height:100%; overflow-y:auto;">
-                    <div style="font-weight:bold; font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
-                        Active Party (${party.length})
-                    </div>
+            // Separate Party vs Enemies
+            const party = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled && a.data.rpg.type !== 'monster');
+            const enemies = actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled && a.data.rpg.type === 'monster');
+
+            let html = '<div style="padding:16px; height:100%; overflow-y:auto;">';
+
+            // --- PARTY SECTION ---
+            html += `
+                <div style="font-weight:bold; font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
+                    Active Party (${party.length})
+                </div>
             `;
 
-            if (party.length === 0) {
-                lensContent.innerHTML += `<div style="color:var(--text-muted); font-style:italic;">No party members active.<br>Check existing actors in main Actors panel.</div></div>`;
-                return;
-            }
-
-            party.forEach(actor => {
+            const renderCard = (actor, isEnemy) => {
                 const stats = actor.data.rpg.stats || actor.data.rpg || { hp: 10, maxHp: 10, mp: 3, maxMp: 3 };
-                // Normalize keys (some old formatting might use maxHp vs hp_max)
-                // actors.js uses: hp, maxHp, mp, maxMp
-                // rpg_party.js uses: hp, hp_max (Wait, I might have introduced inconsistency. Let's standarize on actors.js format: maxHp)
-
                 const hp = stats.hp || 0;
                 const maxHp = stats.maxHp || stats.hp_max || 10;
                 const mp = stats.mp || 0;
                 const maxMp = stats.maxMp || stats.mp_max || 0;
-
                 const hpPct = Math.min(100, Math.max(0, (hp / maxHp) * 100));
 
-                lensContent.innerHTML += `
-                    <div style="background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:6px; padding:12px; margin-bottom:12px;">
+                const skull = isEnemy ? '💀 ' : '';
+                const borderColor = isEnemy ? 'var(--status-error)' : 'var(--border-subtle)';
+                const lvl = stats.level || 1;
+
+                return `
+                    <div style="background:var(--bg-elevated); border:1px solid ${borderColor}; border-radius:6px; padding:12px; margin-bottom:12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-weight:bold; color:var(--text-primary);">${actor.name}</span>
-                            <span style="font-size:10px; background:var(--bg-base); padding:2px 6px; border-radius:4px;">Lvl 1</span>
+                            <span style="font-weight:bold; color:var(--text-primary);">${skull}${actor.name}</span>
+                            <span style="font-size:10px; background:var(--bg-base); padding:2px 6px; border-radius:4px;">Lvl ${lvl}</span>
                         </div>
                         
                         <!-- HP -->
@@ -200,8 +199,8 @@
                             </div>
                         </div>
 
-                        <!-- MP (Only if max > 0) -->
-                        ${maxMp > 0 ? `
+                        <!-- MP (Only if max > 0 and not enemy) -->
+                        ${maxMp > 0 && !isEnemy ? `
                         <div>
                             <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:2px;">
                                 <span style="color:var(--accent-primary); font-weight:bold;">MP</span>
@@ -222,9 +221,26 @@
                         </div>
                     </div>
                 `;
-            });
+            };
 
-            lensContent.innerHTML += '</div>';
+            if (party.length === 0) {
+                html += `<div style="color:var(--text-muted); font-style:italic; margin-bottom:20px;">No party members active.</div>`;
+            } else {
+                party.forEach(a => html += renderCard(a, false));
+            }
+
+            // --- ENEMIES SECTION ---
+            if (enemies.length > 0) {
+                html += `
+                    <div style="font-weight:bold; font-size:12px; color:var(--status-error); text-transform:uppercase; margin-top:20px; margin-bottom:12px; border-bottom:1px solid var(--status-error); padding-bottom:8px;">
+                        ⚠️ Hostiles (${enemies.length})
+                    </div>
+                `;
+                enemies.forEach(a => html += renderCard(a, true));
+            }
+
+            html += '</div>';
+            lensContent.innerHTML = html;
         });
     }
 

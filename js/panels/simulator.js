@@ -2440,7 +2440,7 @@
   });
 
   // --- CORE LOGIC: THE ROUND ---
-  function processRound(userText, history, phase = 'input') {
+  function processRound(userText, history, phase = 'input', params = {}) {
     try {
       const state = A.State.get();
       const logs = [];
@@ -2518,6 +2518,9 @@
 
         // Flatten Sources
         ...rawSources,
+
+        // Merged Params (e.g. source: 'rpg_session')
+        ...params,
         sources: rawSources,
 
         // Shim for Character Object (Writable targets)
@@ -2546,8 +2549,8 @@
       // This ensures correct execution order (e.g., emotion signals available for lorebook).
 
       // 2. ACTION 4: RUN SCRIPTS SEQUENTIALLY
-      let scripts = A.Scripts.getAll();
-      const executionOrder = ['sys_pulse', 'sys_intent', 'sys_eros', 'sys_aura'];
+      let scripts = (A.Scripts && A.Scripts.getAll) ? A.Scripts.getAll() : [];
+      const executionOrder = ['sys_pulse', 'sys_intent', 'sys_eros', 'sys_aura', 'sys_rpg'];
 
       scripts.sort((a, b) => {
         const aIdx = executionOrder.indexOf(a.id);
@@ -2555,7 +2558,7 @@
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
         if (aIdx !== -1) return -1;
         if (bIdx !== -1) return 1;
-        return 0;
+        return (a.order || 0) - (b.order || 0);
       });
 
       // Dynamic Stack Injection (sys_aura) - Use INSTRUMENTED SimBuilder for accurate logging

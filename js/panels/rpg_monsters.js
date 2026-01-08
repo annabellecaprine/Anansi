@@ -57,32 +57,97 @@
         container.appendChild(content);
 
         // Helper: Spawn Monster
+        // Helper: Spawn Monster
         const spawnMonster = (monsterTemplate) => {
-            // Create a concrete instance in the state
-            const instance = JSON.parse(JSON.stringify(monsterTemplate));
-            instance.maxHp = instance.hp; // Ensure maxHp is set
-            instance.mp = 0; instance.maxMp = 0;
+            const state = A.State.get();
+            if (!state.nodes || !state.nodes.actors) return;
+            if (!state.nodes.actors.items) state.nodes.actors.items = {};
 
-            // Set as the "Virtual Enemy" used by sys_rpg.js
-            state.rpg.virtualEnemy = instance;
+            // Generate ID
+            const id = 'actor_' + Math.random().toString(36).substr(2, 9);
 
-            // Also notify combat tracker (simulated)
-            if (!state.rpg.activeCombat) state.rpg.activeCombat = {};
-            state.rpg.activeCombat.target = "Enemy"; // The system script uses "Enemy" as the virtual target name currently
+            // Create Actor Node
+            const newActor = {
+                id: id,
+                name: monsterTemplate.name,
+                type: 'actor',
+                data: {
+                    rpg: {
+                        enabled: true,
+                        type: 'monster', // Critical for AI
+                        hp: monsterTemplate.hp,
+                        maxHp: monsterTemplate.hp,
+                        ac: monsterTemplate.ac,
+                        str: monsterTemplate.str,
+                        xp: monsterTemplate.xp,
+                        level: 1,
+                        class: 'Monster',
+                        equipped: {}
+                    }
+                }
+            };
+
+            // Inject Inventory
+            if (monsterTemplate.inventory && monsterTemplate.inventory.length > 0) {
+                // For MVP, just give them the first item as 'equipped' text or logic
+                // Ideally we'd add to armory, but for now let's just assume natural weapons
+                // or simple parsing in sys_rpg
+            }
+
+            state.nodes.actors.items[id] = newActor;
 
             A.State.notify();
-            if (A.UI.Toast) A.UI.Toast.show(`Spawned ${instance.name}!`, 'success');
-            updateActiveDisplay();
+            if (A.UI.Toast) A.UI.Toast.show(`Spawned ${newActor.name}!`, 'success');
         };
 
+        // Update Display to show Active Monster Nodes
         const updateActiveDisplay = () => {
-            const activeEl = header.querySelector('#active-enemy');
-            if (state.rpg.virtualEnemy) {
-                const e = state.rpg.virtualEnemy;
-                activeEl.textContent = `${e.name} (${e.hp}/${e.maxHp} HP)`;
-            } else {
-                activeEl.textContent = "None";
+            const activeContainer = header.querySelector('#active-enemy');
+            // Clear previous text
+            activeContainer.innerHTML = '';
+
+            const state = A.State.get();
+            if (!state.nodes || !state.nodes.actors || !state.nodes.actors.items) {
+                activeContainer.textContent = "None";
+                return;
             }
+
+            const actors = Object.values(state.nodes.actors.items);
+            const monsters = actors.filter(a => a.data && a.data.rpg && a.data.rpg.type === 'monster');
+
+            if (monsters.length === 0) {
+                activeContainer.textContent = "None";
+                return;
+            }
+
+            // Render Mini List
+            monsters.forEach(m => {
+                const badge = document.createElement('span');
+                badge.style.display = 'inline-flex';
+                badge.style.alignItems = 'center';
+                badge.style.gap = '4px';
+                badge.style.background = 'rgba(255, 50, 50, 0.1)';
+                badge.style.color = 'var(--status-error)';
+                badge.style.padding = '2px 6px';
+                badge.style.borderRadius = '4px';
+                badge.style.fontSize = '10px';
+                badge.style.marginRight = '4px';
+
+                badge.innerHTML = `
+                    <span>💀 ${m.name} (${m.data.rpg.hp})</span>
+                    <span class="remove-btn" style="cursor:pointer; font-weight:bold; opacity:0.6;">✕</span>
+                 `;
+
+                badge.querySelector('.remove-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    // DELETE ACTOR
+                    delete state.nodes.actors.items[m.id];
+                    A.State.notify();
+                    if (A.UI.Toast) A.UI.Toast.show(`Refreshed realm (Removed ${m.name})`);
+                };
+
+                activeContainer.appendChild(badge);
+            });
         };
 
         // Render List
