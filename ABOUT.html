@@ -72,8 +72,18 @@
             let clicks = 0;
 
             // Triple click logo to focus hidden input
-            logo.onclick = () => {
+            logo.style.userSelect = 'none';
+            logo.style.webkitUserDrag = 'none';
+            logo.draggable = false;
+
+            logo.onclick = (e) => {
+                // Prevent browser zoom/selection defaults
+                e.preventDefault();
+                e.stopPropagation();
+
                 clicks++;
+                console.log('Unlock Click:', clicks); // Debug for user
+
                 if (clicks === 3) {
                     secretInput.style.opacity = '1';
                     secretInput.style.height = '20px';
