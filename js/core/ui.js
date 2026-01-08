@@ -351,9 +351,9 @@
                 const groupItems = groups[cat];
                 if (!groupItems || groupItems.length === 0) return;
 
-                // LOCK: Hide RPG Experiment and Forbidden Secrets if not unlocked
+                // LOCK: Hide RPG Experiment if not unlocked
                 const isGmUnlocked = localStorage.getItem('anansi_gm_unlocked') === 'true';
-                if ((cat === 'RPG Experiment' || cat === 'Forbidden Secrets') && !isGmUnlocked) {
+                if (cat === 'RPG Experiment' && !isGmUnlocked) {
                     return;
                 }
 
