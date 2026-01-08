@@ -201,15 +201,16 @@
         editorHeader.className = 'card-header';
         editorHeader.style.justifyContent = 'flex-start';
         editorHeader.style.gap = 'var(--space-3)';
+        editorHeader.style.alignItems = 'center'; // Ensure vertical alignment
         editorHeader.innerHTML = `
       <input type="text" id="script-name-input" class="input" style="width:200px; padding:2px 8px; height:24px;" placeholder="Script Name" disabled>
       <div style="flex:1;"></div>
-      <button class="btn btn-secondary btn-sm" id="btn-publish-vault" style="display:none;">📤 Publish to Vault</button>
-      <button class="btn btn-ghost btn-sm" id="btn-download-script" title="Export Script" disabled>
+      <button class="btn btn-secondary btn-sm" id="btn-publish-vault" style="display:none; flex-shrink:0; white-space:nowrap; align-items:center; gap:6px;">📤 Publish</button>
+      <button class="btn btn-ghost btn-sm" id="btn-download-script" title="Export Script" style="flex-shrink:0;" disabled>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
 
-      <button class="btn btn-ghost btn-sm" id="btn-delete-script" title="Delete Script" disabled>
+      <button class="btn btn-ghost btn-sm" id="btn-delete-script" title="Delete Script" style="flex-shrink:0;" disabled>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--status-error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
       </button>
     `;
@@ -343,10 +344,23 @@
             // Handle content changes
             monacoEditor.onDidChangeModelContent(() => {
                 if (currentScriptId && monacoEditor) {
-                    A.Scripts.update(currentScriptId, {
-                        source: { code: monacoEditor.getValue(), type: 'inline' }
-                    });
-                    markMod(currentScriptId);
+                    // Optimization: Update state directly to avoid A.Scripts.getAll() overhead (Aura Preview)
+                    const state = A.State.get();
+                    // User scripts are in state.strands.scripts.items
+                    const userScripts = state.strands?.scripts?.items || {};
+                    const script = userScripts[currentScriptId];
+
+                    if (script) {
+                        script.source.code = monacoEditor.getValue();
+                        script.source.type = 'inline';
+
+                        if (script.vaultLink) {
+                            script.vaultLink.locallyModified = true;
+                        }
+
+                        // Single notify
+                        A.State.notify();
+                    }
                 }
             });
 
@@ -572,7 +586,7 @@
                 if (isReadOnly) {
                     publishBtn.style.display = 'none';
                 } else {
-                    publishBtn.style.display = 'block';
+                    publishBtn.style.display = 'inline-flex';
                     if (script.vaultLink && script.vaultLink.vaultId) {
                         if (script.vaultLink.locallyModified) {
                             publishBtn.innerHTML = '📤 Push Update';

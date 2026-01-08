@@ -13,7 +13,7 @@
     const MAX_HISTORY = 5;
 
     // Define Category Order (Updated structure)
-    const categoryOrder = ['Loom', 'Seeds', 'Weave', 'Magic', 'Sacred Tools', 'Deep', 'Forbidden Secrets'];
+    const categoryOrder = ['Loom', 'Seeds', 'Weave', 'Magic', 'Sacred Tools', 'Deep', 'Forbidden Secrets', 'RPG Experiment'];
 
     const ICONS = {
         'project': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
@@ -63,6 +63,22 @@
                 lensRoot: document.getElementById('lens-root'),
                 appShell: document.getElementById('app-shell')
             };
+
+            // PostMessage Listener for Cross-Origin (iframe) Unlocking
+            window.addEventListener('message', (event) => {
+                // Security check? In local app, origins might be null or file://. 
+                // We'll trust the payload structure.
+                if (event.data && event.data.type === 'ANANSI_UNLOCK' && event.data.payload === 'dungeonmaster') {
+                    console.log("[UI] Received Unlock Command");
+                    localStorage.setItem('anansi_gm_unlocked', 'true');
+
+                    if (A.UI.Toast) A.UI.Toast.show("Features Unlocked. Reloading...", "success");
+
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            });
 
             // Bind Topbar Actions
             // Dual-purpose hamburger: Desktop = ProjectPicker, Mobile = Nav Drawer
@@ -204,10 +220,17 @@
                     return;
                 }
 
-                // Ctrl/Cmd + S → Save
+                // Save: Ctrl+S
                 if (cmdKey && e.key === 's') {
                     e.preventDefault();
-                    if (this.els.btnSave) this.els.btnSave.click();
+                    A.IO.save(A.State.get());
+                    if (A.UI.Toast) A.UI.Toast.show('Project saved!', 'success');
+                    if (A.UI.flashSuccess) A.UI.flashSuccess(this.els.btnSave);
+                }
+
+                // New Panel: Ctrl+Alt+N
+                if (cmdKey && e.altKey && e.key === 'n') {
+                    // Placeholder for future shortcut
                 }
 
                 // Ctrl/Cmd + B → Build (AURA export)
@@ -259,6 +282,40 @@
                 this.els.btnBack.onclick = () => this.goBack();
             }
 
+            // --- RPG EXPERIMENT PLACEHOLDERS ---
+            // Register placeholder panels for the new RPG category
+            const rpgPanels = [
+                { id: 'rpg_party', label: 'Party', desc: 'Hero management' },
+                { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks' },
+                { id: 'rpg_map', label: 'Map', desc: 'Locations' },
+                { id: 'rpg_dm_map', label: 'DM Map', desc: 'World building' },
+                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells' },
+                { id: 'rpg_roleplay', label: 'Roleplay', desc: 'Chat interface' }
+            ];
+
+            rpgPanels.forEach(p => {
+                // Use a slight hack to check if registered, though Anansi.js doesn't expose 'isRegistered'. 
+                // We'll just register safely.
+                const existing = A.getNavSections().find(s => s.id === p.id);
+                if (!existing) {
+                    A.registerPanel(p.id, {
+                        label: p.label,
+                        category: 'RPG Experiment',
+                        icon: '🎲',
+                        render: (container) => {
+                            container.innerHTML = `
+                                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; opacity:0.5;">
+                                    <div style="font-size:32px;">🚧</div>
+                                    <h3>${p.label}</h3>
+                                    <p>${p.desc}</p>
+                                    <div style="font-size:11px;">Coming soon to the RPG Experiment.</div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            });
+
             // Render Initial Nav
             this.refreshNav();
 
@@ -293,6 +350,12 @@
             categoryOrder.forEach(cat => {
                 const groupItems = groups[cat];
                 if (!groupItems || groupItems.length === 0) return;
+
+                // LOCK: Hide RPG Experiment and Forbidden Secrets if not unlocked
+                const isGmUnlocked = localStorage.getItem('anansi_gm_unlocked') === 'true';
+                if ((cat === 'RPG Experiment' || cat === 'Forbidden Secrets') && !isGmUnlocked) {
+                    return;
+                }
 
                 const isCollapsed = collapsedState[cat];
 
@@ -341,7 +404,17 @@
                 };
 
                 groupItems.forEach(section => {
-                    if (section.hidden) return;
+                    // Check for hidden property (Game Master Panel logic)
+                    if (section.hidden) {
+                        // Special check for GM panel or other hidden panels
+                        // If it's the Game Master panel, check localStorage
+                        if (section.id === 'gamemaster') {
+                            const isUnlocked = localStorage.getItem('anansi_gm_unlocked') === 'true';
+                            if (!isUnlocked) return; // Skip if locked
+                        } else {
+                            return; // Skip other hidden panels
+                        }
+                    }
 
                     // Search filtering
                     if (navSearchTerm) {

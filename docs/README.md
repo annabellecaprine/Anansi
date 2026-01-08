@@ -19,3 +19,5 @@ The canonical specifications are in the parent `Scriptorium` directory:
 ## Implementation Docs
 
 Implementation-specific documentation will be added here as the project progresses.
+
+- [RPG Experiment Design Vision](rpg_experiment_design_vision.md)

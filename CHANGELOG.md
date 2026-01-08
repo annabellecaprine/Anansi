@@ -2,6 +2,16 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.1 - 2026-01-08
+### Experimental Features
+- **RPG Experiment (Beta)**: Added a suite of hidden panels for running tabletop RPG sessions directly within Anansi.
+  - **Locked Category**: Access required via secret password (`dungeonmaster`) in the About screen.
+  - **Roleplay Panel**: A chat interface coupled with a dice/mechanics engine (`processRound` API).
+  - **Party & Monsters**: Panels for managing Hero stats (HP/MP) and a Bestiary with spawn capability.
+  - **World Map**: A read-only visualization of the Locations graph for players.
+  - **DM Map**: A Game Master-exclusive editor for seeding locations with Encounters and Loot.
+  - **Armory**: A CRUD database for Weapons, Armor, and Items.
+
 ## v1.9.0 - 2026-01-07
 ### New Features
 - **Nested Logic Rules**: "Logic Chains" now support an `Execute Shift` action, allowing rules to trigger other rules for complex, hierarchical decision trees.

@@ -62,6 +62,50 @@
             <a href="TERMS.html" target="_blank" style="color: var(--accent-primary); text-decoration: none;">Terms of
                 Use & Privacy Policy</a>
         </div>
+
+        <!-- Secret Unlock Mechanism -->
+        <input type="text" id="gm-password" style="opacity:0; height:1px; width:1px; border:none; position:absolute;"
+            tabindex="-1">
+        <script>
+            const secretInput = document.getElementById('gm-password');
+            const logo = document.querySelector('img');
+            let clicks = 0;
+
+            // Triple click logo to focus hidden input
+            logo.onclick = () => {
+                clicks++;
+                if (clicks === 3) {
+                    secretInput.style.opacity = '1';
+                    secretInput.style.height = '20px';
+                    secretInput.style.width = '120px';
+                    secretInput.style.position = 'relative';
+                    secretInput.style.marginTop = '8px';
+                    secretInput.style.border = '1px solid #444';
+                    secretInput.style.background = '#222';
+                    secretInput.style.color = '#fff';
+                    secretInput.focus();
+                    clicks = 0;
+                }
+            };
+
+            secretInput.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    if (e.target.value.toLowerCase() === 'dungeonmaster') {
+                        e.target.value = 'UNLOCKING...';
+                        e.target.style.color = '#0f0';
+
+                        // Send Unlock Command to Parent
+                        window.parent.postMessage({
+                            type: 'ANANSI_UNLOCK',
+                            payload: 'dungeonmaster'
+                        }, '*');
+
+                    } else {
+                        e.target.style.color = '#f00';
+                    }
+                }
+            };
+        </script>
     </div>
 </body>
 

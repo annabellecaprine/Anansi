@@ -1326,9 +1326,62 @@
             });
           }
 
+          // 4. POST-PROCESSING (Action 8 - NEW)
+          // Run scripts again in 'output' phase to modify narrative or append stats
+          // We create a temporary context wrapping the response
+          let finalResponse = responseText;
+
+          try {
+            // We pass the response as 'userText' effectively to the round processor, 
+            // but the scripts should look at context.responseText in output phase.
+            // Actually, processRound builds context from state. 
+            // We need to inject the response into the context so scripts can modify it.
+            // But processRound is designed into the 'input' flow (state -> context).
+
+            // Let's modify processRound to accept an override context or handle this better?
+            // Simpler: Just run processRound again. It builds fresh context. 
+            // We assume scripts will READ state, and WRITE to a new field 'responseText'.
+
+            // Wait, processRound builds context from STATE. The LLM response is not in state yet (except history push).
+            // But we haven't pushed history yet! (Line 1329 is below).
+
+            // Let's push to history FIRST so the state is up to date?
+            // No, we want to modify the content BEFORE it goes into history.
+
+            // Solution: We run processRound with phase='output'. 
+            // We attach the raw response to the context object directly after creation.
+            // This requires a small tweak in processRound or we just monkey-patch it here if possible.
+            // We can't monkey-patch inside processRound easily.
+
+            // REVISION: processRound accepts `userText`. We can use that? 
+            // In input phase, userText is user input.
+            // In output phase, userText can be LLM response.
+
+            const postResult = processRound(responseText, state.sim.history, 'output');
+
+            // If scripts modified 'responseText' in context, use it.
+            // We need to check if 'responseText' exists in the returned context.
+            if (postResult.context.responseText && postResult.context.responseText !== responseText) {
+              finalResponse = postResult.context.responseText;
+              // Log that we modified it
+              console.log("Response modified by scripts:", finalResponse);
+            } else if (postResult.context.output && postResult.context.output !== responseText) {
+              // Fallback check for 'output'
+              finalResponse = postResult.context.output;
+            }
+
+            // Merge any logs
+            if (postResult.logs && postResult.logs.length) {
+              roundResult.logs.push(...postResult.logs);
+            }
+
+          } catch (e) {
+            console.warn("Post-processing failed", e);
+          }
+
           state.sim.history.push({
             role: 'model',
-            content: responseText,
+            content: finalResponse,
             timestamp: new Date().toISOString(),
             emotionalSnapshot: {
               pulse: [...(state.sim.emotions?.all || [])],
@@ -2387,7 +2440,7 @@
   });
 
   // --- CORE LOGIC: THE ROUND ---
-  function processRound(userText, history) {
+  function processRound(userText, history, phase = 'input') {
     try {
       const state = A.State.get();
       const logs = [];
@@ -2453,6 +2506,15 @@
         // Standard Aliases
         chat: hybridChat,
         messages: chatHistory,
+
+        // Phase Info
+        phase: phase || 'input',
+
+        // INPUT: The raw text from the user (Essential for command parsing)
+        user_input: userText,
+
+        // For Output Phase: default responseText to input (which is invoked with LLM response)
+        responseText: phase === 'output' ? userText : undefined,
 
         // Flatten Sources
         ...rawSources,
@@ -2530,11 +2592,15 @@
           info: (...args) => scriptLogs.push(`[${script.name}] INFO: ${args.join(' ')}`)
         };
         try {
-          const runFn = new Function('context', 'console', 'A', `
-                        "use strict";
-                        try { ${script.source.code} } 
-                        catch (e) { console.error(e.message); }
-                    `);
+          // SAFE EXECUTION: Do not use template literals to build the body, as user code containing backticks will break it.
+          const checkPhase = 'if (!context.phase) context.phase = "' + phase + '";\n';
+          const body = '"use strict";\n' +
+            'try {\n' +
+            checkPhase +
+            script.source.code + '\n' +
+            '} catch (e) { console.error("[Script Error] " + e.message); }';
+
+          const runFn = new Function('context', 'console', 'A', body);
           runFn(context, logger, A);
         } catch (err) {
           scriptLogs.push(`[${script.name}] CRITICAL: ${err.message}`);
@@ -2750,5 +2816,11 @@
 
     throw new Error(`Unknown provider: ${provider}`);
   }
+
+  // --- API EXPORTS ---
+  A.Simulator = {
+    processRound: processRound,
+    // Future exports: generateResponse, etc.
+  };
 
 })(window.Anansi);
