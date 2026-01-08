@@ -12,6 +12,7 @@ All notable changes to Anansi will be documented in this file.
   - **Monster AI**: Enemies act autonomously, selecting targets and attacking. Dead actors are skipped.
   - **Auto-Targeting**: If no target is named, the engine selects the first living hostile.
   - **Feats Panel**: A CRUD database for Spells, Abilities, and Passives with structured fields (Target, Effect Dice, Effect Type, Mana Cost).
+  - **JRPG Action Menu**: Button-driven combat UI in Roleplay panel. Attack → Weapon → Target flow. Setting-agnostic "Abilities" for spells/powers.
   - **World Map**: A read-only visualization of the Locations graph for players.
   - **DM Map**: A Game Master-exclusive editor for seeding locations with Encounters and Loot.
   - **Armory**: A CRUD database for Weapons, Armor, and Items.

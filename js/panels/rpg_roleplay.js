@@ -55,16 +55,171 @@
         container.appendChild(chatArea);
         chatLog = chatArea;
 
-        // 3. Input Area
+        // 3. JRPG Action Bar
+        const actionBar = document.createElement('div');
+        actionBar.id = 'rpg-action-bar';
+        actionBar.style.cssText = 'padding:12px 16px; background:var(--bg-elevated); border-top:1px solid var(--border-subtle); display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+        actionBar.innerHTML = `
+            <span style="font-size:12px; color:var(--text-muted); margin-right:8px;">Actions:</span>
+            <button class="btn btn-sm" data-action="attack">⚔️ Attack</button>
+            <button class="btn btn-sm" data-action="defend">🛡️ Defend</button>
+            <button class="btn btn-sm" data-action="abilities">✨ Abilities</button>
+            <button class="btn btn-sm" data-action="items">🎒 Items</button>
+            <button class="btn btn-sm" data-action="pass">⏭️ Pass Turn</button>
+        `;
+        container.appendChild(actionBar);
+
+        // 4. Target/Weapon Selector (hidden by default)
+        const selectorArea = document.createElement('div');
+        selectorArea.id = 'rpg-selector';
+        selectorArea.style.cssText = 'padding:8px 16px; background:var(--bg-surface); border-top:1px solid var(--border-subtle); display:none; flex-wrap:wrap; gap:8px; align-items:center;';
+        container.appendChild(selectorArea);
+
+        // Action Menu Logic
+        let pendingAction = null;
+        let selectedWeapon = null;
+
+        const getActiveActor = () => {
+            const state = A.State.get();
+            if (!state.rpg?.combat?.active) return null;
+            const c = state.rpg.combat;
+            const activeEntry = c.order[c.turn];
+            if (!activeEntry) return null;
+            return state.nodes.actors.items[activeEntry.id] || null;
+        };
+
+        const getTargets = (type) => {
+            const state = A.State.get();
+            const actors = Object.values(state.nodes?.actors?.items || {}).filter(a => a.data?.rpg?.enabled && (a.data.rpg.hp || 0) > 0);
+            if (type === 'enemy') {
+                return actors.filter(a => a.data.rpg.type === 'monster');
+            } else if (type === 'ally') {
+                return actors.filter(a => a.data.rpg.type !== 'monster');
+            }
+            return actors;
+        };
+
+        const showSelector = (label, options, onSelect) => {
+            selectorArea.style.display = 'flex';
+            selectorArea.innerHTML = `<span style="font-size:12px; color:var(--text-muted); margin-right:8px;">${label}:</span>`;
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-sm btn-ghost';
+                btn.textContent = opt.label;
+                btn.onclick = () => onSelect(opt);
+                selectorArea.appendChild(btn);
+            });
+            // Cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-sm';
+            cancelBtn.style.marginLeft = 'auto';
+            cancelBtn.textContent = '✕ Cancel';
+            cancelBtn.onclick = () => { selectorArea.style.display = 'none'; pendingAction = null; selectedWeapon = null; };
+            selectorArea.appendChild(cancelBtn);
+        };
+
+        const executeCommand = (command) => {
+            selectorArea.style.display = 'none';
+            pendingAction = null;
+            selectedWeapon = null;
+            // Trigger sendMessage with the constructed command
+            inputField.value = command;
+            inputField.dispatchEvent(new Event('input'));
+            sendBtn.click();
+        };
+
+        // Action Button Handlers
+        actionBar.querySelectorAll('button').forEach(btn => {
+            btn.onclick = () => {
+                const action = btn.dataset.action;
+                const actor = getActiveActor();
+                const state = A.State.get();
+
+                if (action === 'attack') {
+                    // Step 1: Select Weapon
+                    const armory = state.rpg?.items || [];
+                    const equipped = actor?.data?.rpg?.equipped || {};
+                    const weapons = [];
+                    if (equipped.main_hand) {
+                        const wpn = armory.find(i => i.id === equipped.main_hand);
+                        if (wpn) weapons.push({ id: wpn.id, label: wpn.name, type: 'weapon' });
+                    }
+                    weapons.push({ id: 'unarmed', label: 'Unarmed', type: 'unarmed' });
+
+                    showSelector('Weapon', weapons, (weapon) => {
+                        selectedWeapon = weapon;
+                        // Step 2: Select Target
+                        const enemies = getTargets('enemy').map(e => ({ id: e.id, label: e.name }));
+                        if (enemies.length === 0) {
+                            appendMessage('system', 'No enemies to attack.');
+                            selectorArea.style.display = 'none';
+                            return;
+                        }
+                        showSelector('Target', enemies, (target) => {
+                            executeCommand(`Melee Attack ${target.label}`);
+                        });
+                    });
+                } else if (action === 'defend') {
+                    executeCommand('Defend');
+                } else if (action === 'abilities') {
+                    const feats = actor?.data?.rpg?.feats || [];
+                    const featDb = state.rpg?.featDatabase || [];
+                    const options = feats.map(fid => {
+                        const f = featDb.find(x => x.id === fid) || { name: fid };
+                        return { id: fid, label: f.name, feat: f };
+                    });
+                    if (options.length === 0) {
+                        appendMessage('system', 'No abilities available.');
+                        return;
+                    }
+                    showSelector('Ability', options, (ability) => {
+                        const feat = ability.feat;
+                        if (feat.target === 'self') {
+                            executeCommand(`Use ${ability.label}`);
+                        } else if (feat.target === 'enemy' || feat.target === 'all_enemies') {
+                            const enemies = getTargets('enemy').map(e => ({ id: e.id, label: e.name }));
+                            showSelector('Target', enemies, (target) => {
+                                executeCommand(`Use ${ability.label} on ${target.label}`);
+                            });
+                        } else if (feat.target === 'ally' || feat.target === 'all_allies') {
+                            const allies = getTargets('ally').map(e => ({ id: e.id, label: e.name }));
+                            showSelector('Target', allies, (target) => {
+                                executeCommand(`Use ${ability.label} on ${target.label}`);
+                            });
+                        } else {
+                            executeCommand(`Use ${ability.label}`);
+                        }
+                    });
+                } else if (action === 'items') {
+                    const inventory = actor?.data?.rpg?.inventory || [];
+                    const armory = state.rpg?.items || [];
+                    const options = inventory.map(itemId => {
+                        const item = armory.find(i => i.id === itemId) || { name: itemId };
+                        return { id: itemId, label: item.name };
+                    }).filter(i => i.label);
+                    if (options.length === 0) {
+                        appendMessage('system', 'No items in inventory.');
+                        return;
+                    }
+                    showSelector('Item', options, (item) => {
+                        executeCommand(`Use ${item.label}`);
+                    });
+                } else if (action === 'pass') {
+                    executeCommand('Pass Turn');
+                }
+            };
+        });
+
+        // 5. Input Area (for descriptive RP)
         const inputArea = document.createElement('div');
-        inputArea.style.padding = '16px';
+        inputArea.style.padding = '12px 16px';
         inputArea.style.background = 'var(--bg-elevated)';
         inputArea.style.borderTop = '1px solid var(--border-subtle)';
         inputArea.style.display = 'flex';
         inputArea.style.gap = '8px';
 
         inputArea.innerHTML = `
-            <textarea id="rpg-input" class="input" rows="2" placeholder="What do you do? (e.g. 'I attack the orc', 'I search the room')" style="flex:1; resize:none; font-family:var(--font-sans);"></textarea>
+            <textarea id="rpg-input" class="input" rows="1" placeholder="Describe your action... (optional flavor text)" style="flex:1; resize:none; font-family:var(--font-sans);"></textarea>
             <button class="btn btn-primary" id="rpg-send" style="height:auto;">Send</button>
         `;
         container.appendChild(inputArea);
