@@ -7,9 +7,11 @@ All notable changes to Anansi will be documented in this file.
 - **RPG Experiment (Beta)**: Added a suite of hidden panels for running tabletop RPG sessions directly within Anansi.
   - **Locked Category**: Access required via secret password (`dungeonmaster`) in the About screen.
   - **Roleplay Panel**: A chat interface coupled with a dice/mechanics engine (`processRound` API).
-  - **Party & Monsters**: Panels for managing Hero stats (HP/MP) and a Bestiary with spawn capability.
-  - **Combat Engine**: Full Turn-based combat system with Initiative rolling, Rounds, and Turns.
-  - **Monster AI**: Basic automation for enemies to select targets and attack on their turn.
+  - **Party & Monsters**: Panels for managing Hero stats (HP/MP) and a Bestiary with auto-numbered spawn.
+  - **Combat Engine**: Full Turn-based combat with Initiative, Rounds, Turns, and auto-termination on team wipe.
+  - **Monster AI**: Enemies act autonomously, selecting targets and attacking. Dead actors are skipped.
+  - **Auto-Targeting**: If no target is named, the engine selects the first living hostile.
+  - **Feats Panel**: A CRUD database for Spells, Abilities, and Passives with structured fields (Target, Effect Dice, Effect Type, Mana Cost).
   - **World Map**: A read-only visualization of the Locations graph for players.
   - **DM Map**: A Game Master-exclusive editor for seeding locations with Encounters and Loot.
   - **Armory**: A CRUD database for Weapons, Armor, and Items.

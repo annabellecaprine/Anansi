@@ -128,6 +128,27 @@ function startCombat(sysLogs) {
         sysLogs.push(`> ${c.name}: ${c.init} (${c.base} + ${c.mod})`);
     });
     sysLogs.push(`**Round 1 Start**. It is **${order[0].name}**'s turn.`);
+
+    // Check Start AI
+    const firstActor = findActor(order[0].name);
+    if (firstActor && firstActor.data.rpg.type === 'monster') {
+        const c = state.rpg.combat;
+
+        // We need to execute the AI loop logic similar to nextTurn, but starting at index 0.
+        // To avoid code duplication, nextTurn should be refactored, but for minimal diff:
+        runAI(firstActor, sysLogs);
+
+        // Check if AI ended combat
+        if (checkCombatEnd(sysLogs)) return;
+
+        // Auto-Advancement logic if AI acted
+        // But wait, startCombat sets turn=0. 
+        // If runAI success, we need to advance to turn 1.
+
+        // If we wrapped immediately (1 monster combat?), loop logic ensures nextTurn handles it.
+        // Calling nextTurn() now triggers the *next* guy.
+        nextTurn(sysLogs);
+    }
 }
 
 function nextTurn(sysLogs) {
@@ -154,9 +175,31 @@ function nextTurn(sysLogs) {
     // We execute AI turns synchronously until we hit a Player or Max Steps
     let safety = 0;
     while (safety < 10) {
+
         const actorObj = findActor(nextActor.name);
+
+        // CHECK: Is Actor Alive?
+        if ((actorObj.data.rpg.hp || 0) <= 0) {
+            sysLogs.push(`Turn skipped: **${nextActor.name}** is 💀 Unconscious.`);
+            // Auto-End Turn
+            c.order[c.turn].acted = true;
+            c.turn++;
+            if (c.turn >= c.order.length) {
+                c.turn = 0;
+                c.round++;
+                c.order.forEach(o => o.acted = false);
+                sysLogs.push(`**Round ${c.round} Start**`);
+            }
+            nextActor = c.order[c.turn];
+            safety++;
+            continue;
+        }
+
         if (actorObj && actorObj.data && actorObj.data.rpg && actorObj.data.rpg.type === 'monster') {
             runAI(actorObj, sysLogs);
+
+            // Check if AI ended combat
+            if (checkCombatEnd(sysLogs)) return;
 
             // Auto-End Turn
             c.order[c.turn].acted = true;
@@ -178,6 +221,7 @@ function nextTurn(sysLogs) {
 }
 
 function runAI(actor, sysLogs) {
+    if ((actor.data.rpg.hp || 0) <= 0) return; // Dead monsters don't act
     sysLogs.push(`*${actor.name} is thinking...*`);
 
     // Simple AI: 1. Find Target (Random Hero)
@@ -254,6 +298,11 @@ function runAI(actor, sysLogs) {
 
         sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [Natural] -> ${target.name} (HP: ${target.data.rpg.hp})`);
         A.State.notify();
+        sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [Natural] -> ${target.name} (HP: ${target.data.rpg.hp})`);
+        A.State.notify();
+
+        // Check Win Condition
+        if (checkCombatEnd(sysLogs)) return;
     }
 
     // 3. End Turn (Async to let user see log)
@@ -286,6 +335,38 @@ function runAI(actor, sysLogs) {
     // ACTUALLY: The best way is to validly allow `state.rpg.combat.turn` to advance here.
 
     // Let's try forcing a recursion limit.
+}
+
+function checkCombatEnd(sysLogs) {
+    if (!state.rpg.combat || !state.rpg.combat.active) return false;
+
+    const actors = Object.values(state.nodes.actors.items || {}).filter(a => a.data && a.data.rpg && a.data.rpg.enabled);
+    const heroes = actors.filter(a => a.data.rpg.type !== 'monster');
+    const monsters = actors.filter(a => a.data.rpg.type === 'monster');
+
+    if (heroes.length === 0 && monsters.length === 0) return false;
+
+    const allHeroesDown = heroes.length > 0 && heroes.every(h => (h.data.rpg.hp || 0) <= 0);
+    const allMonstersDown = monsters.length > 0 && monsters.every(m => (m.data.rpg.hp || 0) <= 0);
+
+    if (allHeroesDown || allMonstersDown) {
+        sysLogs.push("");
+        sysLogs.push("🛑 **COMBAT ENDED**");
+
+        if (allMonstersDown) {
+            sysLogs.push("**Monsters Defeated**");
+            monsters.forEach(m => sysLogs.push(`- ${m.name}`));
+        }
+
+        if (allHeroesDown) {
+            sysLogs.push("**Party Members Unconscious**");
+            heroes.forEach(h => sysLogs.push(`- ${h.name}`));
+        }
+
+        endCombat(sysLogs);
+        return true;
+    }
+    return false;
 }
 
 function endCombat(sysLogs) {
@@ -412,10 +493,47 @@ if (context.phase === 'input') {
 
 
             if (allowed) {
+                // VALIDATE: Subject is Alive
+                if ((subject.data.rpg.hp || 0) <= 0) {
+                    sysLogs.push(`🚫 **${subject.name}** is unconscious and cannot act!`);
+                    allowed = false;
+                }
+            }
+
+            if (allowed) {
                 // Identify Target
                 let target = null;
                 const potentialTargets = Object.values(state.nodes.actors.items || {});
+
+                // Priority 1: Named in Input
                 target = potentialTargets.find(a => input.includes(a.name.toLowerCase()) && a.id !== (subject ? subject.id : null));
+
+                // Priority 2: Auto-Target in Combat (First Living Hostile)
+                if (!target && state.rpg.combat && state.rpg.combat.active && subject) {
+                    const isSubjectMonster = subject.data && subject.data.rpg && subject.data.rpg.type === 'monster';
+
+                    if (isSubjectMonster) {
+                        // Monster targets a living hero
+                        target = potentialTargets.find(a =>
+                            a.data && a.data.rpg && a.data.rpg.enabled &&
+                            a.data.rpg.type !== 'monster' &&
+                            (a.data.rpg.hp || 0) > 0 &&
+                            a.id !== subject.id
+                        );
+                    } else {
+                        // Hero targets a living monster
+                        target = potentialTargets.find(a =>
+                            a.data && a.data.rpg && a.data.rpg.enabled &&
+                            a.data.rpg.type === 'monster' &&
+                            (a.data.rpg.hp || 0) > 0 &&
+                            a.id !== subject.id
+                        );
+                    }
+
+                    if (target) {
+                        sysLogs.push(`*(Auto-targeting **${target.name}**)*`);
+                    }
+                }
 
                 if (subject) {
                     sysLogs.push(`**${subject.name}** triggers **${matchedRule.name}**`);
@@ -502,6 +620,9 @@ if (context.phase === 'input') {
                         A.State.notify();
 
                         sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [${weaponName}] -> ${target.name} (HP: ${target.data.rpg.hp})`);
+
+                        // Check Win Condition
+                        checkCombatEnd(sysLogs);
                     }
                 }
             }

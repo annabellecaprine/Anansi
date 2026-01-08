@@ -66,10 +66,18 @@
             // Generate ID
             const id = 'actor_' + Math.random().toString(36).substr(2, 9);
 
+            // Auto-Number: Count existing actors with same base name
+            const baseName = monsterTemplate.name;
+            const existingActors = Object.values(state.nodes.actors.items || {});
+            const sameNameCount = existingActors.filter(a =>
+                a.name === baseName || a.name.startsWith(baseName + ' ')
+            ).length;
+            const displayName = sameNameCount === 0 ? baseName : `${baseName} ${sameNameCount + 1}`;
+
             // Create Actor Node
             const newActor = {
                 id: id,
-                name: monsterTemplate.name,
+                name: displayName,
                 type: 'actor',
                 data: {
                     rpg: {

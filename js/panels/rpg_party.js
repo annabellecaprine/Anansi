@@ -649,39 +649,105 @@
             classDiv.appendChild(classInput);
             leftCol.appendChild(classDiv);
 
-            // Starting Equipment
-            const equipDiv = document.createElement('div');
-            equipDiv.innerHTML = `<label class="l-lab">Starting Equipment</label>`;
-            const equipArea = document.createElement('textarea');
-            equipArea.className = 'input';
-            equipArea.style.width = '100%';
-            equipArea.style.minHeight = '80px';
-            equipArea.style.resize = 'vertical';
-            equipArea.value = actor.data.rpg.equipment_text || ''; // Use a text field for now
-            equipArea.placeholder = 'e.g. Iron Sword, Leather Armor, 5 Potions...';
-            equipArea.onchange = (e) => {
-                actor.data.rpg.equipment_text = e.target.value;
-                A.State.notify();
-            };
-            equipDiv.appendChild(equipArea);
-            leftCol.appendChild(equipDiv);
-
-            // Abilities
+            // Abilities / Feats (Structured)
             const abilDiv = document.createElement('div');
-            abilDiv.innerHTML = `<label class="l-lab">Abilities / Feats</label>`;
-            const abilArea = document.createElement('textarea');
-            abilArea.className = 'input';
-            abilArea.style.width = '100%';
-            abilArea.style.minHeight = '80px';
-            abilArea.style.resize = 'vertical';
-            abilArea.value = actor.data.rpg.abilities_text || '';
-            abilArea.placeholder = 'e.g. Fireball, Sneak Attack...';
-            abilArea.onchange = (e) => {
-                actor.data.rpg.abilities_text = e.target.value;
-                A.State.notify();
-            };
-            abilDiv.appendChild(abilArea);
+            abilDiv.style.marginTop = '12px';
+            abilDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <label class="l-lab" style="margin:0;">Feats & Abilities</label>
+                    <button id="add-feat-btn" class="btn btn-sm btn-ghost" style="font-size:12px;">+ Add</button>
+                </div>
+                <div id="feats-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+            `;
             leftCol.appendChild(abilDiv);
+
+            // Initialize feats array if needed
+            if (!actor.data.rpg.feats) actor.data.rpg.feats = [];
+
+            const updateFeatsUI = () => {
+                const state = A.State.get();
+                const featDb = state.rpg && state.rpg.featDatabase ? state.rpg.featDatabase : [];
+                const listEl = abilDiv.querySelector('#feats-list');
+                listEl.innerHTML = '';
+
+                if (actor.data.rpg.feats.length === 0) {
+                    listEl.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:12px;">No feats assigned.</div>';
+                    return;
+                }
+
+                actor.data.rpg.feats.forEach((featId, idx) => {
+                    const feat = featDb.find(f => f.id === featId) || { id: featId, name: featId, type: 'unknown' };
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface); padding:6px 10px; border-radius:var(--radius-sm); font-size:13px;';
+
+                    const typeIcon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : '📜';
+                    row.innerHTML = `
+                        <span>${typeIcon} <strong>${feat.name}</strong></span>
+                        <button class="btn btn-sm btn-ghost" style="font-size:10px; color:var(--danger);" data-idx="${idx}">✕</button>
+                    `;
+
+                    row.querySelector('button').onclick = () => {
+                        actor.data.rpg.feats.splice(idx, 1);
+                        A.State.notify();
+                        updateFeatsUI();
+                    };
+
+                    listEl.appendChild(row);
+                });
+            };
+
+            // Add Feat Button
+            abilDiv.querySelector('#add-feat-btn').onclick = () => {
+                const state = A.State.get();
+                if (!state.rpg) state.rpg = {};
+                if (!state.rpg.featDatabase) state.rpg.featDatabase = [];
+
+                // If no feats exist, create defaults
+                if (state.rpg.featDatabase.length === 0) {
+                    state.rpg.featDatabase = [
+                        { id: 'feat_fireball', name: 'Fireball', type: 'spell', effect: '8d6 fire damage in 20ft radius' },
+                        { id: 'feat_sneak_attack', name: 'Sneak Attack', type: 'ability', effect: '+2d6 damage when attacking with advantage' },
+                        { id: 'feat_second_wind', name: 'Second Wind', type: 'ability', effect: 'Heal 1d10 + level HP as bonus action' },
+                        { id: 'feat_rage', name: 'Rage', type: 'ability', effect: '+2 damage, resistance to physical' }
+                    ];
+                    A.State.notify();
+                }
+
+                // Show picker modal
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;';
+                modal.innerHTML = `
+                    <div style="background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); min-width:300px; max-height:80vh; overflow-y:auto;">
+                        <div style="font-weight:bold; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Add Feat/Ability</div>
+                        <div id="feat-picker-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <button id="close-feat-picker" class="btn btn-sm" style="margin-top:16px; width:100%;">Cancel</button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                const pickerList = modal.querySelector('#feat-picker-list');
+                state.rpg.featDatabase.forEach(feat => {
+                    const alreadyHas = actor.data.rpg.feats.includes(feat.id);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-sm';
+                    btn.style.cssText = 'text-align:left; padding:8px 12px;' + (alreadyHas ? 'opacity:0.5;' : '');
+                    btn.disabled = alreadyHas;
+                    const typeIcon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : '📜';
+                    btn.innerHTML = `${typeIcon} <strong>${feat.name}</strong><br><small style="opacity:0.7;">${feat.effect || ''}</small>`;
+                    btn.onclick = () => {
+                        actor.data.rpg.feats.push(feat.id);
+                        A.State.notify();
+                        updateFeatsUI();
+                        modal.remove();
+                    };
+                    pickerList.appendChild(btn);
+                });
+
+                modal.querySelector('#close-feat-picker').onclick = () => modal.remove();
+                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            };
+
+            updateFeatsUI();
 
             detailsSection.appendChild(leftCol);
 
