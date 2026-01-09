@@ -2,16 +2,15 @@
  * Anansi Panel: RPG Party
  * File: js/panels/rpg_party.js
  * Category: RPG Experiment
- * Purpose: Management interface for Character Stats, Equipment, Class, and Abilities.
+ * Purpose: Character sheet management with stats, equipment, feats, and visual stat display.
  */
 
 (function (A) {
     'use strict';
 
-    // --- Radar Renderer (Adapted from stats.js) ---
+    // --- Radar Renderer ---
     const AxisRadar = {};
     AxisRadar.renderRadar = function (w, h, labels, values, min, max) {
-        // Use 35% margin (r=0.35) instead of 44% to prevent label clipping
         var i, n = labels.length, cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.35;
         if (!n) return '<svg width="' + w + '" height="' + h + '"></svg>';
         var rng = (max - min) || 1;
@@ -60,7 +59,7 @@
         var basePoly = poly(base);
 
         return ''
-            + '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto; max-width:350px;" role="img">'
+            + '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto; max-width:280px;" role="img">'
             + '<g fill="none" stroke="currentColor">' + ringPaths.join('') + spokes.join('') + '</g>'
             + '<polygon points="' + basePoly.pts + '" fill="var(--accent-primary)" opacity="0.15"></polygon>'
             + '<path d="' + basePoly.d + '" fill="none" stroke="var(--accent-primary)" stroke-width="2" opacity="0.8"></path>'
@@ -84,123 +83,67 @@
         }
     };
 
+    // Helper: Create progress bar
+    function createResourceBar(current, max, color, label) {
+        const pct = max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0;
+        return `
+            <div style="margin-bottom:4px;">
+                <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:2px;">
+                    <span style="opacity:0.7;">${label}</span>
+                    <span style="font-weight:600;">${current}/${max}</span>
+                </div>
+                <div style="height:6px; background:var(--bg-inset); border-radius:3px; overflow:hidden;">
+                    <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; transition:width 0.3s;"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper: Calculate modifier
+    function calcMod(val) {
+        const mod = Math.floor((val - 10) / 2);
+        return mod >= 0 ? `+${mod}` : `${mod}`;
+    }
+
     function render(container) {
-        // Layout
         container.style.height = '100%';
         container.style.display = 'grid';
-        container.style.gridTemplateColumns = '250px 1fr';
-        container.style.gap = 'var(--space-4)';
+        container.style.gridTemplateColumns = '280px 1fr';
+        container.style.gap = '0';
         container.style.overflow = 'hidden';
+        container.style.background = 'var(--bg-base)';
 
         let currentActorId = null;
 
         // --- Sidebar ---
         const sidebar = document.createElement('div');
-        sidebar.className = 'card';
-        sidebar.style.display = 'flex';
-        sidebar.style.flexDirection = 'column';
-        sidebar.style.padding = '12px';
-        sidebar.style.gap = '8px';
-        sidebar.style.overflowY = 'auto';
+        sidebar.style.cssText = 'display:flex; flex-direction:column; background:var(--bg-surface); border-right:1px solid var(--border-subtle); overflow:hidden;';
 
+        // Sidebar Header
         const sidebarHeader = document.createElement('div');
-        sidebarHeader.style.display = 'flex';
-        sidebarHeader.style.justifyContent = 'space-between';
-        sidebarHeader.style.alignItems = 'center';
-        sidebarHeader.style.marginBottom = '8px';
-
-        const headerTitle = document.createElement('span');
-        headerTitle.style.fontSize = '12px';
-        headerTitle.style.fontWeight = 'bold';
-        headerTitle.style.color = 'var(--text-muted)';
-        headerTitle.style.textTransform = 'uppercase';
-        headerTitle.textContent = 'Party Members';
-        sidebarHeader.appendChild(headerTitle);
-
-        const addMemberBtn = document.createElement('button');
-        addMemberBtn.className = 'btn btn-xs btn-ghost';
-        addMemberBtn.textContent = '+ Add';
-        addMemberBtn.title = 'Add character to party';
-        addMemberBtn.onclick = () => {
-            const state = A.State.get();
-            const allActors = (state.nodes && state.nodes.actors && state.nodes.actors.items) ? Object.values(state.nodes.actors.items) : [];
-            const nonParty = allActors.filter(a => !a.data || !a.data.rpg || !a.data.rpg.enabled);
-
-            if (nonParty.length === 0) {
-                alert('All actors are already in the party.');
-                return;
-            }
-
-            // Simple selector for now
-            // Create a temporary overlay or just use a prompt loop/custom UI if simple
-            // Let's use a simple dropdown injection into the list temporarily or a prompt if names are unique enough? 
-            // Better: A small modal or overlay using A.UI if available, else simple list injection.
-            // I'll inject a selection list into the actorsList area temporarily.
-
-            actorsList.innerHTML = '';
-            const selHeader = document.createElement('div');
-            selHeader.textContent = 'Select to Add:';
-            selHeader.style.fontSize = '11px';
-            selHeader.style.padding = '4px';
-            actorsList.appendChild(selHeader);
-
-            nonParty.forEach(a => {
-                const opt = document.createElement('div');
-                opt.className = 'list-item';
-                opt.style.padding = '6px 8px';
-                opt.style.cursor = 'pointer';
-                opt.textContent = a.name;
-                opt.onmouseenter = () => opt.style.background = 'var(--bg-hover)';
-                opt.onmouseleave = () => opt.style.background = 'transparent';
-                opt.onclick = () => {
-                    if (!a.data) a.data = {};
-                    if (!a.data.rpg) a.data.rpg = { hp: 20, maxHp: 20, mp: 3, maxMp: 3, ac: 10, enabled: true };
-                    else a.data.rpg.enabled = true;
-
-                    A.State.notify();
-                    refreshSidebar();
-                    // Select the new member
-                    currentActorId = a.id;
-                    refreshMain();
-                };
-                actorsList.appendChild(opt);
-            });
-
-            const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = 'Cancel';
-            cancelBtn.className = 'btn btn-xs btn-ghost';
-            cancelBtn.style.width = '100%';
-            cancelBtn.style.marginTop = '8px';
-            cancelBtn.onclick = () => refreshSidebar();
-            actorsList.appendChild(cancelBtn);
-        };
-        sidebarHeader.appendChild(addMemberBtn);
-
+        sidebarHeader.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--border-subtle);';
+        sidebarHeader.innerHTML = `
+            <span style="font-size:14px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);">Party</span>
+            <button id="btn-add-member" class="btn btn-xs btn-primary">+ Add</button>
+        `;
         sidebar.appendChild(sidebarHeader);
 
         const actorsList = document.createElement('div');
-        actorsList.style.display = 'flex';
-        actorsList.style.flexDirection = 'column';
-        actorsList.style.gap = '4px';
+        actorsList.style.cssText = 'flex:1; overflow-y:auto; padding:8px;';
         sidebar.appendChild(actorsList);
 
         container.appendChild(sidebar);
 
         // --- Main Content ---
         const main = document.createElement('div');
-        main.className = 'card';
-        main.style.display = 'flex';
-        main.style.flexDirection = 'column';
-        main.style.overflow = 'hidden'; // Inner scroll
-        main.style.padding = '0';
+        main.style.cssText = 'display:flex; flex-direction:column; overflow:hidden;';
         container.appendChild(main);
 
-        // --- Render Functions ---
+        // --- Functions ---
 
         function getPartyMembers() {
             const state = A.State.get();
             const actors = (state.nodes && state.nodes.actors && state.nodes.actors.items) ? Object.values(state.nodes.actors.items) : [];
-            // Exclude Monsters from this specific UI panel
             return actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled && a.data.rpg.type !== 'monster');
         }
 
@@ -209,42 +152,67 @@
             const members = getPartyMembers();
 
             if (members.length === 0) {
-                actorsList.innerHTML = `<div style="padding:10px; text-align:center; color:var(--text-muted); font-size:12px;">No RPG characters found.<br>Enable RPG mode in Actors panel.</div>`;
+                actorsList.innerHTML = `
+                    <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:12px;">
+                        <div style="font-size:32px; margin-bottom:8px; opacity:0.5;">🛡️</div>
+                        No party members yet.<br>Add actors from your project.
+                    </div>
+                `;
                 return;
             }
 
-            // Auto-select first if none selected
             if (!currentActorId && members.length > 0) {
                 currentActorId = members[0].id;
             }
 
             members.forEach(actor => {
-                const item = document.createElement('div');
-                item.className = 'list-item'; // Generic clickable item
-                item.style.padding = '8px 12px';
-                item.style.borderRadius = '6px';
-                item.style.cursor = 'pointer';
-                item.style.fontSize = '14px';
-                item.style.display = 'flex';
-                item.style.alignItems = 'center';
-                item.style.gap = '8px';
+                const rpg = actor.data.rpg;
+                const isSelected = actor.id === currentActorId;
+                const hpPct = rpg.maxHp > 0 ? Math.round((rpg.hp / rpg.maxHp) * 100) : 0;
+                const mpPct = rpg.maxMp > 0 ? Math.round((rpg.mp / rpg.maxMp) * 100) : 0;
 
-                if (actor.id === currentActorId) {
-                    item.style.background = 'var(--bg-elevated)';
-                    item.style.color = 'var(--accent-primary)';
-                    item.style.fontWeight = 'bold';
-                } else {
-                    item.style.color = 'var(--text-primary)';
-                    item.onmouseenter = () => item.style.background = 'var(--bg-hover)';
-                    item.onmouseleave = () => item.style.background = 'transparent';
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding:12px; border-radius:8px; cursor:pointer; margin-bottom:6px; transition:all 0.15s;
+                    background:${isSelected ? 'var(--bg-elevated)' : 'transparent'};
+                    border:2px solid ${isSelected ? 'var(--accent-primary)' : 'transparent'};
+                `;
+
+                item.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                        <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-inset); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
+                            ${rpg.type === 'npc' ? '👤' : '⚔️'}
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${actor.name}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">Lvl ${rpg.stats?.level || 1} ${rpg.stats?.class || rpg.class || 'Adventurer'}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <div style="flex:1;">
+                            <div style="height:4px; background:var(--bg-inset); border-radius:2px; overflow:hidden;">
+                                <div style="height:100%; width:${hpPct}%; background:var(--status-error); border-radius:2px;"></div>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="height:4px; background:var(--bg-inset); border-radius:2px; overflow:hidden;">
+                                <div style="height:100%; width:${mpPct}%; background:var(--accent-primary); border-radius:2px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (!isSelected) {
+                    item.onmouseenter = () => { item.style.background = 'var(--bg-hover)'; };
+                    item.onmouseleave = () => { item.style.background = 'transparent'; };
                 }
 
-                item.innerHTML = `<span>${actor.name}</span>`;
                 item.onclick = () => {
                     currentActorId = actor.id;
                     refreshSidebar();
                     refreshMain();
                 };
+
                 actorsList.appendChild(item);
             });
         }
@@ -258,578 +226,490 @@
             if (!actor) {
                 main.innerHTML = `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                        <span style="font-size:32px; margin-bottom:12px;">🛡️</span>
-                        <div>Select a character to manage details</div>
+                        <span style="font-size:48px; margin-bottom:16px;">🛡️</span>
+                        <div style="font-size:14px;">Select a character to view their sheet</div>
                     </div>
                 `;
                 return;
             }
 
-            // Ensure data structures
-            if (!actor.data.rpg.stats_matrix) actor.data.rpg.stats_matrix = { blocks: [], values: {} };
-            const matrix = actor.data.rpg.stats_matrix;
+            const rpg = actor.data.rpg;
+            if (!rpg.stats) rpg.stats = {};
+            if (!rpg.stats_matrix) rpg.stats_matrix = { blocks: [], values: {} };
+            if (!rpg.inventory) rpg.inventory = [];
+            if (!rpg.equipped) rpg.equipped = { main_hand: null, off_hand: null, armor: null };
+            if (!rpg.feats) rpg.feats = [];
+            const matrix = rpg.stats_matrix;
 
-            // -- Header --
+            // --- Character Header ---
             const header = document.createElement('div');
-            header.className = 'panel-toolbar';
-            header.style.padding = '12px 16px';
-            header.style.borderBottom = '1px solid var(--border-subtle)';
-            header.style.display = 'flex';
-            header.style.justifyContent = 'space-between';
-            header.style.alignItems = 'center';
-
+            header.style.cssText = 'padding:20px 24px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);';
             header.innerHTML = `
-                <div style="font-size:16px; font-weight:bold; display:flex; align-items:center; gap:8px;">
-                    ${actor.name}
-                    <span class="lvl-badge" style="font-size:11px; font-weight:normal; color:var(--text-muted); opacity:0.8;">Lvl ${actor.data.rpg.stats?.level || 1}</span>
-                </div>
-                <div style="display:flex; gap:6px;">
-                     <button class="btn btn-sm btn-ghost" id="act-remove" style="color:var(--status-error);" title="Remove from Party">Remove</button>
-                     <div style="width:1px; background:var(--border-subtle); margin:0 4px;"></div>
-                     <button class="btn btn-sm btn-secondary" id="act-add-dnd">+ D20 Stats</button>
-                     <button class="btn btn-sm btn-ghost" id="act-add-custom">+ Custom</button>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="display:flex; gap:16px; align-items:center;">
+                        <div style="width:64px; height:64px; border-radius:12px; background:var(--bg-surface); display:flex; align-items:center; justify-content:center; font-size:32px; border:2px solid var(--border-subtle);">
+                            ${rpg.type === 'npc' ? '👤' : '⚔️'}
+                        </div>
+                        <div>
+                            <h2 style="margin:0; font-size:20px; font-weight:bold;">${actor.name}</h2>
+                            <div style="display:flex; gap:12px; margin-top:4px; font-size:12px; color:var(--text-muted);">
+                                <span>Level <strong style="color:var(--text-primary);">${rpg.stats.level || 1}</strong></span>
+                                <span>${rpg.stats.class || rpg.class || 'Adventurer'}</span>
+                                <span>XP: ${rpg.stats.xp || 0}/${rpg.stats.xp_next || 1000}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button id="btn-add-stats" class="btn btn-sm btn-secondary">+ D20 Stats</button>
+                        <button id="btn-remove" class="btn btn-sm btn-ghost" style="color:var(--status-error);">Remove</button>
+                    </div>
                 </div>
             `;
-            header.querySelector('#act-remove').onclick = () => {
-                if (confirm(`Remove ${actor.name} from the party? (Data is preserved)`)) {
-                    actor.data.rpg.enabled = false;
-                    A.State.notify();
-                    currentActorId = null;
-                    refreshSidebar();
-                    refreshMain();
-                }
-            };
             main.appendChild(header);
 
-            // -- Content Scroll Area --
+            // --- Content ---
             const content = document.createElement('div');
-            content.style.flex = '1';
-            content.style.overflowY = 'auto';
-            content.style.padding = '20px';
-            content.style.display = 'flex';
-            content.style.flexDirection = 'column';
-            content.style.gap = '24px';
+            content.style.cssText = 'flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:24px;';
             main.appendChild(content);
 
-            // 1. Details Section (Class, Abilities, Equipment)
-            const detailsSection = document.createElement('div');
-            detailsSection.style.display = 'grid';
-            detailsSection.style.gridTemplateColumns = '1fr 1fr';
-            detailsSection.style.gap = '16px';
+            // === ROW 1: Resources & Core Stats ===
+            const row1 = document.createElement('div');
+            row1.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:16px;';
 
-            // Class & Abilities
-            const leftCol = document.createElement('div');
-            leftCol.style.display = 'flex';
-            leftCol.style.flexDirection = 'column';
-            leftCol.style.gap = '16px';
-
-            // Level & XP Row
-            const lvlRow = document.createElement('div');
-            lvlRow.style.display = 'grid';
-            lvlRow.style.gridTemplateColumns = '1fr 1fr 1fr';
-            lvlRow.style.gap = '12px';
-
-            // Level
-            const lvlDiv = document.createElement('div');
-            lvlDiv.innerHTML = `<label class="l-lab">Level</label>`;
-            const lvlInput = document.createElement('input');
-            lvlInput.className = 'input';
-            lvlInput.type = 'number';
-            lvlInput.style.width = '100%';
-            lvlInput.value = actor.data.rpg.stats?.level || 1;
-            lvlInput.onchange = (e) => {
-                if (!actor.data.rpg.stats) actor.data.rpg.stats = {};
-                actor.data.rpg.stats.level = parseInt(e.target.value);
-                // Also update header display if present
-                const hLvl = header.querySelector('.lvl-badge');
-                if (hLvl) hLvl.textContent = `Lvl ${actor.data.rpg.stats.level}`;
-                A.State.notify();
-            };
-            lvlDiv.appendChild(lvlInput);
-            lvlRow.appendChild(lvlDiv);
-
-            // XP
-            const xpDiv = document.createElement('div');
-            xpDiv.innerHTML = `<label class="l-lab">Current XP</label>`;
-            const xpInput = document.createElement('input');
-            xpInput.className = 'input';
-            xpInput.style.width = '100%';
-            xpInput.value = actor.data.rpg.stats?.xp || 0;
-            xpInput.onchange = (e) => {
-                if (!actor.data.rpg.stats) actor.data.rpg.stats = {};
-                actor.data.rpg.stats.xp = e.target.value;
-                A.State.notify();
-            };
-            xpDiv.appendChild(xpInput);
-            lvlRow.appendChild(xpDiv);
-
-            // Next XP
-            const nextXpDiv = document.createElement('div');
-            nextXpDiv.innerHTML = `<label class="l-lab">Next Level</label>`;
-            const nextXpInput = document.createElement('input');
-            nextXpInput.className = 'input';
-            nextXpInput.style.width = '100%';
-            nextXpInput.value = actor.data.rpg.stats?.xp_next || 1000;
-            nextXpInput.onchange = (e) => {
-                if (!actor.data.rpg.stats) actor.data.rpg.stats = {};
-                actor.data.rpg.stats.xp_next = e.target.value;
-                A.State.notify();
-            };
-            nextXpDiv.appendChild(nextXpInput);
-            lvlRow.appendChild(nextXpDiv);
-
-            leftCol.appendChild(lvlRow);
-
-            // Combat Stats (HP, MP, AC, Str)
-            const combatRow = document.createElement('div');
-            combatRow.style.display = 'grid';
-            combatRow.style.gridTemplateColumns = 'repeat(6, 1fr)';
-            combatRow.style.gap = '8px';
-            combatRow.style.padding = '8px';
-            combatRow.style.background = 'var(--bg-elevated)';
-            combatRow.style.borderRadius = '6px';
-            combatRow.style.marginBottom = '8px';
-
-            const createStatInput = (label, key, defaultVal = 0) => {
-                const div = document.createElement('div');
-                div.innerHTML = `<label class="l-lab" style="font-size:10px;">${label}</label>`;
-                const inp = document.createElement('input');
-                inp.className = 'input';
-                inp.type = 'number';
-                inp.style.width = '100%';
-                // Check if value exists, allow 0
-                const val = actor.data.rpg[key];
-                inp.value = val !== undefined ? val : defaultVal;
-                inp.onchange = (e) => {
-                    actor.data.rpg[key] = parseInt(e.target.value);
-                    A.State.notify();
-                };
-                div.appendChild(inp);
-                return div;
-            };
-
-            combatRow.appendChild(createStatInput('HP', 'hp', 20));
-            combatRow.appendChild(createStatInput('Max HP', 'maxHp', 20));
-            combatRow.appendChild(createStatInput('MP', 'mp', 3));
-            combatRow.appendChild(createStatInput('Max MP', 'maxMp', 3));
-            combatRow.appendChild(createStatInput('AC', 'ac', 10));
-            combatRow.appendChild(createStatInput('Str Mod', 'str', 0));
-
-            leftCol.appendChild(combatRow);
-
-            // -- GEAR & INVENTORY --
-            const gearSection = document.createElement('div');
-            gearSection.style.padding = '16px';
-            gearSection.style.borderTop = '1px solid var(--border-subtle)';
-
-            // Data Init
-            if (!actor.data.rpg.inventory) actor.data.rpg.inventory = [];
-            if (!actor.data.rpg.equipped) actor.data.rpg.equipped = { main_hand: null, off_hand: null, armor: null };
-
-            gearSection.innerHTML = `
-                <div class="panel-toolbar" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin:0; font-size:14px; font-weight:bold;">🎒 Gear & Inventory</h3>
-                    <button class="btn btn-sm btn-secondary" id="btn-add-item">+ Add Item</button>
-                </div>
-                <!-- Equipped Slots -->
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:16px;">
-                    <div class="stat-box" style="text-align:center; padding:8px; background:var(--bg-elevated); border-radius:6px;">
-                        <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Main Hand</div>
-                        <div id="slot-main" style="font-weight:bold; font-size:12px;">-</div>
+            // Left: Resource Bars
+            const resourcesCard = document.createElement('div');
+            resourcesCard.className = 'card';
+            resourcesCard.style.padding = '16px';
+            resourcesCard.innerHTML = `
+                <h4 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Resources</h4>
+                ${createResourceBar(rpg.hp || 0, rpg.maxHp || 20, 'var(--status-error)', '❤️ Health')}
+                ${createResourceBar(rpg.mp || 0, rpg.maxMp || 10, 'var(--accent-primary)', '💎 Mana')}
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:12px;">
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
+                        <div style="font-size:18px; font-weight:bold; color:var(--status-error);">${rpg.hp || 0}/${rpg.maxHp || 20}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">HP</div>
                     </div>
-                    <div class="stat-box" style="text-align:center; padding:8px; background:var(--bg-elevated); border-radius:6px;">
-                        <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Off Hand</div>
-                        <div id="slot-off" style="font-weight:bold; font-size:12px;">-</div>
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
+                        <div style="font-size:18px; font-weight:bold; color:var(--accent-primary);">${rpg.mp || 0}/${rpg.maxMp || 10}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">MP</div>
                     </div>
-                    <div class="stat-box" style="text-align:center; padding:8px; background:var(--bg-elevated); border-radius:6px;">
-                        <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Armor</div>
-                        <div id="slot-armor" style="font-weight:bold; font-size:12px;">-</div>
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
+                        <div style="font-size:18px; font-weight:bold; color:var(--text-primary);">${rpg.ac || 10}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">AC</div>
                     </div>
                 </div>
-
-                <!-- Inventory List -->
-                <div id="inv-list" style="display:flex; flex-direction:column; gap:6px;"></div>
             `;
+            row1.appendChild(resourcesCard);
 
-            content.appendChild(gearSection);
+            // Right: Quick Edit
+            const editCard = document.createElement('div');
+            editCard.className = 'card';
+            editCard.style.padding = '16px';
+            editCard.innerHTML = `
+                <h4 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Quick Edit</h4>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">HP</label>
+                        <input type="number" id="edit-hp" class="input" style="width:100%;" value="${rpg.hp || 0}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Max HP</label>
+                        <input type="number" id="edit-maxhp" class="input" style="width:100%;" value="${rpg.maxHp || 20}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">AC</label>
+                        <input type="number" id="edit-ac" class="input" style="width:100%;" value="${rpg.ac || 10}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">MP</label>
+                        <input type="number" id="edit-mp" class="input" style="width:100%;" value="${rpg.mp || 0}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Max MP</label>
+                        <input type="number" id="edit-maxmp" class="input" style="width:100%;" value="${rpg.maxMp || 10}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Level</label>
+                        <input type="number" id="edit-level" class="input" style="width:100%;" value="${rpg.stats.level || 1}">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Main Actions</label>
+                        <input type="number" id="edit-maxactions" class="input" style="width:100%;" value="${rpg.maxActions || 1}" min="0" max="10">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Bonus Actions</label>
+                        <input type="number" id="edit-maxbonusactions" class="input" style="width:100%;" value="${rpg.maxBonusActions || 1}" min="0" max="10">
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label style="font-size:10px; color:var(--text-muted);">Class</label>
+                    <input type="text" id="edit-class" class="input" style="width:100%;" value="${rpg.stats.class || rpg.class || ''}" placeholder="e.g. Fighter, Wizard">
+                </div>
+            `;
+            row1.appendChild(editCard);
+            content.appendChild(row1);
 
-            // -- Logic: Render Items --
+            // Wire quick edit
+            const wireInput = (id, key, isStats = false, transform = parseInt) => {
+                const el = editCard.querySelector(`#${id}`);
+                if (el) {
+                    el.onchange = (e) => {
+                        const val = transform(e.target.value);
+                        if (isStats) {
+                            if (!rpg.stats) rpg.stats = {};
+                            rpg.stats[key] = val;
+                        } else {
+                            rpg[key] = val;
+                        }
+                        A.State.notify();
+                        refreshSidebar();
+                        refreshMain();
+                    };
+                }
+            };
+            wireInput('edit-hp', 'hp');
+            wireInput('edit-maxhp', 'maxHp');
+            wireInput('edit-ac', 'ac');
+            wireInput('edit-mp', 'mp');
+            wireInput('edit-maxmp', 'maxMp');
+            wireInput('edit-level', 'level', true);
+            wireInput('edit-maxactions', 'maxActions');
+            wireInput('edit-maxbonusactions', 'maxBonusActions');
+            wireInput('edit-class', 'class', true, v => v);
+
+            // === ROW 2: Ability Scores & Radar ===
+            if (matrix.blocks.length > 0) {
+                const row2 = document.createElement('div');
+                row2.style.cssText = 'display:grid; grid-template-columns:1fr 300px; gap:16px;';
+
+                // Stats Grid
+                const statsCard = document.createElement('div');
+                statsCard.className = 'card';
+                statsCard.style.padding = '16px';
+
+                matrix.blocks.forEach((block, bIdx) => {
+                    if (!matrix.values[block.id]) matrix.values[block.id] = {};
+                    const vals = matrix.values[block.id];
+
+                    const blockDiv = document.createElement('div');
+                    blockDiv.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">${block.label}</h4>
+                            <button class="btn btn-xs btn-ghost btn-remove-block" data-idx="${bIdx}" style="color:var(--status-error); font-size:10px;">Remove</button>
+                        </div>
+                    `;
+
+                    const grid = document.createElement('div');
+                    grid.style.cssText = 'display:grid; grid-template-columns:repeat(6, 1fr); gap:8px;';
+
+                    block.defs.forEach(def => {
+                        const val = vals[def.key] !== undefined ? vals[def.key] : 10;
+                        const statBox = document.createElement('div');
+                        statBox.style.cssText = 'text-align:center; padding:12px 8px; background:var(--bg-surface); border-radius:8px;';
+                        statBox.innerHTML = `
+                            <div style="font-size:10px; font-weight:bold; color:var(--text-muted); margin-bottom:4px;">${def.key}</div>
+                            <input type="number" class="stat-input" data-block="${block.id}" data-key="${def.key}" 
+                                style="width:100%; text-align:center; font-size:18px; font-weight:bold; background:transparent; border:none; color:var(--text-primary);" 
+                                value="${val}" min="${def.min}" max="${def.max}">
+                            <div class="stat-mod" style="font-size:11px; color:var(--accent-primary); margin-top:2px;">${calcMod(val)}</div>
+                        `;
+                        grid.appendChild(statBox);
+                    });
+
+                    blockDiv.appendChild(grid);
+                    statsCard.appendChild(blockDiv);
+                });
+
+                row2.appendChild(statsCard);
+
+                // Radar Chart
+                const radarCard = document.createElement('div');
+                radarCard.className = 'card';
+                radarCard.style.cssText = 'padding:16px; display:flex; align-items:center; justify-content:center;';
+                radarCard.id = 'radar-container';
+                row2.appendChild(radarCard);
+
+                content.appendChild(row2);
+
+                // Wire stat inputs
+                statsCard.querySelectorAll('.stat-input').forEach(input => {
+                    input.oninput = (e) => {
+                        const blockId = e.target.dataset.block;
+                        const key = e.target.dataset.key;
+                        const val = parseInt(e.target.value) || 10;
+                        matrix.values[blockId][key] = val;
+                        e.target.parentElement.querySelector('.stat-mod').textContent = calcMod(val);
+                        A.State.notify();
+                        updateRadar(radarCard);
+                    };
+                });
+
+                // Wire remove block
+                statsCard.querySelectorAll('.btn-remove-block').forEach(btn => {
+                    btn.onclick = () => {
+                        if (confirm('Remove this stat block?')) {
+                            matrix.blocks.splice(parseInt(btn.dataset.idx), 1);
+                            A.State.notify();
+                            refreshMain();
+                        }
+                    };
+                });
+
+                updateRadar(radarCard);
+            }
+
+            // === ROW 3: Equipment & Feats ===
+            const row3 = document.createElement('div');
+            row3.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:16px;';
+
+            // Equipment
+            const equipCard = document.createElement('div');
+            equipCard.className = 'card';
+            equipCard.style.padding = '16px';
+            equipCard.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">🎒 Equipment</h4>
+                    <button id="btn-add-item" class="btn btn-xs btn-ghost">+ Add</button>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px;">
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
+                        <div style="font-size:16px;">⚔️</div>
+                        <div id="slot-main" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
+                        <div style="font-size:9px; color:var(--text-muted);">Main Hand</div>
+                    </div>
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
+                        <div style="font-size:16px;">🛡️</div>
+                        <div id="slot-off" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
+                        <div style="font-size:9px; color:var(--text-muted);">Off Hand</div>
+                    </div>
+                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
+                        <div style="font-size:16px;">🥋</div>
+                        <div id="slot-armor" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
+                        <div style="font-size:9px; color:var(--text-muted);">Armor</div>
+                    </div>
+                </div>
+                <div id="inv-list" style="display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto;"></div>
+            `;
+            row3.appendChild(equipCard);
+
+            // Feats
+            const featsCard = document.createElement('div');
+            featsCard.className = 'card';
+            featsCard.style.padding = '16px';
+            featsCard.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">✨ Feats & Abilities</h4>
+                    <button id="btn-add-feat" class="btn btn-xs btn-ghost">+ Add</button>
+                </div>
+                <div id="feats-list" style="display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto;"></div>
+            `;
+            row3.appendChild(featsCard);
+            content.appendChild(row3);
+
+            // --- Equipment Logic ---
             const updateInventoryUI = () => {
-                const invList = gearSection.querySelector('#inv-list');
-                const slotMain = gearSection.querySelector('#slot-main');
-                const slotOff = gearSection.querySelector('#slot-off');
-                const slotArmor = gearSection.querySelector('#slot-armor');
+                const invList = equipCard.querySelector('#inv-list');
+                const slotMain = equipCard.querySelector('#slot-main');
+                const slotOff = equipCard.querySelector('#slot-off');
+                const slotArmor = equipCard.querySelector('#slot-armor');
 
-                // Update Slots Display
                 const getItemName = (id) => {
                     if (!id) return '-';
                     const armory = A.State.get().rpg?.items || [];
                     const itm = armory.find(i => i.id === id);
-                    return itm ? itm.name : id; // Fallback to ID
+                    return itm ? itm.name : id;
                 };
-                slotMain.textContent = getItemName(actor.data.rpg.equipped.main_hand);
-                slotOff.textContent = getItemName(actor.data.rpg.equipped.off_hand);
-                slotArmor.textContent = getItemName(actor.data.rpg.equipped.armor);
 
-                // Render List
+                slotMain.textContent = getItemName(rpg.equipped.main_hand);
+                slotOff.textContent = getItemName(rpg.equipped.off_hand);
+                slotArmor.textContent = getItemName(rpg.equipped.armor);
+
                 invList.innerHTML = '';
-                if (actor.data.rpg.inventory.length === 0) {
-                    invList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic;">Backpack is empty.</div>';
+                if (rpg.inventory.length === 0) {
+                    invList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic; text-align:center; padding:12px;">Inventory empty</div>';
+                    return;
                 }
 
-                actor.data.rpg.inventory.forEach(itemId => {
+                rpg.inventory.forEach((itemId, idx) => {
                     const armory = A.State.get().rpg?.items || [];
-                    const itemData = armory.find(i => i.id === itemId) || { name: 'Unknown Item', type: 'misc', id: itemId };
+                    const itemData = armory.find(i => i.id === itemId) || { name: 'Unknown', type: 'misc', id: itemId };
 
-                    const row = document.createElement('div');
-                    row.className = 'list-item';
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'space-between';
-                    row.style.alignItems = 'center';
-                    row.style.padding = '8px';
-                    row.style.background = 'var(--bg-base)';
-                    row.style.borderRadius = '4px';
-
-                    // Determine State
-                    const isMain = actor.data.rpg.equipped.main_hand === itemId;
-                    const isOff = actor.data.rpg.equipped.off_hand === itemId;
-                    const isArmor = actor.data.rpg.equipped.armor === itemId;
+                    const isMain = rpg.equipped.main_hand === itemId;
+                    const isOff = rpg.equipped.off_hand === itemId;
+                    const isArmor = rpg.equipped.armor === itemId;
                     const isEquipped = isMain || isOff || isArmor;
 
-                    let stateLabel = '';
-                    if (isMain) stateLabel = '<span style="color:var(--accent-primary); font-size:10px; font-weight:bold; border:1px solid currentColor; padding:1px 4px; border-radius:4px;">Main</span>';
-                    if (isOff) stateLabel = '<span style="color:var(--accent-secondary); font-size:10px; font-weight:bold; border:1px solid currentColor; padding:1px 4px; border-radius:4px;">Off</span>';
-                    if (isArmor) stateLabel = '<span style="color:var(--status-success); font-size:10px; font-weight:bold; border:1px solid currentColor; padding:1px 4px; border-radius:4px;">Worn</span>';
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--bg-surface); border-radius:4px; font-size:11px;';
+
+                    const icon = itemData.type === 'weapon' ? '⚔️' : itemData.type === 'armor' ? '🛡️' : '📦';
+                    const equipped = isMain ? '(Main)' : isOff ? '(Off)' : isArmor ? '(Worn)' : '';
 
                     row.innerHTML = `
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:14px;">${itemData.type === 'weapon' ? '⚔️' : (itemData.type === 'armor' ? '🛡️' : '📦')}</span>
-                            <span style="font-size:12px; font-weight:bold;">${itemData.name}</span>
-                            ${stateLabel}
-                        </div>
-                        <div style="display:flex; gap:6px;">
-                            ${itemData.type === 'weapon' || itemData.type === 'armor' ?
-                            `<button class="btn btn-xs btn-ghost btn-equip" style="font-size:10px;">${isEquipped ? 'Unequip' : 'Equip'}</button>` : ''}
-                            <button class="btn btn-xs btn-ghost btn-drop" style="color:var(--status-error); font-size:10px;">Drop</button>
+                        <span>${icon} ${itemData.name} <span style="color:var(--accent-primary);">${equipped}</span></span>
+                        <div style="display:flex; gap:4px;">
+                            ${(itemData.type === 'weapon' || itemData.type === 'armor') ? `<button class="btn-eq btn btn-xs btn-ghost">${isEquipped ? 'Unequip' : 'Equip'}</button>` : ''}
+                            <button class="btn-drop btn btn-xs btn-ghost" style="color:var(--status-error);">✕</button>
                         </div>
                     `;
 
-                    // Actions
-                    const btnEquip = row.querySelector('.btn-equip');
-                    if (btnEquip) {
-                        btnEquip.onclick = () => {
+                    const eqBtn = row.querySelector('.btn-eq');
+                    if (eqBtn) {
+                        eqBtn.onclick = () => {
                             if (isEquipped) {
-                                // Unequip Logic
-                                if (isMain) actor.data.rpg.equipped.main_hand = null;
-                                if (isOff) actor.data.rpg.equipped.off_hand = null;
-                                if (isArmor) actor.data.rpg.equipped.armor = null;
-                                A.State.notify();
-                                updateInventoryUI();
+                                if (isMain) rpg.equipped.main_hand = null;
+                                if (isOff) rpg.equipped.off_hand = null;
+                                if (isArmor) rpg.equipped.armor = null;
                             } else {
-                                // Equip Logic
                                 if (itemData.type === 'weapon') {
-                                    // Cycle: Main -> Off -> Full
-                                    if (!actor.data.rpg.equipped.main_hand) {
-                                        actor.data.rpg.equipped.main_hand = itemId;
-                                    } else if (!actor.data.rpg.equipped.off_hand) {
-                                        actor.data.rpg.equipped.off_hand = itemId;
-                                    } else {
-                                        // Swap Main
-                                        actor.data.rpg.equipped.main_hand = itemId;
-                                    }
+                                    if (!rpg.equipped.main_hand) rpg.equipped.main_hand = itemId;
+                                    else if (!rpg.equipped.off_hand) rpg.equipped.off_hand = itemId;
+                                    else rpg.equipped.main_hand = itemId;
                                 } else if (itemData.type === 'armor') {
-                                    // Swap Armor
-                                    actor.data.rpg.equipped.armor = itemId;
+                                    rpg.equipped.armor = itemId;
                                 }
-                                A.State.notify();
-                                updateInventoryUI();
                             }
+                            A.State.notify();
+                            updateInventoryUI();
                         };
                     }
 
                     row.querySelector('.btn-drop').onclick = () => {
-                        if (confirm(`Drop ${itemData.name}?`)) {
-                            // Unequip first if needed
-                            if (isMain) actor.data.rpg.equipped.main_hand = null;
-                            if (isOff) actor.data.rpg.equipped.off_hand = null;
-                            if (isArmor) actor.data.rpg.equipped.armor = null;
-
-                            // Remove from inventory array (find first instance if duplicates exist, though basic ID array removes all if filtered. Let's splice index)
-                            const idx = actor.data.rpg.inventory.indexOf(itemId);
-                            if (idx > -1) actor.data.rpg.inventory.splice(idx, 1);
-
-                            A.State.notify();
-                            updateInventoryUI();
-                        }
+                        if (isMain) rpg.equipped.main_hand = null;
+                        if (isOff) rpg.equipped.off_hand = null;
+                        if (isArmor) rpg.equipped.armor = null;
+                        rpg.inventory.splice(idx, 1);
+                        A.State.notify();
+                        updateInventoryUI();
                     };
 
                     invList.appendChild(row);
                 });
             };
-
-            // Initial UI Update
             updateInventoryUI();
 
-            // Add Item Handler
-            gearSection.querySelector('#btn-add-item').onclick = () => {
+            // Add Item
+            equipCard.querySelector('#btn-add-item').onclick = () => {
                 const armory = A.State.get().rpg?.items || [];
                 if (armory.length === 0) {
-                    alert("Armory is empty. Define items in the Game Master panel first.");
+                    if (A.UI.Toast) A.UI.Toast.show('Armory is empty. Define items first.', 'warning');
                     return;
                 }
 
-                // Simple Prompt for MVP (Better: Modal Picker)
-                // Let's create a temporary overlay picker
-                const picker = document.createElement('div');
-                picker.style.position = 'absolute';
-                picker.style.top = '0'; picker.style.left = '0'; picker.style.right = '0'; picker.style.bottom = '0';
-                picker.style.background = 'rgba(0,0,0,0.8)';
-                picker.style.display = 'flex';
-                picker.style.alignItems = 'center';
-                picker.style.justifyContent = 'center';
-                picker.style.zIndex = '100';
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.width = '300px';
-                card.style.maxHeight = '400px';
-                card.style.display = 'flex';
-                card.style.flexDirection = 'column';
-                card.style.padding = '12px';
-                card.style.gap = '8px';
-
-                card.innerHTML = `
-                    <div style="font-weight:bold; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Add to Inventory</div>
-                    <input class="input" placeholder="Search Armory..." id="picker-search">
-                    <div id="picker-list" style="flex:1; overflow-y:auto; min-height:100px;"></div>
-                    <button class="btn btn-sm btn-ghost" id="picker-close" style="margin-top:8px;">Cancel</button>
+                const modalContent = document.createElement('div');
+                modalContent.innerHTML = `
+                    <input class="input" placeholder="Search..." id="item-search" style="width:100%; margin-bottom:12px;">
+                    <div id="item-list" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
                 `;
 
-                const renderPicker = (filter = "") => {
-                    const list = card.querySelector('#picker-list');
+                const renderItems = (filter = '') => {
+                    const list = modalContent.querySelector('#item-list');
                     list.innerHTML = '';
                     armory.filter(i => i.name.toLowerCase().includes(filter.toLowerCase())).forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = 'list-item';
-                        row.style.padding = '6px';
-                        row.style.cursor = 'pointer';
-                        row.style.fontSize = '12px';
-                        row.innerHTML = `<b>${item.name}</b> <span style="opacity:0.7">(${item.type})</span>`;
-                        row.onclick = () => {
-                            actor.data.rpg.inventory.push(item.id);
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-ghost';
+                        btn.style.cssText = 'text-align:left; padding:8px;';
+                        btn.innerHTML = `<strong>${item.name}</strong> <span style="opacity:0.6;">(${item.type})</span>`;
+                        btn.onclick = () => {
+                            rpg.inventory.push(item.id);
                             A.State.notify();
                             updateInventoryUI();
-                            document.body.removeChild(picker);
+                            A.UI.Modal.hide();
                         };
-                        list.appendChild(row);
+                        list.appendChild(btn);
                     });
                 };
 
-                card.querySelector('#picker-search').oninput = (e) => renderPicker(e.target.value);
-                card.querySelector('#picker-close').onclick = () => document.body.removeChild(picker);
+                A.UI.Modal.show({
+                    title: '🎒 Add to Inventory',
+                    content: modalContent,
+                    width: 350
+                });
 
-                renderPicker();
-                picker.appendChild(card);
-                document.body.appendChild(picker);
+                modalContent.querySelector('#item-search').oninput = (e) => renderItems(e.target.value);
+                renderItems();
             };
 
-            // Class Input
-            const classDiv = document.createElement('div');
-            classDiv.innerHTML = `<label class="l-lab">Class / Profession</label>`;
-            const classInput = document.createElement('input');
-            classInput.className = 'input';
-            classInput.style.width = '100%';
-            classInput.value = actor.data.rpg.stats?.class || '';
-            classInput.placeholder = 'e.g. Wizard';
-            classInput.onchange = (e) => {
-                if (!actor.data.rpg.stats) actor.data.rpg.stats = {};
-                actor.data.rpg.stats.class = e.target.value;
-                A.State.notify();
-            };
-            classDiv.appendChild(classInput);
-            leftCol.appendChild(classDiv);
-
-            // Abilities / Feats (Structured)
-            const abilDiv = document.createElement('div');
-            abilDiv.style.marginTop = '12px';
-            abilDiv.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <label class="l-lab" style="margin:0;">Feats & Abilities</label>
-                    <button id="add-feat-btn" class="btn btn-sm btn-ghost" style="font-size:12px;">+ Add</button>
-                </div>
-                <div id="feats-list" style="display:flex; flex-direction:column; gap:6px;"></div>
-            `;
-            leftCol.appendChild(abilDiv);
-
-            // Initialize feats array if needed
-            if (!actor.data.rpg.feats) actor.data.rpg.feats = [];
-
+            // --- Feats Logic ---
             const updateFeatsUI = () => {
                 const state = A.State.get();
-                const featDb = state.rpg && state.rpg.featDatabase ? state.rpg.featDatabase : [];
-                const listEl = abilDiv.querySelector('#feats-list');
-                listEl.innerHTML = '';
+                const featDb = state.rpg?.featDatabase || [];
+                const featsList = featsCard.querySelector('#feats-list');
+                featsList.innerHTML = '';
 
-                if (actor.data.rpg.feats.length === 0) {
-                    listEl.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:12px;">No feats assigned.</div>';
+                if (rpg.feats.length === 0) {
+                    featsList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic; text-align:center; padding:12px;">No feats assigned</div>';
                     return;
                 }
 
-                actor.data.rpg.feats.forEach((featId, idx) => {
+                rpg.feats.forEach((featId, idx) => {
                     const feat = featDb.find(f => f.id === featId) || { id: featId, name: featId, type: 'unknown' };
+                    const icon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : feat.type === 'reaction' ? '🛡️' : '📜';
+
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface); padding:6px 10px; border-radius:var(--radius-sm); font-size:13px;';
-
-                    const typeIcon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : '📜';
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-surface); border-radius:4px;';
                     row.innerHTML = `
-                        <span>${typeIcon} <strong>${feat.name}</strong></span>
-                        <button class="btn btn-sm btn-ghost" style="font-size:10px; color:var(--danger);" data-idx="${idx}">✕</button>
+                        <div>
+                            <div style="font-size:12px; font-weight:bold;">${icon} ${feat.name}</div>
+                            ${feat.shortDesc ? `<div style="font-size:10px; color:var(--text-muted);">${feat.shortDesc}</div>` : ''}
+                        </div>
+                        <button class="btn btn-xs btn-ghost" style="color:var(--status-error);">✕</button>
                     `;
-
                     row.querySelector('button').onclick = () => {
-                        actor.data.rpg.feats.splice(idx, 1);
+                        rpg.feats.splice(idx, 1);
                         A.State.notify();
                         updateFeatsUI();
                     };
-
-                    listEl.appendChild(row);
+                    featsList.appendChild(row);
                 });
             };
-
-            // Add Feat Button
-            abilDiv.querySelector('#add-feat-btn').onclick = () => {
-                const state = A.State.get();
-                if (!state.rpg) state.rpg = {};
-                if (!state.rpg.featDatabase) state.rpg.featDatabase = [];
-
-                // If no feats exist, create defaults
-                if (state.rpg.featDatabase.length === 0) {
-                    state.rpg.featDatabase = [
-                        { id: 'feat_fireball', name: 'Fireball', type: 'spell', effect: '8d6 fire damage in 20ft radius' },
-                        { id: 'feat_sneak_attack', name: 'Sneak Attack', type: 'ability', effect: '+2d6 damage when attacking with advantage' },
-                        { id: 'feat_second_wind', name: 'Second Wind', type: 'ability', effect: 'Heal 1d10 + level HP as bonus action' },
-                        { id: 'feat_rage', name: 'Rage', type: 'ability', effect: '+2 damage, resistance to physical' }
-                    ];
-                    A.State.notify();
-                }
-
-                // Show picker modal
-                const modal = document.createElement('div');
-                modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;';
-                modal.innerHTML = `
-                    <div style="background:var(--bg-card); padding:20px; border-radius:var(--radius-lg); min-width:300px; max-height:80vh; overflow-y:auto;">
-                        <div style="font-weight:bold; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Add Feat/Ability</div>
-                        <div id="feat-picker-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-                        <button id="close-feat-picker" class="btn btn-sm" style="margin-top:16px; width:100%;">Cancel</button>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-
-                const pickerList = modal.querySelector('#feat-picker-list');
-                state.rpg.featDatabase.forEach(feat => {
-                    const alreadyHas = actor.data.rpg.feats.includes(feat.id);
-                    const btn = document.createElement('button');
-                    btn.className = 'btn btn-sm';
-                    btn.style.cssText = 'text-align:left; padding:8px 12px;' + (alreadyHas ? 'opacity:0.5;' : '');
-                    btn.disabled = alreadyHas;
-                    const typeIcon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : '📜';
-                    btn.innerHTML = `${typeIcon} <strong>${feat.name}</strong><br><small style="opacity:0.7;">${feat.effect || ''}</small>`;
-                    btn.onclick = () => {
-                        actor.data.rpg.feats.push(feat.id);
-                        A.State.notify();
-                        updateFeatsUI();
-                        modal.remove();
-                    };
-                    pickerList.appendChild(btn);
-                });
-
-                modal.querySelector('#close-feat-picker').onclick = () => modal.remove();
-                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-            };
-
             updateFeatsUI();
 
-            detailsSection.appendChild(leftCol);
+            // Add Feat
+            featsCard.querySelector('#btn-add-feat').onclick = () => {
+                const state = A.State.get();
+                const featDb = state.rpg?.featDatabase || [];
 
-            // Radar & Stats Overview
-            const rightCol = document.createElement('div');
-            rightCol.style.display = 'flex';
-            rightCol.style.alignItems = 'center';
-            rightCol.style.justifyContent = 'center';
-            rightCol.style.background = 'var(--bg-surface)';
-            rightCol.style.borderRadius = 'var(--radius-lg)';
-            rightCol.style.padding = '16px';
-            rightCol.id = 'radar-container';
-            detailsSection.appendChild(rightCol);
+                if (featDb.length === 0) {
+                    if (A.UI.Toast) A.UI.Toast.show('No feats defined. Create some in the Feats panel.', 'warning');
+                    return;
+                }
 
-            content.appendChild(detailsSection);
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = 'display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto;';
 
-            // 2. Stats Matrix Blocks
-            const statsSection = document.createElement('div');
-            statsSection.style.marginTop = '16px';
-
-            if (matrix.blocks.length > 0) {
-                matrix.blocks.forEach((block, bIdx) => {
-                    // Ensure values
-                    if (!matrix.values[block.id]) matrix.values[block.id] = {};
-                    const vals = matrix.values[block.id];
-
-                    const blockDiv = document.createElement('div');
-                    blockDiv.className = 'card';
-                    blockDiv.style.padding = '16px';
-                    blockDiv.style.marginBottom = '16px';
-                    blockDiv.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
-                            <h3 style="margin:0; font-size:14px; font-weight:bold;">${block.label}</h3>
-                            <button class="btn btn-sm btn-ghost btn-del-blk" data-idx="${bIdx}" style="color:var(--status-error);">Remove</button>
-                        </div>
-                     `;
-
-                    const grid = document.createElement('div');
-                    grid.style.display = 'grid';
-                    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px, 1fr))';
-                    grid.style.gap = '12px';
-
-                    block.defs.forEach(def => {
-                        const val = vals[def.key] !== undefined ? vals[def.key] : (def.min || 10);
-                        const item = document.createElement('div');
-                        item.style.background = 'var(--bg-base)';
-                        item.style.padding = '8px';
-                        item.style.borderRadius = '4px';
-
-                        item.innerHTML = `
-                            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
-                                <span style="font-weight:600;">${def.label}</span>
-                                <span class="val-disp">${val}</span>
-                            </div>
-                            <input type="range" class="rpg-stat-slider" min="${def.min}" max="${def.max}" value="${val}" style="width:100%;">
-                        `;
-                        const inp = item.querySelector('input');
-                        inp.oninput = (e) => {
-                            vals[def.key] = parseFloat(e.target.value);
-                            item.querySelector('.val-disp').textContent = vals[def.key];
-                            // Debounce notify? For now direct
-                            A.State.notify();
-                            updateRadar(rightCol);
-                        };
-                        grid.appendChild(item);
-                    });
-
-                    blockDiv.appendChild(grid);
-                    statsSection.appendChild(blockDiv);
+                featDb.forEach(feat => {
+                    const has = rpg.feats.includes(feat.id);
+                    const icon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : feat.type === 'reaction' ? '🛡️' : '📜';
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-ghost';
+                    btn.disabled = has;
+                    btn.style.cssText = `text-align:left; padding:10px; ${has ? 'opacity:0.5;' : ''}`;
+                    btn.innerHTML = `
+                        <div style="font-weight:bold;">${icon} ${feat.name}</div>
+                        <div style="font-size:11px; opacity:0.7;">${feat.shortDesc || feat.description?.substring(0, 50) || ''}</div>
+                    `;
+                    btn.onclick = () => {
+                        rpg.feats.push(feat.id);
+                        A.State.notify();
+                        updateFeatsUI();
+                        A.UI.Modal.hide();
+                    };
+                    modalContent.appendChild(btn);
                 });
-            } else {
-                statsSection.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-style:italic;">No custom stats defined. Add a stats block above to customize.</div>`;
-            }
 
-            content.appendChild(statsSection);
+                A.UI.Modal.show({
+                    title: '✨ Add Feat',
+                    content: modalContent,
+                    width: 400
+                });
+            };
 
-            // -- Handlers --
-
-            // Add D&D
-            header.querySelector('#act-add-dnd').onclick = () => {
+            // --- Header Actions ---
+            header.querySelector('#btn-add-stats').onclick = () => {
                 if (matrix.blocks.find(b => b.id === 'dnd')) {
-                    alert('D20 Stats block already exists.'); return;
+                    if (A.UI.Toast) A.UI.Toast.show('D20 Stats block already exists.', 'info');
+                    return;
                 }
                 const tpl = TEMPLATES['dnd'];
                 matrix.blocks.push({ id: 'dnd', label: tpl.label, defs: JSON.parse(JSON.stringify(tpl.defs)) });
@@ -838,83 +718,90 @@
                 refreshMain();
             };
 
-            // Add Custom
-            header.querySelector('#act-add-custom').onclick = () => {
-                const name = prompt("Stat Block Name (e.g. 'Social Skills'):");
-                if (!name) return;
-                let blockId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-                if (!blockId) blockId = 'custom';
-                // Unique check
-                let oid = blockId, s = 1;
-                while (matrix.blocks.find(b => b.id === blockId)) blockId = oid + '_' + s++;
-
-                const countStr = prompt("How many stats?");
-                const count = parseInt(countStr);
-                if (isNaN(count) || count < 1) return;
-
-                const defs = [];
-                const dvals = {};
-
-                for (let i = 0; i < count; i++) {
-                    const l = prompt(`Label for Stat #${i + 1}`);
-                    if (!l) continue;
-                    const k = l.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') || `S${i}`;
-                    defs.push({ key: k, label: l, min: 0, max: 20 });
-                    dvals[k] = 10;
+            header.querySelector('#btn-remove').onclick = () => {
+                if (confirm(`Remove ${actor.name} from the party? (Data is preserved)`)) {
+                    rpg.enabled = false;
+                    A.State.notify();
+                    currentActorId = null;
+                    refreshSidebar();
+                    refreshMain();
                 }
-
-                matrix.blocks.push({ id: blockId, label: name, defs: defs });
-                matrix.values[blockId] = dvals;
-                A.State.notify();
-                refreshMain();
             };
-
-            // Remove Block
-            content.querySelectorAll('.btn-del-blk').forEach(btn => {
-                btn.onclick = (e) => {
-                    if (confirm('Remove this stat block?')) {
-                        const idx = parseInt(e.target.dataset.idx);
-                        matrix.blocks.splice(idx, 1);
-                        A.State.notify();
-                        refreshMain();
-                    }
-                };
-            });
-
-            // Initial Radar Render
-            updateRadar(rightCol);
         }
 
         function updateRadar(container) {
             const members = getPartyMembers();
             const actor = members.find(a => a.id === currentActorId);
             if (!actor || !actor.data.rpg.stats_matrix || actor.data.rpg.stats_matrix.blocks.length === 0) {
-                container.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">Add Stats to view Chart</div>';
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">Add stats to view chart</div>';
                 return;
             }
 
-            // Visualize the first block for now
             const matrix = actor.data.rpg.stats_matrix;
-            const block = matrix.blocks[0]; // Default to first
+            const block = matrix.blocks[0];
             if (!block) return;
 
             const vals = matrix.values[block.id] || {};
-            const labels = block.defs.map(d => d.label);
-            const values = block.defs.map(d => (vals[d.key] !== undefined ? vals[d.key] : (d.min || 0)));
-            const min = block.defs[0].min || 0;
+            const labels = block.defs.map(d => d.key);
+            const values = block.defs.map(d => vals[d.key] !== undefined ? vals[d.key] : 10);
+            const min = block.defs[0].min || 1;
             const max = block.defs[0].max || 20;
 
-            container.innerHTML = AxisRadar.renderRadar(300, 300, labels, values, min, max);
+            container.innerHTML = AxisRadar.renderRadar(280, 280, labels, values, min, max);
         }
+
+        // --- Add Member ---
+        sidebarHeader.querySelector('#btn-add-member').onclick = () => {
+            const state = A.State.get();
+            const allActors = (state.nodes?.actors?.items) ? Object.values(state.nodes.actors.items) : [];
+            const nonParty = allActors.filter(a => !a.data?.rpg?.enabled);
+
+            if (nonParty.length === 0) {
+                if (A.UI.Toast) A.UI.Toast.show('All actors are already in the party.', 'info');
+                return;
+            }
+
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = 'display:flex; flex-direction:column; gap:6px;';
+
+            nonParty.forEach(a => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-ghost';
+                btn.style.cssText = 'text-align:left; padding:10px;';
+                btn.textContent = a.name;
+                btn.onclick = () => {
+                    if (!a.data) a.data = {};
+                    if (!a.data.rpg) {
+                        a.data.rpg = { hp: 20, maxHp: 20, mp: 10, maxMp: 10, ac: 10, enabled: true, stats: { level: 1, class: '' } };
+                    } else {
+                        a.data.rpg.enabled = true;
+                    }
+                    A.State.notify();
+                    currentActorId = a.id;
+                    refreshSidebar();
+                    refreshMain();
+                    A.UI.Modal.hide();
+                };
+                modalContent.appendChild(btn);
+            });
+
+            A.UI.Modal.show({
+                title: '➕ Add to Party',
+                content: modalContent,
+                width: 300
+            });
+        };
 
         // Init
         refreshSidebar();
-
+        if (getPartyMembers().length > 0) {
+            refreshMain();
+        }
     }
 
     A.registerPanel('rpg_party', {
         label: 'Party',
-        subtitle: 'Setup & Equipment',
+        subtitle: 'Character Sheets',
         category: 'RPG Experiment',
         icon: '🛡️',
         render: render

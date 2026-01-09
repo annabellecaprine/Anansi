@@ -93,7 +93,48 @@ function findActor(name) {
     return hit;
 }
 
+// --- ACTION ECONOMY ---
+// Consume an action from the current combatant
+// Returns true if action was available, false if not enough actions
+// All action types consume from the same pool (actions + bonusActions combined)
+function consumeAction(sysLogs) {
+    if (!state.rpg.combat || !state.rpg.combat.active) return true; // No combat, allow free actions
+
+    const c = state.rpg.combat;
+    const currentCombatant = c.order[c.turn];
+
+    if (!currentCombatant) return true;
+
+    // Initialize if missing (combine main + bonus into single pool)
+    if (typeof currentCombatant.actions !== 'number') {
+        const mainActions = currentCombatant.maxActions || DEFAULT_ACTIONS;
+        const bonusActions = currentCombatant.maxBonusActions || DEFAULT_BONUS_ACTIONS;
+        currentCombatant.actions = mainActions + bonusActions;
+        currentCombatant.maxActions = currentCombatant.actions;
+    }
+
+    if (currentCombatant.actions <= 0) {
+        sysLogs.push(`⚠️ **${currentCombatant.name}** has no actions remaining!`);
+        return false;
+    }
+
+    currentCombatant.actions--;
+    sysLogs.push(`*(Action used. ${currentCombatant.actions} action${currentCombatant.actions !== 1 ? 's' : ''} remaining)*`);
+
+    // Check if all actions exhausted - auto-end turn
+    if (currentCombatant.actions <= 0) {
+        sysLogs.push(`🔄 **${currentCombatant.name}** has used all actions. Turn ends automatically.`);
+        nextTurn(sysLogs);
+    }
+
+    return true;
+}
+
 // --- COMBAT SYSTEM ---
+// Default actions per turn (main + bonus combined)
+const DEFAULT_ACTIONS = 1;
+const DEFAULT_BONUS_ACTIONS = 1; // Added to DEFAULT_ACTIONS for total
+
 function startCombat(sysLogs) {
     const actors = Object.values(state.nodes.actors.items || {});
     // Filter for Party + any other actors (e.g. Monsters)
@@ -103,13 +144,19 @@ function startCombat(sysLogs) {
     const order = combatants.map(a => {
         const roll = rollDice('1d20');
         const dex = getStat(a, 'DEX', 'mod');
+        // Get actions from actor data or use defaults (combine main + bonus)
+        const mainActions = a.data.rpg.maxActions || DEFAULT_ACTIONS;
+        const bonusActions = a.data.rpg.maxBonusActions || DEFAULT_BONUS_ACTIONS;
+        const totalActions = mainActions + bonusActions;
         return {
             id: a.id,
             name: a.name,
             init: roll.total + dex,
             base: roll.total,
             mod: dex,
-            acted: false
+            acted: false,
+            actions: totalActions,
+            maxActions: totalActions
         };
     });
 
@@ -125,9 +172,9 @@ function startCombat(sysLogs) {
 
     sysLogs.push(`**Combat Started!**`);
     order.forEach(c => {
-        sysLogs.push(`> ${c.name}: ${c.init} (${c.base} + ${c.mod})`);
+        sysLogs.push(`> ${c.name}: ${c.init} (${c.base} + ${c.mod}) [${c.actions} action${c.actions !== 1 ? 's' : ''}]`);
     });
-    sysLogs.push(`**Round 1 Start**. It is **${order[0].name}**'s turn.`);
+    sysLogs.push(`**Round 1 Start**. It is **${order[0].name}**'s turn. (${order[0].actions} action${order[0].actions !== 1 ? 's' : ''} remaining)`);
 
     // Check Start AI
     const firstActor = findActor(order[0].name);
@@ -153,7 +200,7 @@ function startCombat(sysLogs) {
 
 function nextTurn(sysLogs) {
     if (!state.rpg.combat || !state.rpg.combat.active) {
-        sysLogs.push("Combats is not active.");
+        sysLogs.push("Combat is not active.");
         return;
     }
 
@@ -164,12 +211,20 @@ function nextTurn(sysLogs) {
     if (c.turn >= c.order.length) {
         c.turn = 0;
         c.round++;
-        c.order.forEach(o => o.acted = false);
+        c.order.forEach(o => {
+            o.acted = false;
+            // Reset actions for new round
+            o.actions = o.maxActions;
+        });
         sysLogs.push(`**Round ${c.round} Start**`);
     }
 
+    // Reset actions for new turn (in case they didn't use all)
+    const currentCombatant = c.order[c.turn];
+    currentCombatant.actions = currentCombatant.maxActions;
+
     let nextActor = c.order[c.turn];
-    sysLogs.push(`It is now **${nextActor.name}**'s turn.`);
+    sysLogs.push(`It is now **${nextActor.name}**'s turn. (${nextActor.actions} action${nextActor.actions !== 1 ? 's' : ''} remaining)`);
 
     // AI LOOP
     // We execute AI turns synchronously until we hit a Player or Max Steps
@@ -240,13 +295,18 @@ function runAI(actor, sysLogs) {
     // construct a synthetic rule match.
     // For MVP, let's just use the logging and rolling helpers directly.
 
-    const attackRule = rules.find(r => r.id === 'atk_melee') || rules[0];
+    // Ensure atk_melee rule exists for AI
+    let attackRule = rules.find(r => r.id === 'atk_melee');
+    if (!attackRule) {
+        attackRule = { id: 'atk_melee', name: 'Melee Attack', roll: '1d20', mod: 'STR', target: 'AC', tmod: '0', op: '>=' };
+        rules.unshift(attackRule);
+    }
 
     sysLogs.push(`**${actor.name}** attacks **${target.name}**!`);
 
     // ROLL
     const rollResult = rollDice(attackRule.roll);
-    const modVal = getStat(actor, attackRule.mod);
+    const modVal = getStat(actor, attackRule.mod + 'Mod');
 
     // TARGET
     const targetVal = getStat(target, attackRule.target); // AC
@@ -443,18 +503,37 @@ if (context.phase === 'input') {
         nextTurn(sysLogs);
     } else {
         // 2. RULES ENGINE
+        // Core rule IDs that must exist for combat to function
+        const CORE_RULES = [
+            { id: 'atk_melee', name: 'Melee Attack', roll: '1d20', mod: 'STR', target: 'AC', tmod: '0', op: '>=', category: 'combat', isCore: true },
+            { id: 'atk_ranged', name: 'Ranged Attack', roll: '1d20', mod: 'DEX', target: 'AC', tmod: '0', op: '>=', category: 'combat', isCore: true },
+            { id: 'atk_spell', name: 'Spell Attack', roll: '1d20', mod: 'INT', target: 'AC', tmod: '0', op: '>=', category: 'combat', isCore: true },
+            { id: 'act_defend', name: 'Defend', roll: '', mod: '', target: '', tmod: '', op: '', category: 'combat', isCore: true, special: 'defend' },
+            { id: 'act_flee', name: 'Flee', roll: '1d20', mod: 'DEX', target: '10', tmod: '0', op: '>=', category: 'combat', isCore: true, special: 'flee' },
+            { id: 'act_use_item', name: 'Use Item', roll: '', mod: '', target: '', tmod: '', op: '', category: 'combat', isCore: true, special: 'item' },
+            { id: 'act_use_ability', name: 'Use Ability', roll: '', mod: '', target: '', tmod: '', op: '', category: 'combat', isCore: true, special: 'ability' },
+            { id: 'save_fortitude', name: 'Fortitude Save', roll: '1d20', mod: 'CON', target: '15', tmod: '0', op: '>=', category: 'save', isCore: true },
+            { id: 'save_reflex', name: 'Reflex Save', roll: '1d20', mod: 'DEX', target: '15', tmod: '0', op: '>=', category: 'save', isCore: true },
+            { id: 'save_will', name: 'Will Save', roll: '1d20', mod: 'WIS', target: '15', tmod: '0', op: '>=', category: 'save', isCore: true },
+            { id: 'chk_skill', name: 'Skill Check', roll: '1d20', mod: 'INT', target: '10', tmod: '0', op: '>=', category: 'skill' }
+        ];
+
+        // Ensure rules exist
         if (!rules || rules.length === 0) {
             if (!state.rpg.rulesets) state.rpg.rulesets = {};
             if (!state.rpg.rulesets[activeMech]) {
-                state.rpg.rulesets[activeMech] = [
-                    { id: 'atk_melee', name: 'Melee Attack', roll: '1d20', mod: 'STR', target: 'AC', tmod: '0', op: '>=' },
-                    { id: 'atk_range', name: 'Ranged Attack', roll: '1d20', mod: 'DEX', target: 'AC', tmod: '0', op: '>=' },
-                    { id: 'chk_skill', name: 'Skill Check', roll: '1d20', mod: 'INT', target: '10', tmod: '0', op: '>=' }
-                ];
-                rules = state.rpg.rulesets[activeMech];
+                state.rpg.rulesets[activeMech] = JSON.parse(JSON.stringify(CORE_RULES));
                 sysLogs.push("Initialized Default Rules (D20)");
             }
+            rules = state.rpg.rulesets[activeMech];
         }
+
+        // Ensure core rules exist in current ruleset
+        CORE_RULES.filter(cr => cr.isCore).forEach(coreRule => {
+            if (!rules.find(r => r.id === coreRule.id)) {
+                rules.unshift(JSON.parse(JSON.stringify(coreRule)));
+            }
+        });
 
         const matchedRule = rules.find(r => r.name && input.includes(r.name.toLowerCase()));
 
@@ -462,12 +541,8 @@ if (context.phase === 'input') {
             // Identify Subject
             let subject = null;
 
-            // Priority 1: Named in Input
-            const potentialSubjects = Object.values(state.nodes.actors.items || {}).filter(a => input.includes(a.name.toLowerCase()));
-            if (potentialSubjects.length > 0) subject = potentialSubjects[0];
-
-            // Priority 2: Active Combatant (Smart Context)
-            if (!subject && state.rpg.combat && state.rpg.combat.active) {
+            // In COMBAT: Subject is ALWAYS the active combatant (strict turn order)
+            if (state.rpg.combat && state.rpg.combat.active) {
                 const c = state.rpg.combat;
                 if (c.order && c.order[c.turn]) {
                     const activeId = c.order[c.turn].id;
@@ -475,19 +550,28 @@ if (context.phase === 'input') {
                 }
             }
 
-            // Priority 3: Default Hero
+            // Outside combat: Use named actor or default
             if (!subject) {
-                subject = findActor("Hero") || findActor("Player") || Object.values(state.nodes.actors.items || {})[0];
+                // Try named in input
+                const potentialSubjects = Object.values(state.nodes.actors.items || {}).filter(a => input.includes(a.name.toLowerCase()));
+                if (potentialSubjects.length > 0) subject = potentialSubjects[0];
+
+                // Default to first hero
+                if (!subject) {
+                    subject = findActor("Hero") || findActor("Player") || Object.values(state.nodes.actors.items || {})[0];
+                }
             }
 
-            // TURN ENFORCEMENT
+            // TURN ENFORCEMENT - Block if not your turn (monsters can't be controlled by player)
             let allowed = true;
-            if (state.rpg.combat && state.rpg.combat.active) {
+            if (state.rpg.combat && state.rpg.combat.active && subject) {
                 const c = state.rpg.combat;
                 const activeActor = c.order[c.turn];
-                if (activeActor && subject.id !== activeActor.id) {
-                    sysLogs.push(`⚠️ **Use Caution**: It is **${activeActor.name}**'s turn, not ${subject.name}'s.`);
-                    // allowed = false; // SOFT Warning for now
+
+                // Check if active actor is a monster (AI-controlled)
+                if (activeActor && subject.data?.rpg?.type === 'monster') {
+                    sysLogs.push(`⚠️ **${subject.name}** is AI-controlled. It is their turn - wait for their action.`);
+                    allowed = false;
                 }
             }
 
@@ -536,11 +620,133 @@ if (context.phase === 'input') {
                 }
 
                 if (subject) {
+                    // === CHECK ACTION AVAILABILITY ===
+                    // Consume action first - if none available, action is blocked
+                    if (!consumeAction(sysLogs)) {
+                        return; // No actions remaining
+                    }
+
                     sysLogs.push(`**${subject.name}** triggers **${matchedRule.name}**`);
 
+                    // ===== SPECIAL ACTIONS (No Roll Required) =====
+                    if (matchedRule.special === 'defend') {
+                        // Defend: Grant AC bonus until next turn
+                        if (!subject.data.rpg.buffs) subject.data.rpg.buffs = [];
+                        subject.data.rpg.buffs.push({
+                            type: 'defend',
+                            name: 'Defending',
+                            acBonus: 2,
+                            expiresNextTurn: true
+                        });
+                        sysLogs.push(`🛡️ **${subject.name}** takes a defensive stance! (+2 AC until next turn)`);
+                        A.State.notify();
+                        return;
+                    }
+
+                    if (matchedRule.special === 'flee') {
+                        // Flee: Roll DEX check to escape
+                        const fleeRoll = rollDice(matchedRule.roll || '1d20');
+                        const dexMod = getStat(subject, 'DEXMod');
+                        const dc = parseInt(matchedRule.target) || 10;
+                        const total = fleeRoll.total + dexMod;
+                        const success = total >= dc;
+
+                        sysLogs.push(`🎲 Flee attempt: **${total}** (${fleeRoll.total} + ${dexMod}) vs DC ${dc}`);
+
+                        if (success) {
+                            sysLogs.push(`🏃 **${subject.name}** successfully escapes!`);
+                            endCombat(sysLogs);
+                        } else {
+                            sysLogs.push(`❌ **${subject.name}** failed to escape!`);
+                        }
+                        return;
+                    }
+
+                    if (matchedRule.special === 'item') {
+                        // Use Item: Extract item name from input
+                        const itemName = input.replace(/\[.*?\]/g, '').replace(/use item/i, '').trim();
+                        sysLogs.push(`🎒 **${subject.name}** uses **${itemName}**`);
+
+                        // Try to find the item and apply effects
+                        const armory = state.rpg.items || [];
+                        const item = armory.find(i => itemName.toLowerCase().includes(i.name.toLowerCase()));
+
+                        if (item && item.effect) {
+                            if (item.effect.includes('d')) {
+                                // Healing item
+                                const healRoll = rollDice(item.effect);
+                                const heal = healRoll.total;
+                                const maxHp = subject.data.rpg.maxHp || 20;
+                                subject.data.rpg.hp = Math.min(maxHp, (subject.data.rpg.hp || 0) + heal);
+                                sysLogs.push(`💚 Healed **${heal}** HP (${healRoll.str}) → HP: ${subject.data.rpg.hp}/${maxHp}`);
+                            } else {
+                                sysLogs.push(`✨ Effect: ${item.effect}`);
+                            }
+                        } else {
+                            sysLogs.push(`*(Item effect not defined - describe the result)*`);
+                        }
+
+                        A.State.notify();
+                        return;
+                    }
+
+                    if (matchedRule.special === 'ability') {
+                        // Use Ability: Extract ability name from input
+                        const abilityText = input.replace(/\[.*?\]/g, '').replace(/use ability/i, '').trim();
+                        sysLogs.push(`✨ **${subject.name}** uses **${abilityText}**`);
+
+                        // Try to find the ability feat
+                        const featDb = state.rpg.featDatabase || [];
+                        const feat = featDb.find(f => abilityText.toLowerCase().includes(f.name.toLowerCase()));
+
+                        if (feat) {
+                            // Check MP cost
+                            if (feat.activation?.cost) {
+                                const cost = parseInt(feat.activation.cost);
+                                const costType = feat.activation.costType || 'MP';
+                                const current = subject.data.rpg[costType.toLowerCase()] || subject.data.rpg.mp || 0;
+
+                                if (current < cost) {
+                                    sysLogs.push(`❌ Not enough ${costType}! (Have: ${current}, Need: ${cost})`);
+                                    return;
+                                }
+
+                                subject.data.rpg[costType.toLowerCase()] = current - cost;
+                                sysLogs.push(`💨 Spent ${cost} ${costType}`);
+                            }
+
+                            // Apply effect
+                            if (feat.effect && feat.effect.includes('d')) {
+                                const effectRoll = rollDice(feat.effect);
+                                sysLogs.push(`🎲 Effect: **${effectRoll.total}** (${effectRoll.str}) ${feat.effectType || ''}`);
+
+                                // If damaging, apply to target
+                                if (target && (feat.effectType?.includes('damage') || feat.target === 'enemy' || feat.target === 'all_enemies')) {
+                                    if (!target.data.rpg) target.data.rpg = { hp: 10, maxHp: 10 };
+                                    target.data.rpg.hp = Math.max(0, (target.data.rpg.hp || 0) - effectRoll.total);
+                                    sysLogs.push(`⚔️ **${target.name}** takes **${effectRoll.total}** damage! (HP: ${target.data.rpg.hp})`);
+                                }
+                                // If healing
+                                else if (feat.effectType?.includes('heal')) {
+                                    const maxHp = subject.data.rpg.maxHp || 20;
+                                    subject.data.rpg.hp = Math.min(maxHp, (subject.data.rpg.hp || 0) + effectRoll.total);
+                                    sysLogs.push(`💚 **${subject.name}** heals **${effectRoll.total}** HP! (HP: ${subject.data.rpg.hp}/${maxHp})`);
+                                }
+                            }
+
+                            sysLogs.push(`*${feat.description || ''}*`);
+                        } else {
+                            sysLogs.push(`*(Ability not found in database - describe the result)*`);
+                        }
+
+                        A.State.notify();
+                        return;
+                    }
+
+                    // ===== STANDARD ROLL LOGIC =====
                     // ROLL
                     const rollResult = rollDice(matchedRule.roll);
-                    const modVal = getStat(subject, matchedRule.mod); // e.g. STR mod
+                    const modVal = getStat(subject, matchedRule.mod + 'Mod'); // e.g. STR -> STRMod for derived modifier
 
                     // TARGET
                     let targetVal = 0;

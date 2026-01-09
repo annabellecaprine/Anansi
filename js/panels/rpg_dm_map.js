@@ -1,278 +1,596 @@
 /*
- * Anansi Panel: DM Map (Dungeon Master's Atlas)
+ * Anansi Panel: DM Atlas (Dungeon Master's Atlas)
  * File: js/panels/rpg_dm_map.js
  * Category: RPG Experiment
- * Purpose: Backend editor for World Nodes (Locations), managing Loot, Encounters, and Secrets.
- * Pairs with: Locations (Geometry/Desc) and Map (Player View).
+ * Purpose: Overlay RPG data (encounters, loot, traps, secrets) onto locations.
+ * Pairs with: Locations panel (geometry/description), Roleplay session (navigation).
  */
 
 (function (A) {
     'use strict';
 
-    function render(container) {
-        // Layout
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '250px 1fr';
-        container.style.height = '100%';
-        container.style.gap = '1px';
-        container.style.background = 'var(--border-subtle)'; // Gap color
+    // Trap types (setting-agnostic)
+    const TRAP_TYPES = [
+        { id: 'none', label: 'No Trap', icon: '✓' },
+        { id: 'physical', label: 'Physical Trap', icon: '⚙️', examples: 'Pit, spike, crusher, alarm' },
+        { id: 'explosive', label: 'Explosive', icon: '💥', examples: 'Mine, bomb, gas' },
+        { id: 'magical', label: 'Magical/Energy', icon: '✨', examples: 'Curse, force field, lightning' },
+        { id: 'environmental', label: 'Environmental', icon: '🌡️', examples: 'Poison gas, fire, cold' },
+        { id: 'security', label: 'Security System', icon: '🔒', examples: 'Laser grid, turret, camera' }
+    ];
 
-        // Ensure State
+    // Difficulty presets
+    const DIFFICULTY_PRESETS = [
+        { label: 'Trivial', dc: 5, dmg: '1d4', color: 'var(--text-muted)' },
+        { label: 'Easy', dc: 10, dmg: '1d6', color: 'var(--status-success)' },
+        { label: 'Medium', dc: 13, dmg: '2d6', color: 'var(--status-warning)' },
+        { label: 'Hard', dc: 15, dmg: '3d6', color: 'var(--status-error)' },
+        { label: 'Deadly', dc: 18, dmg: '4d6+4', color: 'var(--accent-secondary)' }
+    ];
+
+    // Helper to get all locations across all maps
+    function getAllLocations(state) {
+        if (!state.weaves?.maps) return [];
+        let all = [];
+        state.weaves.maps.forEach(map => {
+            (map.locations || []).forEach(loc => {
+                all.push({ ...loc, _mapId: map.id, _mapName: map.name });
+            });
+        });
+        return all;
+    }
+
+    // Helper to get active map's locations
+    function getActiveMapLocations(state) {
+        if (A.Locations?.getActiveMap) {
+            const map = A.Locations.getActiveMap(state);
+            return (map?.locations || []).map(loc => ({ ...loc, _mapId: map.id, _mapName: map.name }));
+        }
+        // Fallback for old structure
+        return state.weaves?.locations || [];
+    }
+
+    function render(container) {
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = '280px 1fr';
+        container.style.height = '100%';
+        container.style.gap = '0';
+        container.style.background = 'var(--bg-base)';
+
         const state = A.State.get();
-        if (!state.weaves) state.weaves = {};
-        if (!state.weaves.locations) state.weaves.locations = [];
+
+        // Ensure map structure exists
+        if (A.Locations?.ensureMapStructure) {
+            A.Locations.ensureMapStructure(state);
+        } else {
+            if (!state.weaves) state.weaves = {};
+            if (!state.weaves.locations) state.weaves.locations = [];
+        }
+
+        if (!state.rpg) state.rpg = {};
+        if (!state.rpg.bestiary) state.rpg.bestiary = [];
+
+        let selectedId = null;
+        let viewMode = 'active'; // 'active' or 'all'
 
         // --- Left: Location List ---
         const leftCol = document.createElement('div');
-        leftCol.style.background = 'var(--bg-base)';
-        leftCol.style.display = 'flex';
-        leftCol.style.flexDirection = 'column';
-        leftCol.style.overflow = 'hidden';
+        leftCol.style.cssText = 'background:var(--bg-surface); display:flex; flex-direction:column; overflow:hidden; border-right:1px solid var(--border-subtle);';
 
         leftCol.innerHTML = `
-            <div class="panel-toolbar" style="padding:12px; font-weight:bold; border-bottom:1px solid var(--border-subtle);">
-                🏛️ Locations
+            <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
+                <h2 style="margin:0 0 4px; font-size:16px; display:flex; align-items:center; gap:8px;">
+                    🗺️ DM Atlas
+                </h2>
+                <p style="margin:0; font-size:11px; color:var(--text-muted);">Add encounters, loot & secrets to locations</p>
+            </div>
+            <div style="padding:8px; border-bottom:1px solid var(--border-subtle); display:flex; gap:4px;">
+                <button class="btn btn-sm view-toggle" data-view="active" style="flex:1;">Active Map</button>
+                <button class="btn btn-sm btn-ghost view-toggle" data-view="all" style="flex:1;">All Maps</button>
+            </div>
+            <div style="padding:8px; border-bottom:1px solid var(--border-subtle);">
+                <input class="input" id="search-locs" placeholder="Search locations..." style="width:100%;">
             </div>
             <div id="dm-loc-list" style="flex:1; overflow-y:auto; padding:8px;"></div>
+            <div style="padding:12px; border-top:1px solid var(--border-subtle); font-size:10px; color:var(--text-muted);">
+                <strong>Legend:</strong><br>
+                💀 Has encounters • 💎 Has loot • ⚠️ Has trap • 🤫 Has secrets
+            </div>
         `;
         container.appendChild(leftCol);
 
         // --- Right: Editor ---
         const rightCol = document.createElement('div');
-        rightCol.style.background = 'var(--bg-base)';
-        rightCol.style.padding = '0';
-        rightCol.style.display = 'flex';
-        rightCol.style.flexDirection = 'column';
-        rightCol.style.overflow = 'hidden';
-
-        // Initial Empty State
+        rightCol.style.cssText = 'background:var(--bg-base); display:flex; flex-direction:column; overflow:hidden;';
         rightCol.innerHTML = `
-            <div style="flex:1; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-style:italic;">
-                Select a location to edit DM details.
+            <div id="editor-empty" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted);">
+                <span style="font-size:48px; margin-bottom:12px;">🗺️</span>
+                <div style="font-size:14px;">Select a location to add RPG data</div>
+                <div style="font-size:11px; margin-top:8px;">Create locations in the <strong>Locations</strong> panel first</div>
             </div>
+            <div id="editor-main" style="display:none; flex-direction:column; height:100%;"></div>
         `;
         container.appendChild(rightCol);
 
-        // --- Logic ---
         const locList = leftCol.querySelector('#dm-loc-list');
+        const searchInput = leftCol.querySelector('#search-locs');
 
-        const renderList = (selectedId) => {
+        // View toggle buttons
+        leftCol.querySelectorAll('.view-toggle').forEach(btn => {
+            btn.onclick = () => {
+                viewMode = btn.dataset.view;
+                leftCol.querySelectorAll('.view-toggle').forEach(b => {
+                    b.classList.toggle('btn-ghost', b.dataset.view !== viewMode);
+                });
+                renderList();
+            };
+        });
+
+        // --- Render Location List ---
+        const renderList = () => {
+            const search = searchInput.value.toLowerCase();
             locList.innerHTML = '';
-            state.weaves.locations.forEach(loc => {
+
+            const allLocs = viewMode === 'all' ? getAllLocations(state) : getActiveMapLocations(state);
+            const locations = allLocs.filter(loc =>
+                !search || loc.name?.toLowerCase().includes(search)
+            );
+
+            if (locations.length === 0) {
+                locList.innerHTML = `
+                    <div style="text-align:center; padding:20px; color:var(--text-muted);">
+                        ${allLocs.length === 0
+                        ? '<div style="font-size:11px;">No locations defined.<br>Create some in the <strong>Locations</strong> panel.</div>'
+                        : '<div style="font-size:11px;">No matches found.</div>'
+                    }
+                    </div>
+                `;
+                return;
+            }
+
+            locations.forEach(loc => {
+                const rpg = loc.rpg || {};
+                const hasEncounters = rpg.encounters && rpg.encounters.length > 0;
+                const hasLoot = rpg.loot && rpg.loot.length > 0;
+                const hasTrap = rpg.trap && rpg.trap.type && rpg.trap.type !== 'none';
+                const hasSecrets = rpg.secrets && rpg.secrets.trim().length > 0;
+                const isSelected = loc.id === selectedId;
+
+                const badges = [];
+                if (hasEncounters) badges.push('💀');
+                if (hasLoot) badges.push('💎');
+                if (hasTrap) badges.push('⚠️');
+                if (hasSecrets) badges.push('🤫');
+
                 const el = document.createElement('div');
-                el.className = 'nav-item'; // repurpose nav style or generic
-                el.style.padding = '8px 12px';
-                el.style.cursor = 'pointer';
-                el.style.borderRadius = '4px';
-                el.style.fontSize = '12px';
-                el.style.marginBottom = '4px';
-                el.style.display = 'flex';
-                el.style.justifyContent = 'space-between';
-                el.style.alignItems = 'center';
-
-                if (loc.id === selectedId) {
-                    el.style.background = 'var(--accent-primary)';
-                    el.style.color = 'white';
-                } else {
-                    el.style.color = 'var(--text-secondary)';
-                }
-
-                // Hover effect handled by css usually, manual here
-                el.onmouseenter = () => { if (loc.id !== selectedId) el.style.background = 'var(--bg-elevated)'; };
-                el.onmouseleave = () => { if (loc.id !== selectedId) el.style.background = 'transparent'; };
-
-                el.innerHTML = `
-                    <span>${loc.name || 'Unnamed'}</span>
-                    ${(loc.rpg && (loc.rpg.encounters?.length || loc.rpg.loot?.length)) ? '<span style="font-size:10px; opacity:0.7;">⚙️</span>' : ''}
+                el.style.cssText = `
+                    padding:12px; cursor:pointer; border-radius:6px; margin-bottom:6px;
+                    background:${isSelected ? 'var(--bg-elevated)' : 'transparent'};
+                    border:2px solid ${isSelected ? 'var(--accent-primary)' : 'transparent'};
+                    transition:all 0.15s;
                 `;
 
+                el.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+                            ${loc.name || 'Unnamed'}
+                        </span>
+                        <span style="font-size:12px;">${badges.join(' ') || '<span style="color:var(--text-muted);">—</span>'}</span>
+                    </div>
+                    ${viewMode === 'all' && loc._mapName ? `<div style="font-size:9px; color:var(--accent-primary); margin-top:2px;">📍 ${loc._mapName}</div>` : ''}
+                    ${loc.description ? `<div style="font-size:10px; color:var(--text-muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${loc.description.substring(0, 50)}${loc.description.length > 50 ? '...' : ''}</div>` : ''}
+                `;
+
+                if (!isSelected) {
+                    el.onmouseenter = () => el.style.background = 'var(--bg-hover)';
+                    el.onmouseleave = () => el.style.background = 'transparent';
+                }
+
                 el.onclick = () => {
+                    selectedId = loc.id;
+                    renderList();
                     renderEditor(loc);
-                    renderList(loc.id);
                 };
 
                 locList.appendChild(el);
             });
         };
 
-        const renderEditor = (loc) => {
-            // Ensure RPG Data Structure
-            if (!loc.rpg) loc.rpg = {
-                encounters: [], // List of monster IDs
-                loot: [],       // List of item objects or strings
-                secrets: '',    // GM only notes
-                trap: null      // { type, dc, dmg }
-            };
-            const d = loc.rpg;
+        searchInput.oninput = () => renderList();
 
-            rightCol.innerHTML = `
-                <div class="panel-toolbar" style="padding:12px 16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:bold; font-size:14px;">Edit: ${loc.name}</span>
-                    <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted);">${loc.id}</span>
+        // --- Render Editor ---
+        const renderEditor = (loc) => {
+            rightCol.querySelector('#editor-empty').style.display = 'none';
+            const editorMain = rightCol.querySelector('#editor-main');
+            editorMain.style.display = 'flex';
+
+            // Ensure RPG data structure
+            if (!loc.rpg) loc.rpg = { encounters: [], loot: [], secrets: '', trap: null };
+            const rpg = loc.rpg;
+
+            editorMain.innerHTML = `
+                <!-- Header -->
+                <div style="padding:16px 20px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <h3 style="margin:0; font-size:18px;">${loc.name}</h3>
+                            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                                ${loc.description ? loc.description.substring(0, 100) + (loc.description.length > 100 ? '...' : '') : '<em>No description</em>'}
+                            </div>
+                        </div>
+                        <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-muted);">${loc.id}</span>
+                    </div>
                 </div>
-                <div style="flex:1; overflow-y:auto; padding:24px;">
+
+                <!-- Content -->
+                <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:24px;">
                     
                     <!-- ENCOUNTERS -->
-                    <div style="margin-bottom:24px;">
-                        <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:8px; display:flex; justify-content:space-between;">
-                            <span>⚔️ Encounters / Mobs</span>
-                            <button class="btn btn-xs btn-ghost" id="btn-add-mob">+ Add</button>
-                        </h3>
-                        <div id="list-mobs" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
-                        <div style="margin-top:8px; font-size:11px; color:var(--text-muted);">
-                            Monsters that roam here. (Data from Monsters panel)
+                    <div class="section card" style="padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;">💀 Encounters</h4>
+                            <button class="btn btn-sm btn-ghost" id="btn-add-encounter">+ Add</button>
+                        </div>
+                        <div id="encounters-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                            Creatures from the Bestiary that can be found here.
                         </div>
                     </div>
 
-                    <!-- LOOT / ITEMS -->
-                    <div style="margin-bottom:24px;">
-                        <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:8px; display:flex; justify-content:space-between;">
-                            <span>💎 Loot Table</span>
-                            <button class="btn btn-xs btn-ghost" id="btn-add-loot">+ Add</button>
-                        </h3>
-                        <div id="list-loot" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+                    <!-- LOOT -->
+                    <div class="section card" style="padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;">💎 Loot</h4>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-sm btn-ghost" id="btn-add-loot-armory">From Armory</button>
+                                <button class="btn btn-sm btn-ghost" id="btn-add-loot-custom">+ Custom</button>
+                            </div>
+                        </div>
+                        <div id="loot-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                            Items that can be found or looted here.
+                        </div>
+                    </div>
+
+                    <!-- TRAP -->
+                    <div class="section card" style="padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;">⚠️ Trap / Hazard</h4>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                            <div>
+                                <label class="label">Type</label>
+                                <select class="input" id="trap-type" style="width:100%;"></select>
+                            </div>
+                            <div>
+                                <label class="label">Difficulty</label>
+                                <select class="input" id="trap-difficulty" style="width:100%;"></select>
+                            </div>
+                        </div>
+                        <div id="trap-details" style="display:${rpg.trap?.type && rpg.trap.type !== 'none' ? 'grid' : 'none'}; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
+                            <div>
+                                <label class="label">DC to Detect</label>
+                                <input type="number" class="input" id="trap-dc" style="width:100%;" value="${rpg.trap?.dc || 10}">
+                            </div>
+                            <div>
+                                <label class="label">Damage</label>
+                                <input type="text" class="input" id="trap-dmg" style="width:100%;" value="${rpg.trap?.dmg || '1d6'}" placeholder="1d6">
+                            </div>
+                            <div>
+                                <label class="label">Save Type</label>
+                                <select class="input" id="trap-save" style="width:100%;">
+                                    <option value="DEX" ${rpg.trap?.save === 'DEX' ? 'selected' : ''}>DEX (Reflex)</option>
+                                    <option value="CON" ${rpg.trap?.save === 'CON' ? 'selected' : ''}>CON (Fortitude)</option>
+                                    <option value="WIS" ${rpg.trap?.save === 'WIS' ? 'selected' : ''}>WIS (Will)</option>
+                                    <option value="STR" ${rpg.trap?.save === 'STR' ? 'selected' : ''}>STR (Strength)</option>
+                                    <option value="INT" ${rpg.trap?.save === 'INT' ? 'selected' : ''}>INT (Tech)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="label">Trap Description (GM notes)</label>
+                            <textarea class="input" id="trap-desc" rows="2" style="width:100%;" placeholder="How the trap works, what triggers it...">${rpg.trap?.description || ''}</textarea>
+                        </div>
                     </div>
 
                     <!-- SECRETS -->
-                    <div style="margin-bottom:24px;">
-                        <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">🤫 DM Secrets (Hidden)</h3>
-                        <textarea class="input" id="inp-secrets" rows="5" placeholder="Traps, hidden doors, DC checks, history..." style="width:100%; margin-top:12px;">${d.secrets || ''}</textarea>
+                    <div class="section card" style="padding:16px;">
+                        <h4 style="margin:0 0 12px; font-size:14px;">🤫 DM Secrets</h4>
+                        <textarea class="input" id="dm-secrets" rows="5" style="width:100%;" placeholder="Hidden information, plot hooks, NPC motivations, secret passages...">${rpg.secrets || ''}</textarea>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                            Only visible to the GM. Never shared with players.
+                        </div>
                     </div>
 
                 </div>
             `;
 
-            // --- Handlers ---
-
-            // Secrets
-            rightCol.querySelector('#inp-secrets').onchange = (e) => {
-                d.secrets = e.target.value;
-                A.State.notify();
-            };
-
-            // Mobs Render & Logic
-            const mobList = rightCol.querySelector('#list-mobs');
-            const renderMobs = () => {
-                mobList.innerHTML = '';
-                if (!d.encounters || d.encounters.length === 0) {
-                    mobList.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px;">Safe zone. No monsters.</div>';
+            // === ENCOUNTERS ===
+            const encountersList = editorMain.querySelector('#encounters-list');
+            const renderEncounters = () => {
+                encountersList.innerHTML = '';
+                if (!rpg.encounters || rpg.encounters.length === 0) {
+                    encountersList.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px; text-align:center; padding:12px;">No encounters. This area is safe.</div>';
                     return;
                 }
-                d.encounters.forEach((mobId, idx) => {
+
+                rpg.encounters.forEach((entry, idx) => {
+                    const mobId = typeof entry === 'string' ? entry : entry.id;
+                    const count = typeof entry === 'object' ? entry.count : 1;
+                    const mob = state.rpg.bestiary?.find(m => m.id === mobId);
+
                     const row = document.createElement('div');
-                    row.className = 'card';
-                    row.style.padding = '8px';
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'space-between';
-                    row.style.alignItems = 'center';
-
-                    // Lookup name from Bestiary if possible
-                    const bestiary = state.rpg?.bestiary || [];
-                    const mobRef = bestiary.find(m => m.id === mobId);
-                    const name = mobRef ? mobRef.name : mobId;
-
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-surface); border-radius:6px;';
                     row.innerHTML = `
-                        <span style="font-weight:bold; color:var(--status-error);">${name}</span>
-                        <button class="btn btn-xs btn-ghost" style="color:var(--text-muted);">Remove</button>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">💀</span>
+                            <div>
+                                <div style="font-weight:bold; color:var(--status-error);">${mob?.name || mobId}</div>
+                                ${mob ? `<div style="font-size:10px; color:var(--text-muted);">HP:${mob.hp} AC:${mob.ac} XP:${mob.xp || 0}</div>` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <label style="font-size:10px; color:var(--text-muted);">×</label>
+                                <input type="number" class="input encounter-count" data-idx="${idx}" style="width:50px; text-align:center;" value="${count}" min="1">
+                            </div>
+                            <button class="btn btn-xs btn-ghost encounter-remove" data-idx="${idx}" style="color:var(--status-error);">✕</button>
+                        </div>
                     `;
-                    row.querySelector('button').onclick = () => {
-                        d.encounters.splice(idx, 1);
+                    encountersList.appendChild(row);
+                });
+
+                // Wire encounter inputs
+                encountersList.querySelectorAll('.encounter-count').forEach(inp => {
+                    inp.onchange = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        const entry = rpg.encounters[idx];
+                        if (typeof entry === 'string') {
+                            rpg.encounters[idx] = { id: entry, count: parseInt(e.target.value) || 1 };
+                        } else {
+                            entry.count = parseInt(e.target.value) || 1;
+                        }
                         A.State.notify();
-                        renderMobs();
                     };
-                    mobList.appendChild(row);
+                });
+
+                encountersList.querySelectorAll('.encounter-remove').forEach(btn => {
+                    btn.onclick = () => {
+                        rpg.encounters.splice(parseInt(btn.dataset.idx), 1);
+                        A.State.notify();
+                        renderEncounters();
+                        renderList();
+                    };
                 });
             };
+            renderEncounters();
 
-            rightCol.querySelector('#btn-add-mob').onclick = () => {
-                // Determine available monsters
-                const bestiary = state.rpg?.bestiary || [];
+            editorMain.querySelector('#btn-add-encounter').onclick = () => {
+                const bestiary = state.rpg.bestiary || [];
                 if (bestiary.length === 0) {
-                    if (A.UI.Toast) A.UI.Toast.show('No monsters in Bestiary!', 'warning');
+                    if (A.UI.Toast) A.UI.Toast.show('No creatures in Bestiary. Create some first.', 'warning');
                     return;
                 }
 
-                // Create a simple modal or prompt. Using prompt for prototype speed.
-                // Ideally, a select modal.
-                // Re-using specific prompt isn't easy without UI libs, let's use a quick picker if we can, 
-                // or just standard prompt for ID. But IDs are hard to remember.
-                // Let's cycle or provide a quick select.
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = 'display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto;';
 
-                // Hack: Add the first one, or random one, then let user cycle? No.
-                // Let's prompt with a list.
-                const listStr = bestiary.map(m => `${m.id} (${m.name})`).join('\n');
-                const val = prompt(`Enter Monster ID to add:\n\n${listStr}`);
-                if (val) {
-                    // Check if valid? Nah, loose coupling.
-                    d.encounters.push(val.trim());
-                    A.State.notify();
-                    renderMobs();
-                }
+                bestiary.forEach(mob => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-ghost';
+                    btn.style.cssText = 'text-align:left; padding:10px;';
+                    btn.innerHTML = `
+                        <div style="font-weight:bold; color:var(--status-error);">💀 ${mob.name}</div>
+                        <div style="font-size:10px; opacity:0.7;">HP:${mob.hp} AC:${mob.ac} ${mob.creatureType === 'npc' ? '[NPC]' : '[Monster]'}</div>
+                    `;
+                    btn.onclick = () => {
+                        if (!rpg.encounters) rpg.encounters = [];
+                        rpg.encounters.push({ id: mob.id, count: 1 });
+                        A.State.notify();
+                        renderEncounters();
+                        renderList();
+                        A.UI.Modal.hide();
+                    };
+                    modalContent.appendChild(btn);
+                });
+
+                A.UI.Modal.show({ title: '💀 Add Encounter', content: modalContent, width: 350 });
             };
-            renderMobs();
 
-            // Loot Render & Logic
-            const lootList = rightCol.querySelector('#list-loot');
+            // === LOOT ===
+            const lootList = editorMain.querySelector('#loot-list');
             const renderLoot = () => {
                 lootList.innerHTML = '';
-                if (!d.loot || d.loot.length === 0) {
-                    lootList.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px;">Empty.</div>';
+                if (!rpg.loot || rpg.loot.length === 0) {
+                    lootList.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px; text-align:center; padding:12px;">No loot here.</div>';
                     return;
                 }
-                d.loot.forEach((item, idx) => {
+
+                rpg.loot.forEach((item, idx) => {
+                    const itemName = typeof item === 'string' ? item : item.name;
+                    const itemId = typeof item === 'object' ? item.id : null;
+                    const qty = typeof item === 'object' ? item.qty : 1;
+
+                    // Look up from armory if it's an ID reference
+                    const armoryItem = itemId ? state.rpg.items?.find(i => i.id === itemId) : null;
+                    const displayName = armoryItem?.name || itemName;
+                    const isArmoryItem = !!armoryItem;
+
                     const row = document.createElement('div');
-                    row.className = 'card';
-                    row.style.padding = '8px';
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'space-between';
-                    row.style.alignItems = 'center';
-
-                    const itemName = typeof item === 'string' ? item : (item.name || 'Unknown Item');
-
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-surface); border-radius:6px;';
                     row.innerHTML = `
-                        <span style="color:var(--accent-secondary);">💎 ${itemName}</span>
-                        <button class="btn btn-xs btn-ghost" style="color:var(--text-muted);">Remove</button>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:16px;">${isArmoryItem ? (armoryItem.type === 'weapon' ? '⚔️' : armoryItem.type === 'armor' ? '🛡️' : '💎') : '📦'}</span>
+                            <div>
+                                <div style="font-weight:bold; color:var(--accent-secondary);">${displayName}</div>
+                                ${isArmoryItem ? `<div style="font-size:10px; color:var(--text-muted);">${armoryItem.type} • ${armoryItem.cost || 0} currency</div>` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <label style="font-size:10px; color:var(--text-muted);">×</label>
+                                <input type="number" class="input loot-qty" data-idx="${idx}" style="width:50px; text-align:center;" value="${qty}" min="1">
+                            </div>
+                            <button class="btn btn-xs btn-ghost loot-remove" data-idx="${idx}" style="color:var(--status-error);">✕</button>
+                        </div>
                     `;
-                    row.querySelector('button').onclick = () => {
-                        d.loot.splice(idx, 1);
-                        A.State.notify();
-                        renderLoot();
-                    };
                     lootList.appendChild(row);
                 });
-            };
 
-            rightCol.querySelector('#btn-add-loot').onclick = () => {
-                const val = prompt("Enter item name (e.g. 'Gold Key', 'Potion'):");
-                if (val) {
-                    d.loot.push({ name: val.trim() }); // store as object for future structure
-                    A.State.notify();
-                    renderLoot();
-                }
+                // Wire loot inputs
+                lootList.querySelectorAll('.loot-qty').forEach(inp => {
+                    inp.onchange = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        const item = rpg.loot[idx];
+                        if (typeof item === 'string') {
+                            rpg.loot[idx] = { name: item, qty: parseInt(e.target.value) || 1 };
+                        } else {
+                            item.qty = parseInt(e.target.value) || 1;
+                        }
+                        A.State.notify();
+                    };
+                });
+
+                lootList.querySelectorAll('.loot-remove').forEach(btn => {
+                    btn.onclick = () => {
+                        rpg.loot.splice(parseInt(btn.dataset.idx), 1);
+                        A.State.notify();
+                        renderLoot();
+                        renderList();
+                    };
+                });
             };
             renderLoot();
 
+            editorMain.querySelector('#btn-add-loot-armory').onclick = () => {
+                const armory = state.rpg.items || [];
+                if (armory.length === 0) {
+                    if (A.UI.Toast) A.UI.Toast.show('Armory is empty. Add items first.', 'warning');
+                    return;
+                }
+
+                const modalContent = document.createElement('div');
+                modalContent.innerHTML = '<input class="input" id="armory-search" placeholder="Search..." style="width:100%; margin-bottom:12px;"><div id="armory-results" style="display:flex; flex-direction:column; gap:4px; max-height:300px; overflow-y:auto;"></div>';
+
+                const renderResults = (filter = '') => {
+                    const results = modalContent.querySelector('#armory-results');
+                    results.innerHTML = '';
+                    armory.filter(i => i.name.toLowerCase().includes(filter.toLowerCase())).forEach(item => {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-ghost';
+                        btn.style.cssText = 'text-align:left; padding:8px;';
+                        const icon = item.type === 'weapon' ? '⚔️' : item.type === 'armor' ? '🛡️' : item.type === 'consumable' ? '🧪' : '📦';
+                        btn.innerHTML = `<strong>${icon} ${item.name}</strong> <span style="opacity:0.6;">(${item.type})</span>`;
+                        btn.onclick = () => {
+                            if (!rpg.loot) rpg.loot = [];
+                            rpg.loot.push({ id: item.id, name: item.name, qty: 1 });
+                            A.State.notify();
+                            renderLoot();
+                            renderList();
+                            A.UI.Modal.hide();
+                        };
+                        results.appendChild(btn);
+                    });
+                };
+
+                A.UI.Modal.show({ title: '💎 Add from Armory', content: modalContent, width: 350 });
+                modalContent.querySelector('#armory-search').oninput = (e) => renderResults(e.target.value);
+                renderResults();
+            };
+
+            editorMain.querySelector('#btn-add-loot-custom').onclick = () => {
+                const name = prompt('Enter item name:');
+                if (name && name.trim()) {
+                    if (!rpg.loot) rpg.loot = [];
+                    rpg.loot.push({ name: name.trim(), qty: 1 });
+                    A.State.notify();
+                    renderLoot();
+                    renderList();
+                }
+            };
+
+            // === TRAP ===
+            const trapTypeSelect = editorMain.querySelector('#trap-type');
+            const trapDifficultySelect = editorMain.querySelector('#trap-difficulty');
+            const trapDetails = editorMain.querySelector('#trap-details');
+
+            // Populate trap type dropdown
+            TRAP_TYPES.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = `${t.icon} ${t.label}`;
+                if (rpg.trap?.type === t.id) opt.selected = true;
+                trapTypeSelect.appendChild(opt);
+            });
+
+            // Populate difficulty dropdown
+            DIFFICULTY_PRESETS.forEach((d, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `${d.label} (DC ${d.dc}, ${d.dmg})`;
+                trapDifficultySelect.appendChild(opt);
+            });
+
+            trapTypeSelect.onchange = (e) => {
+                if (!rpg.trap) rpg.trap = {};
+                rpg.trap.type = e.target.value;
+                trapDetails.style.display = e.target.value !== 'none' ? 'grid' : 'none';
+                A.State.notify();
+                renderList();
+            };
+
+            trapDifficultySelect.onchange = (e) => {
+                const preset = DIFFICULTY_PRESETS[parseInt(e.target.value)];
+                if (preset && rpg.trap) {
+                    rpg.trap.dc = preset.dc;
+                    rpg.trap.dmg = preset.dmg;
+                    editorMain.querySelector('#trap-dc').value = preset.dc;
+                    editorMain.querySelector('#trap-dmg').value = preset.dmg;
+                    A.State.notify();
+                }
+            };
+
+            editorMain.querySelector('#trap-dc').onchange = (e) => {
+                if (!rpg.trap) rpg.trap = {};
+                rpg.trap.dc = parseInt(e.target.value) || 10;
+                A.State.notify();
+            };
+
+            editorMain.querySelector('#trap-dmg').onchange = (e) => {
+                if (!rpg.trap) rpg.trap = {};
+                rpg.trap.dmg = e.target.value;
+                A.State.notify();
+            };
+
+            editorMain.querySelector('#trap-save').onchange = (e) => {
+                if (!rpg.trap) rpg.trap = {};
+                rpg.trap.save = e.target.value;
+                A.State.notify();
+            };
+
+            editorMain.querySelector('#trap-desc').onchange = (e) => {
+                if (!rpg.trap) rpg.trap = {};
+                rpg.trap.description = e.target.value;
+                A.State.notify();
+            };
+
+            // === SECRETS ===
+            editorMain.querySelector('#dm-secrets').onchange = (e) => {
+                rpg.secrets = e.target.value;
+                A.State.notify();
+                renderList();
+            };
         };
 
-        // Render List initially
+        // Initial render
         renderList();
-
-        // Subscribe
-        A.State.subscribe(() => {
-            if (leftCol.isConnected) {
-                // Refresh list only if needed? Nah, just simplistic refresh
-                // Problem: Resets selection if full refresh.
-                // For prototype, we just won't auto-refresh the full list on every keystroke. 
-                // Only on navigation change.
-            }
-        });
     }
 
     A.registerPanel('rpg_dm_map', {
-        label: 'DM Map',
-        subtitle: 'Loot & Encounters',
+        label: 'DM Atlas',
+        subtitle: 'Loot, Traps & Secrets',
         category: 'RPG Experiment',
-        icon: '🤫',
+        icon: '🗺️',
         render: render
     });
 

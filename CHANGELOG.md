@@ -2,6 +2,16 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.2 - 2026-01-08
+### Combat System Fixes
+- **Turn Order Enforcement**: Active combatant is now strictly enforced during combat. Actions are performed by whoever's turn it is, not based on name matching from input.
+- **Modifier Calculation Fix**: Attack rolls and ability checks now correctly use derived stat modifiers (e.g., STR 20 = +5) instead of raw stat values.
+- **Flee Check Fix**: Flee attempts now correctly use DEX modifier.
+- **Action Economy Overhaul**: Simplified action system now combines Main Actions + Bonus Actions into a single pool. Turn auto-ends when actions reach 0.
+- **Action Economy UI**: Added "Main Actions" and "Bonus Actions" fields to Party panel (Quick Edit) and Monster panel (Creature Editor).
+- **Spawn Data**: Monsters now spawn with customized action counts from their bestiary template.
+- **System Data Regeneration**: Created `build_system_data.mjs` Node.js script as alternative to Python build script.
+
 ## v1.9.1 - 2026-01-08
 ### Experimental Features
 - **RPG Experiment (Beta)**: Added a suite of hidden panels for running tabletop RPG sessions directly within Anansi.
