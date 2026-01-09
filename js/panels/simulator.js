@@ -2537,8 +2537,8 @@
         stats: state.weaves?.stats?.values || {},
         // Inject Locations
         locations: state.weaves?.locations || [],
-        // Inject Actors
-        actors: [...(state.sim?.actors || [])]
+        // Inject Actors (Allow Override from Plugins)
+        actors: [...(params.actors || state.sim?.actors || [])]
       };
 
       // Snapshot for Diffing

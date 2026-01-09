@@ -2,6 +2,10 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.3 - 2026-01-09
+### Refactoring
+- **System Stability**: Refactoring to avoid system complications.
+
 ## v1.9.2 - 2026-01-08
 ### Combat System Fixes
 - **Turn Order Enforcement**: Active combatant is now strictly enforced during combat. Actions are performed by whoever's turn it is, not based on name matching from input.

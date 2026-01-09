@@ -170,17 +170,22 @@
         init: function () {
             try {
                 const state = A.State.get();
+                if (!state) return {}; // State not ready yet
                 if (!state.rpg) {
                     state.rpg = {
                         enabled: true,
                         mechanics: 'd20',
                         combat: null,
+                        entities: {}, // ISOLATED ENTITY STORAGE
                         bestiary: [],
                         featDatabase: [],
                         items: [],
                         rulesets: {}
                     };
                 }
+                // Migration: Ensure entities object exists
+                if (!state.rpg.entities) state.rpg.entities = {};
+
                 return state.rpg;
             } catch (e) {
                 console.error('[RPG] Failed to init state:', e);
@@ -226,104 +231,158 @@
     };
 
     // =========================================
-    // SAFE ACTOR MUTATIONS
-    // Wrapper that validates writes are to RPG data only
+    // ENTITY MANAGEMENT (ISOLATED)
+    // Manages characters within the RPG sandbox
     // =========================================
 
-    RPG.Actors = {
+    RPG.Entities = {
         /**
-         * Update an actor's RPG data safely
-         * @param {string} actorId 
-         * @param {function} updater - Function that receives rpg data and modifies it
+         * Get a specific entity by ID
          */
-        update: function (actorId, updater) {
+        get: function (id) {
             try {
-                const state = A.State.get();
-                const actor = state?.nodes?.actors?.items?.[actorId];
-                if (!actor) {
-                    console.warn('[RPG] Actor not found:', actorId);
-                    return false;
-                }
-                if (!actor.data) actor.data = {};
-                if (!actor.data.rpg) actor.data.rpg = {};
-
-                updater(actor.data.rpg);
-                A.State.notify();
-                return true;
+                const state = RPG.State.get();
+                return state.entities?.[id] || null;
             } catch (e) {
-                console.error('[RPG] Failed to update actor:', e);
-                return false;
-            }
-        },
-
-        /**
-         * Spawn a new actor from template (for monsters/NPCs)
-         * @param {Object} template - Monster/NPC template from bestiary
-         * @returns {string|null} New actor ID or null on failure
-         */
-        spawn: function (template) {
-            try {
-                const state = A.State.get();
-                if (!state.nodes) state.nodes = {};
-                if (!state.nodes.actors) state.nodes.actors = { items: {} };
-                if (!state.nodes.actors.items) state.nodes.actors.items = {};
-
-                const id = 'actor_' + Math.random().toString(36).substr(2, 9);
-
-                // Auto-number duplicate names
-                const baseName = template.name;
-                const existing = Object.values(state.nodes.actors.items);
-                const sameCount = existing.filter(a =>
-                    a.name === baseName || a.name?.startsWith(baseName + ' ')
-                ).length;
-                const displayName = sameCount === 0 ? baseName : `${baseName} ${sameCount + 1}`;
-
-                const newActor = {
-                    id: id,
-                    name: displayName,
-                    data: {
-                        rpg: {
-                            enabled: true,
-                            type: template.creatureType || 'monster',
-                            hp: template.hp,
-                            maxHp: template.hp,
-                            ac: template.ac,
-                            xp: template.xp || 0,
-                            stats: template.stats || {},
-                            inventory: [],
-                            equipped: {}
-                        }
-                    }
-                };
-
-                state.nodes.actors.items[id] = newActor;
-                A.State.notify();
-                return id;
-            } catch (e) {
-                console.error('[RPG] Failed to spawn actor:', e);
+                console.error('[RPG] Failed to get entity:', e);
                 return null;
             }
         },
 
         /**
-         * Remove an actor by ID
-         * @param {string} actorId
+         * Get all valid entities
          */
-        remove: function (actorId) {
+        getAll: function () {
             try {
-                const state = A.State.get();
-                if (state?.nodes?.actors?.items?.[actorId]) {
-                    delete state.nodes.actors.items[actorId];
-                    A.State.notify();
+                const state = RPG.State.get();
+                return Object.values(state.entities || {});
+            } catch (e) {
+                console.error('[RPG] Failed to get entities:', e);
+                return [];
+            }
+        },
+
+        /**
+         * Create a new RPG entity
+         * @param {Object} data - Initial data
+         * @param {string} [sourceActorId] - Optional ID of core actor to link (read-only reference)
+         */
+        create: function (data, sourceActorId = null) {
+            try {
+                const state = RPG.State.get();
+                if (!state.entities) state.entities = {};
+
+                const id = 'rpg_ent_' + Math.random().toString(36).substr(2, 9);
+
+                // If importing an actor, copy their name/type initially
+                let name = data.name || "Unknown Entity";
+                if (sourceActorId && !data.name) {
+                    const sourceActor = RPG.Hooks.getActor(sourceActorId);
+                    if (sourceActor) name = sourceActor.name;
+                }
+
+                // Handle duplicate names for pure RPG entities
+                if (!sourceActorId && data.name) {
+                    const existing = Object.values(state.entities);
+                    const baseName = data.name;
+                    const sameCount = existing.filter(e =>
+                        e.name === baseName || e.name?.startsWith(baseName + ' ')
+                    ).length;
+                    if (sameCount > 0) name = `${baseName} ${sameCount + 1}`;
+                }
+
+                const newEntity = {
+                    id: id,
+                    name: name,
+                    type: data.type || 'monster', // monster | npc | party_member
+                    sourceActorId: sourceActorId, // Link to core actor if applicable
+
+                    // RPG Stats
+                    level: data.level || 1,
+                    hp: data.hp || 10,
+                    maxHp: data.maxHp || 10,
+                    ac: data.ac || 10,
+                    speed: data.speed || 30,
+                    xp: data.xp || 0,
+
+                    // Attributes
+                    stats: data.stats || {
+                        STR: 10, DEX: 10, CON: 10,
+                        INT: 10, WIS: 10, CHA: 10
+                    },
+
+                    // Combat
+                    actions: data.actions || 1,
+                    bonusActions: data.bonusActions || 1,
+
+                    // Inventory
+                    inventory: data.inventory || [],
+                    equipped: data.equipped || {},
+
+                    // Abilities
+                    feats: data.feats || [],
+
+                    // Meta
+                    description: data.description || "",
+                    notes: ""
+                };
+
+                state.entities[id] = newEntity;
+                RPG.State.notify();
+                return id;
+            } catch (e) {
+                console.error('[RPG] Failed to create entity:', e);
+                return null;
+            }
+        },
+
+        /**
+         * Update an entity safely
+         */
+        update: function (id, updater) {
+            try {
+                const state = RPG.State.get();
+                const entity = state.entities?.[id];
+
+                if (!entity) {
+                    console.warn('[RPG] Update failed: Entity not found', id);
+                    return false;
+                }
+
+                // If linked to an actor, refresh name just in case it changed in core
+                if (entity.sourceActorId) {
+                    const sourceActor = RPG.Hooks.getActor(entity.sourceActorId);
+                    if (sourceActor) entity.name = sourceActor.name;
+                }
+
+                updater(entity);
+                RPG.State.notify();
+                return true;
+            } catch (e) {
+                console.error('[RPG] Failed to update entity:', e);
+                return false;
+            }
+        },
+
+        /**
+         * Delete an entity
+         */
+        remove: function (id) {
+            try {
+                const state = RPG.State.get();
+                if (state.entities?.[id]) {
+                    delete state.entities[id];
+                    RPG.State.notify();
                     return true;
                 }
                 return false;
             } catch (e) {
-                console.error('[RPG] Failed to remove actor:', e);
+                console.error('[RPG] Failed to remove entity:', e);
                 return false;
             }
         }
     };
+
 
     // =========================================
     // PANEL REGISTRATION (Safe wrapper)

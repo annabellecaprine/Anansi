@@ -258,6 +258,16 @@
   <script src="js/core/tour.js"></script>
   <script src="js/core/tour_content.js?v=20260106"></script>
 
+  <!-- RPG Plugin System -->
+  <script src="js/plugins/rpg/rpg_core.js"></script>
+  <script src="js/plugins/rpg/rpg_engine.js"></script> <!-- Logical Core -->
+  <script src="js/plugins/rpg/rpg_loader.js"></script> <!-- Modules -->
+
+  <!-- RPG Panel UIs -->
+  <script src="js/plugins/rpg/rpg_gm.js"></script>
+  <script src="js/plugins/rpg/rpg_roleplay.js"></script>
+  <script src="js/plugins/rpg/rpg_party.js"></script>
+
   <!-- Adapters -->
   <script src="js/env/jai.js"></script>
   <script src="js/env/jai.renderer.js"></script>
@@ -294,6 +304,7 @@
       var rpgScripts = [
         'js/plugins/rpg/rpg_loader.js',
         'js/plugins/rpg/rpg_core.js',
+        'js/plugins/rpg/rpg_combat_engine.js',
         'js/plugins/rpg/rpg_gm.js',
         'js/plugins/rpg/rpg_roleplay.js',
         'js/plugins/rpg/rpg_party.js',
@@ -413,7 +424,7 @@
   <script>
     // Sparkle generator for loading screen
     (function () {
-      const root = document.getElementById(part');
+      const root = document.getElementById('sparkle-root');
       if (!root) return;
       for (let i = 0; i < 15; i++) {
         const s = document.createElement('div');

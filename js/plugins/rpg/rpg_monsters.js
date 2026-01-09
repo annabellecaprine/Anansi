@@ -578,66 +578,30 @@ Guidelines:
 
         // Helper: Spawn Monster
         const spawnMonster = (monsterTemplate) => {
-            const state = A.State.get();
-            if (!state.nodes || !state.nodes.actors) return;
-            if (!state.nodes.actors.items) state.nodes.actors.items = {};
-
-            const id = 'actor_' + Math.random().toString(36).substr(2, 9);
-
-            const baseName = monsterTemplate.name;
-            const existingActors = Object.values(state.nodes.actors.items || {});
-            const sameNameCount = existingActors.filter(a =>
-                a.name === baseName || a.name.startsWith(baseName + ' ')
-            ).length;
-            const displayName = sameNameCount === 0 ? baseName : `${baseName} ${sameNameCount + 1}`;
-
-            // Build stats for the actor
-            const creatureStats = monsterTemplate.stats || { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
-
-            const newActor = {
-                id: id,
-                name: displayName,
-                type: 'actor',
-                data: {
-                    rpg: {
-                        enabled: true,
-                        type: monsterTemplate.creatureType || 'monster',
-                        hp: monsterTemplate.hp,
-                        maxHp: monsterTemplate.hp,
-                        ac: monsterTemplate.ac,
-                        str: Math.floor((creatureStats.STR - 10) / 2), // Store modifier for legacy compat
-                        xp: monsterTemplate.xp,
-                        level: 1,
-                        class: monsterTemplate.creatureType === 'npc' ? 'NPC' : 'Monster',
-                        description: monsterTemplate.description || '',
-                        equipped: {},
-                        maxActions: monsterTemplate.maxActions || 1,
-                        maxBonusActions: monsterTemplate.maxBonusActions || 1,
-                        // Full stats matrix for sys_rpg compatibility
-                        stats_matrix: {
-                            blocks: [{
-                                id: 'core',
-                                label: 'Ability Scores',
-                                defs: [
-                                    { key: 'STR', label: 'Strength', min: 1, max: 20 },
-                                    { key: 'DEX', label: 'Dexterity', min: 1, max: 20 },
-                                    { key: 'CON', label: 'Constitution', min: 1, max: 20 },
-                                    { key: 'INT', label: 'Intelligence', min: 1, max: 20 },
-                                    { key: 'WIS', label: 'Wisdom', min: 1, max: 20 },
-                                    { key: 'CHA', label: 'Charisma', min: 1, max: 20 }
-                                ]
-                            }],
-                            values: {
-                                core: { ...creatureStats }
-                            }
-                        }
-                    }
-                }
+            const data = {
+                type: monsterTemplate.creatureType || 'monster',
+                name: monsterTemplate.name,
+                hp: monsterTemplate.hp,
+                maxHp: monsterTemplate.hp,
+                ac: monsterTemplate.ac,
+                xp: monsterTemplate.xp || 0,
+                stats: monsterTemplate.stats || { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+                inventory: monsterTemplate.inventory || [],
+                description: monsterTemplate.description || '',
+                actions: monsterTemplate.maxActions || 1,
+                bonusActions: monsterTemplate.maxBonusActions || 1,
+                // Ensure stats matrix is created by Entity logic or defaulted here if needed
+                // RPG.Entities.create handles most defaults
             };
 
-            state.nodes.actors.items[id] = newActor;
-            A.State.notify();
-            if (A.UI.Toast) A.UI.Toast.show(`Spawned ${newActor.name}!`, 'success');
+            const id = RPG.Entities.create(data);
+
+            if (id) {
+                if (A.UI.Toast) A.UI.Toast.show(`Spawned ${monsterTemplate.name}!`, 'success');
+                updateActiveDisplay();
+            } else {
+                if (A.UI.Toast) A.UI.Toast.show(`Failed to spawn ${monsterTemplate.name}`, 'error');
+            }
         };
 
         // Helper: Delete from Bestiary
@@ -659,22 +623,16 @@ Guidelines:
             const activeContainer = header.querySelector('#active-enemy');
             activeContainer.innerHTML = '';
 
-            const state = A.State.get();
-            if (!state.nodes || !state.nodes.actors || !state.nodes.actors.items) {
+            const entities = RPG.Entities.getAll();
+            const activeCreatures = entities.filter(e => e.type === 'monster' || e.type === 'npc');
+
+            if (activeCreatures.length === 0) {
                 activeContainer.textContent = "None";
                 return;
             }
 
-            const actors = Object.values(state.nodes.actors.items);
-            const creatures = actors.filter(a => a.data && a.data.rpg && (a.data.rpg.type === 'monster' || a.data.rpg.type === 'npc'));
-
-            if (creatures.length === 0) {
-                activeContainer.textContent = "None";
-                return;
-            }
-
-            creatures.forEach(m => {
-                const isNpc = m.data.rpg.type === 'npc';
+            activeCreatures.forEach(m => {
+                const isNpc = m.type === 'npc';
                 const badge = document.createElement('span');
                 badge.style.display = 'inline-flex';
                 badge.style.alignItems = 'center';
@@ -688,14 +646,15 @@ Guidelines:
 
                 const icon = isNpc ? '👤' : '💀';
                 badge.innerHTML = `
-                    <span>${icon} ${m.name} (${m.data.rpg.hp})</span>
+                    <span>${icon} ${m.name} (${m.hp})</span>
                     <span class="remove-btn" style="cursor:pointer; font-weight:bold; opacity:0.6;">✕</span>
                  `;
 
                 badge.querySelector('.remove-btn').onclick = (e) => {
                     e.stopPropagation();
-                    delete state.nodes.actors.items[m.id];
-                    A.State.notify();
+                    RPG.Entities.remove(m.id);
+                    // updateActiveDisplay will be called via subscriber if state changes, but for responsiveness:
+                    updateActiveDisplay();
                     if (A.UI.Toast) A.UI.Toast.show(`Refreshed realm (Removed ${m.name})`);
                 };
 

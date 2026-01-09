@@ -204,22 +204,21 @@
             const state = A.State.get();
             if (!state.rpg?.combat?.active) {
                 // Not in combat - return first party member
-                const actors = Object.values(state.nodes?.actors?.items || {});
-                return actors.find(a => a.data?.rpg?.enabled && a.data.rpg.type !== 'monster') || null;
+                const entities = RPG.Entities.getAll();
+                return entities.find(e => e.type === 'party_member') || null;
             }
             const c = state.rpg.combat;
             const activeEntry = c.order[c.turn];
             if (!activeEntry) return null;
-            return state.nodes.actors.items[activeEntry.id] || null;
+            return RPG.Entities.get(activeEntry.id) || null;
         };
 
         const getTargets = (type) => {
-            const state = A.State.get();
-            const actors = Object.values(state.nodes?.actors?.items || {}).filter(a => a.data?.rpg?.enabled && (a.data.rpg.hp || 0) > 0);
-            if (type === 'enemy') return actors.filter(a => a.data.rpg.type === 'monster');
-            if (type === 'ally') return actors.filter(a => a.data.rpg.type !== 'monster');
-            if (type === 'npc') return actors.filter(a => a.data.rpg.type === 'npc');
-            return actors;
+            const entities = RPG.Entities.getAll().filter(e => (e.hp || 0) > 0);
+            if (type === 'enemy') return entities.filter(e => e.type === 'monster');
+            if (type === 'ally') return entities.filter(e => e.type !== 'monster');
+            if (type === 'npc') return entities.filter(e => e.type === 'npc');
+            return entities;
         };
 
         const showSelector = (label, options, onSelect, allowText = false) => {
@@ -276,14 +275,14 @@
 
         function handleAction(actionId) {
             const state = A.State.get();
-            const actor = getActiveActor();
+            const entity = getActiveActor();
             const mode = MODES[currentMode];
 
             // ============ COMBAT MODE ============
             if (currentMode === 'combat') {
                 if (actionId === 'attack') {
                     const armory = state.rpg?.items || [];
-                    const equipped = actor?.data?.rpg?.equipped || {};
+                    const equipped = entity?.equipped || {};
                     const weapons = [];
                     if (equipped.main_hand) {
                         const wpn = armory.find(i => i.id === equipped.main_hand);
@@ -292,7 +291,7 @@
                     weapons.push({ id: 'unarmed', label: 'Unarmed (1d4)' });
 
                     showSelector('Weapon', weapons, (weapon) => {
-                        const enemies = getTargets('enemy').map(e => ({ id: e.id, label: `${e.name} (HP:${e.data.rpg.hp})` }));
+                        const enemies = getTargets('enemy').map(e => ({ id: e.id, label: `${e.name} (HP:${e.hp})` }));
                         if (enemies.length === 0) {
                             appendMessage('system', '⚠️ No enemies to attack.');
                             selectorArea.style.display = 'none';
@@ -306,7 +305,7 @@
                 } else if (actionId === 'defend') {
                     executeCommand('Defend', 'COMBAT');
                 } else if (actionId === 'abilities') {
-                    const feats = actor?.data?.rpg?.feats || [];
+                    const feats = entity?.feats || [];
                     const featDb = state.rpg?.featDatabase || [];
                     const options = feats.map(fid => {
                         const f = featDb.find(x => x.id === fid) || { name: fid };
@@ -337,7 +336,7 @@
                         }
                     });
                 } else if (actionId === 'items') {
-                    const inventory = actor?.data?.rpg?.inventory || [];
+                    const inventory = entity?.inventory || [];
                     const armory = state.rpg?.items || [];
                     const consumables = inventory.map(itemId => {
                         const item = armory.find(i => i.id === itemId);
@@ -372,8 +371,8 @@
                     pendingAction = 'examine';
                     inputHint.textContent = '👁️ EXAMINE';
                 } else if (actionId === 'loot') {
-                    const deadEnemies = Object.values(state.nodes?.actors?.items || {})
-                        .filter(a => a.data?.rpg?.type === 'monster' && (a.data.rpg.hp || 0) <= 0)
+                    const deadEnemies = RPG.Entities.getAll()
+                        .filter(e => e.type === 'monster' && (e.hp || 0) <= 0)
                         .map(e => ({ id: e.id, label: e.name }));
                     if (deadEnemies.length === 0) {
                         showSelector('Loot', [
@@ -491,13 +490,73 @@
             inputField.value = '';
             inputField.placeholder = 'Type your action or dialogue...';
 
+            // ... (rest of sendMessage remains mostly checking Simulator which acts as black box)
+            // ...
+
             const loadingId = appendMessage('system', '...');
 
             try {
                 if (A.Simulator && A.Simulator.processRound) {
+                    // 1. Determine Scope (RPG Entities as Actors)
+                    const rpgState = A.State.get().rpg || {};
+                    let entities = rpgState.entities || [];
+
+                    // Safety: Ensure array
+                    if (!entities) {
+                        entities = [];
+                    } else if (!Array.isArray(entities)) {
+                        entities = Object.values(entities);
+                    }
+
+                    // Helper: Generate Natural Language Description
+                    const generateEntityDescription = (e) => {
+                        const parts = [];
+
+                        // 1. Identity & Class
+                        const classLabel = e.classes ? e.classes.join('/') : 'Creature';
+                        parts.push(`${e.name} is a level ${e.level || 1} ${classLabel}.`);
+
+                        // 2. Health Status
+                        const hp = e.hp || 0;
+                        const max = e.maxHp || 1;
+                        const pct = hp / max;
+                        let status = "healthy";
+                        if (pct <= 0) status = "unconscious and dying";
+                        else if (pct < 0.25) status = "critically wounded";
+                        else if (pct < 0.5) status = "heavily wounded";
+                        else if (pct < 0.9) status = "slightly injured";
+                        parts.push(`Status: ${status} (${hp}/${max} HP).`);
+
+                        // 3. Equipment (Main Hand)
+                        if (e.equipped?.main_hand) {
+                            // Attempt to resolve item name if possible, otherwise generic
+                            // Since we don't have easy access to the item DB here without lookup, we'll try:
+                            const verifyItem = state.rpg?.items?.find(i => i.id === e.equipped.main_hand);
+                            if (verifyItem) parts.push(`Wielding: ${verifyItem.name}.`);
+                        }
+
+                        // 4. Bio / Personality (if available in RPG data)
+                        if (e.description) parts.push(e.description);
+
+                        return parts.join(' ');
+                    };
+
+                    // Map to Actor Objects (Mocking the Core Actor structure for Simulator/Aura)
+                    const scopedActors = entities.map(e => ({
+                        id: e.id,
+                        name: e.name,
+                        // Generate dynamic narrative personality/context
+                        personality: generateEntityDescription(e),
+                        type: 'rpg_entity', // Marker for scripts if needed
+                        _generated: true
+                    }));
+
                     const state = A.State.get();
                     const history = state.sim ? state.sim.history : [];
-                    const roundResult = A.Simulator.processRound(text, history, 'input', { source: 'rpg_session' });
+                    const roundResult = A.Simulator.processRound(text, history, 'input', {
+                        source: 'rpg_session',
+                        actors: scopedActors // OVERRIDE: Global actors ignored, use these instead.
+                    });
 
                     if (roundResult.context.system_notes) {
                         const sysEl = document.getElementById(loadingId);
@@ -518,8 +577,9 @@
                     }
 
                     // TODO: Integrate LLM response for narrative
-                    // For now, we show the system processing result
                     updateCombatStatus();
+                    updateActionBarVisibility(); // Force UI update to match final state
+                    updateLens();
 
                 } else {
                     document.getElementById(loadingId).textContent = "⚠️ Simulator engine not available.";
@@ -547,20 +607,55 @@
             const statusEl = header.querySelector('#combat-status');
             if (state.rpg?.combat?.active) {
                 const c = state.rpg.combat;
-                const activeActor = c.order[c.turn];
+                const activeEntry = c.order[c.turn];
+                // Resolve name via Entity
+                const entity = RPG.Entities.get(activeEntry?.id);
+
                 statusEl.style.display = 'inline';
                 statusEl.style.background = 'var(--status-error-bg)';
                 statusEl.style.color = 'var(--status-error)';
-                statusEl.innerHTML = `⚔️ Round ${c.round} - ${activeActor?.name || 'Unknown'}'s Turn`;
+                statusEl.innerHTML = `⚔️ Round ${c.round} - ${entity?.name || 'Unknown'}'s Turn`;
 
                 // Auto-switch to combat mode
                 if (currentMode !== 'combat') {
+                    // Only switch if we haven't explicitly acknowledged it? 
+                    // For now, let's allow it but maybe provide a way out.
                     currentMode = 'combat';
                     renderModeTabs();
                     renderActionBar();
                 }
             } else {
                 statusEl.style.display = 'none';
+
+                // Button Text Update
+                const btn = header.querySelector('#btn-start-combat');
+                if (btn) {
+                    btn.innerHTML = '⚔️ Combat';
+                    btn.title = 'Start Combat';
+                    btn.className = 'btn btn-sm btn-ghost';
+                    btn.onclick = () => executeCommand('Start Combat', 'SYSTEM');
+                }
+            }
+
+            // If active, update button to End Combat
+            if (state.rpg?.combat?.active) {
+                const btn = header.querySelector('#btn-start-combat');
+                if (btn) {
+                    btn.innerHTML = '🏳️ End';
+                    btn.title = 'End Combat Forcefully';
+                    btn.className = 'btn btn-sm btn-ghost warning-text';
+                    // Force end mechanics
+                    btn.onclick = () => {
+                        if (confirm('Force end combat?')) {
+                            const s = A.State.get();
+                            if (s.rpg && s.rpg.combat) {
+                                s.rpg.combat.active = false;
+                                s.rpg.combat = null;
+                                A.State.notify();
+                            }
+                        }
+                    };
+                }
             }
         }
 
@@ -571,10 +666,10 @@
             // In combat mode, check if it's player's turn
             if (currentMode === 'combat' && state.rpg?.combat?.active) {
                 const c = state.rpg.combat;
-                const activeActor = c.order[c.turn];
-                const actor = state.nodes?.actors?.items?.[activeActor?.id];
+                const activeEntry = c.order[c.turn];
+                const entity = RPG.Entities.get(activeEntry?.id);
 
-                if (actor?.data?.rpg?.type === 'monster') {
+                if (entity?.type === 'monster') {
                     actionBar.style.opacity = '0.5';
                     actionBar.style.pointerEvents = 'none';
                 } else {
@@ -589,6 +684,7 @@
 
         // Event handlers
         sendBtn.onclick = sendMessage;
+
         inputField.onkeydown = (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -628,19 +724,23 @@
 
         A.UI.setLens((lensContent) => {
             const state = A.State.get();
-            const actors = state.nodes && state.nodes.actors ? Object.values(state.nodes.actors.items) : [];
-            const party = actors.filter(a => a.data?.rpg?.enabled && a.data.rpg.type !== 'monster');
-            const enemies = actors.filter(a => a.data?.rpg?.enabled && a.data.rpg.type === 'monster');
+            const entities = RPG.Entities.getAll();
+            const party = entities.filter(e => e.type === 'party_member');
+            const enemies = entities.filter(e => e.type === 'monster');
 
             let html = '<div style="padding:16px; height:100%; overflow-y:auto;">';
 
             // Combat Status
             if (state.rpg?.combat?.active) {
                 const c = state.rpg.combat;
+                // Resolve active turn name safely
+                const activeId = c.order[c.turn]?.id;
+                const activeName = activeId ? (RPG.Entities.get(activeId)?.name || 'Unknown') : 'Unknown';
+
                 html += `
                     <div style="background:var(--status-error-bg); border:1px solid var(--status-error); border-radius:8px; padding:12px; margin-bottom:16px;">
                         <div style="font-weight:bold; color:var(--status-error); margin-bottom:8px;">⚔️ COMBAT - Round ${c.round}</div>
-                        <div style="font-size:11px;">Turn: <strong>${c.order[c.turn]?.name || 'Unknown'}</strong></div>
+                        <div style="font-size:11px;">Turn: <strong>${activeName}</strong></div>
                     </div>
                 `;
             }
@@ -652,8 +752,7 @@
                 html += '<div style="color:var(--text-muted); font-style:italic; margin-bottom:16px;">No party members</div>';
             } else {
                 party.forEach(a => {
-                    const rpg = a.data.rpg;
-                    const hp = rpg.hp || 0, maxHp = rpg.maxHp || 20;
+                    const hp = a.hp || 0, maxHp = a.maxHp || 20;
                     const hpPct = Math.round((hp / maxHp) * 100);
                     const hpColor = hpPct > 50 ? 'var(--status-success)' : hpPct > 25 ? 'var(--status-warning)' : 'var(--status-error)';
 
@@ -675,8 +774,7 @@
             if (enemies.length > 0) {
                 html += `<div style="font-weight:bold; font-size:11px; color:var(--status-error); text-transform:uppercase; margin:16px 0 8px; letter-spacing:1px;">⚠️ Hostiles (${enemies.length})</div>`;
                 enemies.forEach(a => {
-                    const rpg = a.data.rpg;
-                    const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
+                    const hp = a.hp || 0, maxHp = a.maxHp || a.hp || 20;
                     const hpPct = Math.round((hp / maxHp) * 100);
                     const dead = hp <= 0;
 

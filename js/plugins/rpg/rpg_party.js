@@ -141,10 +141,11 @@
 
         // --- Functions ---
 
+        // --- Functions ---
+
         function getPartyMembers() {
-            const state = A.State.get();
-            const actors = (state.nodes && state.nodes.actors && state.nodes.actors.items) ? Object.values(state.nodes.actors.items) : [];
-            return actors.filter(a => a.data && a.data.rpg && a.data.rpg.enabled && a.data.rpg.type !== 'monster');
+            // New: Get from isolated entities
+            return RPG.Entities.getAll().filter(e => e.type === 'party_member');
         }
 
         function refreshSidebar() {
@@ -162,14 +163,14 @@
             }
 
             if (!currentActorId && members.length > 0) {
-                currentActorId = members[0].id;
+                currentActorId = members[0].id; // internal ID
             }
 
-            members.forEach(actor => {
-                const rpg = actor.data.rpg;
-                const isSelected = actor.id === currentActorId;
-                const hpPct = rpg.maxHp > 0 ? Math.round((rpg.hp / rpg.maxHp) * 100) : 0;
-                const mpPct = rpg.maxMp > 0 ? Math.round((rpg.mp / rpg.maxMp) * 100) : 0;
+            members.forEach(entity => {
+                // Compatibility: entity IS the rpg data now
+                const isSelected = entity.id === currentActorId;
+                const hpPct = entity.maxHp > 0 ? Math.round((entity.hp / entity.maxHp) * 100) : 0;
+                const mpPct = entity.maxMp > 0 ? Math.round((entity.mp / entity.maxMp) * 100) : 0;
 
                 const item = document.createElement('div');
                 item.style.cssText = `
@@ -181,11 +182,11 @@
                 item.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
                         <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-inset); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
-                            ${rpg.type === 'npc' ? '👤' : '⚔️'}
+                            ${entity.type === 'npc' ? '👤' : '⚔️'}
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${actor.name}</div>
-                            <div style="font-size:10px; color:var(--text-muted);">Lvl ${rpg.stats?.level || 1} ${rpg.stats?.class || rpg.class || 'Adventurer'}</div>
+                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entity.name}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">Lvl ${entity.stats?.level || 1} ${entity.stats?.class || entity.class || 'Adventurer'}</div>
                         </div>
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -208,7 +209,7 @@
                 }
 
                 item.onclick = () => {
-                    currentActorId = actor.id;
+                    currentActorId = entity.id;
                     refreshSidebar();
                     refreshMain();
                 };
@@ -221,9 +222,9 @@
             main.innerHTML = '';
 
             const members = getPartyMembers();
-            const actor = members.find(a => a.id === currentActorId);
+            const entity = members.find(a => a.id === currentActorId);
 
-            if (!actor) {
+            if (!entity) {
                 main.innerHTML = `
                     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
                         <span style="font-size:48px; margin-bottom:16px;">🛡️</span>
@@ -233,7 +234,8 @@
                 return;
             }
 
-            const rpg = actor.data.rpg;
+            // MAPPING: entity is the root now
+            const rpg = entity; // Alias for minimal code change
             if (!rpg.stats) rpg.stats = {};
             if (!rpg.stats_matrix) rpg.stats_matrix = { blocks: [], values: {} };
             if (!rpg.inventory) rpg.inventory = [];
@@ -251,7 +253,7 @@
                             ${rpg.type === 'npc' ? '👤' : '⚔️'}
                         </div>
                         <div>
-                            <h2 style="margin:0; font-size:20px; font-weight:bold;">${actor.name}</h2>
+                            <h2 style="margin:0; font-size:20px; font-weight:bold;">${entity.name}</h2>
                             <div style="display:flex; gap:12px; margin-top:4px; font-size:12px; color:var(--text-muted);">
                                 <span>Level <strong style="color:var(--text-primary);">${rpg.stats.level || 1}</strong></span>
                                 <span>${rpg.stats.class || rpg.class || 'Adventurer'}</span>
@@ -266,6 +268,7 @@
                 </div>
             `;
             main.appendChild(header);
+
 
             // --- Content ---
             const content = document.createElement('div');
@@ -719,9 +722,8 @@
             };
 
             header.querySelector('#btn-remove').onclick = () => {
-                if (confirm(`Remove ${actor.name} from the party? (Data is preserved)`)) {
-                    rpg.enabled = false;
-                    A.State.notify();
+                if (confirm(`Remove ${entity.name} from the party? (Data is preserved)`)) {
+                    RPG.Entities.remove(entity.id);
                     currentActorId = null;
                     refreshSidebar();
                     refreshMain();
@@ -731,13 +733,13 @@
 
         function updateRadar(container) {
             const members = getPartyMembers();
-            const actor = members.find(a => a.id === currentActorId);
-            if (!actor || !actor.data.rpg.stats_matrix || actor.data.rpg.stats_matrix.blocks.length === 0) {
+            const entity = members.find(a => a.id === currentActorId);
+            if (!entity || !entity.stats_matrix || entity.stats_matrix.blocks.length === 0) {
                 container.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">Add stats to view chart</div>';
                 return;
             }
 
-            const matrix = actor.data.rpg.stats_matrix;
+            const matrix = entity.stats_matrix;
             const block = matrix.blocks[0];
             if (!block) return;
 
@@ -752,9 +754,13 @@
 
         // --- Add Member ---
         sidebarHeader.querySelector('#btn-add-member').onclick = () => {
-            const state = A.State.get();
-            const allActors = (state.nodes?.actors?.items) ? Object.values(state.nodes.actors.items) : [];
-            const nonParty = allActors.filter(a => !a.data?.rpg?.enabled);
+            const allActors = RPG.Hooks.getActors(); // Returns object
+            const entities = RPG.Entities.getAll();
+
+            // Filter actors that are NOT already linked to an entity
+            const nonParty = Object.values(allActors).filter(a =>
+                !entities.some(e => e.sourceActorId === a.id)
+            );
 
             if (nonParty.length === 0) {
                 if (A.UI.Toast) A.UI.Toast.show('All actors are already in the party.', 'info');
@@ -770,17 +776,22 @@
                 btn.style.cssText = 'text-align:left; padding:10px;';
                 btn.textContent = a.name;
                 btn.onclick = () => {
-                    if (!a.data) a.data = {};
-                    if (!a.data.rpg) {
-                        a.data.rpg = { hp: 20, maxHp: 20, mp: 10, maxMp: 10, ac: 10, enabled: true, stats: { level: 1, class: '' } };
-                    } else {
-                        a.data.rpg.enabled = true;
+                    // Create new entity linked to this actor
+                    const newId = RPG.Entities.create({
+                        type: 'party_member',
+                        name: a.name,
+                        hp: 20, maxHp: 20,
+                        mp: 10, maxMp: 10,
+                        ac: 10,
+                        stats: { level: 1, class: '' }
+                    }, a.id);
+
+                    if (newId) {
+                        currentActorId = newId;
+                        refreshSidebar();
+                        refreshMain();
+                        A.UI.Modal.hide();
                     }
-                    A.State.notify();
-                    currentActorId = a.id;
-                    refreshSidebar();
-                    refreshMain();
-                    A.UI.Modal.hide();
                 };
                 modalContent.appendChild(btn);
             });
