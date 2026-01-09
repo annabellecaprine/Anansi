@@ -23,9 +23,8 @@
 
         // Load system scripts from pre-loaded data (inlined) or Fetch (fallback)
         loadSystem: async function () {
-            if (!A.SystemData) {
-                console.warn("Anansi: System Data not found. Attempting async fetch for dev mode.");
-            }
+            // SystemData may not be available yet in some load orders - this is fine,
+            // we'll fall back to async fetch below
 
             for (const script of systemScripts) {
                 // FORCE OVERRIDE: Check SystemData first
