@@ -12,6 +12,9 @@ All notable changes to Anansi will be documented in this file.
 - **Spawn Data**: Monsters now spawn with customized action counts from their bestiary template.
 - **System Data Regeneration**: Created `build_system_data.mjs` Node.js script as alternative to Python build script.
 
+### Architecture
+- **RPG Plugin Isolation**: Moved all RPG code to `js/plugins/rpg/` with error containment. RPG failures no longer crash main application.
+
 ## v1.9.1 - 2026-01-08
 ### Experimental Features
 - **RPG Experiment (Beta)**: Added a suite of hidden panels for running tabletop RPG sessions directly within Anansi.

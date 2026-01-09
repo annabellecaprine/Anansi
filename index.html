@@ -287,14 +287,36 @@
   <script src="js/panels/nabu.js"></script>
   <script src="js/panels/constellation.js"></script>
   <script src="js/panels/guide.js"></script>
-  <script src="js/panels/rpg_gm.js"></script>
-  <script src="js/panels/rpg_roleplay.js"></script>
-  <script src="js/panels/rpg_party.js"></script>
-  <script src="js/panels/rpg_monsters.js"></script>
-  <script src="js/panels/rpg_feats.js"></script>
-  <script src="js/panels/rpg_map.js"></script>
-  <script src="js/panels/rpg_dm_map.js"></script>
-  <script src="js/panels/rpg_armory.js"></script>
+
+  <!-- RPG Plugin (Isolated - errors won't crash main app) -->
+  <script>
+    (function () {
+      var rpgScripts = [
+        'js/plugins/rpg/rpg_loader.js',
+        'js/plugins/rpg/rpg_core.js',
+        'js/plugins/rpg/rpg_gm.js',
+        'js/plugins/rpg/rpg_roleplay.js',
+        'js/plugins/rpg/rpg_party.js',
+        'js/plugins/rpg/rpg_monsters.js',
+        'js/plugins/rpg/rpg_feats.js',
+        'js/plugins/rpg/rpg_map.js',
+        'js/plugins/rpg/rpg_dm_map.js',
+        'js/plugins/rpg/rpg_armory.js'
+      ];
+
+      rpgScripts.forEach(function (src) {
+        try {
+          var script = document.createElement('script');
+          script.src = src;
+          script.onerror = function () { console.error('[RPG Plugin] Failed to load:', src); };
+          document.head.appendChild(script);
+        } catch (e) {
+          console.error('[RPG Plugin] Script load error:', src, e);
+        }
+      });
+    })();
+  </script>
+
 
 
   <!-- Loading Overlay -->
@@ -391,7 +413,7 @@
   <script>
     // Sparkle generator for loading screen
     (function () {
-      const root = document.getElementById('sparkle-root');
+      const root = document.getElementById(part');
       if (!root) return;
       for (let i = 0; i < 15; i++) {
         const s = document.createElement('div');
