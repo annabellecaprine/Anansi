@@ -396,8 +396,21 @@
         remove: function (id) {
             try {
                 const state = RPG.State.get();
+                let changed = false;
+
                 if (state.entities?.[id]) {
                     delete state.entities[id];
+                    changed = true;
+                }
+
+                // SYNC FIX: Also remove from global graph nodes (Lens/Sim source)
+                const globalState = A.State.get();
+                if (globalState.nodes?.actors?.items?.[id]) {
+                    delete globalState.nodes.actors.items[id];
+                    changed = true;
+                }
+
+                if (changed) {
                     RPG.State.notify();
                     return true;
                 }
@@ -406,6 +419,126 @@
                 console.error('[RPG] Failed to remove entity:', e);
                 return false;
             }
+        },
+
+        // =========================================
+        // SENTIMENT SYSTEM (Relationship Tracking)
+        // =========================================
+
+        /**
+         * Sentiment levels from hostile to loyal
+         */
+        SENTIMENT_LEVELS: ['hostile', 'suspicious', 'neutral', 'friendly', 'loyal'],
+
+        /**
+         * Get an entity's sentiment toward another entity
+         * @param {string} entityId - The entity whose sentiment to check
+         * @param {string} targetId - The entity they have feelings about
+         * @returns {string} Sentiment level (hostile, suspicious, neutral, friendly, loyal)
+         */
+        getSentiment: function (entityId, targetId) {
+            try {
+                const entity = this.get(entityId);
+                return entity?.sentiments?.[targetId] || 'neutral';
+            } catch (e) {
+                console.error('[RPG] Failed to get sentiment:', e);
+                return 'neutral';
+            }
+        },
+
+        /**
+         * Set an entity's sentiment toward another entity
+         * @param {string} entityId - The entity whose sentiment to set
+         * @param {string} targetId - The entity they have feelings about
+         * @param {string} value - Sentiment level
+         */
+        setSentiment: function (entityId, targetId, value) {
+            try {
+                const entity = this.get(entityId);
+                if (!entity) return false;
+
+                if (!entity.sentiments) entity.sentiments = {};
+
+                // Validate sentiment value
+                if (!this.SENTIMENT_LEVELS.includes(value)) {
+                    console.warn(`[RPG] Invalid sentiment: ${value}`);
+                    value = 'neutral';
+                }
+
+                entity.sentiments[targetId] = value;
+                RPG.State.notify();
+                return true;
+            } catch (e) {
+                console.error('[RPG] Failed to set sentiment:', e);
+                return false;
+            }
+        },
+
+        /**
+         * Adjust sentiment by delta (positive = friendlier, negative = more hostile)
+         * @param {string} entityId - The entity whose sentiment to adjust
+         * @param {string} targetId - The entity they have feelings about
+         * @param {number} delta - +1 = friendlier, -1 = more hostile
+         * @returns {string} New sentiment level
+         */
+        adjustSentiment: function (entityId, targetId, delta) {
+            try {
+                const entity = this.get(entityId);
+                if (!entity) return 'neutral';
+
+                if (!entity.sentiments) entity.sentiments = {};
+
+                const current = entity.sentiments[targetId] || 'neutral';
+                const idx = this.SENTIMENT_LEVELS.indexOf(current);
+                const newIdx = Math.max(0, Math.min(this.SENTIMENT_LEVELS.length - 1, idx + delta));
+                const newSentiment = this.SENTIMENT_LEVELS[newIdx];
+
+                entity.sentiments[targetId] = newSentiment;
+                RPG.State.notify();
+
+                console.log(`[RPG] Sentiment: ${entity.name} → ${targetId}: ${current} → ${newSentiment}`);
+                return newSentiment;
+            } catch (e) {
+                console.error('[RPG] Failed to adjust sentiment:', e);
+                return 'neutral';
+            }
+        },
+
+        /**
+         * Get all sentiments for an entity
+         * @param {string} entityId 
+         * @returns {Object} Map of targetId -> sentiment
+         */
+        getAllSentiments: function (entityId) {
+            try {
+                const entity = this.get(entityId);
+                return entity?.sentiments || {};
+            } catch (e) {
+                console.error('[RPG] Failed to get all sentiments:', e);
+                return {};
+            }
+        },
+
+        /**
+         * Check if entity is hostile toward target
+         * @param {string} entityId 
+         * @param {string} targetId 
+         * @returns {boolean}
+         */
+        isHostile: function (entityId, targetId) {
+            const sentiment = this.getSentiment(entityId, targetId);
+            return sentiment === 'hostile' || sentiment === 'suspicious';
+        },
+
+        /**
+         * Check if entity is friendly toward target
+         * @param {string} entityId 
+         * @param {string} targetId 
+         * @returns {boolean}
+         */
+        isFriendly: function (entityId, targetId) {
+            const sentiment = this.getSentiment(entityId, targetId);
+            return sentiment === 'friendly' || sentiment === 'loyal';
         }
     };
 

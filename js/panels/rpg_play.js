@@ -64,7 +64,7 @@
     let inputField = null;
     let currentMode = 'mud';
     let pendingAction = null;
-    let llmNarrationEnabled = true;
+    let llmNarrationEnabled = false;
 
     // ===========================================
     // MAIN RENDER
@@ -77,7 +77,14 @@
         const state = A.State.get();
         A.RPGEngine?.ensureState();
         if (state.rpg?.playMode) currentMode = state.rpg.playMode;
-        if (state.rpg?.narrationEnabled !== undefined) llmNarrationEnabled = state.rpg.narrationEnabled;
+
+        // Load narration preference
+        const storedNarration = localStorage.getItem('anansi_rpg_narration');
+        if (storedNarration !== null) {
+            llmNarrationEnabled = storedNarration === 'true';
+        } else if (state.rpg?.narrationEnabled !== undefined) {
+            llmNarrationEnabled = state.rpg.narrationEnabled;
+        }
 
         // Build UI
         renderHeader(container);
@@ -374,6 +381,7 @@
         const state = A.State.get();
         if (!state.rpg) state.rpg = {};
         state.rpg.narrationEnabled = llmNarrationEnabled;
+        localStorage.setItem('anansi_rpg_narration', llmNarrationEnabled);
 
         const toggle = document.getElementById('narration-toggle');
         if (toggle) {
@@ -923,41 +931,44 @@
                 const localActors = actors.filter(a => {
                     const rpg = a.data?.rpg;
                     if (!rpg?.enabled) return false;
-                    // If no location set in state, maybe show everything? Or nothing?
-                    // Debug matching
-                    // If location is undefined, perhaps we are "traveling" or global. 
-                    // Show Party always? 
-                    // User requirement: "party and hostiles were shown separately WHEN they were in the same location".
 
-                    // New Logic: 
-                    // 1. If entity has the SAME location ID as current state -> KEEP
-                    // 2. If entity is a PARTY MEMBER and current state location is null/undefined -> KEEP (Global view)
-
-                    const isParty = rpg.type !== 'monster';
+                    // Party members always travel with the player
+                    const isPartyMember = rpg.type === 'party_member' || (!rpg.type) || (rpg.type !== 'npc' && rpg.type !== 'monster');
 
                     if (currentLocation) {
-                        // Strict location matching when in a specific place
-                        if (rpg.locationId !== currentLocation) return false;
+                        // When at a specific location:
+                        // - Party members: always show (they travel with player)
+                        // - NPCs/Monsters: only show if at this location
+                        if (isPartyMember) return true;
+                        return rpg.locationId === currentLocation;
                     } else {
-                        // If no location defined yet (e.g. just started), only show party
-                        if (!isParty) return false;
+                        // Global view (no location): only show party members
+                        return isPartyMember;
                     }
-
-                    return true;
                 });
 
                 console.log('[Lens Debug] Filtered:', localActors.length);
 
-                const party = localActors.filter(a => a.data.rpg.type !== 'monster');
+                // Categorize entities properly
+                // Backward compatibility: entities without type or with unrecognized types are treated as party members
+                const party = localActors.filter(a => {
+                    const type = a.data.rpg.type;
+                    return type === 'party_member' || (!type) || (type !== 'npc' && type !== 'monster');
+                });
+                const npcs = localActors.filter(a => a.data.rpg.type === 'npc');
                 const enemies = localActors.filter(a => a.data.rpg.type === 'monster');
 
+                // Party Members Section
                 if (party.length > 0) {
                     html += `<div style="padding:12px;">
                     <div style="font-weight:bold; font-size:11px; color:var(--accent-secondary); text-transform:uppercase; margin-bottom:8px;">Party</div>`;
 
                     party.forEach(a => {
                         const rpg = a.data.rpg;
-                        const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
+                        // Use live entity data if available (combat state), fallback to actor data
+                        const liveEntity = state.rpg?.entities?.[a.id];
+                        const hp = liveEntity?.hp ?? rpg.hp ?? 0;
+                        const maxHp = liveEntity?.maxHp ?? rpg.maxHp ?? rpg.hp ?? 20;
                         const hpPct = Math.round((hp / maxHp) * 100);
                         const isActive = state.rpg?.combat?.active && state.rpg.combat.order?.[state.rpg.combat.turn]?.id === a.id;
 
@@ -975,14 +986,44 @@
                     html += `</div>`;
                 }
 
-                // Enemies
+                // NPCs Section
+                if (npcs.length > 0) {
+                    html += `<div style="padding:12px; border-top:1px solid var(--border-subtle);">
+                    <div style="font-weight:bold; font-size:11px; color:var(--accent-primary); text-transform:uppercase; margin-bottom:8px;">👤 NPCs</div>`;
+
+                    npcs.forEach(a => {
+                        const rpg = a.data.rpg;
+                        const liveEntity = state.rpg?.entities?.[a.id];
+                        const hp = liveEntity?.hp ?? rpg.hp ?? 0;
+                        const maxHp = liveEntity?.maxHp ?? rpg.maxHp ?? rpg.hp ?? 20;
+                        const hpPct = Math.round((hp / maxHp) * 100);
+                        const isActive = state.rpg?.combat?.active && state.rpg.combat.order?.[state.rpg.combat.turn]?.id === a.id;
+
+                        html += `<div style="background:var(--bg-elevated); border:1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'}; border-radius:6px; padding:10px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+                            <strong>${isActive ? '▶ ' : ''}${a.name}</strong>
+                            <span style="color:var(--accent-primary);">${hp}/${maxHp}</span>
+                        </div>
+                        <div style="height:4px; background:var(--bg-inset); border-radius:2px;">
+                            <div style="height:100%; width:${hpPct}%; background:var(--accent-primary); border-radius:2px;"></div>
+                        </div>
+                    </div>`;
+                    });
+
+                    html += `</div>`;
+                }
+
+                // Enemies Section
                 if (enemies.length > 0) {
                     html += `<div style="padding:12px; border-top:1px solid var(--border-subtle);">
                     <div style="font-weight:bold; font-size:11px; color:var(--status-error); text-transform:uppercase; margin-bottom:8px;">Hostiles</div>`;
 
                     enemies.forEach(a => {
                         const rpg = a.data.rpg;
-                        const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
+                        // Use live entity data if available
+                        const liveEntity = state.rpg?.entities?.[a.id];
+                        const hp = liveEntity?.hp ?? rpg.hp ?? 0;
+                        const maxHp = liveEntity?.maxHp ?? rpg.maxHp ?? rpg.hp ?? 20;
                         const dead = hp <= 0;
 
                         html += `<div style="background:var(--bg-elevated); border:1px solid var(--status-error); border-radius:6px; padding:10px; margin-bottom:8px; opacity:${dead ? '0.5' : '1'};">

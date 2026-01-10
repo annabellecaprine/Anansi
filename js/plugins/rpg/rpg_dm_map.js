@@ -238,6 +238,18 @@
                 <!-- Content -->
                 <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:24px;">
                     
+                    <!-- ENTITIES PRESENT -->
+                    <div class="section card" style="padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;">👥 Entities Present</h4>
+                            <button class="btn btn-sm btn-ghost" id="btn-spawn-here">+ Spawn Here</button>
+                        </div>
+                        <div id="entities-list" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;"></div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                            NPCs and monsters currently at this location.
+                        </div>
+                    </div>
+
                     <!-- ENCOUNTERS -->
                     <div class="section card" style="padding:16px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -317,6 +329,126 @@
 
                 </div>
             `;
+
+            // === ENTITIES PRESENT ===
+            const entitiesList = editorMain.querySelector('#entities-list');
+            const renderEntities = () => {
+                entitiesList.innerHTML = '';
+
+                // Get all entities at this location
+                const allEntities = RPG?.Entities?.getAll?.() || [];
+                const localEntities = allEntities.filter(e => e.locationId === loc.id);
+
+                if (localEntities.length === 0) {
+                    entitiesList.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px; text-align:center; padding:12px;">No entities at this location.</div>';
+                    return;
+                }
+
+                localEntities.forEach(entity => {
+                    const isNpc = entity.type === 'npc';
+                    const isMonster = entity.type === 'monster';
+                    const isParty = entity.type === 'party_member';
+
+                    const typeColor = isNpc ? 'var(--accent-primary)' : isMonster ? 'var(--status-error)' : 'var(--status-success)';
+                    const typeIcon = isNpc ? '👤' : isMonster ? '💀' : '⚔️';
+                    const typeLabel = isNpc ? 'NPC' : isMonster ? 'Monster' : 'Party';
+
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-surface); border-radius:6px; border-left:3px solid ' + typeColor + ';';
+                    row.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:14px;">${typeIcon}</span>
+                            <div>
+                                <div style="font-weight:bold; font-size:12px; color:${typeColor};">${entity.name}</div>
+                                <div style="font-size:10px; color:var(--text-muted);">HP:${entity.hp}/${entity.maxHp} • AC:${entity.ac} • ${typeLabel}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            ${!isParty ? `<button class="btn btn-xs btn-ghost entity-remove" data-id="${entity.id}" title="Remove from location">✕</button>` : ''}
+                        </div>
+                    `;
+
+                    const removeBtn = row.querySelector('.entity-remove');
+                    if (removeBtn) {
+                        removeBtn.onclick = () => {
+                            if (confirm(`Remove ${entity.name} from this location?`)) {
+                                RPG.Entities.remove(entity.id);
+                                renderEntities();
+                                if (A.UI.Toast) A.UI.Toast.show(`Removed ${entity.name}`, 'info');
+                            }
+                        };
+                    }
+
+                    entitiesList.appendChild(row);
+                });
+            };
+            renderEntities();
+
+            // Wire spawn button
+            editorMain.querySelector('#btn-spawn-here').onclick = () => {
+                const bestiary = state.rpg?.bestiary || [];
+                if (bestiary.length === 0) {
+                    if (A.UI.Toast) A.UI.Toast.show('Bestiary is empty. Create creatures first.', 'warning');
+                    return;
+                }
+
+                const modalContent = document.createElement('div');
+                modalContent.innerHTML = `
+                    <input class="input" id="spawn-search" placeholder="Search creatures..." style="width:100%; margin-bottom:12px;">
+                    <div id="spawn-list" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
+                `;
+
+                const renderSpawnList = (filter = '') => {
+                    const list = modalContent.querySelector('#spawn-list');
+                    list.innerHTML = '';
+
+                    bestiary.filter(m => m.name.toLowerCase().includes(filter.toLowerCase())).forEach(mob => {
+                        const isNpc = mob.creatureType === 'npc';
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-ghost';
+                        btn.style.cssText = 'text-align:left; padding:10px;';
+                        btn.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-weight:bold; color:${isNpc ? 'var(--accent-primary)' : 'var(--status-error)'};">${mob.name}</div>
+                                    <div style="font-size:10px; opacity:0.7;">HP:${mob.hp} AC:${mob.ac} ${mob.creatureType === 'npc' ? '[NPC]' : '[Monster]'}</div>
+                                </div>
+                            </div>
+                        `;
+                        btn.onclick = () => {
+                            // Spawn at this location
+                            const entityId = RPG.Entities.create({
+                                type: mob.creatureType || 'monster',
+                                name: mob.name,
+                                hp: mob.hp,
+                                maxHp: mob.hp,
+                                ac: mob.ac,
+                                xp: mob.xp || 0,
+                                stats: mob.stats || { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+                                inventory: mob.inventory || [],
+                                description: mob.description || '',
+                                locationId: loc.id
+                            });
+
+                            if (entityId) {
+                                if (A.UI.Toast) A.UI.Toast.show(`Spawned ${mob.name} at ${loc.name}!`, 'success');
+                                renderEntities();
+                                A.UI.Modal.hide();
+                            }
+                        };
+                        list.appendChild(btn);
+                    });
+                };
+
+                A.UI.Modal.show({
+                    title: `🎯 Spawn at ${loc.name}`,
+                    content: modalContent,
+                    width: 400
+                });
+
+                modalContent.querySelector('#spawn-search').oninput = (e) => renderSpawnList(e.target.value);
+                renderSpawnList();
+            };
 
             // === ENCOUNTERS ===
             const encountersList = editorMain.querySelector('#encounters-list');

@@ -2,10 +2,25 @@
 
 All notable changes to Anansi will be documented in this file.
 
-## v1.9.4 - 2026-01-09
-### HUD & Bestiary Polish
-- **HUD Fix**: Resolved syntax error in `system_data.js` to restore filtering of HUD entities by location.
-- **Bestiary Polish**: Added "Clean Up" button to ease removal of invalid or disabled entities.
+## v1.9.4 - 2026-01-10
+### Bug Fixes & Stability
+- **System Data Syntax Fix**: Repaired broken string literal in `system_data.js` that caused `SyntaxError` and prevented system scripts from loading.
+- **Zombie Entity Fix**: `RPG.Entities.remove` now synchronizes deletions with global actor state, preventing ghost entries in the Web Lens.
+- **Bestiary Cleanup Enhancement**: "Clean Up" button now detects and removes orphaned entities and dead monsters.
+- **Cleanup Persistence**: Cleanup now saves changes to IndexedDB, so removed entities stay gone after reload.
+
+### Autonomous Narrative Systems (LlamaTale-Inspired)
+- **Sentiment System**: NPCs now track relationship states toward other entities (hostile → suspicious → neutral → friendly → loyal). Use `RPG.Entities.getSentiment()`, `setSentiment()`, and `adjustSentiment()`.
+- **Event Memory**: NPCs remember witnessed events and conversations (`rpg_memory.js`). Memories are injected into LLM context for coherent long-term interactions.
+- **Idle Actions**: Ambient NPC behavior system (`rpg_idle.js`) generates background flavor actions that make scenes feel alive.
+- **Prompt Templates**: Centralized, customizable prompt library (`rpg_prompts.js`) for combat narration, dialogue, reactions, and scene descriptions.
+- **Response Cache**: LLM response caching (`rpg_cache.js`) with TTL and auto-pruning to reduce redundant API calls.
+
+### UI Improvements
+- **Web Lens NPC Section**: Spawned NPCs now appear in their own "👤 NPCs" section instead of Party. Party, NPCs, and Hostiles are now properly categorized.
+- **Web Lens Location Filtering**: NPCs now correctly filter by location - only shown when player is at their location.
+- **Bestiary Search & Filters**: Added search bar and type filters (All/Monsters/NPCs) to quickly find creatures in the bestiary.
+- **DM Atlas Entities Present**: New section showing all NPCs and monsters currently at a location, with spawn button for quick creature placement.
 
 ## v1.9.3 - 2026-01-09
 ###- **Refactoring**:

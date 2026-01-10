@@ -193,18 +193,59 @@ Guidelines:
             let count = 0;
             for (const [id, actor] of Object.entries(nodes)) {
                 // Skip players
-                if (actor.data?.rpg?.class === 'Player') continue;
+                if (actor.data?.rpg?.class === 'Player' || actor.data?.rpg?.type === 'party_member') continue;
 
-                // Check if invalid (no location, disabled, or no RPG data)
-                const isInvalid = !actor.data?.rpg || !actor.data.rpg.locationId || !actor.data.rpg.enabled;
-                if (isInvalid) {
+                let remove = false;
+                const rpg = actor.data?.rpg;
+
+                // 1. Structural Corruption (no data or explicitly disabled)
+                if (!rpg || !rpg.locationId || !rpg.enabled) remove = true;
+
+                // 2. Dead Monsters
+                if (rpg?.type === 'monster' && (rpg.hp || 0) <= 0) remove = true;
+
+                // 3. Orphans (RPG-created entities that lost their core record in state.rpg.entities)
+                // Entities created by RPG Engine usually have ID 'rpg_ent_...' or 'gen_...'
+                // If they are not in state.rpg.entities, they are ghosts.
+                if ((id.startsWith('rpg_ent_') || id.startsWith('gen_')) && !state.rpg?.entities?.[id]) {
+                    remove = true;
+                }
+
+                if (remove) {
                     delete nodes[id];
+                    // Also ensure removed from specific RPG state if reachable
+                    if (state.rpg?.entities?.[id]) delete state.rpg.entities[id];
                     count++;
                 }
             }
+
+            // Persist changes
+            A.State.notify();
+            A.ProjectDB.save(state).catch(e => console.error('[Bestiary] Failed to save cleanup:', e));
+
             alert(`Cleaned up ${count} entities.`);
             render();
         };
+
+        // Filter State
+        let searchQuery = '';
+        let typeFilter = 'all'; // 'all', 'monster', 'npc'
+
+        // Filter Toolbar
+        const filterBar = document.createElement('div');
+        filterBar.style.cssText = 'padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-subtle); display:flex; gap:12px; align-items:center; flex-wrap:wrap;';
+        filterBar.innerHTML = `
+            <div style="flex:1; min-width:200px; max-width:400px;">
+                <input type="text" id="bestiary-search" class="input" placeholder="🔍 Search creatures..." style="width:100%; padding:8px 12px; font-size:13px;">
+            </div>
+            <div style="display:flex; gap:4px;">
+                <button id="filter-all" class="btn btn-sm" style="min-width:60px;">All</button>
+                <button id="filter-monster" class="btn btn-sm btn-ghost" style="min-width:80px;">🐉 Monsters</button>
+                <button id="filter-npc" class="btn btn-sm btn-ghost" style="min-width:70px;">👤 NPCs</button>
+            </div>
+            <div id="filter-count" style="font-size:11px; color:var(--text-muted);"></div>
+        `;
+        container.appendChild(filterBar);
 
         // Content
         const content = document.createElement('div');
@@ -684,97 +725,181 @@ Guidelines:
             });
         };
 
-        // Render List
-        const list = document.createElement('div');
-        list.style.display = 'grid';
-        list.style.gridTemplateColumns = 'repeat(auto-fill, minmax(320px, 1fr))';
-        list.style.gap = '12px';
+        // Render Bestiary List (with filtering)
+        const renderBestiaryList = () => {
+            content.innerHTML = '';
 
-        state.rpg.bestiary.forEach(mon => {
-            const isNpc = mon.creatureType === 'npc';
-            const card = document.createElement('div');
-            card.className = 'card interactive';
-            card.style.background = 'var(--bg-surface)';
-            card.style.border = '1px solid var(--border-subtle)';
-            card.style.borderRadius = '6px';
-            card.style.padding = '12px';
-            card.style.cursor = 'pointer';
-            card.style.transition = 'all 0.2s';
-            card.style.position = 'relative';
+            const list = document.createElement('div');
+            list.style.display = 'grid';
+            list.style.gridTemplateColumns = 'repeat(auto-fill, minmax(320px, 1fr))';
+            list.style.gap = '12px';
 
-            card.onmouseenter = () => card.style.borderColor = isNpc ? 'var(--accent-primary)' : 'var(--status-error)';
-            card.onmouseleave = () => card.style.borderColor = 'var(--border-subtle)';
-            card.onclick = () => spawnMonster(mon);
+            // Apply filters
+            const filteredBestiary = state.rpg.bestiary.filter(mon => {
+                // Type filter
+                if (typeFilter !== 'all' && mon.creatureType !== typeFilter) return false;
 
-            const typeColor = isNpc ? 'var(--accent-primary)' : 'var(--status-error)';
-            const typeBg = isNpc ? 'var(--accent-soft)' : 'rgba(255, 50, 50, 0.1)';
-            const typeIcon = isNpc ? '👤' : '🐉';
-            const typeLabel = isNpc ? 'NPC' : 'Monster';
+                // Search filter
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    const nameMatch = mon.name.toLowerCase().includes(query);
+                    const descMatch = (mon.description || '').toLowerCase().includes(query);
+                    if (!nameMatch && !descMatch) return false;
+                }
 
-            // Build stat line
-            const stats = mon.stats || { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
-            const statLine = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
-                .map(s => `<span title="${s}">${s[0]}:${stats[s]}</span>`)
-                .join(' ');
+                return true;
+            });
 
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                    <div style="font-weight:bold; color:${typeColor}; font-size:14px;">${mon.name}</div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="font-size:9px; padding:2px 6px; background:${typeBg}; color:${typeColor}; border-radius:4px; text-transform:uppercase; font-weight:600;">
-                            ${typeIcon} ${typeLabel}
-                        </span>
-                        ${!mon.isDefault ? `<button class="btn-edit-creature" style="background:none; border:none; cursor:pointer; font-size:11px; opacity:0.6; padding:2px;" title="Edit">✏️</button>` : ''}
-                        ${mon.isCustom ? `<button class="btn-delete-creature" style="background:none; border:none; cursor:pointer; font-size:11px; opacity:0.5; padding:2px;" title="Delete">🗑️</button>` : ''}
+            // Update count
+            const countEl = filterBar.querySelector('#filter-count');
+            countEl.textContent = `Showing ${filteredBestiary.length} of ${state.rpg.bestiary.length}`;
+
+            if (filteredBestiary.length === 0) {
+                list.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">
+                        <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+                        <div>No creatures match your filters.</div>
                     </div>
-                </div>
-                <!-- Combat Stats -->
-                <div style="display:flex; gap:12px; font-size:12px; margin-bottom:6px;">
-                    <span style="background:var(--status-error-bg); color:var(--status-error); padding:2px 6px; border-radius:4px;">❤️ ${mon.hp}</span>
-                    <span style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px;">🛡️ ${mon.ac}</span>
-                    ${mon.xp > 0 ? `<span style="background:var(--status-warning-bg); color:var(--status-warning); padding:2px 6px; border-radius:4px;">⭐ ${mon.xp} XP</span>` : ''}
-                </div>
-                <!-- Ability Scores -->
-                <div style="font-size:10px; color:var(--text-muted); display:flex; gap:6px; margin-bottom:6px; font-family:monospace;">
-                    ${statLine}
-                </div>
-                ${mon.description ? `<div style="font-size:11px; color:var(--text-secondary); font-style:italic; margin-bottom:4px; line-height:1.4;">${mon.description}</div>` : ''}
-                <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">
-                    ${mon.inventory && mon.inventory.length ? '⚔️ ' + mon.inventory.map(i => i.name + (i.dmg ? ` (${i.dmg})` : '')).join(', ') : '🤜 Unarmed'}
-                </div>
-            `;
-
-            // Wire up edit button
-            if (!mon.isDefault) {
-                const editBtn = card.querySelector('.btn-edit-creature');
-                if (editBtn) {
-                    editBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        showCreatureEditor(mon);
-                    };
-                    editBtn.onmouseenter = () => editBtn.style.opacity = '1';
-                    editBtn.onmouseleave = () => editBtn.style.opacity = '0.6';
-                }
+                `;
+                content.appendChild(list);
+                return;
             }
 
-            // Wire up delete button
-            if (mon.isCustom) {
-                const deleteBtn = card.querySelector('.btn-delete-creature');
-                if (deleteBtn) {
-                    deleteBtn.onclick = (e) => deleteFromBestiary(mon.id, e);
-                    deleteBtn.onmouseenter = () => deleteBtn.style.opacity = '1';
-                    deleteBtn.onmouseleave = () => deleteBtn.style.opacity = '0.5';
+            filteredBestiary.forEach(mon => {
+                const isNpc = mon.creatureType === 'npc';
+                const card = document.createElement('div');
+                card.className = 'card interactive';
+                card.style.background = 'var(--bg-surface)';
+                card.style.border = '1px solid var(--border-subtle)';
+                card.style.borderRadius = '6px';
+                card.style.padding = '12px';
+                card.style.cursor = 'pointer';
+                card.style.transition = 'all 0.2s';
+                card.style.position = 'relative';
+
+                card.onmouseenter = () => card.style.borderColor = isNpc ? 'var(--accent-primary)' : 'var(--status-error)';
+                card.onmouseleave = () => card.style.borderColor = 'var(--border-subtle)';
+                card.onclick = () => spawnMonster(mon);
+
+                const typeColor = isNpc ? 'var(--accent-primary)' : 'var(--status-error)';
+                const typeBg = isNpc ? 'var(--accent-soft)' : 'rgba(255, 50, 50, 0.1)';
+                const typeIcon = isNpc ? '👤' : '🐉';
+                const typeLabel = isNpc ? 'NPC' : 'Monster';
+
+                // Build stat line
+                const stats = mon.stats || { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 };
+                const statLine = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
+                    .map(s => `<span title="${s}">${s[0]}:${stats[s]}</span>`)
+                    .join(' ');
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                        <div style="font-weight:bold; color:${typeColor}; font-size:14px;">${mon.name}</div>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <span style="font-size:9px; padding:2px 6px; background:${typeBg}; color:${typeColor}; border-radius:4px; text-transform:uppercase; font-weight:600;">
+                                ${typeIcon} ${typeLabel}
+                            </span>
+                            ${!mon.isDefault ? `<button class="btn-edit-creature" style="background:none; border:none; cursor:pointer; font-size:11px; opacity:0.6; padding:2px;" title="Edit">✏️</button>` : ''}
+                            ${mon.isCustom ? `<button class="btn-delete-creature" style="background:none; border:none; cursor:pointer; font-size:11px; opacity:0.5; padding:2px;" title="Delete">🗑️</button>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:12px; font-size:12px; margin-bottom:8px;">
+                        <span style="color:var(--status-error);">❤️ ${mon.hp}</span>
+                        <span style="color:var(--accent-primary);">🛡️ AC ${mon.ac}</span>
+                        <span style="color:var(--status-warning);">⭐ ${mon.xp || 0} XP</span>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; display:flex; gap:8px; flex-wrap:wrap;">
+                        ${statLine}
+                    </div>
+                    ${mon.description ? `<div style="font-size:11px; color:var(--text-secondary); font-style:italic; margin-bottom:4px; line-height:1.4;">${mon.description}</div>` : ''}
+                    <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">
+                        ${mon.inventory && mon.inventory.length ? '⚔️ ' + mon.inventory.map(i => i.name + (i.dmg ? ` (${i.dmg})` : '')).join(', ') : '🤜 Unarmed'}
+                    </div>
+                `;
+
+                // Wire up edit button
+                if (!mon.isDefault) {
+                    const editBtn = card.querySelector('.btn-edit-creature');
+                    if (editBtn) {
+                        editBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            showCreatureEditor(mon);
+                        };
+                        editBtn.onmouseenter = () => editBtn.style.opacity = '1';
+                        editBtn.onmouseleave = () => editBtn.style.opacity = '0.6';
+                    }
                 }
+
+                // Wire up delete button
+                if (mon.isCustom) {
+                    const deleteBtn = card.querySelector('.btn-delete-creature');
+                    if (deleteBtn) {
+                        deleteBtn.onclick = (e) => deleteFromBestiary(mon.id, e);
+                        deleteBtn.onmouseenter = () => deleteBtn.style.opacity = '1';
+                        deleteBtn.onmouseleave = () => deleteBtn.style.opacity = '0.5';
+                    }
+                }
+
+                list.appendChild(card);
+            });
+
+            content.appendChild(list);
+        };
+
+        // Wire filter controls
+        const searchInput = filterBar.querySelector('#bestiary-search');
+        const filterAllBtn = filterBar.querySelector('#filter-all');
+        const filterMonsterBtn = filterBar.querySelector('#filter-monster');
+        const filterNpcBtn = filterBar.querySelector('#filter-npc');
+
+        const updateFilterButtons = () => {
+            [filterAllBtn, filterMonsterBtn, filterNpcBtn].forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-ghost');
+            });
+
+            if (typeFilter === 'all') {
+                filterAllBtn.classList.remove('btn-ghost');
+                filterAllBtn.classList.add('btn-primary');
+            } else if (typeFilter === 'monster') {
+                filterMonsterBtn.classList.remove('btn-ghost');
+                filterMonsterBtn.classList.add('btn-primary');
+            } else if (typeFilter === 'npc') {
+                filterNpcBtn.classList.remove('btn-ghost');
+                filterNpcBtn.classList.add('btn-primary');
             }
+        };
 
-            list.appendChild(card);
-        });
+        searchInput.oninput = (e) => {
+            searchQuery = e.target.value;
+            renderBestiaryList();
+        };
 
-        content.appendChild(list);
+        filterAllBtn.onclick = () => {
+            typeFilter = 'all';
+            updateFilterButtons();
+            renderBestiaryList();
+        };
+
+        filterMonsterBtn.onclick = () => {
+            typeFilter = 'monster';
+            updateFilterButtons();
+            renderBestiaryList();
+        };
+
+        filterNpcBtn.onclick = () => {
+            typeFilter = 'npc';
+            updateFilterButtons();
+            renderBestiaryList();
+        };
+
+        // Initial render
+        renderBestiaryList();
         updateActiveDisplay();
 
         A.State.subscribe(() => {
             if (header.isConnected) updateActiveDisplay();
+            if (content.isConnected) renderBestiaryList(); // Re-render bestiary list on state changes
         });
     }
 
