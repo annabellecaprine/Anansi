@@ -775,6 +775,8 @@
             label: 'Feats',
             subtitle: 'Spells & Abilities',
             category: 'RPG Experiment',
+            subcategory: 'Game Master',
+            order: 40,
             icon: '✨',
             render: render
         });

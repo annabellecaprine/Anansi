@@ -402,24 +402,18 @@
                     localStorage.setItem('anansi_sidebar_collapsed', JSON.stringify(currentStored));
                 };
 
-                groupItems.forEach(section => {
-                    // Check for hidden property (Game Master Panel logic)
+                // Sort items by order
+                groupItems.sort((a, b) => (a.order || 99) - (b.order || 99));
+
+                // Helper to render a generic item button
+                const renderBtn = (section, containerDiv) => {
+                    // Check for hidden property
                     if (section.hidden) {
-                        // Special check for GM panel or other hidden panels
-                        // If it's the Game Master panel, check localStorage
                         if (section.id === 'gamemaster') {
                             const isUnlocked = localStorage.getItem('anansi_gm_unlocked') === 'true';
-                            if (!isUnlocked) return; // Skip if locked
+                            if (!isUnlocked) return;
                         } else {
-                            return; // Skip other hidden panels
-                        }
-                    }
-
-                    // Search filtering
-                    if (navSearchTerm) {
-                        const label = (section.label || '').toLowerCase();
-                        if (!label.includes(navSearchTerm)) {
-                            return; // Skip this item if it doesn't match search
+                            return;
                         }
                     }
 
@@ -430,15 +424,90 @@
                     btn.style.alignItems = 'center';
                     btn.style.gap = '8px';
 
-                    const iconSvg = ICONS[section.id] || ICONS['advanced'];
+                    // Use registered icon (emoji) or lookup SVG
+                    // Detect if icon is an SVG string or simple text
+                    let iconContent = '';
+                    if (section.icon && !section.icon.includes('<') && section.icon.length < 10) {
+                        // Likely emoji
+                        iconContent = `<span style="font-size:14px; line-height:1;">${section.icon}</span>`;
+                    } else if (ICONS[section.id]) {
+                        // Standard ID-based SVG
+                        iconContent = ICONS[section.id];
+                    } else if (section.icon && section.icon.includes('<svg')) {
+                        // Explicit SVG passed in register
+                        iconContent = section.icon;
+                    } else {
+                        // Fallback
+                        iconContent = ICONS['advanced'];
+                    }
 
                     btn.innerHTML = `
-             <span class="nav-icon" style="opacity:${section.id === activePanelId ? 1 : 0.6}; transition:opacity 0.2s;">${iconSvg}</span>
+             <span class="nav-icon" style="opacity:${section.id === activePanelId ? 1 : 0.6}; transition:opacity 0.2s; display:flex; align-items:center;">${iconContent}</span>
              <span class="nav-item-label">${section.label}</span>
            `;
                     btn.onclick = () => UI.switchPanel(section.id);
-                    list.appendChild(btn);
-                });
+                    containerDiv.appendChild(btn);
+                };
+
+                // If searching, render flat list
+                if (navSearchTerm) {
+                    groupItems.forEach(section => {
+                        const label = (section.label || '').toLowerCase();
+                        if (label.includes(navSearchTerm)) {
+                            renderBtn(section, list);
+                        }
+                    });
+                } else {
+                    // Normal rendering with subcategories
+                    const mainItems = groupItems.filter(s => !s.subcategory);
+                    const subcats = {};
+                    groupItems.filter(s => s.subcategory).forEach(s => {
+                        if (!subcats[s.subcategory]) subcats[s.subcategory] = [];
+                        subcats[s.subcategory].push(s);
+                    });
+
+                    // Render main (top-level) items first
+                    mainItems.forEach(s => renderBtn(s, list));
+
+                    // Render Subcategories
+                    Object.keys(subcats).forEach(subName => {
+                        const subGroup = subcats[subName];
+
+                        // Subcategory Header (Collapsible)
+                        const subHeader = document.createElement('div');
+                        const isSubCollapsed = (JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}')[subName]) === true;
+
+                        subHeader.style.cssText = 'padding:6px 12px 6px 12px; font-size:10px; font-weight:bold; color:var(--text-muted); cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-top:4px;';
+                        subHeader.innerHTML = `<span>${subName}</span><span class="sub-chev" style="font-size:8px; transform:${isSubCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'}">▼</span>`;
+
+                        const subList = document.createElement('div');
+                        subList.style.display = isSubCollapsed ? 'none' : 'flex';
+                        subList.style.flexDirection = 'column';
+                        subList.style.gap = '2px';
+                        subList.style.marginLeft = '8px'; // Indent sub-items
+                        subList.style.borderLeft = '1px solid var(--border-subtle)';
+
+                        // Populate
+                        subGroup.forEach(s => renderBtn(s, subList));
+
+                        // Toggle
+                        subHeader.onclick = () => {
+                            const was = subList.style.display === 'none';
+                            const newVal = was ? 'flex' : 'none';
+                            subList.style.display = newVal;
+                            const sc = subHeader.querySelector('.sub-chev');
+                            if (sc) sc.style.transform = newVal === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
+
+                            // Persist
+                            const store = JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}');
+                            store[subName] = (newVal === 'none');
+                            localStorage.setItem('anansi_sub_collapsed', JSON.stringify(store));
+                        };
+
+                        list.appendChild(subHeader);
+                        list.appendChild(subList);
+                    });
+                }
 
                 container.appendChild(list);
             });

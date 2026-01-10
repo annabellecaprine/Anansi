@@ -407,6 +407,8 @@
         label: 'Armory',
         subtitle: 'Item Database',
         category: 'RPG Experiment',
+        subcategory: 'Game Master',
+        order: 50,
         icon: '⚔️',
         render: render
     });

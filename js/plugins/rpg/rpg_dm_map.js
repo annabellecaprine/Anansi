@@ -101,14 +101,14 @@
 
         // --- Right: Editor ---
         const rightCol = document.createElement('div');
-        rightCol.style.cssText = 'background:var(--bg-base); display:flex; flex-direction:column; overflow:hidden;';
+        rightCol.style.cssText = 'background:var(--bg-base); display:flex; flex-direction:column; overflow:hidden; min-height:0;';
         rightCol.innerHTML = `
             <div id="editor-empty" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted);">
                 <span style="font-size:48px; margin-bottom:12px;">🗺️</span>
                 <div style="font-size:14px;">Select a location to add RPG data</div>
                 <div style="font-size:11px; margin-top:8px;">Create locations in the <strong>Locations</strong> panel first</div>
             </div>
-            <div id="editor-main" style="display:none; flex-direction:column; height:100%;"></div>
+            <div id="editor-main" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;"></div>
         `;
         container.appendChild(rightCol);
 
@@ -236,52 +236,59 @@
                 </div>
 
                 <!-- Content -->
-                <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:24px;">
+                <div style="flex:1; overflow-y:auto; min-height:0; padding:20px; display:flex; flex-direction:column; gap:24px;">
                     
                     <!-- ENTITIES PRESENT -->
-                    <div class="section card" style="padding:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h4 style="margin:0; font-size:14px;">👥 Entities Present</h4>
+                    <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
+                        <div class="accordion-toggle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;"><span class="acc-icon">▼</span> 👥 Entities Present</h4>
                             <button class="btn btn-sm btn-ghost" id="btn-spawn-here">+ Spawn Here</button>
                         </div>
-                        <div id="entities-list" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;"></div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
-                            NPCs and monsters currently at this location.
+                        <div style="display:block;">
+                            <div id="entities-list" style="display:flex; flex-direction:column; gap:6px; overflow-y:visible;"></div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                                NPCs and monsters currently at this location.
+                            </div>
                         </div>
                     </div>
 
                     <!-- ENCOUNTERS -->
-                    <div class="section card" style="padding:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h4 style="margin:0; font-size:14px;">💀 Encounters</h4>
+                    <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
+                        <div class="accordion-toggle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;"><span class="acc-icon">▼</span> 💀 Encounters</h4>
                             <button class="btn btn-sm btn-ghost" id="btn-add-encounter">+ Add</button>
                         </div>
-                        <div id="encounters-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
-                            Creatures from the Bestiary that can be found here.
+                        <div style="display:block;">
+                            <div id="encounters-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                                Creatures from the Bestiary that can be found here.
+                            </div>
                         </div>
                     </div>
 
                     <!-- LOOT -->
-                    <div class="section card" style="padding:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h4 style="margin:0; font-size:14px;">💎 Loot</h4>
+                    <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
+                         <div class="accordion-toggle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;"><span class="acc-icon">▼</span> 💎 Loot</h4>
                             <div style="display:flex; gap:8px;">
                                 <button class="btn btn-sm btn-ghost" id="btn-add-loot-armory">From Armory</button>
                                 <button class="btn btn-sm btn-ghost" id="btn-add-loot-custom">+ Custom</button>
                             </div>
                         </div>
-                        <div id="loot-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
-                            Items that can be found or looted here.
+                        <div style="display:block;">
+                            <div id="loot-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                                Items that can be found or looted here.
+                            </div>
                         </div>
                     </div>
 
                     <!-- TRAP -->
-                    <div class="section card" style="padding:16px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h4 style="margin:0; font-size:14px;">⚠️ Trap / Hazard</h4>
+                    <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
+                        <div class="accordion-toggle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;"><span class="acc-icon">▼</span> ⚠️ Trap / Hazard</h4>
                         </div>
+                        <div style="display:block;">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
                             <div>
                                 <label class="label">Type</label>
@@ -316,19 +323,38 @@
                             <label class="label">Trap Description (GM notes)</label>
                             <textarea class="input" id="trap-desc" rows="2" style="width:100%;" placeholder="How the trap works, what triggers it...">${rpg.trap?.description || ''}</textarea>
                         </div>
+                        </div>
                     </div>
 
                     <!-- SECRETS -->
-                    <div class="section card" style="padding:16px;">
-                        <h4 style="margin:0 0 12px; font-size:14px;">🤫 DM Secrets</h4>
-                        <textarea class="input" id="dm-secrets" rows="5" style="width:100%;" placeholder="Hidden information, plot hooks, NPC motivations, secret passages...">${rpg.secrets || ''}</textarea>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
-                            Only visible to the GM. Never shared with players.
+                    <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
+                        <div class="accordion-toggle" style="margin-bottom:12px;">
+                            <h4 style="margin:0; font-size:14px;"><span class="acc-icon">▼</span> 🤫 DM Secrets</h4>
+                        </div>
+                        <div style="display:block;">
+                            <textarea class="input" id="dm-secrets" rows="5" style="width:100%;" placeholder="Hidden information, plot hooks, NPC motivations, secret passages...">${rpg.secrets || ''}</textarea>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
+                                Only visible to the GM. Never shared with players.
+                            </div>
                         </div>
                     </div>
 
                 </div>
             `;
+
+
+            // Wire Accordions
+            editorMain.querySelectorAll('.accordion-toggle').forEach(header => {
+                header.style.cursor = 'pointer';
+                header.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                    const content = header.nextElementSibling;
+                    const isCollapsed = content.style.display === 'none';
+                    content.style.display = isCollapsed ? 'block' : 'none';
+                    const icon = header.querySelector('.acc-icon');
+                    if (icon) icon.textContent = isCollapsed ? '▼' : '▶';
+                };
+            });
 
             // === ENTITIES PRESENT ===
             const entitiesList = editorMain.querySelector('#entities-list');
@@ -496,6 +522,7 @@
                             entry.count = parseInt(e.target.value) || 1;
                         }
                         A.State.notify();
+                        if (A.Project?.save) A.Project.save();
                     };
                 });
 
@@ -503,6 +530,7 @@
                     btn.onclick = () => {
                         rpg.encounters.splice(parseInt(btn.dataset.idx), 1);
                         A.State.notify();
+                        if (A.Project?.save) A.Project.save();
                         renderEncounters();
                         renderList();
                     };
@@ -555,6 +583,7 @@
                         if (!rpg.encounters) rpg.encounters = [];
                         rpg.encounters.push({ id: mob.id, count: 1 });
                         A.State.notify();
+                        if (A.Project?.save) A.Project.save();
                         renderEncounters();
                         renderList();
                         A.UI.Modal.hide();
@@ -616,6 +645,7 @@
                             item.qty = parseInt(e.target.value) || 1;
                         }
                         A.State.notify();
+                        if (A.Project?.save) A.Project.save();
                     };
                 });
 
@@ -623,6 +653,7 @@
                     btn.onclick = () => {
                         rpg.loot.splice(parseInt(btn.dataset.idx), 1);
                         A.State.notify();
+                        if (A.Project?.save) A.Project.save();
                         renderLoot();
                         renderList();
                     };
@@ -653,6 +684,7 @@
                             if (!rpg.loot) rpg.loot = [];
                             rpg.loot.push({ id: item.id, name: item.name, qty: 1 });
                             A.State.notify();
+                            if (A.Project?.save) A.Project.save();
                             renderLoot();
                             renderList();
                             A.UI.Modal.hide();
@@ -672,6 +704,7 @@
                     if (!rpg.loot) rpg.loot = [];
                     rpg.loot.push({ name: name.trim(), qty: 1 });
                     A.State.notify();
+                    if (A.Project?.save) A.Project.save();
                     renderLoot();
                     renderList();
                 }
@@ -704,6 +737,7 @@
                 rpg.trap.type = e.target.value;
                 trapDetails.style.display = e.target.value !== 'none' ? 'grid' : 'none';
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
                 renderList();
             };
 
@@ -715,6 +749,7 @@
                     editorMain.querySelector('#trap-dc').value = preset.dc;
                     editorMain.querySelector('#trap-dmg').value = preset.dmg;
                     A.State.notify();
+                    if (A.Project?.save) A.Project.save();
                 }
             };
 
@@ -722,30 +757,35 @@
                 if (!rpg.trap) rpg.trap = {};
                 rpg.trap.dc = parseInt(e.target.value) || 10;
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
             };
 
             editorMain.querySelector('#trap-dmg').onchange = (e) => {
                 if (!rpg.trap) rpg.trap = {};
                 rpg.trap.dmg = e.target.value;
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
             };
 
             editorMain.querySelector('#trap-save').onchange = (e) => {
                 if (!rpg.trap) rpg.trap = {};
                 rpg.trap.save = e.target.value;
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
             };
 
             editorMain.querySelector('#trap-desc').onchange = (e) => {
                 if (!rpg.trap) rpg.trap = {};
                 rpg.trap.description = e.target.value;
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
             };
 
             // === SECRETS ===
             editorMain.querySelector('#dm-secrets').onchange = (e) => {
                 rpg.secrets = e.target.value;
                 A.State.notify();
+                if (A.Project?.save) A.Project.save();
                 renderList();
             };
         };
@@ -755,9 +795,11 @@
     }
 
     A.registerPanel('rpg_dm_map', {
-        label: 'DM Atlas',
+        label: 'GM Atlas',
         subtitle: 'Loot, Traps & Secrets',
         category: 'RPG Experiment',
+        subcategory: 'Game Master',
+        order: 20,
         icon: '🗺️',
         render: render
     });

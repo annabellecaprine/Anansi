@@ -772,6 +772,8 @@
         label: 'Game Master',
         subtitle: 'Campaign & Rules',
         category: 'RPG Experiment',
+        subcategory: 'Game Master',
+        order: 10,
         icon: '🎲',
         render: render
     });

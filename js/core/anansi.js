@@ -22,8 +22,14 @@ window.Anansi = window.Anansi || {};
 
     A.registerPanel = function (id, config) {
         // config: { label, subtitle, icon, render(container), onShow(), onHide() }
-        navSections.push({ id, ...config });
-        console.log(`[Kernel] Registered panel: ${config.label}`);
+        const idx = navSections.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            navSections[idx] = { id, ...config };
+            console.log(`[Kernel] Updated panel: ${config.label}`);
+        } else {
+            navSections.push({ id, ...config });
+            console.log(`[Kernel] Registered panel: ${config.label}`);
+        }
 
         // If UI is loaded and initialized, refresh nav
         if (A.UI && A.UI.els) A.UI.refreshNav();

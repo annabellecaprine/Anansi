@@ -8,6 +8,19 @@ All notable changes to Anansi will be documented in this file.
 - **Zombie Entity Fix**: `RPG.Entities.remove` now synchronizes deletions with global actor state, preventing ghost entries in the Web Lens.
 - **Bestiary Cleanup Enhancement**: "Clean Up" button now detects and removes orphaned entities and dead monsters.
 - **Cleanup Persistence**: Cleanup now saves changes to IndexedDB, so removed entities stay gone after reload.
+- **RPG Play Panel Fix**: Resolved issue where switching modes would duplicate the UI interface instead of refreshing it.
+- **Chat Persistence**: Fixed issue where chat history was lost on refresh. Both MUD and Freeform chat logs are now saved and restored.
+- **DM Atlas Persistence**: Changes to Encounters, Loot, and Traps are now immediately saved to disk, ensuring data persists when switching tabs.
+- **DM Atlas UI**: Removed fixed height constraints on entity lists to improve readability and scrolling.
+
+### RPG Combat Polish
+- **Equipment Detection Fix**: Party Members now correctly link to their RPG Entities to show equipped items in combat, resolving the "Unarmed" bug.
+- **Monster Inventory Support**: Attack system now automatically infers equipped weapons from Monster/NPC inventories, allowing bestiary creatures to fight effectively without manual slot assignment.
+- **Enhanced Attack UI**: Implemented a guided multi-step attack selector (Type -> Weapon -> Target) for precise combat control.
+- **Engine Command Parsing**: Updated RPG Engine to correctly parse complex commands (e.g., "Melee Attack on [Target] using [Weapon]"), ensuring the correct weapon damage dice and rules are applied.
+- **Freeform Chat Persistence**: Fixed regression where Freeform RP history was not saving to disk, ensuring narrative context survives page reloads.
+- **UI Feedback**: "Send" button now changes to "Thinking..." state during LLM generation to indicate active processing.
+- **Smart Monster Inventory**: Bestiary inventory now features a Search/Select dropdown linked to the Armory, automatically populating damage, type, and range properties for monsters.
 
 ### Autonomous Narrative Systems (LlamaTale-Inspired)
 - **Sentiment System**: NPCs now track relationship states toward other entities (hostile → suspicious → neutral → friendly → loyal). Use `RPG.Entities.getSentiment()`, `setSentiment()`, and `adjustSentiment()`.

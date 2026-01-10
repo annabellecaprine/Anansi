@@ -35,7 +35,7 @@
     // ===========================================
     const ACTION_SETS = {
         combat: [
-            { id: 'attack', icon: '⚔️', label: 'Attack', cmd: 'melee attack' },
+            { id: 'attack', icon: '⚔️', label: 'Attack', cmd: null },
             { id: 'defend', icon: '🛡️', label: 'Defend', cmd: 'defend' },
             { id: 'abilities', icon: '✨', label: 'Ability', cmd: null },
             { id: 'items', icon: '🎒', label: 'Item', cmd: null },
@@ -65,12 +65,14 @@
     let currentMode = 'mud';
     let pendingAction = null;
     let llmNarrationEnabled = false;
+    let listenersAttached = false;
 
     // ===========================================
     // MAIN RENDER
     // ===========================================
     function render(container) {
         containerEl = container;
+        container.innerHTML = '';
         container.style.cssText = 'height:100%; display:flex; flex-direction:column; background:var(--bg-base); padding:0; overflow:hidden;';
 
         // Restore state
@@ -96,6 +98,15 @@
         updateActionBar();
         updateLens();
 
+        // Restore chat history
+        if (state.rpg?.history && state.rpg.history.length > 0) {
+            state.rpg.history.forEach(msg => {
+                const role = msg.role === 'assistant' ? 'model' : msg.role;
+                // For system notes that were saved as HTML/content
+                appendMessage(role, msg.content);
+            });
+        }
+
         // Welcome message
         if (!chatLog.hasChildNodes()) {
             const welcomeMsg = currentMode === 'mud'
@@ -104,37 +115,41 @@
             appendMessage('system', welcomeMsg);
         }
 
-        // Subscribe to RPG Engine events
-        if (getEngine()) {
-            // Location change
-            getEngine().on('location_enter', (data) => {
-                if (data.image) {
-                    appendMessage('system', `![${data.location.name}](${data.image})`);
-                }
-                updateStatusBar();
-                updateLens();
-            });
+        // Subscribe to RPG Engine events (only once)
+        if (!listenersAttached) {
+            if (getEngine()) {
+                // Location change
+                getEngine().on('location_enter', (data) => {
+                    if (data.image) {
+                        appendMessage('system', `![${data.location.name}](${data.image})`);
+                    }
+                    updateStatusBar();
+                    updateLens();
+                });
 
-            // Combat state changes - refresh UI
-            getEngine().on('combat_start', () => {
-                updateActionBar();
-                updateCombatStatus();
-                updateLens();
-            });
+                // Combat state changes - refresh UI
+                getEngine().on('combat_start', () => {
+                    updateActionBar();
+                    updateCombatStatus();
+                    updateLens();
+                });
 
-            getEngine().on('combat_end', () => {
-                updateActionBar();
-                updateCombatStatus();
-                updateLens();
-            });
-        }
-
-        // Subscribe to general state changes (for spawns etc)
-        A.State.subscribe(() => {
-            if (document.getElementById('rpg-lens-container') || document.querySelector('[data-panel="rpg_play"]')) {
-                updateLens();
+                getEngine().on('combat_end', () => {
+                    updateActionBar();
+                    updateCombatStatus();
+                    updateLens();
+                });
             }
-        });
+
+            // Subscribe to general state changes (for spawns etc)
+            A.State.subscribe(() => {
+                if (document.getElementById('rpg-lens-container') || document.querySelector('[data-panel="rpg_play"]')) {
+                    updateLens();
+                }
+            });
+
+            listenersAttached = true;
+        }
     }
 
     // ===========================================
@@ -225,6 +240,40 @@
         }, 0);
 
         updateStatusBar();
+    }
+
+    // ===========================================
+    // HELPERS
+    // ===========================================
+    function switchMode(modeId) {
+        if (currentMode === modeId) return;
+        currentMode = modeId;
+
+        // Persist mode
+        const state = A.State.get();
+        if (!state.rpg) state.rpg = {};
+        state.rpg.playMode = modeId;
+
+        // Full re-render
+        if (containerEl) {
+            containerEl.innerHTML = '';
+            render(containerEl);
+        }
+    }
+
+    function toggleNarration() {
+        llmNarrationEnabled = !llmNarrationEnabled;
+
+        // Persist preference
+        localStorage.setItem('anansi_rpg_narration', llmNarrationEnabled);
+        const state = A.State.get();
+        if (state.rpg) state.rpg.narrationEnabled = llmNarrationEnabled;
+
+        // Update button
+        const btn = document.getElementById('narration-toggle');
+        if (btn) {
+            btn.innerHTML = llmNarrationEnabled ? '✨ AI Narration ON' : '🔇 AI Narration OFF';
+        }
     }
 
     // ===========================================
@@ -409,6 +458,9 @@
 
         // Actions requiring input or selection
         switch (action.id) {
+            case 'attack':
+                showAttackSelector();
+                break;
             case 'abilities':
                 showAbilitySelector();
                 break;
@@ -531,6 +583,194 @@
         });
     }
 
+    function showAttackSelector() {
+        const actor = getActiveActor();
+        const state = A.State.get();
+        const armory = state.rpg?.items || [];
+
+        // Support both RPG Entity (root) and Legacy Actor (data.rpg)
+        let equipped = actor?.equipped || actor?.data?.rpg?.equipped || {};
+
+        // SPECIAL CASE: Monsters/NPCs from Bestiary don't have 'equipped' slots.
+        // They have an 'inventory' array. We infer equipment from the first available weapon.
+        if ((!equipped.main_hand && !equipped.off_hand) && (actor?.inventory || actor?.data?.rpg?.inventory)) {
+            const inv = actor.inventory || actor.data.rpg.inventory || [];
+            const weapon = inv.find(i => i.type === 'weapon');
+            if (weapon) {
+                // Attach directly to 'main_hand' if it's not ID based? 
+                // No, we need to distinguish ID from Object.
+                equipped = { ...equipped, main_hand_item: weapon };
+            }
+        }
+
+        // Helper to resolve item data (ID or Direct Object)
+        const resolveItem = (slotId, slotItem) => {
+            if (slotItem) return slotItem; // Direct object from bestiary
+            if (slotId) return armory.find(i => i.id === slotId);
+            return null;
+        };
+
+        const mainItem = resolveItem(equipped.main_hand, equipped.main_hand_item);
+        const offItem = resolveItem(equipped.off_hand, equipped.off_hand_item);
+
+        // Determine available attack types
+
+        // Determine available attack types
+        const types = [{ id: 'melee', label: 'Melee' }]; // Melee always available (Unarmed)
+
+        // Unified check for ranged weapons
+        const checkRanged = (itemOrId) => {
+            if (!itemOrId) return false;
+            const item = typeof itemOrId === 'string' ? armory.find(i => i.id === itemOrId) : itemOrId;
+            if (!item) return false;
+
+            // Priorities: 1. explicit property, 2. system category, 3. fallbacks
+            if (item.properties && item.properties.includes('ranged')) return true;
+            return ['ranged', 'firearm', 'energy', 'explosive'].includes(item.category || item.type);
+        };
+
+        let hasRanged = checkRanged(equipped.main_hand) || checkRanged(equipped.off_hand) || checkRanged(equipped.main_hand_item);
+
+        // For monsters, search for ANY ranged weapon in inventory if not already found
+        if (!hasRanged && (actor?.inventory || actor?.data?.rpg?.inventory)) {
+            const inv = actor.inventory || actor.data.rpg.inventory || [];
+            hasRanged = inv.some(i => i.type === 'weapon' && checkRanged(i));
+        }
+
+        if (hasRanged) {
+            types.push({ id: 'ranged', label: 'Ranged' });
+        }
+
+        showSelector('Attack Type', types, (opt) => {
+            showWeaponSelector(opt.id, actor, equipped, mainItem, offItem);
+        });
+    }
+
+    function showWeaponSelector(attackType, actor, equipped, mainItem, offItem) {
+        const state = A.State.get();
+        const armory = state.rpg?.items || [];
+        const weapons = [];
+
+        // Unified check helper for weapon filtering
+        const checkRanged = (item) => {
+            if (!item) return false;
+            if (item.properties && item.properties.includes('ranged')) return true;
+            return ['ranged', 'firearm', 'energy', 'explosive'].includes(item.category || item.type);
+        };
+
+        if (attackType === 'melee') {
+            // Unarmed is always an option
+            weapons.push({ id: 'unarmed', label: 'Unarmed', name: 'Unarmed' });
+
+            // Check slots
+            [mainItem, offItem].forEach(item => {
+                if (item && (item.type === 'weapon' || !item.type)) {
+                    if (!checkRanged(item)) {
+                        weapons.push({ id: item.id || 'custom', label: item.name, name: item.name });
+                    }
+                }
+            });
+
+            // For monsters, allow picking other melee weapons from inventory?
+            // For now, let's just stick to the inferred "main" weapon to keep it simple,
+            // or we could list all weapons. Let's list all weapons if they match the type.
+            if (!equipped.main_hand && !equipped.off_hand) {
+                const inv = actor.inventory || actor.data?.rpg?.inventory || [];
+                inv.forEach(item => {
+                    if (item.type === 'weapon' && !checkRanged(item)) {
+                        // Avoid duplicates if it's already in mainItem
+                        if (!weapons.find(w => w.label === item.name)) {
+                            weapons.push({ id: 'custom', label: item.name, name: item.name });
+                        }
+                    }
+                });
+            }
+        } else if (attackType === 'ranged') {
+            // Slots
+            [mainItem, offItem].forEach(item => {
+                if (item && item.type === 'weapon') {
+                    if (checkRanged(item)) {
+                        weapons.push({ id: item.id || 'custom', label: item.name, name: item.name });
+                    }
+                }
+            });
+
+            // Inventory scan for monsters/NPCs
+            if (!equipped.main_hand && !equipped.off_hand) {
+                const inv = actor.inventory || actor.data?.rpg?.inventory || [];
+                inv.forEach(item => {
+                    if (item.type === 'weapon' && checkRanged(item)) {
+                        if (!weapons.find(w => w.label === item.name)) {
+                            weapons.push({ id: 'custom', label: item.name, name: item.name });
+                        }
+                    }
+                });
+            }
+        }
+
+        if (weapons.length === 0) {
+            weapons.push({ id: 'unarmed', label: 'Unarmed', name: 'Unarmed' });
+        }
+
+        showSelector('Select Weapon', weapons, (opt) => {
+            showTargetSelector(opt, attackType);
+        });
+    }
+
+    function showTargetSelector(weaponOpt, attackType) {
+        const state = A.State.get();
+        const entities = state.rpg?.entities || {};
+        const actors = state.nodes?.actors?.items || {};
+
+        // Find potential targets (enemies)
+        // We look at live entities in combat
+        // Fallback: look at all actors in location if not in combat? 
+        // Typically attack is in combat.
+
+        let targets = [];
+
+        if (state.rpg?.combat?.active) {
+            // Get all combatants minus self?
+            const combatants = Object.keys(entities).filter(id => {
+                const ent = entities[id];
+                return ent.hp > 0 && id !== getActiveActor()?.id; // Don't attack self
+            });
+
+            targets = combatants.map(id => {
+                const actor = actors[id];
+                const ent = entities[id];
+                const name = actor ? actor.name : (ent.name || 'Unknown');
+                // Maybe filter friends? For now list all. User can choose.
+                return { id: id, label: name };
+            });
+        } else {
+            // Out of combat: List NPCs/Monsters in location?
+            // For now, let's just use "Visible" logic from Lens
+            const currentLocation = state.rpg?.currentLocation;
+            const localActors = Object.values(actors).filter(a => {
+                return a.data?.rpg?.locationId === currentLocation && a.id !== getActiveActor()?.id;
+            });
+            targets = localActors.map(a => ({ id: a.id, label: a.name }));
+        }
+
+        if (targets.length === 0) {
+            appendMessage('system', '⚠️ No valid targets found.');
+            return;
+        }
+
+        showSelector('Select Target', targets, (targetOpt) => {
+            executeAttack(targetOpt, weaponOpt, attackType);
+        });
+    }
+
+    function executeAttack(target, weapon, attackType) {
+        const weaponName = weapon.id === 'unarmed' ? 'Unarmed' : weapon.label;
+        // Construct natural language command that matches Core Rules (Melee Attack / Ranged Attack)
+        const typeStr = attackType === 'ranged' ? 'Ranged Attack' : 'Melee Attack';
+        const cmd = `${typeStr} on ${target.label} using ${weaponName}`;
+        executeCommand(cmd);
+    }
+
     function showItemSelector() {
         const actor = getActiveActor();
         const inventory = actor?.data?.rpg?.inventory || [];
@@ -639,6 +879,11 @@
         inputField.placeholder = getPlaceholder();
 
         const loadingId = appendMessage('system', '...');
+        const sendBtn = document.getElementById('rpg-send');
+        if (sendBtn) {
+            sendBtn.textContent = 'Thinking...';
+            sendBtn.disabled = true;
+        }
 
         try {
             if (currentMode === 'mud') {
@@ -650,6 +895,11 @@
             console.error('[RPG Play]', err);
             const el = document.getElementById(loadingId);
             if (el) el.textContent = "❌ Error: " + err.message;
+        } finally {
+            if (sendBtn) {
+                sendBtn.textContent = 'Send';
+                sendBtn.disabled = false;
+            }
         }
 
         updateStatusBar();
@@ -680,16 +930,29 @@
         }
 
         const state = A.State.get();
-        const history = state.rpg?.history || [];
+        if (!state.rpg.history) state.rpg.history = [];
+        const history = state.rpg.history;
+
+        // 1. Save USER input
+        history.push({ role: 'user', content: text });
+
         const roundResult = engine.processRound(text, history, 'input', { source: 'rpg_session' });
 
         // Display system notes (dice rolls, combat results, etc.)
         if (roundResult.context.system_notes) {
             const sysEl = document.getElementById(loadingId);
+            const notesContent = formatSystemNotes(roundResult.context.system_notes);
+
             if (sysEl) {
-                sysEl.innerHTML = formatSystemNotes(roundResult.context.system_notes);
+                sysEl.innerHTML = notesContent;
                 sysEl.style.cssText = 'font-style:normal; opacity:1; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:12px; border-radius:8px; align-self:stretch; max-width:100%;';
             }
+
+            // 2. Save SYSTEM notes (wrapped for styling)
+            history.push({
+                role: 'system',
+                content: `<div style="font-style:normal; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:12px; border-radius:8px; width:100%;">${notesContent}</div>`
+            });
         } else {
             const loadingEl = document.getElementById(loadingId);
             if (loadingEl) loadingEl.remove();
@@ -700,6 +963,8 @@
             const narrative = await generateNarration(roundResult);
             if (narrative) {
                 appendMessage('model', narrative);
+                // 3. Save NARRATION
+                history.push({ role: 'assistant', content: narrative });
             }
         }
     }
@@ -715,14 +980,17 @@
         }
 
         const state = A.State.get();
+        if (!state.rpg) state.rpg = {};
         const prompt = buildFreeformPrompt(state);
-        const history = state.rpg?.history || [];
+        const history = state.rpg.history || [];
 
-        // Add current message to history
+        // Add current message to history and save immediately
         history.push({ role: 'user', content: text });
+        state.rpg.history = history;
+        A.State.notify();
 
         try {
-            const response = await A.API.chat(config, prompt, history.slice(-20));
+            const response = await A.LLM.generate(prompt, history.slice(-20), config);
 
             if (response) {
                 const loadingEl = document.getElementById(loadingId);
@@ -731,6 +999,7 @@
                 appendMessage('model', response);
                 history.push({ role: 'assistant', content: response });
                 state.rpg.history = history;
+                A.State.notify();
             }
         } catch (err) {
             document.getElementById(loadingId).textContent = "❌ LLM Error: " + err.message;
@@ -792,14 +1061,32 @@
     // ===========================================
     function getActiveActor() {
         const state = A.State.get();
+        // Priority: Combat Active Entity -> First Party Member (Entity)
+
         if (state.rpg?.combat?.active) {
             const c = state.rpg.combat;
             const activeEntry = c.order?.[c.turn];
             if (activeEntry) {
+                // Look in RPG Entities first
+                if (state.rpg.entities?.[activeEntry.id]) {
+                    return state.rpg.entities[activeEntry.id];
+                }
+
+                // Look for Linked Entity (Legacy Actor ID -> RPG Entity)
+                const linked = Object.values(state.rpg.entities || {}).find(e => e.sourceActorId === activeEntry.id);
+                if (linked) return linked;
+
+                // Fallback to nodes (legacy)
                 return state.nodes?.actors?.items?.[activeEntry.id] || null;
             }
         }
-        // Return first party member
+
+        // Return first party member from RPG Entities
+        const entities = Object.values(state.rpg?.entities || {});
+        const partyMember = entities.find(e => e.type === 'party_member');
+        if (partyMember) return partyMember;
+
+        // Fallback: Legacy actors
         const actors = Object.values(state.nodes?.actors?.items || {});
         return actors.find(a => a.data?.rpg?.enabled && a.data.rpg.type !== 'monster') || null;
     }
@@ -1049,6 +1336,7 @@
         label: 'Play',
         subtitle: 'Game Session',
         category: 'RPG Experiment',
+        order: 1,
         icon: '🎮',
         render: render
     });

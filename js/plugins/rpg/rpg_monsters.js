@@ -396,13 +396,30 @@ Guidelines:
             // Inventory management
             const inventoryList = modalContent.querySelector('#inventory-list');
             const renderInventory = () => {
+                const state = A.State.get();
+                const armory = state.rpg?.items || [];
+
+                // Create (or refresh) datalist for armory items
+                let datalist = modalContent.querySelector('#armory-datalist');
+                if (!datalist) {
+                    datalist = document.createElement('datalist');
+                    datalist.id = 'armory-datalist';
+                    modalContent.appendChild(datalist);
+                }
+                datalist.innerHTML = armory.map(i => `<option value="${i.name}">`).join('');
+
                 if (creature.inventory.length === 0) {
                     inventoryList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic;">No items (unarmed)</div>';
                     return;
                 }
-                inventoryList.innerHTML = creature.inventory.map((item, idx) => `
+                inventoryList.innerHTML = creature.inventory.map((item, idx) => {
+                    const isRanged = item.properties?.includes('ranged');
+                    return `
                     <div style="display:flex; gap:8px; align-items:center; background:var(--bg-surface); padding:6px 8px; border-radius:4px;">
-                        <input type="text" class="input item-name" data-idx="${idx}" style="flex:2;" value="${item.name}" placeholder="Item name">
+                        <div style="flex:2; position:relative;">
+                            <input type="text" list="armory-datalist" class="input item-name" data-idx="${idx}" style="width:100%;" value="${item.name}" placeholder="Item name">
+                            ${isRanged ? '<span title="Ranged Weapon" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); opacity:0.7;">🏹</span>' : ''}
+                        </div>
                         <select class="input item-type" data-idx="${idx}" style="flex:1; font-size:11px;">
                             <option value="weapon" ${item.type === 'weapon' ? 'selected' : ''}>Weapon</option>
                             <option value="armor" ${item.type === 'armor' ? 'selected' : ''}>Armor</option>
@@ -412,12 +429,24 @@ Guidelines:
                         <input type="text" class="input item-dmg" data-idx="${idx}" style="flex:1;" value="${item.dmg || ''}" placeholder="1d6">
                         <button class="btn btn-xs btn-ghost item-remove" data-idx="${idx}" style="color:var(--status-error);">✕</button>
                     </div>
-                `).join('');
+                `}).join('');
 
                 // Wire up inventory events
                 inventoryList.querySelectorAll('.item-name').forEach(el => {
                     el.oninput = (e) => {
-                        creature.inventory[parseInt(e.target.dataset.idx)].name = e.target.value;
+                        const idx = parseInt(e.target.dataset.idx);
+                        const val = e.target.value;
+                        creature.inventory[idx].name = val;
+
+                        // Check if it matches an armory item
+                        const matched = armory.find(i => i.name.toLowerCase() === val.toLowerCase());
+                        if (matched) {
+                            creature.inventory[idx].type = matched.type || 'weapon';
+                            creature.inventory[idx].dmg = matched.dmg || matched.damage || '';
+                            creature.inventory[idx].properties = matched.properties || [];
+                            // Re-render to show icon and updated values
+                            renderInventory();
+                        }
                     };
                 });
                 inventoryList.querySelectorAll('.item-type').forEach(el => {
@@ -907,6 +936,8 @@ Guidelines:
         label: 'Monsters',
         subtitle: 'Bestiary & Spawn',
         category: 'RPG Experiment',
+        subcategory: 'Game Master',
+        order: 30,
         icon: '🐉',
         render: render
     });

@@ -1138,8 +1138,25 @@
             let target = null;
             const potentialTargets = Object.values(state.nodes?.actors?.items || {});
 
-            // Auto-target in combat
-            if (state.rpg?.combat?.active && subject) {
+            // Parse explicit target from "on [Name]" or "target [Name]"
+            if (!target) {
+                const targetMatch = input.match(/(?:on|target)\s+(.+?)(?:\s+using|$)/i);
+                if (targetMatch) {
+                    const targetName = targetMatch[1].trim();
+                    target = potentialTargets.find(a => a.name.toLowerCase() === targetName.toLowerCase());
+                    if (!target && state.rpg.entities) {
+                        // Check RPG entities too
+                        const ent = Object.values(state.rpg.entities).find(e => e.name?.toLowerCase() === targetName.toLowerCase());
+                        if (ent) {
+                            // Map back to actor if possible, or use entity as target
+                            target = potentialTargets.find(a => a.id === ent.sourceActorId) || ent;
+                        }
+                    }
+                }
+            }
+
+            // Auto-target in combat if still no target
+            if (state.rpg?.combat?.active && subject && !target) {
                 const isSubjectMonster = subject.data?.rpg?.type === 'monster';
                 target = potentialTargets.find(a =>
                     a.data?.rpg?.enabled &&
@@ -1156,10 +1173,21 @@
 
             // Target calculation
             let targetVal = 0;
-            if (!isNaN(parseInt(matchedRule.target))) {
+            if (target) {
+                // If it's an RPG Entity (bestiary), it might not have data.rpg structure
+                const tData = target.data?.rpg || target;
+                if (!isNaN(parseInt(matchedRule.target))) {
+                    targetVal = parseInt(matchedRule.target);
+                } else {
+                    // Start with AC
+                    targetVal = parseInt(tData.ac || tData.AC || 10);
+                    // Check logic for 'AC' or specific stat
+                    if (matchedRule.target !== 'AC') {
+                        targetVal = this.getStat(target, matchedRule.target);
+                    }
+                }
+            } else if (!isNaN(parseInt(matchedRule.target))) {
                 targetVal = parseInt(matchedRule.target);
-            } else if (target) {
-                targetVal = this.getStat(target, matchedRule.target);
             }
 
             const finalRoll = rollResult.total + modVal;
@@ -1170,34 +1198,68 @@
             if (modVal !== 0) calcStr += ` + ${modVal} (Mod)`;
 
             sysLogs.push(`🎲 **${outcome}**`);
-            sysLogs.push(`Result: **${finalRoll}** (${calcStr}) >= **${targetVal}**`);
+            sysLogs.push(`Result: **${finalRoll}** (${calcStr}) >= **${targetVal}** ${target ? '(' + target.name + ')' : ''}`);
 
             // Damage on success
             if (success && target && (matchedRule.id.includes('atk') || matchedRule.name.includes('Attack'))) {
-                let dmgDice = "1d4"; // Unarmed
+                let dmgDice = "1d4"; // Default Unarmed
                 let weaponName = "Unarmed";
 
-                if (subject.data?.rpg?.equipped?.main_hand) {
-                    const armory = state.rpg?.items || [];
-                    const wpn = armory.find(i => i.id === subject.data.rpg.equipped.main_hand);
-                    if (wpn?.dmg || wpn?.effect) {
-                        dmgDice = wpn.dmg || wpn.effect;
-                        weaponName = wpn.name;
+                // 1. Check for "using [Weapon]" override
+                const weaponMatch = input.match(/using\s+(.+)$/i);
+                let usedWeapon = null;
+
+                if (weaponMatch) {
+                    const wName = weaponMatch[1].trim();
+                    if (wName.toLowerCase() !== 'unarmed') {
+                        // Look in inventory/equipped
+                        const armory = state.rpg?.items || [];
+                        const inv = subject.data?.rpg?.inventory || subject.inventory || [];
+
+                        // Check inventory objects (Bestiary/NPC)
+                        usedWeapon = inv.find(i => i.name?.toLowerCase() === wName.toLowerCase());
+
+                        // Check global armory by name if not found in inventory
+                        if (!usedWeapon) {
+                            usedWeapon = armory.find(i => i.name?.toLowerCase() === wName.toLowerCase());
+                        }
                     }
                 }
 
+                // 2. Fallback to Main Hand (Equipped)
+                if (!usedWeapon) {
+                    const equipped = subject.data?.rpg?.equipped || subject.equipped;
+                    if (equipped?.main_hand_item) {
+                        usedWeapon = equipped.main_hand_item;
+                    } else if (equipped?.main_hand) {
+                        const armory = state.rpg?.items || [];
+                        usedWeapon = armory.find(i => i.id === equipped.main_hand);
+                    }
+                }
+
+                if (usedWeapon) {
+                    dmgDice = usedWeapon.dmg || usedWeapon.damage || "1d4";
+                    weaponName = usedWeapon.name;
+                }
+
                 const dmgResult = this.rollDice(dmgDice);
-                const dmgMod = this.getStat(subject, 'STRMod');
+                const dmgMod = this.getStat(subject, 'STRMod'); // Could depend on weapon type (Finesse?)
                 const totalDmg = Math.max(1, dmgResult.total + dmgMod);
 
-                if (!target.data.rpg) target.data.rpg = { hp: 10, maxHp: 10 };
-                target.data.rpg.hp = Math.max(0, (target.data.rpg.hp || 0) - totalDmg);
+                // Apply Damage
+                const tData = target.data?.rpg || target;
+                if (!tData.hp && tData.hp !== 0) tData.hp = 10; // Default
+                tData.hp = Math.max(0, (tData.hp || 0) - totalDmg);
+
+                // Propagate back to Actor Data if needed (for legacy sync)
+                if (target.data?.rpg) target.data.rpg.hp = tData.hp;
 
                 A.State.notify();
-                sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [${weaponName}] -> ${target.name} (HP: ${target.data.rpg.hp})`);
+                sysLogs.push(`⚔️ **Damage**: ${totalDmg} (${dmgResult.total} + ${dmgMod}) [${weaponName}] -> ${target.name} (HP: ${tData.hp})`);
 
                 this.emit('damage', { source: subject, target, damage: totalDmg, weapon: weaponName });
                 this.checkCombatEnd(sysLogs);
+
             }
         },
 

@@ -381,6 +381,7 @@
         label: 'Map',
         subtitle: 'World View',
         category: 'RPG Experiment',
+        order: 3,
         icon: '🗺️',
         render: render
     });
