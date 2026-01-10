@@ -35,77 +35,125 @@
         return { locations: state.weaves?.locations || [] };
     }
 
+    // Helper to get visibility state for a location
+    function getVisibility(locId) {
+        if (A.RPGEngine?.getLocationVisibility) {
+            return A.RPGEngine.getLocationVisibility(locId);
+        }
+        return 'visited'; // Default to visible if no RPG engine
+    }
+
+    // Filter locations based on visibility (for player map)
+    function filterVisibleLocations(locs) {
+        // Check if any locations have visibility set
+        const state = A.State?.get?.();
+        const hasAnyVisibility = state?.rpg?.locationVisibility && Object.keys(state.rpg.locationVisibility).length > 0;
+
+        // If fog of war hasn't been initialized yet, show all locations
+        if (!hasAnyVisibility) {
+            return locs;
+        }
+
+        return locs.filter(loc => {
+            const vis = getVisibility(loc.id);
+            return vis === 'visited' || vis === 'revealed' || vis === 'neighboring';
+        });
+    }
+
     function renderVport() {
         if (G.vport) G.vport.setAttribute('transform', `translate(${G.tx},${G.ty}) scale(${G.zoom})`);
     }
 
-    function renderEdges(locs) {
+    function renderEdges(locs, allLocs) {
         const g = G.gEdges;
         if (!g) return;
         while (g.firstChild) g.removeChild(g.firstChild);
 
-        locs.forEach(a => {
-            const p1 = a.pos || { x: 0, y: 0 };
-            (a.exits || []).forEach(exit => {
-                const exitId = typeof exit === 'string' ? exit : exit.id;
-                const b = locs.find(l => l.id === exitId);
-                if (!b) return;
-                const p2 = b.pos || { x: 0, y: 0 };
+        locs.forEach(n => {
+            const vis = getVisibility(n.id);
+            // Only draw edges from visited/revealed locations
+            if (vis !== 'visited' && vis !== 'revealed') return;
 
+            const p = n.pos || { x: 0, y: 0 };
+            (n.exits || []).forEach(exit => {
+                const exitId = typeof exit === 'string' ? exit : exit.id;
+                const target = allLocs.find(l => l.id === exitId);
+                if (!target) return;
+
+                const targetVis = getVisibility(exitId);
+                // Draw edges to visited, revealed, OR neighboring locations
+                if (targetVis === 'unknown') return;
+
+                const tp = target.pos || { x: 0, y: 0 };
                 const ln = elNS('line');
-                ln.setAttribute('x1', p1.x); ln.setAttribute('y1', p1.y);
-                ln.setAttribute('x2', p2.x); ln.setAttribute('y2', p2.y);
+                ln.setAttribute('x1', p.x); ln.setAttribute('y1', p.y);
+                ln.setAttribute('x2', tp.x); ln.setAttribute('y2', tp.y);
                 ln.setAttribute('stroke', 'var(--text-muted)');
                 ln.setAttribute('stroke-width', '2');
-                ln.setAttribute('opacity', '0.3');
+                ln.setAttribute('stroke-dasharray', targetVis === 'neighboring' ? '2,4' : '4,4');
+                ln.setAttribute('opacity', targetVis === 'neighboring' ? '0.3' : '0.5');
                 g.appendChild(ln);
             });
         });
     }
 
-    function renderNodes(locs, infoPanel, state) {
+    function renderNodes(locs, infoPanel, state, allLocs) {
         const g = G.gNodes;
         if (!g) return;
         while (g.firstChild) g.removeChild(g.firstChild);
 
-        locs.forEach(n => {
+        // Filter to only visible locations
+        const visibleLocs = filterVisibleLocations(locs);
+
+        visibleLocs.forEach(n => {
+            const vis = getVisibility(n.id);
+            const isNeighboring = vis === 'neighboring';
             const p = n.pos || { x: 0, y: 0 };
             const grp = elNS('g');
             grp.setAttribute('data-id', n.id);
             grp.setAttribute('transform', `translate(${p.x},${p.y})`);
-            grp.style.cursor = 'pointer';
+            grp.style.cursor = isNeighboring ? 'help' : 'pointer';
+            grp.style.opacity = isNeighboring ? '0.5' : '1';
 
             const isSel = (G.selection === n.id);
-            const hasMapLink = n.mapLink;
+            const hasMapLink = n.mapLink && !isNeighboring;
 
-            // Circle
+            // Circle - neighboring locations have different style
             const c = elNS('circle');
-            c.setAttribute('r', hasMapLink ? '24' : '20');
-            c.setAttribute('fill', isSel ? 'var(--accent-primary)' : hasMapLink ? 'var(--accent-secondary)' : 'var(--bg-elevated)');
-            c.setAttribute('stroke', isSel ? 'white' : 'var(--border-default)');
+            c.setAttribute('r', hasMapLink ? '24' : isNeighboring ? '16' : '20');
+            if (isNeighboring) {
+                c.setAttribute('fill', 'var(--bg-surface)');
+                c.setAttribute('stroke', 'var(--text-muted)');
+                c.setAttribute('stroke-dasharray', '4,2');
+            } else {
+                c.setAttribute('fill', isSel ? 'var(--accent-primary)' : hasMapLink ? 'var(--accent-secondary)' : 'var(--bg-elevated)');
+                c.setAttribute('stroke', isSel ? 'white' : 'var(--border-default)');
+            }
             c.setAttribute('stroke-width', '2');
             grp.appendChild(c);
 
-            // Icon or initials
+            // Icon or initials - neighboring shows "?"
             const txt = elNS('text');
             txt.setAttribute('dy', '5');
             txt.setAttribute('text-anchor', 'middle');
-            txt.setAttribute('font-size', hasMapLink ? '14' : '10');
-            txt.setAttribute('fill', isSel || hasMapLink ? 'white' : 'var(--text-primary)');
+            txt.setAttribute('font-size', isNeighboring ? '14' : hasMapLink ? '14' : '10');
+            txt.setAttribute('fill', isNeighboring ? 'var(--text-muted)' : isSel || hasMapLink ? 'white' : 'var(--text-primary)');
             txt.setAttribute('font-weight', 'bold');
-            txt.textContent = hasMapLink ? '🚪' : (n.name || "?").substring(0, 2).toUpperCase();
+            txt.textContent = isNeighboring ? '?' : hasMapLink ? '🚪' : (n.name || "?").substring(0, 2).toUpperCase();
             grp.appendChild(txt);
 
-            // Label
-            const t = elNS('text');
-            t.setAttribute('y', hasMapLink ? '40' : '35');
-            t.setAttribute('text-anchor', 'middle');
-            t.setAttribute('font-size', '12');
-            t.setAttribute('fill', 'var(--text-primary)');
-            t.setAttribute('font-weight', 'bold');
-            t.style.textShadow = '0 1px 2px black';
-            t.textContent = n.name || n.id;
-            grp.appendChild(t);
+            // Label - hide for neighboring locations
+            if (!isNeighboring) {
+                const t = elNS('text');
+                t.setAttribute('y', hasMapLink ? '40' : '35');
+                t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('font-size', '12');
+                t.setAttribute('fill', 'var(--text-primary)');
+                t.setAttribute('font-weight', 'bold');
+                t.style.textShadow = '0 1px 2px black';
+                t.textContent = n.name || n.id;
+                grp.appendChild(t);
+            }
 
             // Click: select and show info
             grp.onclick = (e) => {
@@ -114,30 +162,43 @@
                 renderAll(state, infoPanel);
 
                 if (infoPanel) {
-                    const linkedMap = hasMapLink ? (A.Locations?.getMapById?.(state, n.mapLink) || null) : null;
-                    infoPanel.innerHTML = `
-                        <div style="font-size:16px; font-weight:bold; margin-bottom:8px;">${n.name}</div>
-                        <div style="font-size:12px; line-height:1.5; color:var(--text-secondary); margin-bottom:12px;">
-                            ${n.description || "No description available."}
-                        </div>
-                        ${n.image ? `<img src="${n.image}" style="width:100%; border-radius:4px; margin-bottom:12px;">` : ''}
-                        
-                        ${linkedMap ? `
-                            <div style="background:var(--accent-primary); color:white; padding:8px; border-radius:4px; margin-bottom:12px; font-size:12px;">
-                                🚪 <strong>Entrance to:</strong> ${linkedMap.name}
-                                <div style="font-size:10px; opacity:0.8; margin-top:4px;">Double-click to view this area</div>
+                    // Show different info for neighboring (unexplored) locations
+                    if (isNeighboring) {
+                        infoPanel.innerHTML = `
+                            <div style="text-align:center; padding:20px; color:var(--text-muted);">
+                                <div style="font-size:32px; margin-bottom:8px;">?</div>
+                                <div style="font-size:14px; font-weight:bold;">Unexplored</div>
+                                <div style="font-size:12px; margin-top:4px;">Travel here to reveal.</div>
                             </div>
-                        ` : ''}
-                        
-                        <div style="font-size:10px; font-weight:bold; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Connections</div>
-                        <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                            ${(n.exits || []).map(exit => {
-                        const exitId = typeof exit === 'string' ? exit : exit.id;
-                        const l = locs.find(x => x.id === exitId);
-                        return `<span style="background:var(--bg-base); border:1px solid var(--border-subtle); padding:2px 6px; border-radius:4px; font-size:10px;">${l ? l.name : exitId}</span>`;
-                    }).join('')}
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        const linkedMap = hasMapLink ? (A.Locations?.getMapById?.(state, n.mapLink) || null) : null;
+                        infoPanel.innerHTML = `
+                            <div style="font-size:16px; font-weight:bold; margin-bottom:8px;">${n.name}</div>
+                            <div style="font-size:12px; line-height:1.5; color:var(--text-secondary); margin-bottom:12px;">
+                                ${n.description || "No description available."}
+                            </div>
+                            ${n.image ? `<img src="${n.image}" style="width:100%; border-radius:4px; margin-bottom:12px;">` : ''}
+                            
+                            ${linkedMap ? `
+                                <div style="background:var(--accent-primary); color:white; padding:8px; border-radius:4px; margin-bottom:12px; font-size:12px;">
+                                    🚪 <strong>Entrance to:</strong> ${linkedMap.name}
+                                    <div style="font-size:10px; opacity:0.8; margin-top:4px;">Double-click to view this area</div>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="font-size:10px; font-weight:bold; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Connections</div>
+                            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                ${(n.exits || []).map(exit => {
+                            const exitId = typeof exit === 'string' ? exit : exit.id;
+                            const l = locs.find(x => x.id === exitId);
+                            const exitVis = getVisibility(exitId);
+                            const exitName = (exitVis === 'neighboring' || exitVis === 'unknown') ? '?' : (l ? l.name : exitId);
+                            return `<span style="background:var(--bg-base); border:1px solid var(--border-subtle); padding:2px 6px; border-radius:4px; font-size:10px;">${exitName}</span>`;
+                        }).join('')}
+                            </div>
+                        `;
+                    }
                 }
             };
 
@@ -164,8 +225,8 @@
         const activeMap = getActiveMap(state);
         const locs = activeMap?.locations || [];
         renderVport();
-        renderEdges(locs);
-        renderNodes(locs, infoPanel, state);
+        renderEdges(locs, locs);
+        renderNodes(locs, infoPanel, state, locs);
     }
 
     function render(container) {

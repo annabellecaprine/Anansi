@@ -235,14 +235,14 @@ function nextTurn(sysLogs) {
         c.order.forEach(o => {
             o.acted = false;
             // Reset actions for new round
-            o.actions = o.maxActions;
+            o.actions = o.maxActions || 2;
         });
         sysLogs.push(`**Round ${c.round} Start**`);
     }
 
     // Reset actions for new turn (in case they didn't use all)
     const currentCombatant = c.order[c.turn];
-    currentCombatant.actions = currentCombatant.maxActions;
+    currentCombatant.actions = currentCombatant.maxActions || 2;
 
     let nextActor = c.order[c.turn];
 

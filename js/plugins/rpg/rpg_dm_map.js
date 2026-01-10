@@ -162,6 +162,10 @@
                 if (hasTrap) badges.push('⚠️');
                 if (hasSecrets) badges.push('🤫');
 
+                // Visibility indicator for fog of war
+                const vis = A.RPGEngine?.getLocationVisibility?.(loc.id) || 'unknown';
+                const visIcon = vis === 'visited' || vis === 'revealed' ? '👁️' : vis === 'neighboring' ? '👁‍🗨' : '⚫';
+
                 const el = document.createElement('div');
                 el.style.cssText = `
                     padding:12px; cursor:pointer; border-radius:6px; margin-bottom:6px;
@@ -173,7 +177,7 @@
                 el.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">
-                            ${loc.name || 'Unnamed'}
+                            ${visIcon} ${loc.name || 'Unnamed'}
                         </span>
                         <span style="font-size:12px;">${badges.join(' ') || '<span style="color:var(--text-muted);">—</span>'}</span>
                     </div>
@@ -219,6 +223,15 @@
                             </div>
                         </div>
                         <span style="font-size:10px; font-family:var(--font-mono); color:var(--text-muted);">${loc.id}</span>
+                    </div>
+                    <!-- Visibility Controls -->
+                    <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-subtle); display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; color:var(--text-muted);">👁️ Visibility:</span>
+                        <span id="vis-status" style="font-size:11px; font-weight:bold; padding:2px 8px; border-radius:4px; background:var(--bg-surface);">
+                            ${A.RPGEngine?.getLocationVisibility?.(loc.id) || 'unknown'}
+                        </span>
+                        <button id="btn-reveal" class="btn btn-xs btn-primary" title="Reveal this location to players">Reveal</button>
+                        <button id="btn-hide" class="btn btn-xs btn-ghost" title="Hide from players">Hide</button>
                     </div>
                 </div>
 
@@ -364,6 +377,29 @@
                 });
             };
             renderEncounters();
+
+            // Wire visibility controls
+            editorMain.querySelector('#btn-reveal').onclick = () => {
+                if (A.RPGEngine?.revealLocation) {
+                    A.RPGEngine.revealLocation(loc.id);
+                    const visStatus = editorMain.querySelector('#vis-status');
+                    if (visStatus) visStatus.textContent = 'revealed';
+                    if (A.UI?.Toast) A.UI.Toast.show(`Location "${loc.name}" revealed to players`, 'success');
+                    renderList();
+                }
+            };
+
+            editorMain.querySelector('#btn-hide').onclick = () => {
+                const state = A.State.get();
+                if (state?.rpg?.locationVisibility) {
+                    state.rpg.locationVisibility[loc.id] = 'unknown';
+                    A.State.notify();
+                    const visStatus = editorMain.querySelector('#vis-status');
+                    if (visStatus) visStatus.textContent = 'unknown';
+                    if (A.UI?.Toast) A.UI.Toast.show(`Location "${loc.name}" hidden from players`, 'info');
+                    renderList();
+                }
+            };
 
             editorMain.querySelector('#btn-add-encounter').onclick = () => {
                 const bestiary = state.rpg.bestiary || [];

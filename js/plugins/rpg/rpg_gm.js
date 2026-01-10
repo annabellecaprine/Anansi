@@ -360,6 +360,14 @@
                     <label class="label">Mana/Resource Label</label>
                     <input type="text" id="campaign-mana" class="input" style="width:100%;" value="${campaign.manaName || 'MP'}">
                 </div>
+                <div>
+                    <label class="label">Starting Location</label>
+                    <select id="campaign-start-location" class="input" style="width:100%;"></select>
+                </div>
+                <div>
+                    <label class="label">Party Tools</label>
+                    <button id="btn-recall-party" class="btn btn-sm btn-ghost" title="Move all party members to starting location" style="width:100%;">🏠 Recall Party</button>
+                </div>
             </div>
             <div style="margin-top:16px;">
                 <label class="label">Campaign Notes (GM only)</label>
@@ -421,6 +429,66 @@
                 campaign.notes = e.target.value;
                 A.State.notify();
             };
+
+            // Starting Location dropdown
+            const startLocSelect = campaignSection.querySelector('#campaign-start-location');
+
+            // Get all locations from multi-map structure
+            let locations = [];
+            if (state.weaves?.maps) {
+                state.weaves.maps.forEach(map => {
+                    (map.locations || []).forEach(loc => {
+                        locations.push({ ...loc, _mapName: map.name });
+                    });
+                });
+            } else if (state.weaves?.locations) {
+                // Fallback for old structure
+                locations = state.weaves.locations;
+            }
+
+            startLocSelect.innerHTML = '<option value="">(No starting location)</option>';
+            locations.forEach(loc => {
+                const opt = document.createElement('option');
+                opt.value = loc.id;
+                opt.textContent = loc._mapName ? `${loc.name} (${loc._mapName})` : loc.name;
+                if (state.rpg.startingLocation === loc.id) opt.selected = true;
+                startLocSelect.appendChild(opt);
+            });
+            startLocSelect.onchange = (e) => {
+                const locId = e.target.value || null;
+                state.rpg.startingLocation = locId;
+
+                // Also set current location if not already set
+                if (!state.rpg.currentLocation && locId) {
+                    state.rpg.currentLocation = locId;
+                }
+
+                // Mark starting location as visited so fog of war shows it
+                if (locId && A.RPGEngine?.revealLocation) {
+                    A.RPGEngine.revealLocation(locId);
+                    // Also mark neighbors
+                    const loc = locations.find(l => l.id === locId);
+                    if (loc) {
+                        A.RPGEngine.updateLocationVisibility(state, loc);
+                    }
+                }
+
+                A.State.notify();
+                if (A.UI?.Toast) A.UI.Toast.show('Starting location set to: ' + (locations.find(l => l.id === locId)?.name || 'None'), 'success');
+            };
+
+            // Recall Party button
+            campaignSection.querySelector('#btn-recall-party').onclick = () => {
+                const startLoc = state.rpg.startingLocation;
+                if (!startLoc) {
+                    if (A.UI?.Toast) A.UI.Toast.show('No starting location set!', 'warning');
+                    return;
+                }
+                state.rpg.currentLocation = startLoc;
+                const locName = locations.find(l => l.id === startLoc)?.name || 'Starting Location';
+                if (A.UI?.Toast) A.UI.Toast.show(`🏠 Party recalled to ${locName}`, 'success');
+                A.State.notify();
+            };
         };
         wireCampaign();
 
@@ -468,6 +536,56 @@
             }
         };
         renderStats();
+
+        // === SECTION: Quick Links & Settings ===
+        const linksSection = document.createElement('div');
+        linksSection.className = 'card';
+        linksSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+        linksSection.innerHTML = `
+            <h3 style="margin:0 0 16px; font-size:14px;">🔗 GM Tools</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <button id="btn-goto-classes" class="btn btn-ghost" style="width:100%; text-align:left; display:flex; align-items:center; gap:8px; padding:12px;">
+                        📜 <span>Character Classes</span>
+                    </button>
+                </div>
+                <div>
+                    <button id="btn-goto-armory" class="btn btn-ghost" style="width:100%; text-align:left; display:flex; align-items:center; gap:8px; padding:12px;">
+                        ⚔️ <span>Armory / Items</span>
+                    </button>
+                </div>
+                <div>
+                    <button id="btn-goto-feats" class="btn btn-ghost" style="width:100%; text-align:left; display:flex; align-items:center; gap:8px; padding:12px;">
+                        ✨ <span>Feats & Abilities</span>
+                    </button>
+                </div>
+                <div>
+                    <button id="btn-goto-bestiary" class="btn btn-ghost" style="width:100%; text-align:left; display:flex; align-items:center; gap:8px; padding:12px;">
+                        👹 <span>Bestiary</span>
+                    </button>
+                </div>
+            </div>
+            <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-subtle);">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="default-narration" ${state.rpg?.defaultNarration !== false ? 'checked' : ''}>
+                    <span style="font-size:13px;">🤖 Enable AI Narration by Default</span>
+                </label>
+                <p style="margin:8px 0 0 24px; font-size:11px; color:var(--text-muted);">When enabled, new sessions will start with LLM-powered narrative descriptions.</p>
+            </div>
+        `;
+        content.appendChild(linksSection);
+
+        // Wire quick links (use A.UI.switchPanel for proper navigation)
+        linksSection.querySelector('#btn-goto-classes').onclick = () => A.UI.switchPanel('rpg_classes');
+        linksSection.querySelector('#btn-goto-armory').onclick = () => A.UI.switchPanel('rpg_armory');
+        linksSection.querySelector('#btn-goto-feats').onclick = () => A.UI.switchPanel('rpg_feats');
+        linksSection.querySelector('#btn-goto-bestiary').onclick = () => A.UI.switchPanel('rpg_monsters');
+        linksSection.querySelector('#default-narration').onchange = (e) => {
+            if (!state.rpg) state.rpg = {};
+            state.rpg.defaultNarration = e.target.checked;
+            A.State.notify();
+            if (A.UI?.Toast) A.UI.Toast.show(`Default narration ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+        };
 
         // === SECTION: Rules Engine ===
         const rulesSection = document.createElement('div');
