@@ -47,13 +47,12 @@
             { id: 'examine', icon: '👁️', label: 'Examine', cmd: null },
             { id: 'move', icon: '🚶', label: 'Move', cmd: null },
             { id: 'rest', icon: '🏕️', label: 'Rest', cmd: '[REST] short' },
+            { id: 'loot', icon: '💰', label: 'Loot', cmd: null },
             { id: 'interact', icon: '🖐️', label: 'Interact', cmd: null },
             { id: 'talk', icon: '💬', label: 'Talk', cmd: null }
         ],
         social: [
             { id: 'say', icon: '💬', label: 'Say', cmd: null },
-            { id: 'emote', icon: '🎭', label: 'Emote', cmd: null },
-            { id: 'think', icon: '💭', label: 'Think', cmd: null },
             { id: 'describe', icon: '📝', label: 'Describe', cmd: null }
         ]
     };
@@ -482,11 +481,8 @@
             case 'say':
                 setInputMode('say', '💬 SAY', 'What does your character say?');
                 break;
-            case 'emote':
-                showEmoteSelector();
-                break;
-            case 'think':
-                setInputMode('think', '💭 THINK', 'What is your character thinking?');
+            case 'loot':
+                showLootSelector();
                 break;
             case 'describe':
                 setInputMode('describe', '📝 DESCRIBE', 'Describe the scene or action...');
@@ -789,6 +785,31 @@
 
         showSelector('Item', options, (opt) => {
             executeCommand(`[USE ITEM] ${opt.label}`);
+        });
+    }
+
+    function showLootSelector() {
+        const state = A.State.get();
+        const actors = Object.values(state.nodes?.actors?.items || {});
+        const currentLocId = state.rpg?.currentLocation;
+
+        // Find dead, un-looted monsters at current location
+        const deadMonsters = actors.filter(a =>
+            a.data?.rpg?.type === 'monster' &&
+            a.data?.rpg?.locationId === currentLocId &&
+            (a.data?.rpg?.hp || 0) <= 0 &&
+            !a.data?.rpg?.looted
+        );
+
+        if (deadMonsters.length === 0) {
+            appendMessage('system', '📭 Nothing to loot here.');
+            return;
+        }
+
+        const options = deadMonsters.map(m => ({ id: m.id, label: `💀 ${m.name}` }));
+
+        showSelector('Loot', options, (opt) => {
+            executeCommand(`[LOOT] ${opt.label.replace('💀 ', '')}`);
         });
     }
 
@@ -1109,7 +1130,22 @@ ${logs.join('\n')}`;
             }
         }
 
-        // Return first party member from RPG Entities
+        // Priority 2: Party Leader (when set)
+        if (state.rpg?.partyLeader) {
+            const leaderId = state.rpg.partyLeader;
+            // Check RPG Entities
+            if (state.rpg.entities?.[leaderId]) {
+                return state.rpg.entities[leaderId];
+            }
+            // Check linked entities
+            const linkedLeader = Object.values(state.rpg.entities || {}).find(e => e.sourceActorId === leaderId);
+            if (linkedLeader) return linkedLeader;
+            // Check actors
+            const actorLeader = state.nodes?.actors?.items?.[leaderId];
+            if (actorLeader) return actorLeader;
+        }
+
+        // Fallback: First party member from RPG Entities
         const entities = Object.values(state.rpg?.entities || {});
         const partyMember = entities.find(e => e.type === 'party_member');
         if (partyMember) return partyMember;

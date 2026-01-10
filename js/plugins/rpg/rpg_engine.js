@@ -775,6 +775,38 @@
                 return;
             }
 
+            // === EXPLORATION COMMANDS ===
+
+            // [SEARCH] - Search current location
+            if (input.includes('[search]')) {
+                this.handleSearch(sysLogs);
+                return;
+            }
+
+            // [REST] - Short or Long rest
+            if (input.includes('[rest]')) {
+                this.handleRest(input, sysLogs);
+                return;
+            }
+
+            // [LOOT] - Loot defeated enemy
+            if (input.includes('[loot]')) {
+                this.handleLoot(input, sysLogs);
+                return;
+            }
+
+            // [EXAMINE] - Examine object/NPC
+            if (input.includes('[examine]')) {
+                this.handleExamine(input, sysLogs);
+                return;
+            }
+
+            // [INTERACT] - Interact with object
+            if (input.includes('[interact]')) {
+                this.handleInteract(input, sysLogs);
+                return;
+            }
+
             // Rules-based commands
             this.processRulesCommand(input, context, sysLogs);
         },
@@ -1047,6 +1079,333 @@
                 previousLocation: previousLocation,
                 image: destination.image || null
             });
+
+            A.State.notify();
+        },
+
+        // ===== EXPLORATION COMMAND HANDLERS =====
+
+        /**
+         * Handle [SEARCH] command - Search current location for secrets/loot
+         */
+        handleSearch: function (sysLogs) {
+            const state = this.ensureState();
+            const currentLocId = state.rpg.currentLocation;
+
+            if (!currentLocId) {
+                sysLogs.push("⚠️ You are not at a location. Use [MOVE] first.");
+                return;
+            }
+
+            // Find current location
+            let location = null;
+            if (state.weaves?.maps) {
+                state.weaves.maps.forEach(map => {
+                    const found = (map.locations || []).find(l => l.id === currentLocId);
+                    if (found) location = found;
+                });
+            } else if (state.weaves?.locations) {
+                location = state.weaves.locations.find(l => l.id === currentLocId);
+            }
+
+            if (!location) {
+                sysLogs.push("⚠️ Current location data not found.");
+                return;
+            }
+
+            // Roll Perception/Investigation check
+            const roll = this.rollDice('1d20');
+            const perceptionMod = 2; // TODO: Get from active actor
+            const total = roll.total + perceptionMod;
+            sysLogs.push(`🔍 **Searching...** (Roll: ${roll.str} + ${perceptionMod} = **${total}**)`);
+
+            const findings = [];
+
+            // Check for secrets (DC 15)
+            if (location.rpg?.secrets && location.rpg.secrets.length > 0 && total >= 15) {
+                location.rpg.secrets.forEach(secret => {
+                    findings.push(`🔮 **Secret Found:** ${secret}`);
+                });
+            }
+
+            // Check for hidden loot (DC 12)
+            if (location.rpg?.loot && location.rpg.loot.length > 0 && total >= 12) {
+                const lootItems = location.rpg.loot.map(item => {
+                    const itemName = typeof item === 'string' ? item : (item.name || item.id);
+                    return itemName;
+                });
+                findings.push(`💰 **Loot Found:** ${lootItems.join(', ')}`);
+            }
+
+            // Check for traps (DC 18)
+            if (location.rpg?.traps && location.rpg.traps.length > 0 && total >= 18) {
+                location.rpg.traps.forEach(trap => {
+                    const trapName = typeof trap === 'string' ? trap : (trap.name || 'Unknown Trap');
+                    findings.push(`⚠️ **Trap Detected:** ${trapName}`);
+                });
+            }
+
+            if (findings.length === 0) {
+                sysLogs.push("📭 You find nothing of interest.");
+            } else {
+                findings.forEach(f => sysLogs.push(f));
+            }
+        },
+
+        /**
+         * Handle [REST] command - Short or Long rest
+         */
+        handleRest: function (input, sysLogs) {
+            const state = this.ensureState();
+            const isLong = input.includes('long');
+
+            // Check for nearby enemies
+            const actors = Object.values(state.nodes?.actors?.items || {});
+            const currentLocId = state.rpg.currentLocation;
+            const nearbyMonsters = actors.filter(a =>
+                a.data?.rpg?.type === 'monster' &&
+                a.data?.rpg?.locationId === currentLocId &&
+                (a.data?.rpg?.hp || 0) > 0
+            );
+
+            if (nearbyMonsters.length > 0) {
+                sysLogs.push("⚠️ You cannot rest with enemies nearby!");
+                return;
+            }
+
+            // Find party members and heal them
+            const party = actors.filter(a => {
+                const rpg = a.data?.rpg;
+                if (!rpg) return false;
+                if (rpg.type === 'monster') return false;
+                return rpg.enabled !== false;
+            });
+
+            if (party.length === 0) {
+                sysLogs.push("⚠️ No party members to rest.");
+                return;
+            }
+
+            const healResults = [];
+
+            party.forEach(member => {
+                const rpg = member.data.rpg;
+                const currentHp = rpg.hp || 0;
+                const maxHp = rpg.maxHp || rpg.hp || 20;
+
+                let healAmount = 0;
+                if (isLong) {
+                    // Long Rest: Full HP recovery
+                    healAmount = maxHp - currentHp;
+                    rpg.hp = maxHp;
+                } else {
+                    // Short Rest: Recover 25% of max HP
+                    healAmount = Math.floor(maxHp * 0.25);
+                    rpg.hp = Math.min(maxHp, currentHp + healAmount);
+                }
+
+                if (healAmount > 0) {
+                    healResults.push(`${member.name} recovers **${healAmount} HP** (${rpg.hp}/${maxHp})`);
+                }
+            });
+
+            if (isLong) {
+                sysLogs.push("🏕️ **Long Rest Complete** (8 hours)");
+            } else {
+                sysLogs.push("⏳ **Short Rest Complete** (1 hour)");
+            }
+
+            healResults.forEach(r => sysLogs.push(r));
+            A.State.notify();
+        },
+
+        /**
+         * Handle [LOOT] command - Loot a defeated enemy
+         */
+        handleLoot: function (input, sysLogs) {
+            const state = this.ensureState();
+            const actors = Object.values(state.nodes?.actors?.items || {});
+            const currentLocId = state.rpg.currentLocation;
+
+            // Parse target from input: [LOOT] Target Name
+            const match = input.match(/\[loot\]\s*(.+)?/i);
+            const targetName = match?.[1]?.trim();
+
+            // Find dead monsters at current location
+            const deadMonsters = actors.filter(a =>
+                a.data?.rpg?.type === 'monster' &&
+                a.data?.rpg?.locationId === currentLocId &&
+                (a.data?.rpg?.hp || 0) <= 0 &&
+                !a.data?.rpg?.looted
+            );
+
+            if (deadMonsters.length === 0) {
+                sysLogs.push("📭 Nothing to loot here.");
+                return;
+            }
+
+            // Find specific target or first available
+            let target = null;
+            if (targetName) {
+                target = deadMonsters.find(m => m.name?.toLowerCase().includes(targetName.toLowerCase()));
+            }
+            if (!target) {
+                target = deadMonsters[0];
+            }
+
+            // Get inventory from target
+            const inventory = target.data?.rpg?.inventory || [];
+            const currency = target.data?.rpg?.currency || 0;
+
+            if (inventory.length === 0 && currency === 0) {
+                sysLogs.push(`💀 **${target.name}** has nothing of value.`);
+                target.data.rpg.looted = true;
+                A.State.notify();
+                return;
+            }
+
+            const lootedItems = [];
+
+            // Transfer items to first party member (or shared inventory)
+            const party = actors.filter(a =>
+                a.data?.rpg?.enabled !== false &&
+                a.data?.rpg?.type !== 'monster'
+            );
+            const receiver = party[0];
+
+            if (receiver) {
+                if (!receiver.data.rpg.inventory) receiver.data.rpg.inventory = [];
+
+                inventory.forEach(item => {
+                    const itemId = typeof item === 'string' ? item : item.id;
+                    const itemName = typeof item === 'string' ? item : (item.name || item.id);
+                    receiver.data.rpg.inventory.push(itemId);
+                    lootedItems.push(itemName);
+                });
+
+                if (currency > 0) {
+                    receiver.data.rpg.currency = (receiver.data.rpg.currency || 0) + currency;
+                    lootedItems.push(`${currency} gold`);
+                }
+            }
+
+            // Mark as looted
+            target.data.rpg.looted = true;
+
+            sysLogs.push(`💰 **Looted ${target.name}:**`);
+            if (lootedItems.length > 0) {
+                sysLogs.push(`   ${lootedItems.join(', ')}`);
+            }
+
+            // Despawn the looted corpse
+            if (state.nodes?.actors?.items && target.id) {
+                delete state.nodes.actors.items[target.id];
+                sysLogs.push(`💀 ${target.name}'s remains fade away...`);
+            }
+
+            A.State.notify();
+        },
+
+        /**
+         * Handle [EXAMINE] command - Examine an object or NPC
+         */
+        handleExamine: function (input, sysLogs) {
+            const state = this.ensureState();
+
+            // Parse target from input
+            const match = input.match(/\[examine\]\s*(.+)/i);
+            if (!match) {
+                sysLogs.push("⚠️ What do you want to examine?");
+                return;
+            }
+
+            const targetName = match[1].trim().toLowerCase();
+            const currentLocId = state.rpg.currentLocation;
+
+            // Check actors
+            const actors = Object.values(state.nodes?.actors?.items || {});
+            const actor = actors.find(a => a.name?.toLowerCase().includes(targetName));
+
+            if (actor) {
+                const desc = actor.data?.description || actor.data?.rpg?.description || "No description available.";
+                sysLogs.push(`👁️ **${actor.name}**`);
+                sysLogs.push(desc);
+                return;
+            }
+
+            // Check location interactables
+            let location = null;
+            if (state.weaves?.maps) {
+                state.weaves.maps.forEach(map => {
+                    const found = (map.locations || []).find(l => l.id === currentLocId);
+                    if (found) location = found;
+                });
+            }
+
+            if (location?.rpg?.interactables) {
+                const interactable = location.rpg.interactables.find(i =>
+                    (i.name || i.id || '').toLowerCase().includes(targetName)
+                );
+                if (interactable) {
+                    sysLogs.push(`👁️ **${interactable.name || interactable.id}**`);
+                    sysLogs.push(interactable.description || "You see nothing special.");
+                    return;
+                }
+            }
+
+            sysLogs.push(`❓ You don't see "${match[1].trim()}" here.`);
+        },
+
+        /**
+         * Handle [INTERACT] command - Interact with an object
+         */
+        handleInteract: function (input, sysLogs) {
+            const state = this.ensureState();
+
+            // Parse target from input
+            const match = input.match(/\[interact\]\s*(.+)/i);
+            if (!match) {
+                sysLogs.push("⚠️ What do you want to interact with?");
+                return;
+            }
+
+            const targetName = match[1].trim().toLowerCase();
+            const currentLocId = state.rpg.currentLocation;
+
+            // Find location
+            let location = null;
+            if (state.weaves?.maps) {
+                state.weaves.maps.forEach(map => {
+                    const found = (map.locations || []).find(l => l.id === currentLocId);
+                    if (found) location = found;
+                });
+            }
+
+            if (!location?.rpg?.interactables) {
+                sysLogs.push(`❓ Nothing to interact with here.`);
+                return;
+            }
+
+            const interactable = location.rpg.interactables.find(i =>
+                (i.name || i.id || '').toLowerCase().includes(targetName)
+            );
+
+            if (!interactable) {
+                sysLogs.push(`❓ You don't see "${match[1].trim()}" here.`);
+                return;
+            }
+
+            // Execute interaction
+            sysLogs.push(`🖐️ You interact with **${interactable.name || interactable.id}**`);
+
+            if (interactable.action) {
+                sysLogs.push(interactable.action);
+            }
+
+            // Mark as interacted (for one-time interactions)
+            if (interactable.oneTime) {
+                interactable.used = true;
+            }
 
             A.State.notify();
         },

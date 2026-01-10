@@ -13,6 +13,16 @@ All notable changes to Anansi will be documented in this file.
 - **DM Atlas Persistence**: Changes to Encounters, Loot, and Traps are now immediately saved to disk, ensuring data persists when switching tabs.
 - **DM Atlas UI**: Removed fixed height constraints on entity lists to improve readability and scrolling.
 
+### Non-Combat MUD Commands
+- **[SEARCH]**: Search current location for secrets, loot, and traps with Perception roll.
+- **[REST]**: Short rest (25% HP recovery) and long rest (full HP) with enemy proximity check.
+- **[LOOT]**: Loot defeated monsters - transfers inventory and currency to party.
+- **[EXAMINE]**: Examine objects, NPCs, and location interactables.
+- **[INTERACT]**: Interact with location objects (doors, levers, etc.).
+
+### Party Management
+- **Party Leader**: Designate a party leader via Party Panel (👑). Leader's name is used for player actions in the Play panel.
+
 ### RPG Combat Polish
 - **Equipment Detection Fix**: Party Members now correctly link to their RPG Entities to show equipped items in combat, resolving the "Unarmed" bug.
 - **Monster Inventory Support**: Attack system now automatically infers equipped weapons from Monster/NPC inventories, allowing bestiary creatures to fight effectively without manual slot assignment.

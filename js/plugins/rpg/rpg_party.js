@@ -150,6 +150,7 @@
 
         function refreshSidebar() {
             actorsList.innerHTML = '';
+            const state = A.State.get();
             const members = getPartyMembers();
 
             if (members.length === 0) {
@@ -169,6 +170,7 @@
             members.forEach(entity => {
                 // Compatibility: entity IS the rpg data now
                 const isSelected = entity.id === currentActorId;
+                const isLeader = state.rpg?.partyLeader === entity.id;
                 const hpPct = entity.maxHp > 0 ? Math.round((entity.hp / entity.maxHp) * 100) : 0;
                 const mpPct = entity.maxMp > 0 ? Math.round((entity.mp / entity.maxMp) * 100) : 0;
 
@@ -176,18 +178,22 @@
                 item.style.cssText = `
                     padding:12px; border-radius:8px; cursor:pointer; margin-bottom:6px; transition:all 0.15s;
                     background:${isSelected ? 'var(--bg-elevated)' : 'transparent'};
-                    border:2px solid ${isSelected ? 'var(--accent-primary)' : 'transparent'};
+                    border:2px solid ${isSelected ? 'var(--accent-primary)' : (isLeader ? 'gold' : 'transparent')};
                 `;
 
                 item.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                        <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-inset); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">
+                        <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-inset); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; position:relative;">
                             ${entity.type === 'npc' ? '👤' : '⚔️'}
+                            ${isLeader ? '<span style="position:absolute; top:-6px; right:-6px; font-size:14px;">👑</span>' : ''}
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entity.name}</div>
+                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                ${entity.name}${isLeader ? ' <span style="font-size:10px; color:gold;">(Leader)</span>' : ''}
+                            </div>
                             <div style="font-size:10px; color:var(--text-muted);">Lvl ${entity.stats?.level || 1} ${entity.stats?.class || entity.class || 'Adventurer'}</div>
                         </div>
+                        ${!isLeader && isSelected ? `<button class="btn btn-sm btn-ghost" style="font-size:10px; padding:4px 8px;" data-set-leader="${entity.id}" title="Set as Party Leader">👑</button>` : ''}
                     </div>
                     <div style="display:flex; gap:8px;">
                         <div style="flex:1;">
@@ -208,7 +214,16 @@
                     item.onmouseleave = () => { item.style.background = 'transparent'; };
                 }
 
-                item.onclick = () => {
+                item.onclick = (e) => {
+                    // Check if Set Leader button was clicked
+                    if (e.target.dataset?.setLeader) {
+                        if (!state.rpg) state.rpg = {};
+                        state.rpg.partyLeader = e.target.dataset.setLeader;
+                        A.State.notify();
+                        A.UI?.Toast?.show(`${entity.name} is now the Party Leader!`, 'success');
+                        refreshSidebar();
+                        return;
+                    }
                     currentActorId = entity.id;
                     refreshSidebar();
                     refreshMain();
