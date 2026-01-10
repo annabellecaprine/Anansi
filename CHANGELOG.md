@@ -2,9 +2,17 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.4 - 2026-01-09
+### HUD & Bestiary Polish
+- **HUD Fix**: Resolved syntax error in `system_data.js` to restore filtering of HUD entities by location.
+- **Bestiary Polish**: Added "Clean Up" button to ease removal of invalid or disabled entities.
+
 ## v1.9.3 - 2026-01-09
-### Refactoring
-- **System Stability**: Refactoring to avoid system complications.
+###- **Refactoring**:
+    - **System Stability**: Refactoring to avoid system complications.
+    - **Plugin Isolation**: Consolidated RPG files to `js/plugins/rpg` and removed deprecated `sys_rpg`.
+    - **UI Cleanup**: Removed redundant "Roleplay" panel and ensured correct panel registration.
+    - **Bug Fix**: Resolved "RPG Engine not available" error by improving engine export/import logic.
 
 ## v1.9.2 - 2026-01-08
 ### Combat System Fixes

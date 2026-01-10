@@ -138,7 +138,7 @@ Guidelines:
         // Ensure state
         const state = A.State.get();
         if (!state.rpg) state.rpg = { enabled: true };
-        if (!state.rpg.bestiary) state.rpg.bestiary = JSON.parse(JSON.stringify(DEFAULT_BESTIARY));
+        if (!state.rpg.bestiary || state.rpg.bestiary.length === 0) state.rpg.bestiary = JSON.parse(JSON.stringify(DEFAULT_BESTIARY));
 
         // Migrate existing entries to have creatureType and stats
         state.rpg.bestiary.forEach(entry => {
@@ -173,6 +173,9 @@ Guidelines:
                 <button id="btn-generate-creature" class="btn btn-secondary btn-sm" style="display:flex; align-items:center; gap:4px;">
                     ✨ AI Generate
                 </button>
+                <button id="btn-cleanup" class="btn btn-secondary btn-sm" style="display:flex; align-items:center; gap:4px;" title="Remove invalid entities">
+                    🧹 Clean
+                </button>
                 <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-left:8px;">
                     Active: <span id="active-enemy" style="color:var(--status-error); font-weight:bold;">None</span>
                 </div>
@@ -183,6 +186,25 @@ Guidelines:
         // Wire up buttons
         header.querySelector('#btn-create-creature').onclick = () => showCreatureEditor(null);
         header.querySelector('#btn-generate-creature').onclick = () => showGenerateModal();
+        header.querySelector('#btn-cleanup').onclick = () => {
+            if (!confirm("This will remove all invalid or disabled entities. Continue?")) return;
+            const state = A.State.get();
+            const nodes = state.nodes?.actors?.items || {};
+            let count = 0;
+            for (const [id, actor] of Object.entries(nodes)) {
+                // Skip players
+                if (actor.data?.rpg?.class === 'Player') continue;
+
+                // Check if invalid (no location, disabled, or no RPG data)
+                const isInvalid = !actor.data?.rpg || !actor.data.rpg.locationId || !actor.data.rpg.enabled;
+                if (isInvalid) {
+                    delete nodes[id];
+                    count++;
+                }
+            }
+            alert(`Cleaned up ${count} entities.`);
+            render();
+        };
 
         // Content
         const content = document.createElement('div');
@@ -590,8 +612,8 @@ Guidelines:
                 description: monsterTemplate.description || '',
                 actions: monsterTemplate.maxActions || 1,
                 bonusActions: monsterTemplate.maxBonusActions || 1,
-                // Ensure stats matrix is created by Entity logic or defaulted here if needed
-                // RPG.Entities.create handles most defaults
+                // Assign to current location
+                locationId: A.State.get().rpg?.currentLocation || null,
             };
 
             const id = RPG.Entities.create(data);
