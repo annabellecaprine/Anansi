@@ -259,14 +259,12 @@
   <script src="js/core/tour_content.js?v=20260106"></script>
 
   <!-- RPG Plugin System -->
-  <script src="js/plugins/rpg/rpg_core.js"></script>
+  <!-- RPG Plugin System -->
+  <!-- rpg_core, rpg_loader loaded dynamically below -->
   <script src="js/plugins/rpg/rpg_engine.js"></script> <!-- Logical Core -->
-  <script src="js/plugins/rpg/rpg_loader.js"></script> <!-- Modules -->
 
   <!-- RPG Panel UIs -->
-  <script src="js/plugins/rpg/rpg_gm.js"></script>
-  <script src="js/plugins/rpg/rpg_roleplay.js"></script>
-  <script src="js/plugins/rpg/rpg_party.js"></script>
+  <!-- rpg_gm, rpg_party loaded dynamically below -->
 
   <!-- Adapters -->
   <script src="js/env/jai.js"></script>
@@ -297,6 +295,7 @@
   <script src="js/panels/nabu.js"></script>
   <script src="js/panels/constellation.js"></script>
   <script src="js/panels/guide.js"></script>
+  <script src="js/panels/rpg_play.js"></script>
 
   <!-- RPG Plugin (Isolated - errors won't crash main app) -->
   <script>
@@ -306,7 +305,7 @@
         'js/plugins/rpg/rpg_core.js',
         'js/plugins/rpg/rpg_combat_engine.js',
         'js/plugins/rpg/rpg_gm.js',
-        'js/plugins/rpg/rpg_roleplay.js',
+        'js/plugins/rpg/rpg_classes.js',
         'js/plugins/rpg/rpg_party.js',
         'js/plugins/rpg/rpg_monsters.js',
         'js/plugins/rpg/rpg_feats.js',

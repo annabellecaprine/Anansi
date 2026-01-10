@@ -12,8 +12,6 @@
         { id: 'sys_intent', name: 'SYSTEM: INTENT', path: 'js/aura/INTENT.js', order: -3, system: true, enabled: true, source: { code: '// Loading...' } },
         { id: 'sys_pulse', name: 'SYSTEM: PULSE', path: 'js/aura/PULSE.js', order: -2, system: true, enabled: true, source: { code: '// Loading...' } },
         { id: 'sys_aura', name: 'SYSTEM: AURA', path: 'js/aura/AURA.js', order: -1, system: true, enabled: true, source: { code: '// Loading...' } },
-        // DEPRECATED: sys_rpg replaced by A.RPGEngine (js/core/rpg_engine.js) - kept for reference
-        { id: 'sys_rpg', origin: 'preset', name: 'SYSTEM: RPG STRATUM (Deprecated)', path: 'js/core/presets/sys_rpg.js', order: 0, system: true, enabled: false, source: { code: '// Loading...' } },
     ];
 
     const Scripts = {

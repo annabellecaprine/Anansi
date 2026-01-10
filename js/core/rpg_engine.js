@@ -447,7 +447,24 @@
         startCombat: function (sysLogs) {
             const state = A.State.get();
             const actors = Object.values(state.nodes?.actors?.items || {});
-            const combatants = actors.filter(a => a.data?.rpg?.enabled);
+
+            // Filter by Location AND Enabled
+            // Combat should only include actors in the current room
+            const currentLocation = state.rpg?.currentLocation;
+            if (!currentLocation) {
+                sysLogs.push("⚠️ Cannot start combat: No location set.");
+                return;
+            }
+
+            const combatants = actors.filter(a =>
+                a.data?.rpg?.enabled &&
+                a.data?.rpg?.locationId === currentLocation
+            );
+
+            if (combatants.length === 0) {
+                sysLogs.push("⚠️ No valid combatants found in this location.");
+                return;
+            }
 
             const order = combatants.map(a => {
                 const roll = this.rollDice('1d20');
@@ -469,6 +486,8 @@
             });
 
             order.sort((a, b) => b.init - a.init);
+
+            if (order.length === 0) return; // Should be covered above, but safe.
 
             state.rpg.combat = {
                 active: true,
@@ -505,7 +524,24 @@
             }
 
             const c = state.rpg.combat;
-            c.order[c.turn].acted = true;
+
+            // Safety check for invalid turn index
+            if (!c.order || c.turn < 0 || c.turn >= c.order.length) {
+                console.warn(LOG_PREFIX, 'Invalid turn index during nextTurn:', c.turn);
+                // Try to recover: Reset to 0? Or just abort?
+                // If we abort, combat might hang. Let's try reset to 0 if valid order.
+                if (c.order && c.order.length > 0) {
+                    c.turn = 0;
+                } else {
+                    // Total failure
+                    sysLogs.push("Combat Error: Invalid order state.");
+                    return;
+                }
+            }
+
+            if (c.order[c.turn]) {
+                c.order[c.turn].acted = true;
+            }
             c.turn++;
 
             // Check for round wrap
@@ -772,6 +808,116 @@
                 state.rpg.visitedLocations.push(destination.id);
             }
 
+            // Sync Party Location
+            const actors = Object.values(state.nodes?.actors?.items || {});
+
+            // Relaxed filter: Include if enabled is true OR undefined/null (default to enabled)
+            // And strictly exclude monsters to find the party
+            const party = actors.filter(a => {
+                const rpg = a.data?.rpg;
+                if (!rpg) return true; // Assume new actors are party
+                if (rpg.type === 'monster') return false;
+                return rpg.enabled !== false; // Allow true or undefined
+            });
+
+            console.log(LOG_PREFIX, 'Syncing party location to', destination.id, 'Count:', party.length);
+
+            party.forEach(member => {
+                if (!member.data) member.data = {};
+                if (!member.data.rpg) member.data.rpg = { enabled: true };
+
+                // Explicitly set locationId
+                member.data.rpg.locationId = destination.id;
+
+                // Also update root locationId if it exists on the node itself (some legacy nodes might use it)
+                if (member.locationId !== undefined) member.locationId = destination.id;
+
+                console.log(LOG_PREFIX, 'Updated member:', member.name, 'to', destination.id);
+            });
+
+            // Handle Encounters
+            if (destination.encounters && destination.encounters.length > 0) {
+                console.log(LOG_PREFIX, 'Checking encounters for', destination.name, destination.encounters);
+
+                if (!state.rpg.clearedEncounters) state.rpg.clearedEncounters = [];
+
+                destination.encounters.forEach((enc, index) => {
+                    // Normalize encounter data
+                    const monsterId = typeof enc === 'string' ? enc : (enc.id || enc.monsterId);
+                    const count = typeof enc === 'object' ? (enc.count || 1) : 1;
+
+                    if (!monsterId) return;
+
+                    // Generate unique ID for THIS specific encounter instance in THIS room
+                    // e.g. LOC_123_MOB_ORC_0
+                    const uniqueEncounterId = `${destination.id}_${monsterId}_${index}`;
+
+                    if (state.rpg.clearedEncounters.includes(uniqueEncounterId)) {
+                        console.log(LOG_PREFIX, 'Encounter cleared:', uniqueEncounterId);
+                        return;
+                    }
+
+                    // Check if currently active (alive in this room AND enabled)
+                    // This creates a self-healing mechanism: if an entity exists but is broken/invisible (enabled=false/undefined),
+                    // we ignore it here, allowing a fresh, correct spawn to replace it.
+                    const existing = actors.find(a =>
+                        a.data?.rpg?.encounterId === uniqueEncounterId &&
+                        a.data?.rpg?.locationId === destination.id &&
+                        (a.data?.rpg?.hp || 0) > 0 &&
+                        a.data?.rpg?.enabled === true
+                    );
+
+                    if (!existing) {
+                        console.log(LOG_PREFIX, 'Spawning encounter:', uniqueEncounterId);
+
+                        // We need to look up the template from Bestiary
+                        const bestiary = state.rpg.bestiary || [];
+                        const template = bestiary.find(b => b.id === monsterId);
+
+                        if (template) {
+                            // Loop for count (if multiple of same mob in one slot)
+                            // Actually, uniqueId relies on index, so if count > 1, 
+                            // we should probably have treated them as separate entries or 
+                            // added a sub-index. For now, assuming count is handled by user adding multiple entries
+                            // or we just spawn one for this entry.
+                            // UPDATE: The DM Atlas supports 'count'. We should loop count.
+
+                            for (let i = 0; i < count; i++) {
+                                // Sub-unique ID if count > 1
+                                const specificId = count > 1 ? `${uniqueEncounterId}_${i}` : uniqueEncounterId;
+
+                                if (state.rpg.clearedEncounters.includes(specificId)) continue;
+
+                                // Check existing again for specific ID
+                                const existingSpecific = actors.find(a => a.data?.rpg?.encounterId === specificId);
+                                if (existingSpecific) continue;
+
+                                const spawnData = {
+                                    ...template,
+                                    locationId: destination.id,
+                                    encounterId: specificId
+                                };
+
+                                if (window.RPG && window.RPG.Entities) {
+                                    const newId = window.RPG.Entities.create(spawnData);
+                                    console.log(LOG_PREFIX, 'Spawned entity:', newId);
+                                    if (i === 0) sysLogs.push(`⚠️ **Encounter!** ${template.name} appears!`);
+                                } else {
+                                    console.warn(LOG_PREFIX, "RPG.Entities not available for spawn.");
+                                }
+                            }
+                        } else {
+                            console.warn(LOG_PREFIX, 'Template not found for:', monsterId);
+                        }
+                    } else {
+                        console.log(LOG_PREFIX, 'Encounter already active:', uniqueEncounterId);
+                    }
+                });
+
+            } else {
+                console.log(LOG_PREFIX, 'No encounters in', destination.name);
+            }
+
             sysLogs.push(`📍 **Moved to ${destination.name}**`);
             if (destination.description) {
                 sysLogs.push(destination.description);
@@ -803,6 +949,7 @@
             visibility[location.id] = 'visited';
 
             // Add to visitedLocations if not already there
+            if (!state.rpg.visitedLocations) state.rpg.visitedLocations = [];
             if (!state.rpg.visitedLocations.includes(location.id)) {
                 state.rpg.visitedLocations.push(location.id);
             }
@@ -1175,11 +1322,20 @@
     };
 
     // ===== EXPORT =====
+    // ===== EXPORT =====
     A.RPGEngine = RPGEngine;
+
+    // Also export to isolated RPG namespace if available
+    if (window.RPG) {
+        window.RPG.Engine = RPGEngine;
+    }
 
     // Auto-initialize state on load
     RPGEngine.ensureState();
 
-    if (DEBUG) console.log(LOG_PREFIX, 'RPG Engine v1.0 loaded');
+    console.log(LOG_PREFIX, 'RPG Engine v1.0 loaded', {
+        anansi: !!A.RPGEngine,
+        rpg: !!(window.RPG && window.RPG.Engine)
+    });
 
 })(window.Anansi);

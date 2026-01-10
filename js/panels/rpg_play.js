@@ -11,6 +11,9 @@
 (function (A) {
     'use strict';
 
+    // Helper: Get Engine safely
+    const getEngine = () => A.RPGEngine || (window.RPG && window.RPG.Engine) || null;
+
     // ===========================================
     // MODE DEFINITIONS
     // ===========================================
@@ -95,26 +98,36 @@
         }
 
         // Subscribe to RPG Engine events
-        if (A.RPGEngine) {
-            // Location change - show image
-            A.RPGEngine.on('location_enter', (data) => {
+        if (getEngine()) {
+            // Location change
+            getEngine().on('location_enter', (data) => {
                 if (data.image) {
                     appendMessage('system', `![${data.location.name}](${data.image})`);
                 }
                 updateStatusBar();
+                updateLens();
             });
 
             // Combat state changes - refresh UI
-            A.RPGEngine.on('combat_start', () => {
+            getEngine().on('combat_start', () => {
                 updateActionBar();
                 updateCombatStatus();
+                updateLens();
             });
 
-            A.RPGEngine.on('combat_end', () => {
+            getEngine().on('combat_end', () => {
                 updateActionBar();
                 updateCombatStatus();
+                updateLens();
             });
         }
+
+        // Subscribe to general state changes (for spawns etc)
+        A.State.subscribe(() => {
+            if (document.getElementById('rpg-lens-container') || document.querySelector('[data-panel="rpg_play"]')) {
+                updateLens();
+            }
+        });
     }
 
     // ===========================================
@@ -652,14 +665,15 @@
     // MUD MODE PROCESSING
     // ===========================================
     async function processMUDInput(text, loadingId) {
-        if (!A.RPGEngine?.processRound) {
+        const engine = getEngine();
+        if (!engine?.processRound) {
             document.getElementById(loadingId).textContent = "⚠️ RPG Engine not available.";
             return;
         }
 
         const state = A.State.get();
         const history = state.rpg?.history || [];
-        const roundResult = A.RPGEngine.processRound(text, history, 'input', { source: 'rpg_session' });
+        const roundResult = engine.processRound(text, history, 'input', { source: 'rpg_session' });
 
         // Display system notes (dice rolls, combat results, etc.)
         if (roundResult.context.system_notes) {
@@ -755,7 +769,10 @@
         const prompt = `You are a game narrator. Briefly describe these game events in vivid prose (2-3 sentences max):\n\n${logs.join('\n')}`;
 
         try {
-            return await A.API.chat(config, prompt, []);
+            // Updated to use A.LLM.generate (A.API.chat is deprecated/missing)
+            // generate(system, history, config)
+            const history = [{ role: 'user', content: prompt }];
+            return await A.LLM.generate("You are a narrator.", history, config);
         } catch (e) {
             console.warn('[RPG Play] Narration failed:', e);
             return null;
@@ -879,32 +896,72 @@
     // LENS PANEL
     // ===========================================
     function updateLens() {
-        A.UI?.updateLens?.('rpg_play', (lensContent) => {
-            const state = A.State.get();
-            let html = '';
+        if (A.UI && A.UI.setLens) {
+            A.UI.setLens((lensContent) => {
+                const state = A.State.get();
+                let html = '';
 
-            // Mode and status
-            html += `<div style="padding:12px; border-bottom:1px solid var(--border-subtle);">
+                // Mode and status
+                html += `<div style="padding:12px; border-bottom:1px solid var(--border-subtle);">
                 <div style="font-weight:bold; margin-bottom:4px;">${GAME_MODES[currentMode].label}</div>
                 <div style="font-size:11px; color:var(--text-muted);">${GAME_MODES[currentMode].description}</div>
             </div>`;
 
-            // Party
-            const actors = Object.values(state.nodes?.actors?.items || {});
-            const party = actors.filter(a => a.data?.rpg?.enabled && a.data.rpg.type !== 'monster');
-            const enemies = actors.filter(a => a.data?.rpg?.enabled && a.data.rpg.type === 'monster');
+                // Party
+                // Current Location
+                const currentLocation = state.rpg?.currentLocation;
 
-            if (party.length > 0) {
-                html += `<div style="padding:12px;">
+                // Filter Actors by Location
+                const actors = Object.values(state.nodes?.actors?.items || {});
+
+                console.log('[Lens Debug] Update:', {
+                    currentLocation,
+                    totalActors: actors.length,
+                    actors: actors.map(a => ({ name: a.name, loc: a.data?.rpg?.locationId, enabled: a.data?.rpg?.enabled }))
+                });
+
+                const localActors = actors.filter(a => {
+                    const rpg = a.data?.rpg;
+                    if (!rpg?.enabled) return false;
+                    // If no location set in state, maybe show everything? Or nothing?
+                    // Debug matching
+                    // If location is undefined, perhaps we are "traveling" or global. 
+                    // Show Party always? 
+                    // User requirement: "party and hostiles were shown separately WHEN they were in the same location".
+
+                    // New Logic: 
+                    // 1. If entity has the SAME location ID as current state -> KEEP
+                    // 2. If entity is a PARTY MEMBER and current state location is null/undefined -> KEEP (Global view)
+
+                    const isParty = rpg.type !== 'monster';
+
+                    if (currentLocation) {
+                        // Strict location matching when in a specific place
+                        if (rpg.locationId !== currentLocation) return false;
+                    } else {
+                        // If no location defined yet (e.g. just started), only show party
+                        if (!isParty) return false;
+                    }
+
+                    return true;
+                });
+
+                console.log('[Lens Debug] Filtered:', localActors.length);
+
+                const party = localActors.filter(a => a.data.rpg.type !== 'monster');
+                const enemies = localActors.filter(a => a.data.rpg.type === 'monster');
+
+                if (party.length > 0) {
+                    html += `<div style="padding:12px;">
                     <div style="font-weight:bold; font-size:11px; color:var(--accent-secondary); text-transform:uppercase; margin-bottom:8px;">Party</div>`;
 
-                party.forEach(a => {
-                    const rpg = a.data.rpg;
-                    const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
-                    const hpPct = Math.round((hp / maxHp) * 100);
-                    const isActive = state.rpg?.combat?.active && state.rpg.combat.order?.[state.rpg.combat.turn]?.id === a.id;
+                    party.forEach(a => {
+                        const rpg = a.data.rpg;
+                        const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
+                        const hpPct = Math.round((hp / maxHp) * 100);
+                        const isActive = state.rpg?.combat?.active && state.rpg.combat.order?.[state.rpg.combat.turn]?.id === a.id;
 
-                    html += `<div style="background:var(--bg-elevated); border:1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'}; border-radius:6px; padding:10px; margin-bottom:8px;">
+                        html += `<div style="background:var(--bg-elevated); border:1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'}; border-radius:6px; padding:10px; margin-bottom:8px;">
                         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
                             <strong>${isActive ? '▶ ' : ''}${a.name}</strong>
                             <span style="color:var(--status-success);">${hp}/${maxHp}</span>
@@ -913,34 +970,35 @@
                             <div style="height:100%; width:${hpPct}%; background:var(--status-success); border-radius:2px;"></div>
                         </div>
                     </div>`;
-                });
+                    });
 
-                html += `</div>`;
-            }
+                    html += `</div>`;
+                }
 
-            // Enemies
-            if (enemies.length > 0) {
-                html += `<div style="padding:12px; border-top:1px solid var(--border-subtle);">
+                // Enemies
+                if (enemies.length > 0) {
+                    html += `<div style="padding:12px; border-top:1px solid var(--border-subtle);">
                     <div style="font-weight:bold; font-size:11px; color:var(--status-error); text-transform:uppercase; margin-bottom:8px;">Hostiles</div>`;
 
-                enemies.forEach(a => {
-                    const rpg = a.data.rpg;
-                    const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
-                    const dead = hp <= 0;
+                    enemies.forEach(a => {
+                        const rpg = a.data.rpg;
+                        const hp = rpg.hp || 0, maxHp = rpg.maxHp || rpg.hp || 20;
+                        const dead = hp <= 0;
 
-                    html += `<div style="background:var(--bg-elevated); border:1px solid var(--status-error); border-radius:6px; padding:10px; margin-bottom:8px; opacity:${dead ? '0.5' : '1'};">
+                        html += `<div style="background:var(--bg-elevated); border:1px solid var(--status-error); border-radius:6px; padding:10px; margin-bottom:8px; opacity:${dead ? '0.5' : '1'};">
                         <div style="display:flex; justify-content:space-between; font-size:12px;">
                             <strong>${dead ? '💀 ' : ''}${a.name}</strong>
                             <span style="color:var(--status-error);">${hp}/${maxHp}</span>
                         </div>
                     </div>`;
-                });
+                    });
 
-                html += `</div>`;
-            }
+                    html += `</div>`;
+                }
 
-            lensContent.innerHTML = html;
-        });
+                lensContent.innerHTML = html;
+            });
+        }
     }
 
     // ===========================================

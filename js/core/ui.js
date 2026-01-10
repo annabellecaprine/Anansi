@@ -289,8 +289,7 @@
                 { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks' },
                 { id: 'rpg_map', label: 'Map', desc: 'Locations' },
                 { id: 'rpg_dm_map', label: 'DM Map', desc: 'World building' },
-                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells' },
-                { id: 'rpg_roleplay', label: 'Roleplay', desc: 'Chat interface' }
+                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells' }
             ];
 
             rpgPanels.forEach(p => {

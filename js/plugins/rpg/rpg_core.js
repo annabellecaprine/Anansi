@@ -294,8 +294,13 @@
                 const newEntity = {
                     id: id,
                     name: name,
+                    enabled: true, // Default to enabled for visibility
                     type: data.type || 'monster', // monster | npc | party_member
                     sourceActorId: sourceActorId, // Link to core actor if applicable
+
+                    // Location Persistence
+                    locationId: data.locationId || null,
+                    encounterId: data.encounterId || null,
 
                     // RPG Stats
                     level: data.level || 1,
@@ -328,6 +333,27 @@
                 };
 
                 state.entities[id] = newEntity;
+
+                state.entities[id] = newEntity;
+
+                // CRITICAL SYNC: Also create a Graph Node for this entity
+                // The Lens and Combat Engine iterate over state.nodes.actors.items, not state.entities
+                const globalState = A.State.get();
+                if (!globalState.nodes) globalState.nodes = {};
+                if (!globalState.nodes.actors) globalState.nodes.actors = { items: {} };
+                if (!globalState.nodes.actors.items) globalState.nodes.actors.items = {};
+
+                globalState.nodes.actors.items[id] = {
+                    id: id,
+                    name: name,
+                    type: 'actor',
+                    data: {
+                        rpg: newEntity // Link the RPG data directly
+                    },
+                    // Legacy compatibility
+                    locationId: newEntity.locationId
+                };
+
                 RPG.State.notify();
                 return id;
             } catch (e) {
