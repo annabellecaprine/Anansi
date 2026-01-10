@@ -642,16 +642,37 @@
             if (!script || script.system) return;
 
             try {
+                const state = A.State.get();
                 const vaultId = script.vaultLink?.vaultId || null;
-                const result = await A.VaultDB.publish({
-                    id: vaultId,
-                    type: 'script',
+
+                // Script data to store
+                const scriptData = {
                     name: script.name,
-                    data: {
-                        name: script.name,
-                        source: script.source
+                    source: script.source
+                };
+
+                // Metadata for the vault
+                const metadata = {
+                    sourceProjectId: state.meta?.id,
+                    sourceProjectName: state.meta?.name || 'Unknown Project',
+                    universe: state.meta?.universe || ''
+                };
+
+                let result;
+                if (vaultId) {
+                    // Try to update existing vault item
+                    try {
+                        result = await A.VaultDB.push(vaultId, scriptData, `Updated ${script.name}`);
+                    } catch (pushErr) {
+                        // Vault item was deleted - clear stale link and publish fresh
+                        console.warn('[Scripts] Stale vault link, publishing as new:', pushErr.message);
+                        script.vaultLink = null;
+                        result = await A.VaultDB.publish('script', scriptData, metadata);
                     }
-                });
+                } else {
+                    // Publish new item
+                    result = await A.VaultDB.publish('script', scriptData, metadata);
+                }
 
                 if (result) {
                     script.vaultLink = {

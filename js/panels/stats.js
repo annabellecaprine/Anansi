@@ -348,7 +348,7 @@
                         </div>
                         <input type="range" min="${def.min}" max="${def.max}" value="${val}" style="width:100%;">
                         <div style="font-family:monospace; font-size:9px; color:var(--text-muted); margin-top:2px; text-align:right; opacity:0.7; user-select:all; cursor:pointer;" title="Click to copy path" onclick="navigator.clipboard.writeText(this.innerText.trim()); Anansi.UI.Toast.show('Path copied', 'info');">
-                            {{stats.${currentTarget}.${block.id}.${def.key}}}
+                            {{stats.${currentTarget === 'user' ? 'user' : (actors.find(a => a.id === currentTarget)?.name?.replace(/\s+/g, '_') || currentTarget)}.${block.id}.${def.key}}}
                         </div>
                      `;
 
@@ -479,13 +479,22 @@
                         return html;
                     };
 
-                    function blockIdToRef(tid, bid, k) { return `{{stats.${tid}.${bid}.${k}}}`; }
+                    // Helper to get display name for a target (slugified for template syntax)
+                    const getTargetDisplayName = (tid) => {
+                        if (tid === 'user') return 'user';
+                        const actor = actors.find(a => a.id === tid);
+                        // Replace spaces with underscores for valid template syntax
+                        return actor?.name?.replace(/\s+/g, '_') || tid;
+                    };
+
+                    function blockIdToRef(tid, bid, k) { return `{{stats.${getTargetDisplayName(tid)}.${bid}.${k}}}`; }
 
                     // Just show Current Target + User (if diff)
                     lensRoot.innerHTML += renderGroup('user', 'User Identity');
 
                     if (currentTarget !== 'user') {
-                        lensRoot.innerHTML += renderGroup(currentTarget, `Current Target (${currentTarget})`);
+                        const targetName = getTargetDisplayName(currentTarget);
+                        lensRoot.innerHTML += renderGroup(currentTarget, `Current Target (${targetName.toUpperCase()})`);
                     }
                 }
                 lensRoot.innerHTML += '</div>';

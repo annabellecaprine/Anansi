@@ -719,15 +719,25 @@
             if (!name) return;
 
             const activeMap = getActiveMap(state);
-            const cx = (G.width / 2 - G.tx) / G.zoom;
-            const cy = (G.height / 2 - G.ty) / G.zoom;
+            const baseCx = (G.width / 2 - G.tx) / G.zoom;
+            const baseCy = (G.height / 2 - G.ty) / G.zoom;
+
+            // Calculate cascade offset to prevent overlap
+            const baseGridX = Math.round(baseCx / G.gridSize) * G.gridSize;
+            const baseGridY = Math.round(baseCy / G.gridSize) * G.gridSize;
+
+            // Count existing locations to determine offset
+            const existingCount = activeMap.locations?.length || 0;
+            const offsetIndex = existingCount % 10; // Cycle through 10 positions
+            const offsetX = (offsetIndex % 5) * G.gridSize;  // 0, 40, 80, 120, 160
+            const offsetY = Math.floor(offsetIndex / 5) * G.gridSize; // 0 or 40
 
             const newLoc = {
                 id: 'LOC_' + Math.random().toString(36).substr(2, 5).toUpperCase(),
                 name: name,
                 description: '',
                 exits: [],
-                pos: { x: Math.round(cx / G.gridSize) * G.gridSize, y: Math.round(cy / G.gridSize) * G.gridSize }
+                pos: { x: baseGridX + offsetX, y: baseGridY + offsetY }
             };
 
             activeMap.locations.push(newLoc);

@@ -473,7 +473,7 @@
                 showMoveSelector();
                 break;
             case 'interact':
-                setInputMode('interact', '🖐️ INTERACT', 'What do you want to interact with?');
+                showInteractSelector();
                 break;
             case 'talk':
                 showTalkSelector();
@@ -813,6 +813,233 @@
         });
     }
 
+    function showInteractSelector() {
+        const state = A.State.get();
+        const currentLocId = state.rpg?.currentLocation;
+
+        // Get objects at current location
+        const objectsHere = (state.rpg?.objects || []).filter(obj =>
+            obj.locationId === currentLocId
+        );
+
+        if (objectsHere.length === 0) {
+            appendMessage('system', '❓ Nothing to interact with here.');
+            return;
+        }
+
+        // Build options with icons
+        const options = objectsHere.map(obj => ({
+            id: obj.id,
+            label: `${obj.type === 'quest' ? '🎯' : '📦'} ${obj.name}`,
+            obj: obj
+        }));
+
+        showSelector('Interact with', options, (opt) => {
+            showObjectActionMenu(opt.obj);
+        });
+    }
+
+    function showObjectActionMenu(obj) {
+        const selectorArea = document.getElementById('rpg-selector');
+        if (!selectorArea) return;
+
+        const isContainer = obj.type === 'container';
+        const isQuest = obj.type === 'quest';
+
+        selectorArea.style.display = 'flex';
+        selectorArea.innerHTML = `
+            <span style="font-size:11px; color:var(--text-muted); margin-right:8px; font-weight:bold;">
+                ${isQuest ? '🎯' : '📦'} ${obj.name}:
+            </span>
+        `;
+
+        const optionsWrap = document.createElement('div');
+        optionsWrap.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+
+        // Actions based on type
+        if (isContainer) {
+            // Open action
+            const openBtn = document.createElement('button');
+            openBtn.className = 'btn btn-secondary btn-sm';
+            openBtn.textContent = '📂 Open';
+            openBtn.onclick = () => {
+                openContainer(obj);
+                selectorArea.style.display = 'none';
+            };
+            optionsWrap.appendChild(openBtn);
+
+            // Take All action (if container has contents)
+            if ((obj.contents || []).length > 0) {
+                const takeAllBtn = document.createElement('button');
+                takeAllBtn.className = 'btn btn-primary btn-sm';
+                takeAllBtn.textContent = '💰 Take All';
+                takeAllBtn.onclick = () => {
+                    takeAllFromContainer(obj);
+                    selectorArea.style.display = 'none';
+                };
+                optionsWrap.appendChild(takeAllBtn);
+            }
+
+            // Lock status
+            if (obj.locked) {
+                const lockBadge = document.createElement('span');
+                lockBadge.style.cssText = 'font-size:10px; padding:2px 8px; background:var(--status-error); border-radius:8px; color:white;';
+                lockBadge.textContent = `🔒 Locked (DC ${obj.lockDC || 15})`;
+                optionsWrap.appendChild(lockBadge);
+            }
+        } else if (isQuest) {
+            // Take action for quest items
+            if (!obj.collected) {
+                const takeBtn = document.createElement('button');
+                takeBtn.className = 'btn btn-primary btn-sm';
+                takeBtn.textContent = '✋ Take';
+                takeBtn.onclick = () => {
+                    takeQuestObject(obj);
+                    selectorArea.style.display = 'none';
+                };
+                optionsWrap.appendChild(takeBtn);
+            } else {
+                const collectedBadge = document.createElement('span');
+                collectedBadge.style.cssText = 'font-size:10px; padding:2px 8px; background:var(--status-success); border-radius:8px; color:white;';
+                collectedBadge.textContent = '✓ Already collected';
+                optionsWrap.appendChild(collectedBadge);
+            }
+
+            // Examine action
+            const examineBtn = document.createElement('button');
+            examineBtn.className = 'btn btn-ghost btn-sm';
+            examineBtn.textContent = '👁️ Examine';
+            examineBtn.onclick = () => {
+                executeCommand(`[EXAMINE] ${obj.name}`);
+                selectorArea.style.display = 'none';
+            };
+            optionsWrap.appendChild(examineBtn);
+        }
+
+        // Cancel
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-ghost btn-sm';
+        cancelBtn.textContent = '❌';
+        cancelBtn.onclick = () => { selectorArea.style.display = 'none'; };
+        optionsWrap.appendChild(cancelBtn);
+
+        selectorArea.appendChild(optionsWrap);
+    }
+
+    function openContainer(obj) {
+        const state = A.State.get();
+
+        if (obj.locked) {
+            appendMessage('system', `🔒 The ${obj.name} is locked! (DC ${obj.lockDC || 15})`);
+            return;
+        }
+
+        const contents = obj.contents || [];
+        if (contents.length === 0) {
+            appendMessage('system', `📭 The ${obj.name} is empty.`);
+            return;
+        }
+
+        // Try to resolve item names from Armory
+        const armory = state.rpg?.armory?.items || {};
+        const itemNames = contents.map(itemId => {
+            const item = armory[itemId];
+            return item ? item.name : itemId;
+        });
+
+        appendMessage('system', `📦 **${obj.name}** contains:\n${itemNames.map(n => `• ${n}`).join('\n')}`);
+
+        // Show take options
+        showContainerContentsSelector(obj, itemNames);
+    }
+
+    function showContainerContentsSelector(obj, itemNames) {
+        const options = itemNames.map((name, idx) => ({
+            id: obj.contents[idx],
+            label: name
+        }));
+
+        options.push({ id: 'take_all', label: '💰 Take All' });
+
+        showSelector('Take', options, (opt) => {
+            if (opt.id === 'take_all') {
+                takeAllFromContainer(obj);
+            } else {
+                takeItemFromContainer(obj, opt.id, opt.label);
+            }
+        });
+    }
+
+    function takeItemFromContainer(obj, itemId, itemName) {
+        const state = A.State.get();
+
+        // Remove from container
+        const idx = obj.contents.indexOf(itemId);
+        if (idx > -1) {
+            obj.contents.splice(idx, 1);
+        }
+
+        // Add to party inventory (leader or first party member)
+        const leaderId = state.rpg?.partyLeader;
+        const partyMember = leaderId
+            ? (state.rpg?.entities?.[leaderId] || Object.values(state.rpg?.entities || {}).find(e => e.sourceActorId === leaderId))
+            : Object.values(state.rpg?.entities || {}).find(e => e.type === 'party_member');
+
+        if (partyMember) {
+            if (!partyMember.inventory) partyMember.inventory = [];
+            partyMember.inventory.push(itemId);
+        }
+
+        A.State.notify();
+        appendMessage('system', `✋ Took **${itemName}** from ${obj.name}.`);
+    }
+
+    function takeAllFromContainer(obj) {
+        const state = A.State.get();
+        const contents = [...(obj.contents || [])];
+
+        if (contents.length === 0) {
+            appendMessage('system', `📭 The ${obj.name} is empty.`);
+            return;
+        }
+
+        // Get item names for message
+        const armory = state.rpg?.armory?.items || {};
+        const itemNames = contents.map(itemId => {
+            const item = armory[itemId];
+            return item ? item.name : itemId;
+        });
+
+        // Add all to party inventory
+        const leaderId = state.rpg?.partyLeader;
+        const partyMember = leaderId
+            ? (state.rpg?.entities?.[leaderId] || Object.values(state.rpg?.entities || {}).find(e => e.sourceActorId === leaderId))
+            : Object.values(state.rpg?.entities || {}).find(e => e.type === 'party_member');
+
+        if (partyMember) {
+            if (!partyMember.inventory) partyMember.inventory = [];
+            partyMember.inventory.push(...contents);
+        }
+
+        // Clear container
+        obj.contents = [];
+
+        A.State.notify();
+        appendMessage('system', `💰 Took everything from **${obj.name}**:\n${itemNames.map(n => `• ${n}`).join('\n')}`);
+    }
+
+    function takeQuestObject(obj) {
+        // Mark as discovered and collected
+        obj.discovered = true;
+        obj.collected = true;
+
+        A.State.notify();
+        appendMessage('system', `🎯 **${obj.name}** collected!\n*${obj.description || 'A quest item.'}*`);
+
+        if (A.UI?.Toast) {
+            A.UI.Toast.show(`Quest item collected: ${obj.name}`, 'success');
+        }
+    }
     function showMoveSelector() {
         const state = A.State.get();
         const currentLoc = state.rpg?.currentLocation;

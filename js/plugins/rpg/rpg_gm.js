@@ -762,6 +762,304 @@
         };
 
         renderRules();
+
+        // === SECTION: Objects ===
+        const objectsSection = document.createElement('div');
+        objectsSection.className = 'card';
+        objectsSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+
+        // Initialize objects array
+        if (!state.rpg.objects) state.rpg.objects = [];
+
+        // Get locations for dropdown
+        let allLocations = [];
+        if (state.weaves?.maps) {
+            state.weaves.maps.forEach(map => {
+                (map.locations || []).forEach(loc => {
+                    allLocations.push({ ...loc, _mapName: map.name });
+                });
+            });
+        } else if (state.weaves?.locations) {
+            allLocations = state.weaves.locations;
+        }
+
+        let objectFilter = 'all';
+
+        const renderObjects = () => {
+            const objects = state.rpg.objects || [];
+            const filtered = objectFilter === 'all'
+                ? objects
+                : objects.filter(o => o.type === objectFilter);
+
+            objectsSection.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0; font-size:14px; display:flex; align-items:center; gap:8px;">
+                        📦 Objects
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${objects.length} total)</span>
+                    </h3>
+                    <button id="btn-add-object" class="btn btn-primary btn-sm">+ Add Object</button>
+                </div>
+                
+                <div style="display:flex; gap:8px; margin-bottom:16px;">
+                    <button class="btn btn-sm obj-filter ${objectFilter === 'all' ? 'btn-primary' : 'btn-ghost'}" data-filter="all">All</button>
+                    <button class="btn btn-sm obj-filter ${objectFilter === 'quest' ? 'btn-primary' : 'btn-ghost'}" data-filter="quest">🎯 Quest</button>
+                    <button class="btn btn-sm obj-filter ${objectFilter === 'container' ? 'btn-primary' : 'btn-ghost'}" data-filter="container">📦 Container</button>
+                </div>
+                
+                <div id="objects-list" style="display:grid; gap:12px; max-height:400px; overflow-y:auto;">
+                    ${filtered.length === 0 ? `
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <div style="font-size:32px; margin-bottom:8px;">📦</div>
+                            <div>No objects defined</div>
+                            <div style="font-size:11px; margin-top:4px;">Add quest items or containers</div>
+                        </div>
+                    ` : filtered.map((obj, idx) => `
+                        <div class="card" style="padding:12px; background:var(--bg-base); display:flex; gap:12px; align-items:start;">
+                            <div style="font-size:24px;">${obj.type === 'quest' ? '🎯' : '📦'}</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <input type="text" class="input obj-name" data-idx="${idx}" value="${obj.name || ''}" 
+                                           style="font-weight:600; font-size:13px; padding:4px 8px; flex:1; max-width:200px;">
+                                    <div style="display:flex; gap:4px;">
+                                        ${obj.type === 'quest' ? `
+                                            <span class="badge" style="font-size:9px; padding:2px 6px; background:${obj.collected ? 'var(--status-success)' : obj.discovered ? 'var(--status-warning)' : 'var(--bg-inset)'}; border-radius:8px;">
+                                                ${obj.collected ? '✓ Collected' : obj.discovered ? '👁 Discovered' : 'Hidden'}
+                                            </span>
+                                        ` : `
+                                            ${obj.locked ? `<span class="badge" style="font-size:9px; padding:2px 6px; background:var(--status-error); border-radius:8px;">🔒 DC ${obj.lockDC || 15}</span>` : ''}
+                                            ${obj.trapped ? `<span class="badge" style="font-size:9px; padding:2px 6px; background:var(--status-warning); border-radius:8px;">⚠️ Trap DC ${obj.trapDC || 12}</span>` : ''}
+                                            <span class="badge" style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border-radius:8px;">
+                                                ${(obj.contents || []).length} items
+                                            </span>
+                                        `}
+                                        <button class="btn btn-ghost btn-sm obj-edit" data-idx="${idx}" style="padding:2px 6px;">✏️</button>
+                                        <button class="btn btn-ghost btn-sm obj-delete" data-idx="${idx}" style="padding:2px 6px; color:var(--status-error);">×</button>
+                                    </div>
+                                </div>
+                                <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">${obj.description || 'No description'}</div>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <label style="font-size:10px; color:var(--text-muted);">Location:</label>
+                                    <select class="input obj-location" data-idx="${idx}" style="font-size:11px; padding:2px 6px; height:24px;">
+                                        <option value="">(Not placed)</option>
+                                        ${allLocations.map(loc => `
+                                            <option value="${loc.id}" ${obj.locationId === loc.id ? 'selected' : ''}>
+                                                ${loc._mapName ? `${loc.name} (${loc._mapName})` : loc.name}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Wire filter buttons
+            objectsSection.querySelectorAll('.obj-filter').forEach(btn => {
+                btn.onclick = () => {
+                    objectFilter = btn.dataset.filter;
+                    renderObjects();
+                };
+            });
+
+            // Wire add button
+            objectsSection.querySelector('#btn-add-object').onclick = () => {
+                const type = prompt('Object type:\n1 = Quest Object (McGuffin)\n2 = Container (Chest/Cabinet)', '1');
+                if (!type) return;
+
+                const objType = type === '2' ? 'container' : 'quest';
+                const name = prompt('Object name:', objType === 'quest' ? 'Ancient Artifact' : 'Treasure Chest');
+                if (!name) return;
+
+                const newObj = {
+                    id: 'obj_' + Math.random().toString(36).substr(2, 8),
+                    name: name,
+                    type: objType,
+                    description: '',
+                    locationId: null,
+                    // Quest properties
+                    questTag: '',
+                    discovered: false,
+                    collected: false,
+                    // Container properties
+                    contents: [],
+                    locked: false,
+                    lockDC: 15,
+                    trapped: false,
+                    trapDC: 12
+                };
+
+                state.rpg.objects.push(newObj);
+                A.State.notify();
+                renderObjects();
+                if (A.UI?.Toast) A.UI.Toast.show(`Created ${objType} object: ${name}`, 'success');
+            };
+
+            // Wire name inputs
+            objectsSection.querySelectorAll('.obj-name').forEach(input => {
+                input.onchange = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const filtered = objectFilter === 'all'
+                        ? state.rpg.objects
+                        : state.rpg.objects.filter(o => o.type === objectFilter);
+                    if (filtered[idx]) {
+                        filtered[idx].name = e.target.value;
+                        A.State.notify();
+                    }
+                };
+            });
+
+            // Wire location selects
+            objectsSection.querySelectorAll('.obj-location').forEach(select => {
+                select.onchange = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const filtered = objectFilter === 'all'
+                        ? state.rpg.objects
+                        : state.rpg.objects.filter(o => o.type === objectFilter);
+                    if (filtered[idx]) {
+                        filtered[idx].locationId = e.target.value || null;
+                        A.State.notify();
+                    }
+                };
+            });
+
+            // Wire edit buttons
+            objectsSection.querySelectorAll('.obj-edit').forEach(btn => {
+                btn.onclick = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const filtered = objectFilter === 'all'
+                        ? state.rpg.objects
+                        : state.rpg.objects.filter(o => o.type === objectFilter);
+                    const obj = filtered[idx];
+                    if (!obj) return;
+
+                    showObjectEditor(obj, () => {
+                        A.State.notify();
+                        renderObjects();
+                    });
+                };
+            });
+
+            // Wire delete buttons
+            objectsSection.querySelectorAll('.obj-delete').forEach(btn => {
+                btn.onclick = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const filtered = objectFilter === 'all'
+                        ? state.rpg.objects
+                        : state.rpg.objects.filter(o => o.type === objectFilter);
+                    const obj = filtered[idx];
+                    if (!obj) return;
+
+                    if (confirm(`Delete "${obj.name}"?`)) {
+                        const realIdx = state.rpg.objects.findIndex(o => o.id === obj.id);
+                        if (realIdx > -1) {
+                            state.rpg.objects.splice(realIdx, 1);
+                            A.State.notify();
+                            renderObjects();
+                            if (A.UI?.Toast) A.UI.Toast.show('Object deleted', 'info');
+                        }
+                    }
+                };
+            });
+        };
+
+        // Object Editor Modal
+        const showObjectEditor = (obj, onSave) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+            const isQuest = obj.type === 'quest';
+
+            modal.innerHTML = `
+                <div style="background:var(--bg-elevated); width:500px; max-height:80vh; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.5); border:1px solid var(--border-default);">
+                    <div style="padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:16px;">${isQuest ? '🎯' : '📦'} Edit ${isQuest ? 'Quest Object' : 'Container'}</h3>
+                        <button class="btn btn-ghost btn-sm" id="modal-close">×</button>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px;">
+                        <div>
+                            <label class="label">Name</label>
+                            <input type="text" class="input" id="obj-ed-name" value="${obj.name || ''}" style="width:100%;">
+                        </div>
+                        <div>
+                            <label class="label">Description</label>
+                            <textarea class="input" id="obj-ed-desc" rows="3" style="width:100%; resize:vertical;">${obj.description || ''}</textarea>
+                        </div>
+                        ${isQuest ? `
+                            <div>
+                                <label class="label">Quest Tag</label>
+                                <input type="text" class="input" id="obj-ed-tag" value="${obj.questTag || ''}" style="width:100%;" placeholder="e.g. main_quest, side_quest">
+                            </div>
+                            <div style="display:flex; gap:16px;">
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="obj-ed-discovered" ${obj.discovered ? 'checked' : ''}> Discovered
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="obj-ed-collected" ${obj.collected ? 'checked' : ''}> Collected
+                                </label>
+                            </div>
+                        ` : `
+                            <div style="display:flex; gap:16px;">
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="obj-ed-locked" ${obj.locked ? 'checked' : ''}> Locked
+                                </label>
+                                <div>
+                                    <label class="label" style="font-size:10px;">Lock DC</label>
+                                    <input type="number" class="input" id="obj-ed-lockdc" value="${obj.lockDC || 15}" style="width:60px;">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:16px;">
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="obj-ed-trapped" ${obj.trapped ? 'checked' : ''}> Trapped
+                                </label>
+                                <div>
+                                    <label class="label" style="font-size:10px;">Trap DC</label>
+                                    <input type="number" class="input" id="obj-ed-trapdc" value="${obj.trapDC || 12}" style="width:60px;">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="label">Contents (item IDs, one per line)</label>
+                                <textarea class="input" id="obj-ed-contents" rows="4" style="width:100%; font-family:monospace; font-size:11px;" placeholder="Enter item IDs from Armory...">${(obj.contents || []).join('\n')}</textarea>
+                            </div>
+                        `}
+                    </div>
+                    <div style="padding:12px 16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;">
+                        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+                        <button class="btn btn-primary" id="modal-save">Save</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('#modal-close').onclick = () => modal.remove();
+            modal.querySelector('#modal-cancel').onclick = () => modal.remove();
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            modal.querySelector('#modal-save').onclick = () => {
+                obj.name = modal.querySelector('#obj-ed-name').value;
+                obj.description = modal.querySelector('#obj-ed-desc').value;
+
+                if (isQuest) {
+                    obj.questTag = modal.querySelector('#obj-ed-tag').value;
+                    obj.discovered = modal.querySelector('#obj-ed-discovered').checked;
+                    obj.collected = modal.querySelector('#obj-ed-collected').checked;
+                } else {
+                    obj.locked = modal.querySelector('#obj-ed-locked').checked;
+                    obj.lockDC = parseInt(modal.querySelector('#obj-ed-lockdc').value) || 15;
+                    obj.trapped = modal.querySelector('#obj-ed-trapped').checked;
+                    obj.trapDC = parseInt(modal.querySelector('#obj-ed-trapdc').value) || 12;
+                    obj.contents = modal.querySelector('#obj-ed-contents').value.split('\n').map(s => s.trim()).filter(Boolean);
+                }
+
+                modal.remove();
+                if (onSave) onSave();
+                if (A.UI?.Toast) A.UI.Toast.show('Object updated', 'success');
+            };
+        };
+
+        content.appendChild(objectsSection);
+        renderObjects();
     }
 
     // Expose core rule IDs for other modules

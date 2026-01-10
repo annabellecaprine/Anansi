@@ -2,6 +2,18 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.9.5 - 2026-01-10
+### Bug Fixes
+- **Script Vault Integration**: Fixed scripts publishing to Vault with "[object Object]" instead of name. Scripts now correctly store metadata and can be pulled back into projects.
+- **Stats Panel Display**: Stat references now display actor names instead of IDs (e.g., `{{stats.Luna.battle_stats.PUPP}}` instead of `{{stats.actor_xyz.battle_stats.PUPP}}`).
+- **Location Node Overlap**: New location nodes now cascade instead of stacking on top of each other.
+
+### Game Master
+- **Objects System**: New section for managing quest objects (McGuffins) and container objects (chests/cabinets). Quest objects track discovery/collection status. Containers support lock DC, trap DC, and contents from Armory. All objects can be assigned to locations.
+- **Object Interaction**: [INTERACT] button in Play panel now shows objects at current location. Containers can be opened to list contents, with Take/Take All options. Quest items can be collected with Take button.
+
+---
+
 ## v1.9.4 - 2026-01-10
 ### Bug Fixes & Stability
 - **System Data Syntax Fix**: Repaired broken string literal in `system_data.js` that caused `SyntaxError` and prevented system scripts from loading.
