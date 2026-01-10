@@ -1043,13 +1043,41 @@
         const logs = roundResult.sysLogs || [];
         if (logs.length === 0) return null;
 
-        const prompt = `You are a game narrator. Briefly describe these game events in vivid prose (2-3 sentences max):\n\n${logs.join('\n')}`;
+        const nc = logs.narrativeContext || {};
+        let contextBlock = "";
+
+        if (nc.campaign) {
+            contextBlock += `### Campaign\n`;
+            contextBlock += `Setting: ${nc.campaign.setting}\n`;
+            contextBlock += `Name: ${nc.campaign.name}\n`;
+            if (nc.campaign.notes) contextBlock += `Atmosphere/Notes: ${nc.campaign.notes}\n`;
+            contextBlock += `\n`;
+        }
+
+        if (nc.attacker || nc.target || nc.weapon) {
+            contextBlock += `### Participants & Gear\n`;
+            if (nc.attacker) {
+                contextBlock += `Attacker: ${nc.attacker.name} (${nc.attacker.profile})\n`;
+            }
+            if (nc.target) {
+                contextBlock += `Target: ${nc.target.name} (${nc.target.profile})\n`;
+            }
+            if (nc.weapon) {
+                contextBlock += `Weapon: ${nc.weapon.name} (${nc.weapon.description})\n`;
+            }
+        }
+
+        const genre = nc.campaign?.setting || "Fantasy";
+        const prompt = `You are a cinematic game narrator in a ${genre} setting. Describe the following combat events in vivid, engaging prose (2-3 sentences max). 
+Use the provided character, weapon, and setting descriptions to make the scene visceral and atmospheric.
+
+${contextBlock}
+### Events
+${logs.join('\n')}`;
 
         try {
-            // Updated to use A.LLM.generate (A.API.chat is deprecated/missing)
-            // generate(system, history, config)
             const history = [{ role: 'user', content: prompt }];
-            return await A.LLM.generate("You are a narrator.", history, config);
+            return await A.LLM.generate(`You are a cinematic narrator. Style: ${genre}. Focus on visceral details, ${genre} tropes, and character appearance.`, history, config);
         } catch (e) {
             console.warn('[RPG Play] Narration failed:', e);
             return null;

@@ -403,6 +403,34 @@
             return hit;
         },
 
+        /**
+         * Get a descriptive profile for an actor or monster
+         */
+        getNarrativeProfile: function (actor) {
+            if (!actor) return "Unknown";
+            const data = actor.data || {};
+            const rpg = data.rpg || actor.rpg || actor; // Support for bestiary entities
+
+            if (rpg.type === 'monster' || actor.isCustom) {
+                return actor.description || "A mysterious and dangerous creature.";
+            }
+
+            // Actor (Party/NPC)
+            let profile = [];
+            if (data.tagline) profile.push(data.tagline);
+
+            // Check V2 fields
+            if (data.physical) profile.push(data.physical);
+            if (data.biological) profile.push(data.biological);
+
+            // Fallback to personality snippet if still empty
+            if (profile.length === 0 && data.personality) {
+                profile.push(data.personality.slice(0, 150) + "...");
+            }
+
+            return profile.length > 0 ? profile.join('. ') : "A nondescript individual.";
+        },
+
         // ===== ACTION ECONOMY =====
         /**
          * Consume an action from the current combatant
@@ -1136,6 +1164,7 @@
 
             // Standard roll logic
             let target = null;
+            let usedWeapon = null;
             const potentialTargets = Object.values(state.nodes?.actors?.items || {});
 
             // Parse explicit target from "on [Name]" or "target [Name]"
@@ -1207,7 +1236,6 @@
 
                 // 1. Check for "using [Weapon]" override
                 const weaponMatch = input.match(/using\s+(.+)$/i);
-                let usedWeapon = null;
 
                 if (weaponMatch) {
                     const wName = weaponMatch[1].trim();
@@ -1260,6 +1288,30 @@
                 this.emit('damage', { source: subject, target, damage: totalDmg, weapon: weaponName });
                 this.checkCombatEnd(sysLogs);
 
+            }
+
+            // Before exiting, attach narrative context to sysLogs for the LLM
+            if (sysLogs.length > 0) {
+                const campaign = state.rpg?.campaign || {};
+                sysLogs.narrativeContext = {
+                    campaign: {
+                        name: campaign.name || "Unknown Campaign",
+                        setting: campaign.setting || "Fantasy",
+                        notes: campaign.notes || ""
+                    },
+                    attacker: {
+                        name: subject.name,
+                        profile: this.getNarrativeProfile(subject)
+                    },
+                    target: target ? {
+                        name: target.name,
+                        profile: this.getNarrativeProfile(target)
+                    } : null,
+                    weapon: usedWeapon ? {
+                        name: usedWeapon.name,
+                        description: usedWeapon.description || usedWeapon.desc || "A standard weapon."
+                    } : null
+                };
             }
         },
 

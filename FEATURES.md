@@ -18,6 +18,18 @@ The Vault acts as your personal "GitHub" for creative assets, allowing you to bu
 
 ---
 
+## ✍️ The Writer's Block
+*An AI-powered creative assistant for brainstorming and drafting.*
+A specialized environment for breaking through creative walls and expanding your narrative.
+
+- **Dual-Mode Workflow**: Toggle between **Brainstorm** (ideation) and **Edit** (refining existing text) modes.
+- **Context Injection**: Automatically inject Actor and Location data into your prompts for hyper-relevant suggestions.
+- **Genre & Emphasis Chips**: Quickly steer the AI's output with pre-defined genre and stylistic emphasis toggles.
+- **Smart Session Management**: Sliding context window with auto-summarization to keep long brainstorming sessions coherent.
+- **Markdown Export**: Direct export of your writing sessions for use in external editors.
+
+---
+
 ## 🎭 Unified Character Designer
 *Deep character synthesis with Actor-driven logic.*
 The Character panel replaces traditional text boxes with a structured data engine.
@@ -38,6 +50,8 @@ AURA (Anansi Unified Relationship & Ambience) allows you to "code" your characte
 - **Logic Rules (SBX)**: Create "If/Else" chains that respond to message length, keyword counts, and custom variables.
 - **Narrative Events**: Trigger specific text injections or "mood shifts" based on user keywords or active tags.
 - **Weighted Scoring**: Influence the LLM’s focus by assigning weights to specific narrative concepts.
+- **Nested Logic Rules (Chains)**: Rules can now trigger other rules (`Execute Shift`), allowing for complex, hierarchical decision trees.
+- **Rule Blocks**: Group related logic (Lists, Rules, Scoring Topics) into **Rule Blocks** for easy project-wide management and one-click importing.
 - **AuraBuilder**: Export your logic as a standalone `AURA.js` payload that can run inside frontends like SillyTavern or JanitorAI.
 
 ---
@@ -67,5 +81,7 @@ The Simulator provides a "transparent" chat experience where you can see exactly
 - **Project Portability**: Save and load full **Projects** as `.json` or `.anansi` bundles, containing all actors, lore, and logic.
 - **Narrative Archiving**: Export your **Live Chat Stories** directly from the Simulator as formatted Markdown logs.
 - **Multi-Platform Adapters**: One-click exports optimized for **SillyTavern**, **JanitorAI**, and **Chub.ai** formats.
+- **Guided Tours**: Over 20+ interactive tours to help you master every panel in the engine.
+- **Drag-and-Drop Media**: Seamless image uploads for project covers, actors, and locations.
 - **Mobile Native**: Full support for Android builds (APK targets) with touch-optimized controls.
 - **Private & Local**: All data is stored locally via IndexedDB, ensuring your work is yours alone.
