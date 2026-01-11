@@ -206,13 +206,54 @@
         narrationToggle.onclick = () => toggleNarration();
         controls.appendChild(narrationToggle);
 
+        // Auto-Pilot Toggle
+        const simToggle = document.createElement('button');
+        simToggle.id = 'sim-toggle';
+        simToggle.className = 'btn btn-sm btn-ghost';
+        simToggle.style.cssText = 'font-size:11px; color:var(--text-muted);';
+        const isSim = A.RPGAutoPilot && A.RPGAutoPilot.enabled;
+        simToggle.innerHTML = isSim ? '🤖 Sim ON' : '🤖 Sim OFF';
+        simToggle.title = 'Toggle Auto-Pilot Simulation Mode';
+        simToggle.onclick = () => {
+            if (A.RPGAutoPilot) {
+                A.RPGAutoPilot.toggle();
+                const active = A.RPGAutoPilot.enabled;
+                simToggle.innerHTML = active ? '🤖 Sim ON' : '🤖 Sim OFF';
+                simToggle.style.color = active ? 'var(--accent-primary)' : 'var(--text-muted)';
+
+                // Update Narration UI if we forced it off
+                if (active) {
+                    toggleNarration(false); // Force off
+                }
+            } else {
+                alert('Auto-Pilot plugin not loaded');
+            }
+        };
+        controls.appendChild(simToggle);
+
         // Quick actions
         const quickBtns = document.createElement('div');
         quickBtns.style.cssText = 'display:flex; gap:4px; margin-left:8px;';
-        quickBtns.innerHTML = `
-            <button class="btn btn-sm btn-ghost" id="btn-start-combat" title="Start Combat">⚔️</button>
-            <button class="btn btn-sm btn-ghost" id="btn-clear" title="Clear Chat">🗑️</button>
+
+        ['Quests'].forEach(label => {
+            const b = document.createElement('button');
+            b.className = 'btn btn-xs btn-ghost';
+            b.innerText = label === 'Quests' ? '📜 Quests' : label;
+            b.onclick = () => {
+                if (label === 'Quests') showQuestLog();
+                else appendMessage('system', `[UI] ${label} panel not implemented in this view yet.`);
+            };
+            quickBtns.appendChild(b);
+        });
+
+        // Keep existing util buttons
+        const utilBtns = document.createElement('div');
+        utilBtns.innerHTML = `
+             <button class="btn btn-sm btn-ghost" id="btn-start-combat" title="Start Combat">⚔️</button>
+             <button class="btn btn-sm btn-ghost" id="btn-clear" title="Clear Chat">🗑️</button>
         `;
+        quickBtns.appendChild(utilBtns);
+
         controls.appendChild(quickBtns);
 
         headerTop.appendChild(modeToggle);
@@ -424,8 +465,13 @@
         );
     }
 
-    function toggleNarration() {
-        llmNarrationEnabled = !llmNarrationEnabled;
+    function toggleNarration(forceState) {
+        if (forceState !== undefined) {
+            llmNarrationEnabled = forceState;
+        } else {
+            llmNarrationEnabled = !llmNarrationEnabled;
+        }
+
         const state = A.State.get();
         if (!state.rpg) state.rpg = {};
         state.rpg.narrationEnabled = llmNarrationEnabled;
@@ -1888,6 +1934,68 @@ ${logs.join('\n')}`;
                 lensContent.innerHTML = html;
             });
         }
+    }
+
+    /**
+     * Show Quest Log Modal
+     */
+    function showQuestLog() {
+        if (!A.RPGQuests) {
+            alert("Quest System not loaded.");
+            return;
+        }
+
+        const state = A.State.get();
+        const quests = state.rpg?.quests || { active: [], completed: [] };
+
+        // Simple Modal overlay
+        // Check if modal already exists
+        const existing = document.getElementById('quest-log-modal');
+        if (existing) document.body.removeChild(existing);
+
+        const modal = document.createElement('div');
+        modal.id = 'quest-log-modal';
+        modal.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;';
+
+        const content = document.createElement('div');
+        content.style.cssText = 'background:var(--bg-panel); width:400px; max-height:80%; padding:20px; border-radius:8px; border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:10px; box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+
+        content.innerHTML = `
+            <h3 style="margin:0; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">📜 Quest Log</h3>
+            <div style="flex:1; overflow-y:auto; min-height:200px;">
+                ${quests.active.length === 0 && quests.completed.length === 0 ? '<div style="opacity:0.6; text-align:center; padding:20px;">No quests recorded.</div>' : ''}
+                
+                ${quests.active.map(q => `
+                    <div style="background:var(--bg-inset); padding:10px; border-radius:4px; margin-bottom:8px;">
+                        <div style="font-weight:bold; color:var(--accent-primary);">${q.title}</div>
+                        <div style="font-size:12px; margin-bottom:6px;">${q.description}</div>
+                        <div style="font-size:11px;">
+                            ${q.objectives.map(o => `
+                                <div style="display:flex; justify-content:space-between; color:${o.completed ? 'var(--text-success)' : 'inherit'};">
+                                    <span>${o.type === 'KILL' ? '⚔️' : o.type === 'FETCH' ? '📦' : o.type === 'VISIT' ? '👣' : '💬'} ${o.type} ${o.target}</span>
+                                    <span>${o.current}/${o.total}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+
+                ${quests.completed.length > 0 ? `
+                    <div style="font-size:12px; font-weight:bold; margin-top:16px;">Completed</div>
+                    <div style="font-size:11px; opacity:0.7;">
+                        ${quests.completed.map(id => `<div>✔️ ${id}</div>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+            <button id="close-quests" class="btn btn-primary" style="width:100%;">Close</button>
+        `;
+
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        modal.querySelector('#close-quests').onclick = () => {
+            if (modal.parentNode) document.body.removeChild(modal);
+        };
     }
 
     // ===========================================

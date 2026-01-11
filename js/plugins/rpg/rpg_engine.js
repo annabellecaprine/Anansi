@@ -909,7 +909,6 @@
                     if (!monsterId) return;
 
                     // Generate unique ID for THIS specific encounter instance in THIS room
-                    // e.g. LOC_123_MOB_ORC_0
                     const uniqueEncounterId = `${destination.id}_${monsterId}_${index}`;
 
                     if (state.rpg.clearedEncounters.includes(uniqueEncounterId)) {
@@ -931,40 +930,46 @@
                         const bestiary = state.rpg.bestiary || [];
                         const template = bestiary.find(b => b.id === monsterId);
 
-                        if (template) {
-                            // Loop for count (if multiple of same mob in one slot)
-                            // Actually, uniqueId relies on index, so if count > 1, 
-                            // we should probably have treated them as separate entries or 
-                            // added a sub-index. For now, assuming count is handled by user adding multiple entries
-                            // or we just spawn one for this entry.
-                            // UPDATE: The DM Atlas supports 'count'. We should loop count.
+                        // Support Ad-Hoc Spawning if template missing
+                        const spawnTemplate = template || {
+                            id: monsterId,
+                            name: monsterId, // Capitalize?
+                            description: "A mysterious creature emerges...",
+                            hp: 10, maxHp: 10,
+                            ac: 10,
+                            actions: 1,
+                            type: 'monster',
+                            xp: 10
+                        };
 
-                            for (let i = 0; i < count; i++) {
-                                // Sub-unique ID if count > 1
-                                const specificId = count > 1 ? `${uniqueEncounterId}_${i}` : uniqueEncounterId;
+                        // Notify if ad-hoc
+                        if (!template) {
+                            console.log(LOG_PREFIX, 'Ad-hoc spawning for:', monsterId);
+                        }
 
-                                if (state.rpg.clearedEncounters.includes(specificId)) continue;
+                        for (let i = 0; i < count; i++) {
+                            // Sub-unique ID if count > 1
+                            const specificId = count > 1 ? `${uniqueEncounterId}_${i}` : uniqueEncounterId;
 
-                                // Check existing again for specific ID
-                                const existingSpecific = actors.find(a => a.data?.rpg?.encounterId === specificId);
-                                if (existingSpecific) continue;
+                            if (state.rpg.clearedEncounters.includes(specificId)) continue;
 
-                                const spawnData = {
-                                    ...template,
-                                    locationId: destination.id,
-                                    encounterId: specificId
-                                };
+                            // Check existing again for specific ID
+                            const existingSpecific = actors.find(a => a.data?.rpg?.encounterId === specificId);
+                            if (existingSpecific) continue;
 
-                                if (window.RPG && window.RPG.Entities) {
-                                    const newId = window.RPG.Entities.create(spawnData);
-                                    console.log(LOG_PREFIX, 'Spawned entity:', newId);
-                                    if (i === 0) sysLogs.push(`⚠️ **Encounter!** ${template.name} appears!`);
-                                } else {
-                                    console.warn(LOG_PREFIX, "RPG.Entities not available for spawn.");
-                                }
+                            const spawnData = {
+                                ...spawnTemplate,
+                                locationId: destination.id,
+                                encounterId: specificId
+                            };
+
+                            if (window.RPG && window.RPG.Entities) {
+                                const newId = window.RPG.Entities.create(spawnData);
+                                console.log(LOG_PREFIX, 'Spawned entity:', newId);
+                                if (i === 0) sysLogs.push(`⚠️ **Encounter!** ${spawnData.name} appears!`);
+                            } else {
+                                console.warn(LOG_PREFIX, "RPG.Entities not available for spawn.");
                             }
-                        } else {
-                            console.warn(LOG_PREFIX, 'Template not found for:', monsterId);
                         }
                     } else {
                         console.log(LOG_PREFIX, 'Encounter already active:', uniqueEncounterId);
@@ -989,6 +994,19 @@
                 previousLocation: previousLocation,
                 image: destination.image || null
             });
+
+            // Auto-Combat Check: If there are monsters here, start combat!
+            const actorsHere = Object.values(state.nodes?.actors?.items || {});
+            const hostiles = actorsHere.filter(a =>
+                a.data?.rpg?.locationId === destination.id &&
+                a.data?.rpg?.type === 'monster' &&
+                (a.data?.rpg?.hp || 0) > 0
+            );
+
+            if (hostiles.length > 0) {
+                sysLogs.push(`⚔️ **Ambush!** ${hostiles.length} hostiles detected. Rolling initiative...`);
+                this.startCombat(sysLogs);
+            }
 
             A.State.notify();
         },
@@ -1130,11 +1148,78 @@
 
             // Check for hidden loot (DC 12)
             if (location.rpg?.loot && location.rpg.loot.length > 0 && total >= 12) {
-                const lootItems = location.rpg.loot.map(item => {
+                // Initialize foundLoot tracker if needed
+                if (!location.rpg.foundLoot) location.rpg.foundLoot = [];
+
+                const newLoot = [];
+
+                location.rpg.loot.forEach((item, idx) => {
+                    // Check if already found
+                    if (location.rpg.foundLoot.includes(idx)) return;
+
                     const itemName = typeof item === 'string' ? item : (item.name || item.id);
-                    return itemName;
+                    const qty = (typeof item === 'object' && item.qty) ? item.qty : 1;
+
+                    newLoot.push({ idx, name: itemName, qty });
                 });
-                findings.push(`💰 **Loot Found:** ${lootItems.join(', ')}`);
+
+                if (newLoot.length > 0) {
+                    // Get party inventory (first enabled actor)
+                    const actors = Object.values(state.nodes?.actors?.items || {});
+                    const party = actors.filter(a => a.data?.rpg?.enabled && a.data?.rpg?.type !== 'monster');
+                    const receiver = party[0];
+
+                    if (receiver) {
+                        if (!receiver.data.rpg.inventory) receiver.data.rpg.inventory = [];
+
+                        // We need to resolve Item IDs. 
+                        // If it's a string, we look in Armory. If not found, we create an Ad-Hoc Item.
+                        const armory = state.rpg.items || [];
+
+                        newLoot.forEach(l => {
+                            // Find in Armory
+                            let itemObj = armory.find(i => i.name?.toLowerCase() === l.name.toLowerCase());
+                            let itemId = itemObj ? itemObj.id : null;
+
+                            // Create Ad-Hoc Item if missing
+                            if (!itemObj) {
+                                itemId = `item_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                                itemObj = {
+                                    id: itemId,
+                                    name: l.name,
+                                    type: 'item',
+                                    description: "A found object.",
+                                    weight: 1
+                                };
+                                // Add to Armory so it persists? Or just keep local? 
+                                // Better to add to Armory effectively.
+                                if (!state.rpg.items) state.rpg.items = [];
+                                state.rpg.items.push(itemObj);
+                            }
+
+                            // Add to inventory
+                            for (let i = 0; i < l.qty; i++) {
+                                receiver.data.rpg.inventory.push(itemId);
+                            }
+
+                            findings.push(`💰 **Loot Found:** ${l.name} x${l.qty}`);
+
+                            // Mark as found
+                            location.rpg.foundLoot.push(l.idx);
+
+                            // Emit event for Quests
+                            this.emit('item_acquired', {
+                                actor: receiver,
+                                item: { id: itemId, name: l.name },
+                                qty: l.qty
+                            });
+                        });
+                    } else {
+                        findings.push(`⚠️ Loot found, but no party member can carry it.`);
+                    }
+                } else {
+                    // findings.push("...only dust remains.");
+                }
             }
 
             // Check for traps (DC 18)
@@ -1295,6 +1380,17 @@
             sysLogs.push(`💰 **Looted ${target.name}:**`);
             if (lootedItems.length > 0) {
                 sysLogs.push(`   ${lootedItems.join(', ')}`);
+
+                // Emit item_acquired events for Quest System
+                inventory.forEach(item => {
+                    const itemId = typeof item === 'string' ? item : item.id;
+                    const itemName = typeof item === 'string' ? item : (item.name || item.id);
+                    this.emit('item_acquired', {
+                        actor: receiver,
+                        item: { id: itemId, name: itemName },
+                        qty: 1
+                    });
+                });
             }
 
             // Despawn the looted corpse
@@ -1402,10 +1498,21 @@
                 sysLogs.push(interactable.action);
             }
 
+            // Quest Giver Logic
+            if (interactable.questId && A.RPGQuests) {
+                A.RPGQuests.offer(interactable.questId);
+            }
+
             // Mark as interacted (for one-time interactions)
             if (interactable.oneTime) {
                 interactable.used = true;
             }
+
+            // Emit interaction event for Quest System (TALK objectives)
+            this.emit('interaction', {
+                actor: A.State.get().nodes?.actors?.items?.[A.State.get().rpg.activeActor] || { name: 'Player' },
+                target: interactable
+            });
 
             A.State.notify();
         },

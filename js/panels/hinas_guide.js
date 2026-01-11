@@ -561,7 +561,7 @@
             const offsetX = ((baseOffset + idx) % 5) * gridSize * 2;
             const offsetY = Math.floor((baseOffset + idx) / 5) * gridSize * 2 + (startCount > 0 ? 100 : 0);
 
-            targetMap.locations.push({
+            const newLoc = {
                 id: newId,
                 name: loc.name,
                 description: loc.description || '',
@@ -570,7 +570,20 @@
                 exits: [],
                 pos: { x: offsetX, y: offsetY },
                 _templateSource: template.id
-            });
+            };
+
+            // Copy RPG Data (Secrets, Loot, Encounters)
+            if (loc.rpg) {
+                newLoc.rpg = JSON.parse(JSON.stringify(loc.rpg)); // Deep copy
+            }
+            // Legacy handling for direct props if any
+            if (loc.secret) {
+                if (!newLoc.rpg) newLoc.rpg = {};
+                if (!newLoc.rpg.secrets) newLoc.rpg.secrets = [];
+                newLoc.rpg.secrets.push(loc.secret);
+            }
+
+            targetMap.locations.push(newLoc);
             existingIds.add(newId);
         });
 
@@ -586,9 +599,25 @@
             }
         });
 
+        // 5. Import Quest (if any)
+        if (template.quest && A.RPGQuests) {
+            const quest = JSON.parse(JSON.stringify(template.quest));
+
+            // Remap Objective Targets (specifically for VISIT locations)
+            quest.objectives.forEach(obj => {
+                if (obj.type === 'VISIT' && idMap[obj.target]) {
+                    obj.target = idMap[obj.target];
+                }
+                // Note: KILL and FETCH targets are usually generic names/IDs (e.g. "Rat") not location IDs, so they stay same.
+            });
+
+            A.RPGQuests.accept(quest);
+            if (A.UI?.Toast) A.UI.Toast.show(`📜 Quest Accepted: ${quest.title}`, 'info');
+        }
+
         console.warn(`[Hina] Import Success. Locations count: ${startCount} -> ${targetMap.locations.length}`);
 
-        // 5. Save & Notify
+        // 6. Save & Notify
         A.State.notify();
         if (window.renderLocationPanel) window.renderLocationPanel();
 
@@ -877,12 +906,99 @@
     }
 
     // ===========================================
+    // AI ENRICHMENT LOGIC
+    // ===========================================
+    async function enrichTemplate(template) {
+        if (!A.LLM) throw new Error('AI system not initialized');
+
+        const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
+        if (!llmConfig || !llmConfig.apiKey) {
+            throw new Error('Please configure an API Key in Settings first.');
+        }
+
+        const systemPrompt = `You are an expert Game Master and World Builder. 
+Your task is to enrich a procedural map with atmospheric descriptions, hidden secrets, and a MAIN QUEST.
+Genre: ${template.genre}
+Scale: ${template.scale}
+Tone: ${template.description}
+
+You will receive a list of locations. Return a JSON object with the following structure:
+{
+  "quest": {
+      "title": "Quest Title",
+      "description": "Brief objective description.",
+      "objectives": [
+          { "type": "KILL", "target": "MonsterName", "total": 1 },
+          { "type": "FETCH", "target": "ItemName", "total": 1 },
+          { "type": "VISIT", "target": "LocationID" } 
+      ],
+      "rewards": [{ "type": "XP", "value": 100 }]
+  },
+  "locations": {
+      "loc_id": {
+        "description": "Atmospheric text.",
+        "secret": "GM Only secret.",
+        "loot": ["Item Name"],
+        "encounters": ["Monster Name"]
+      }
+  }
+}`;
+
+        const locationList = template.locations.map(l => `${l.key} (${l.name}): ${l.type}`).join('\n');
+        const userPrompt = `Enrich these locations:\n${locationList}`;
+
+        const response = await A.LLM.generate(systemPrompt, [{ role: 'user', content: userPrompt }]);
+
+        // Parse JSON
+        let data;
+        try {
+            // Attempt to extract JSON if wrapped in markdown code blocks
+            const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/) || response.match(/{[\s\S]*}/);
+            const jsonStr = jsonMatch ? jsonMatch[0].replace(/```json|```/g, '') : response;
+            data = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error(e);
+            throw new Error('Failed to parse AI response. Try again.');
+        }
+
+        // Apply enrichment
+        // 1. Quest
+        if (data.quest) {
+            template.quest = data.quest;
+            template.quest.id = 'quest_' + Math.random().toString(36).substr(2, 6); // Ensure unique ID
+        }
+
+        // 2. Locations
+        const locData = data.locations || data; // Fallback if structure mismatch
+        let updateCount = 0;
+
+        template.locations.forEach(loc => {
+            const info = locData[loc.key];
+            if (info) {
+                if (info.description) loc.description = info.description;
+                if (info.secret) loc.secret = info.secret;
+
+                // Store RPG data
+                loc.rpg = {
+                    loot: info.loot || [],
+                    encounters: (info.encounters || []).map(name => ({ id: name, count: 1 })),
+                    secrets: info.secret ? [info.secret] : []
+                };
+                updateCount++;
+            }
+        });
+
+        return updateCount;
+    }
+
+    // ===========================================
     // TEMPLATE PREVIEW MODAL
     // ===========================================
     function showTemplatePreview(template) {
         const locationsList = template.locations.map(loc => {
             const expandIcon = loc.expandable ? ' 🔄' : '';
-            return `<li style="margin:4px 0;"><strong>${loc.name}</strong>${expandIcon}<br><span style="font-size:11px; color:var(--text-muted);">${loc.description || '(No description)'}</span></li>`;
+            const secretIcon = (loc.rpg && loc.rpg.secrets) ? ' 🤫' : '';
+            return `<li style="margin:4px 0;"><strong>${loc.name}</strong>${expandIcon}${secretIcon}<br><span style="font-size:11px; color:var(--text-muted);">${loc.description || '(No description)'}</span></li>`;
         }).join('');
 
         const connectionsList = template.connections.map(conn => {
@@ -902,7 +1018,7 @@
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                     <div>
                         <h4 style="margin:0 0 8px; font-size:13px;">📍 Locations (${template.locations.length})</h4>
-                        <ul style="margin:0; padding-left:20px; font-size:12px;">${locationsList}</ul>
+                        <ul id="preview-loc-list" style="margin:0; padding-left:20px; font-size:12px;">${locationsList}</ul>
                     </div>
                     <div>
                         <h4 style="margin:0 0 8px; font-size:13px;">🔗 Connections (${template.connections.length})</h4>
@@ -911,7 +1027,7 @@
                 </div>
                 <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle); display:flex; gap:12px;">
                     <button id="btn-import-template" class="btn btn-primary" style="flex:1;">📥 Import to Project</button>
-                    <button id="btn-enrich-template" class="btn btn-ghost" style="flex:1;" disabled title="Coming in Phase 3">✨ AI Enrich (Soon)</button>
+                    <button id="btn-enrich-template" class="btn btn-ghost" style="flex:1;">✨ AI Enrich</button>
                 </div>
             </div>
         `;
@@ -922,6 +1038,28 @@
                 modalEl.querySelector('#btn-import-template').onclick = () => {
                     importTemplateToProject(template);
                     A.UI.Modal.close();
+                };
+
+                modalEl.querySelector('#btn-enrich-template').onclick = async (e) => {
+                    const btn = e.target;
+                    btn.disabled = true;
+                    btn.textContent = '✨ Dreaming...';
+
+                    try {
+                        await enrichTemplate(template);
+                        // Refresh the view
+                        A.UI.Modal.close();
+                        showTemplatePreview(template);
+                        if (A.UI?.Toast) A.UI.Toast.show('Map enriched with AI imagination!', 'success');
+                    } catch (err) {
+                        console.error(err);
+                        btn.textContent = '❌ Error';
+                        if (A.UI?.Toast) A.UI.Toast.show('Enrichment failed: ' + err.message, 'error');
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = '✨ AI Enrich';
+                        }, 2000);
+                    }
                 };
             }
         });

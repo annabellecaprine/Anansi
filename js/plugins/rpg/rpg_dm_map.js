@@ -252,6 +252,27 @@
                         </div>
                     </div>
 
+                    <!-- NEW: Respawn & Population Settings -->
+                    <div style="background:var(--bg-inset); padding:10px; border-radius:6px; margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:12px; margin-bottom:8px;">⚙️ Lifecycle</div>
+                        <div style="display:flex; gap:12px;">
+                            <div style="flex:1;">
+                                <label style="font-size:11px;">Respawn Rate</label>
+                                <select id="loc-respawn" class="input" style="width:100%;">
+                                    <option value="never" ${rpg.respawnRate === 'never' ? 'selected' : ''}>Never</option>
+                                    <option value="hourly" ${rpg.respawnRate === 'hourly' ? 'selected' : ''}>Hourly</option>
+                                    <option value="daily" ${rpg.respawnRate === 'daily' ? 'selected' : ''}>Daily</option>
+                                    <option value="weekly" ${rpg.respawnRate === 'weekly' ? 'selected' : ''}>Weekly</option>
+                                </select>
+                            </div>
+                            <div style="flex:1; display:flex; align-items:flex-end;">
+                                <button id="btn-repopulate" class="btn btn-sm btn-ghost" style="width:100%; border:1px solid var(--border-subtle);">
+                                    🔄 Repopulate w/ New Table
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- ENCOUNTERS -->
                     <div class="section card" style="padding:16px; height:auto; min-height:0; overflow:visible; flex-shrink:0;">
                         <div class="accordion-toggle" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">

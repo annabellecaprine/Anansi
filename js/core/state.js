@@ -246,6 +246,6 @@
     };
 
     A.State = State;
-    A.VERSION = '1.9.5';
+    A.VERSION = '1.9.6';
 
 })(window.Anansi);

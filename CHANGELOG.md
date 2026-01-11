@@ -9,6 +9,15 @@ All notable changes to Anansi will be documented in this file.
     - **Template Library**: Includes 5 starter templates (Hub & Spoke, Linear, Grid, etc.).
     - **Smart Import**: Auto-layout system arranges imported locations in a tidy grid.
     - **Vault Integration**: Publish and share your custom Map Templates with other projects.
+    - **AI Enrichment**: Now active! Procedurally generates atmospheric descriptions, hidden DM secrets, and suggestions for Loot and Encounters.
+    - **Virtual GM**: Engine now supports autonomous Combat triggers, Ad-Hoc Spawning (for AI monsters), and Real Loot distribution.
+    - **Virtual GM**: Engine now supports autonomous Combat triggers, Ad-Hoc Spawning (for AI monsters), and Real Loot distribution.
+    - **Auto-Pilot**: New "Sim Mode" allows a bot to play the game autonomously for stress-testing and world simulation.
+    - **Quest System**: Full quest support with Kill, Fetch, Visit, and Talk objectives.
+        - **Quest Board**: New GM panel for creating and managing quest templates.
+        - **Quest Givers**: Any NPC or Object can now offer quests via interaction.
+        - **Quest Log**: Player-facing UI for tracking objective progress.
+    - **AI Quest Generation**: Hina's Travel Guide now automatically dreams up Main Quests for generated maps.
 - **UI & Visualization**:
     - Fixed emoji rendering issues in Hina's Guide.
     - Added "Map Template" content type support to Vault.
