@@ -18,6 +18,10 @@ All notable changes to Anansi will be documented in this file.
 - **System Stability**: Fixed potential state conflicts during complex imports.
 
 
+---
+
+## v1.9.5 - 2026-01-10
+### Bug Fixes
 - **Script Vault Integration**: Fixed scripts publishing to Vault with "[object Object]" instead of name. Scripts now correctly store metadata and can be pulled back into projects.
 - **Stats Panel Display**: Stat references now display actor names instead of IDs (e.g., `{{stats.Luna.battle_stats.PUPP}}` instead of `{{stats.actor_xyz.battle_stats.PUPP}}`).
 - **Location Node Overlap**: New location nodes now cascade instead of stacking on top of each other.
