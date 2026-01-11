@@ -10,7 +10,7 @@
     'use strict';
 
     const PLUGIN_NAME = 'RPG Experiment';
-    const PLUGIN_VERSION = '1.0.0';
+    const PLUGIN_VERSION = '1.10.0';
 
     console.log(`[${PLUGIN_NAME}] Loading v${PLUGIN_VERSION}...`);
 

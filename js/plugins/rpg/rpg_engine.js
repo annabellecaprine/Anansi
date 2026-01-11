@@ -1,5 +1,5 @@
 /**
- * Anansi RPG Engine v1.0
+ * Anansi RPG Engine v1.10.0
  * File: js/core/rpg_engine.js
  * 
  * Purpose: Self-contained RPG game engine with full AURA Stack integration.
@@ -1468,7 +1468,40 @@
             const targetName = match[1].trim().toLowerCase();
             const currentLocId = state.rpg.currentLocation;
 
-            // Find location
+            // 1. Check for NPCs with dialogue
+            const entities = RPG?.Entities?.getAll?.() || [];
+            const npcHere = entities.find(e =>
+                e.locationId === currentLocId &&
+                e.type !== 'party_member' &&
+                (e.hp || 1) > 0 &&
+                (e.name?.toLowerCase().includes(targetName) || e.id?.toLowerCase().includes(targetName))
+            );
+
+            if (npcHere && RPG?.Dialogue?.hasDialogue?.(npcHere.id)) {
+                sysLogs.push(`💬 You approach **${npcHere.name}**...`);
+                RPG.Dialogue.startDialogue(npcHere.id);
+                this.emit('interaction', { actor: { name: 'Player' }, target: npcHere });
+                return;
+            }
+
+            // 2. Check for corpses
+            if (RPG?.Death?.getCorpsesAtLocation) {
+                const corpses = RPG.Death.getCorpsesAtLocation(currentLocId);
+                const corpse = corpses.find(c =>
+                    c.name?.toLowerCase().includes(targetName) ||
+                    targetName.includes('corpse') ||
+                    targetName.includes('body') ||
+                    targetName.includes('remains')
+                );
+
+                if (corpse) {
+                    sysLogs.push(`🪦 You search through the remains...`);
+                    RPG.Death.retrieveCorpse(corpse.id);
+                    return;
+                }
+            }
+
+            // 3. Find location for interactables
             let location = null;
             if (state.weaves?.maps) {
                 state.weaves.maps.forEach(map => {
@@ -1478,6 +1511,12 @@
             }
 
             if (!location?.rpg?.interactables) {
+                // Also check for NPC without dialogue - just show info
+                if (npcHere) {
+                    sysLogs.push(`👤 **${npcHere.name}** has nothing to say.`);
+                    this.emit('interaction', { actor: { name: 'Player' }, target: npcHere });
+                    return;
+                }
                 sysLogs.push(`❓ Nothing to interact with here.`);
                 return;
             }
@@ -1501,6 +1540,11 @@
             // Quest Giver Logic
             if (interactable.questId && A.RPGQuests) {
                 A.RPGQuests.offer(interactable.questId);
+            }
+
+            // Dialogue ID logic
+            if (interactable.dialogueId && RPG?.Dialogue?.startDialogue) {
+                RPG.Dialogue.startDialogue(interactable.dialogueId);
             }
 
             // Mark as interacted (for one-time interactions)
@@ -1910,7 +1954,7 @@
     // Auto-initialize state on load
     RPGEngine.ensureState();
 
-    console.log(LOG_PREFIX, 'RPG Engine v1.0 loaded', {
+    console.log(LOG_PREFIX, 'RPG Engine v1.10.0 loaded', {
         anansi: !!A.RPGEngine,
         rpg: !!(window.RPG && window.RPG.Engine)
     });

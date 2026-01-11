@@ -2,6 +2,39 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.10.0 - 2026-01-11
+### Major Release: RPG Completeness
+This release delivers the **RPG Feature Complete** milestone, enabling fully autonomous storylines and GM-designed campaigns.
+
+#### Story Progression
+- **Story Flags**: New `RPG.Story.setFlag()` / `getFlag()` API for tracking arbitrary campaign state.
+- **Victory Conditions**: Define winning states based on Quest Completion, Flags, or Item possession. Triggers a victory celebration modal.
+- **Quest Chains**: Quests can now require other quests (`requires: []`), flags, or specific items before being offered.
+
+#### Dialogue System
+- **Conversation Trees**: New `RPG.Dialogue` system supporting branching dialogues, choices, conditions (flags/quests), and actions (shop/quest/gift).
+- **Dialogue Panel**: Dedicated **Dialogues** panel in "RPG Experiment" for visually authoring NPC conversation trees.
+- **Editor**: Nodes can trigger shops, offer quests, set flags, or give items.
+
+#### Leveling & Growth
+- **XP System**: Full XP tracking with configurable level-up thresholds (Presets: Linear, Exponential, D&D 5e, Custom).
+- **Auto-Leveling**: Characters automatically gain levels when XP threshold is met.
+- **Class Templates**: Leveling up automatically applies class benefits (HP, Stat bonuses, Feats) based on class progression tables.
+- **Leveling Panel**: New GM panel for configuring XP curves and viewing party progress.
+
+#### Gameplay Systems
+- **Death & Respawn**: "Total Party Kill" (TPK) logic implemented. Characters die, drop a corpse container with their inventory, and respawn at the start location.
+- **Corpse Retrieval**: Players can interact with their corpse to recover lost items.
+- **Quest Turn-In**: Implemented explicit "Turn In" mechanic (return to NPC) distinct from auto-completion.
+- **Auto-Pilot V2**: Enhanced bot AI now autonomously handles quests (accept/turn-in), shopping (healing), dialogue (auto-advance), and corpse runs.
+- **Party Panel Fix**: Resolved rendering crash in Party Panel.
+
+#### UI Updates
+- **New Panels**: Added **Dialogues** and **Leveling** panels.
+- **Notifications**: Added Toast notifications for Quest Acceptance, Completion, Level Up, and Gold accumulation.
+
+---
+
 ## v1.9.6 - 2026-01-11
 ### New Features
 - **Hina's Travel Guide (Beta)**: Added a comprehensive Map Builder panel.

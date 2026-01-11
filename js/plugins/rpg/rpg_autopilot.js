@@ -134,8 +134,87 @@
 
             if (!location) return;
 
-            // A. Check for Loot (Dead bodies)
             const actors = Object.values(state.nodes?.actors?.items || {});
+
+            // PRIORITY 0: Check for quests to turn in at current location
+            if (RPG?.Quests?.getAvailableTurnIns) {
+                const turnIns = RPG.Quests.getAvailableTurnIns();
+                if (turnIns.length > 0) {
+                    const quest = turnIns[0];
+                    this.logSystem(`🤖 Quest: Turning in "${quest.title}"`);
+                    RPG.Quests.turnIn(quest.id);
+                    return;
+                }
+            }
+
+            // PRIORITY 1: Retrieve corpses (death items)
+            if (RPG?.Death?.getCorpsesAtLocation) {
+                const corpses = RPG.Death.getCorpsesAtLocation(currentLocId);
+                if (corpses.length > 0) {
+                    this.logSystem(`🤖 Action: Retrieving items from corpse`);
+                    RPG.Death.retrieveCorpse(corpses[0].id);
+                    return;
+                }
+            }
+
+            // PRIORITY 2: Check for NPCs with dialogue
+            const npcsHere = actors.filter(a =>
+                a.data?.rpg?.locationId === currentLocId &&
+                a.data?.rpg?.type !== 'monster' &&
+                a.data?.rpg?.type !== 'party_member' &&
+                (a.data?.rpg?.hp || 1) > 0
+            );
+
+            for (const npc of npcsHere) {
+                // Check for dialogue
+                if (RPG?.Dialogue?.hasDialogue?.(npc.id) && !npc._autoPilotTalked) {
+                    this.logSystem(`🤖 Action: Talking to ${npc.name}`);
+                    npc._autoPilotTalked = true; // Don't repeat dialogue
+                    RPG.Dialogue.startDialogue(npc.id);
+                    // Auto-advance dialogue after a moment (non-blocking)
+                    setTimeout(() => this.autoAdvanceDialogue(), 500);
+                    return;
+                }
+            }
+
+            // PRIORITY 3: Accept available quests
+            const questionBoard = state.rpg?.questBoard || [];
+            for (const questId of questionBoard) {
+                const db = state.rpg?.questDB || [];
+                const template = db.find(q => q.id === questId);
+                if (template && RPG?.Quests?.checkPrerequisites?.(template)) {
+                    const isTaken = state.rpg.quests?.active?.find(q => q.id.startsWith(questId));
+                    const isDone = state.rpg.quests?.completed?.includes(questId);
+                    if (!isTaken && !isDone) {
+                        this.logSystem(`🤖 Quest: Accepting "${template.title}"`);
+                        RPG.Quests.accept(template);
+                        return;
+                    }
+                }
+            }
+
+            // PRIORITY 4: Shop for healing items if low on HP and at shop
+            const party = actors.filter(a => a.data?.rpg?.enabled && a.data?.rpg?.type !== 'monster');
+            const needsHealing = party.some(a => (a.data.rpg.hp || 0) < (a.data.rpg.maxHp || 10) * 0.5);
+            if (needsHealing) {
+                const shops = state.rpg?.shops || [];
+                const shopHere = shops.find(s => s.locationId === currentLocId);
+                if (shopHere && RPG?.Shops?.buyItem) {
+                    // Look for healing items
+                    const healingItem = (shopHere.stock || []).find(s => {
+                        const armory = state.rpg?.armory?.items || [];
+                        const item = armory.find(a => a.id === s.itemId);
+                        return item && (item.type === 'consumable' || item.name?.toLowerCase().includes('potion'));
+                    });
+                    if (healingItem) {
+                        this.logSystem(`🤖 Shop: Buying healing item`);
+                        RPG.Shops.buyItem(shopHere.id, healingItem.itemId);
+                        return;
+                    }
+                }
+            }
+
+            // PRIORITY 5: Loot dead monsters
             const deadMonsters = actors.filter(a =>
                 a.data?.rpg?.locationId === currentLocId &&
                 a.data?.rpg?.type === 'monster' &&
@@ -149,7 +228,7 @@
                 return;
             }
 
-            // B. Search Room (if not searched)
+            // PRIORITY 6: Search room
             if (!location.rpg) location.rpg = {};
             if (!location.rpg.autoSearched) {
                 this.logSystem(`🤖 Action: Searching room`);
@@ -158,12 +237,8 @@
                 return;
             }
 
-            // C. Rest (if hurt)
-            const party = actors.filter(a => a.data?.rpg?.enabled && a.data?.rpg?.type !== 'monster');
-            const needsRest = party.some(a => (a.data.rpg.hp || 0) < (a.data.rpg.maxHp || 10) * 0.5);
-
-            if (needsRest) {
-                // Ensure no enemies nearby (Engine check covers this, but we can check too)
+            // PRIORITY 7: Rest if hurt and safe
+            if (needsHealing) {
                 const enemies = actors.filter(a => a.data?.rpg?.locationId === currentLocId && a.data?.rpg?.type === 'monster' && (a.data.rpg.hp || 0) > 0);
                 if (enemies.length === 0) {
                     this.logSystem(`🤖 Action: Resting (Low HP)`);
@@ -172,36 +247,88 @@
                 }
             }
 
-            // D. Move (Explore)
-            // Pick an exit
-            const exits = location.exits || []; // array of IDs
+            // PRIORITY 8: Move toward quest objectives
+            const activeQuests = state.rpg?.quests?.active || [];
+            for (const quest of activeQuests) {
+                for (const obj of quest.objectives || []) {
+                    if (obj.completed) continue;
+                    // If objective has a location, try to go there
+                    if (obj.location && obj.location !== currentLocId) {
+                        const targetLoc = this.findLocation(state, obj.location);
+                        if (targetLoc && this.canReach(state, location, targetLoc)) {
+                            this.logSystem(`🤖 Quest: Moving toward objective in ${targetLoc.name}`);
+                            engine.processCommand(`[MOVE] ${targetLoc.name}`, {}, []);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // PRIORITY 9: Explore new areas
+            const exits = location.exits || [];
             if (exits.length === 0) return;
 
-            // Prefer unvisited
             const visited = state.rpg.visitedLocations || [];
-
-            // Resolve exit objects (some might be strings, some objects)
             const resolvedExits = exits.map(e => {
                 const id = typeof e === 'string' ? e : e.id;
-                // Find location name for command
-                let targetLoc = null;
-                if (state.weaves?.maps) {
-                    state.weaves.maps.forEach(map => {
-                        const found = (map.locations || []).find(l => l.id === id);
-                        if (found) targetLoc = found;
-                    });
-                }
-                return targetLoc;
+                return this.findLocation(state, id);
             }).filter(l => l);
 
             if (resolvedExits.length === 0) return;
 
             const unvisited = resolvedExits.filter(l => !visited.includes(l.id));
-            const candidate = unvisited.length > 0 ? unvisited[Math.floor(Math.random() * unvisited.length)] : resolvedExits[Math.floor(Math.random() * resolvedExits.length)];
+            const candidate = unvisited.length > 0
+                ? unvisited[Math.floor(Math.random() * unvisited.length)]
+                : resolvedExits[Math.floor(Math.random() * resolvedExits.length)];
 
             this.logSystem(`🤖 Action: Moving to ${candidate.name}`);
             this.logSystem('debug: <LLM Trigger: Transition/Description>');
             engine.processCommand(`[MOVE] ${candidate.name}`, {}, []);
+        },
+
+        /**
+         * Auto-advance dialogue (for autopilot)
+         */
+        autoAdvanceDialogue: function () {
+            if (!RPG?.Dialogue?.currentNode) return;
+
+            const node = RPG.Dialogue.currentNode;
+            if (node.choices && node.choices.length > 0) {
+                // Pick first available choice (or one that advances quest)
+                RPG.Dialogue.selectChoice(0);
+            } else if (node.next) {
+                RPG.Dialogue.goToNode(node.next);
+            } else {
+                RPG.Dialogue.endDialogue();
+            }
+
+            // Continue advancing if dialogue still active
+            if (RPG.Dialogue.currentDialogue) {
+                setTimeout(() => this.autoAdvanceDialogue(), 300);
+            }
+        },
+
+        /**
+         * Find a location by ID
+         */
+        findLocation: function (state, locId) {
+            if (!state.weaves?.maps) return null;
+            for (const map of state.weaves.maps) {
+                const found = (map.locations || []).find(l => l.id === locId);
+                if (found) return found;
+            }
+            return null;
+        },
+
+        /**
+         * Check if location is reachable (simple check)
+         */
+        canReach: function (state, fromLoc, toLoc) {
+            if (!fromLoc?.exits) return false;
+            return fromLoc.exits.some(e => {
+                const id = typeof e === 'string' ? e : e.id;
+                return id === toLoc.id;
+            });
         }
     };
 

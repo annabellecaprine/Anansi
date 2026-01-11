@@ -19,7 +19,7 @@
                 name: 'Untitled Project',
                 description: '',
                 author: '',
-                version: '1.9.6',
+                version: '1.10.0',
                 createdAt: now,
                 updatedAt: now
             },
@@ -246,6 +246,6 @@
     };
 
     A.State = State;
-    A.VERSION = '1.9.6';
+    A.VERSION = '1.10.0';
 
 })(window.Anansi);

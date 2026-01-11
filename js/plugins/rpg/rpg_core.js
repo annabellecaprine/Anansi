@@ -544,6 +544,251 @@
 
 
     // =========================================
+    // STORY PROGRESSION (Flags & Victory)
+    // =========================================
+
+    RPG.Story = {
+        /**
+         * Get all story flags
+         * @returns {Object} Map of flag names to values
+         */
+        getFlags: function () {
+            try {
+                const state = A.State.get();
+                return state.rpg?.storyFlags || {};
+            } catch (e) {
+                console.error('[RPG] Failed to get story flags:', e);
+                return {};
+            }
+        },
+
+        /**
+         * Get a specific story flag
+         * @param {string} key - Flag name
+         * @returns {*} Flag value or undefined
+         */
+        getFlag: function (key) {
+            const flags = this.getFlags();
+            return flags[key];
+        },
+
+        /**
+         * Set a story flag
+         * @param {string} key - Flag name
+         * @param {*} value - Flag value
+         */
+        setFlag: function (key, value) {
+            try {
+                const state = A.State.get();
+                if (!state.rpg) state.rpg = {};
+                if (!state.rpg.storyFlags) state.rpg.storyFlags = {};
+
+                state.rpg.storyFlags[key] = value;
+                console.log(`[RPG Story] Flag set: ${key} = ${value}`);
+                RPG.State.notify();
+
+                // Check victory conditions
+                this.checkVictory();
+            } catch (e) {
+                console.error('[RPG] Failed to set story flag:', e);
+            }
+        },
+
+        /**
+         * Increment a numeric flag
+         * @param {string} key - Flag name
+         * @param {number} amount - Amount to add (default 1)
+         */
+        incrementFlag: function (key, amount = 1) {
+            const current = this.getFlag(key) || 0;
+            this.setFlag(key, Number(current) + amount);
+        },
+
+        /**
+         * Check if a flag exists and has a truthy value
+         * @param {string} key - Flag name
+         * @returns {boolean}
+         */
+        hasFlag: function (key) {
+            const value = this.getFlag(key);
+            return value !== undefined && value !== false && value !== null && value !== 0;
+        },
+
+        /**
+         * Clear a story flag
+         * @param {string} key - Flag name
+         */
+        clearFlag: function (key) {
+            try {
+                const state = A.State.get();
+                if (state.rpg?.storyFlags) {
+                    delete state.rpg.storyFlags[key];
+                    RPG.State.notify();
+                }
+            } catch (e) {
+                console.error('[RPG] Failed to clear story flag:', e);
+            }
+        },
+
+        /**
+         * Get victory conditions
+         * @returns {Array} Array of victory condition objects
+         */
+        getVictoryConditions: function () {
+            try {
+                const state = A.State.get();
+                return state.rpg?.victoryConditions || [];
+            } catch (e) {
+                console.error('[RPG] Failed to get victory conditions:', e);
+                return [];
+            }
+        },
+
+        /**
+         * Add a victory condition
+         * @param {Object} condition - { id, name, type, value }
+         *   Types: 'quest' (value = questId), 'flag' (value = {flagName: expectedValue}), 'item' (value = itemId)
+         */
+        addVictoryCondition: function (condition) {
+            try {
+                const state = A.State.get();
+                if (!state.rpg) state.rpg = {};
+                if (!state.rpg.victoryConditions) state.rpg.victoryConditions = [];
+
+                condition.id = condition.id || 'vc_' + Date.now();
+                state.rpg.victoryConditions.push(condition);
+                RPG.State.notify();
+            } catch (e) {
+                console.error('[RPG] Failed to add victory condition:', e);
+            }
+        },
+
+        /**
+         * Check if all victory conditions are met
+         * @returns {boolean}
+         */
+        checkVictory: function () {
+            try {
+                const conditions = this.getVictoryConditions();
+                if (conditions.length === 0) return false;
+
+                const state = A.State.get();
+                const completed = state.rpg?.quests?.completed || [];
+                const storyFlags = state.rpg?.storyFlags || {};
+
+                let allMet = true;
+
+                for (const cond of conditions) {
+                    let met = false;
+
+                    switch (cond.type) {
+                        case 'quest':
+                            met = completed.includes(cond.value);
+                            break;
+
+                        case 'flag':
+                            if (typeof cond.value === 'object') {
+                                met = true;
+                                for (const [key, expected] of Object.entries(cond.value)) {
+                                    if (String(storyFlags[key]) !== String(expected)) {
+                                        met = false;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                met = !!storyFlags[cond.value];
+                            }
+                            break;
+
+                        case 'item':
+                            // Check if party has item
+                            const leaderId = state.rpg?.partyLeader;
+                            const actors = state.nodes?.actors?.items || {};
+                            for (const id in actors) {
+                                const actor = actors[id];
+                                if (actor.data?.rpg?.enabled && (!leaderId || id === leaderId)) {
+                                    const inv = actor.data.rpg.inventory || [];
+                                    if (inv.includes(cond.value)) {
+                                        met = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+
+                    if (!met) {
+                        allMet = false;
+                        break;
+                    }
+                }
+
+                if (allMet) {
+                    this.triggerVictory();
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.error('[RPG] Failed to check victory:', e);
+                return false;
+            }
+        },
+
+        /**
+         * Trigger victory state
+         */
+        triggerVictory: function () {
+            try {
+                const state = A.State.get();
+                if (state.rpg?.victoryTriggered) return; // Already triggered
+
+                state.rpg.victoryTriggered = true;
+                console.log('[RPG Story] 🎉 VICTORY! All conditions met!');
+
+                // Emit event
+                const engine = A.RPGEngine || (window.RPG && window.RPG.Engine);
+                if (engine && engine.emit) {
+                    engine.emit('victory', { conditions: this.getVictoryConditions() });
+                }
+
+                // Notify UI
+                if (A.UI?.Modal) {
+                    A.UI.Modal.show({
+                        content: `
+                            <div style="padding:40px; text-align:center;">
+                                <div style="font-size:64px; margin-bottom:16px;">🎉</div>
+                                <h2 style="margin:0 0 16px; color:var(--accent-primary);">Victory!</h2>
+                                <p style="color:var(--text-muted);">Congratulations! You have completed the campaign.</p>
+                                <button class="btn btn-primary" onclick="Anansi.UI.Modal.close()" style="margin-top:24px;">Continue</button>
+                            </div>
+                        `,
+                        closable: true
+                    });
+                }
+
+                RPG.State.notify();
+            } catch (e) {
+                console.error('[RPG] Failed to trigger victory:', e);
+            }
+        },
+
+        /**
+         * Reset victory state (for replaying)
+         */
+        resetVictory: function () {
+            try {
+                const state = A.State.get();
+                if (state.rpg) {
+                    state.rpg.victoryTriggered = false;
+                }
+                RPG.State.notify();
+            } catch (e) {
+                console.error('[RPG] Failed to reset victory:', e);
+            }
+        }
+    };
+
+    // =========================================
     // PANEL REGISTRATION (Safe wrapper)
     // =========================================
 

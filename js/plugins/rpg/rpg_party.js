@@ -238,6 +238,7 @@
 
         function refreshMain() {
             main.innerHTML = '';
+            const state = A.State.get();
 
             const members = getPartyMembers();
             const entity = members.find(a => a.id === currentActorId);

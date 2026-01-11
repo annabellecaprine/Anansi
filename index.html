@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Release Workflow Test 1.9.6 -->
+<!-- Release Workflow Test 1.10.0 -->
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anansi - v1.9.6</title>
+  <title>Anansi - v1.10.0</title>
 
   <!-- Open Graph / Social Media Previews -->
   <meta property="og:title" content="Anansi: AI Narrative Engine" />
@@ -299,6 +299,8 @@
   <script src="js/panels/constellation.js"></script>
   <script src="js/panels/guide.js"></script>
   <script src="js/panels/rpg_play.js"></script>
+  <script src="js/panels/rpg_dialogue_panel.js"></script>
+  <script src="js/panels/rpg_leveling_panel.js"></script>
 
   <!-- RPG Plugin (Isolated - errors won't crash main app) -->
   <script>
@@ -306,10 +308,14 @@
       var rpgScripts = [
         'js/plugins/rpg/rpg_loader.js',
         'js/plugins/rpg/rpg_core.js',
+        'js/plugins/rpg/rpg_leveling.js',
         'js/plugins/rpg/rpg_memory.js',
         'js/plugins/rpg/rpg_cache.js',
         'js/plugins/rpg/rpg_prompts.js',
         'js/plugins/rpg/rpg_idle.js',
+        'js/plugins/rpg/rpg_death.js',
+        'js/plugins/rpg/rpg_autopilot.js',
+        'js/plugins/rpg/rpg_dialogue.js',
         'js/plugins/rpg/rpg_combat_engine.js',
         'js/plugins/rpg/rpg_gm.js',
         'js/plugins/rpg/rpg_classes.js',
