@@ -11,6 +11,11 @@ All notable changes to Anansi will be documented in this file.
 ### Game Master
 - **Objects System**: New section for managing quest objects (McGuffins) and container objects (chests/cabinets). Quest objects track discovery/collection status. Containers support lock DC, trap DC, and contents from Armory. All objects can be assigned to locations.
 - **Object Interaction**: [INTERACT] button in Play panel now shows objects at current location. Containers can be opened to list contents, with Take/Take All options. Quest items can be collected with Take button.
+- **Shop System**: New section for managing merchant shops. Shops have shopkeepers (Actor NPCs), locations, stock with prices/quantities, buyback rate, and currency pool. Enter shops via [INTERACT] → modal UI for browsing, buying, and selling. Shops are non-combat safe spaces.
+
+### Party & Characters
+- **Currency System**: Entities now have a `currency` (gold) field, editable in the Character Sheet.
+- **Pool Gold**: Party Leader can now collect all gold from other party members with a single click.
 
 ---
 

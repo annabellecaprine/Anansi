@@ -191,7 +191,10 @@
                             <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                 ${entity.name}${isLeader ? ' <span style="font-size:10px; color:gold;">(Leader)</span>' : ''}
                             </div>
-                            <div style="font-size:10px; color:var(--text-muted);">Lvl ${entity.stats?.level || 1} ${entity.stats?.class || entity.class || 'Adventurer'}</div>
+                            <div style="font-size:10px; color:var(--text-muted);">
+                                Lvl ${entity.stats?.level || 1} ${entity.stats?.class || entity.class || 'Adventurer'}
+                                <span style="margin-left:6px; color:var(--accent-warning);">💰 ${entity.currency || 0}</span>
+                            </div>
                         </div>
                         ${!isLeader && isSelected ? `<button class="btn btn-sm btn-ghost" style="font-size:10px; padding:4px 8px;" data-set-leader="${entity.id}" title="Set as Party Leader">👑</button>` : ''}
                     </div>
@@ -255,6 +258,7 @@
             if (!rpg.stats_matrix) rpg.stats_matrix = { blocks: [], values: {} };
             if (!rpg.inventory) rpg.inventory = [];
             if (!rpg.equipped) rpg.equipped = { main_hand: null, off_hand: null, armor: null };
+            if (typeof rpg.currency === 'undefined') rpg.currency = 0;
             if (!rpg.feats) rpg.feats = [];
             const matrix = rpg.stats_matrix;
 
@@ -277,12 +281,37 @@
                         </div>
                     </div>
                     <div style="display:flex; gap:8px;">
+                        ${state.rpg.partyLeader === entity.id ? `<button id="btn-pool-gold" class="btn btn-sm btn-primary" title="Collect all gold from other party members">💰 Pool Gold</button>` : ''}
                         <button id="btn-add-stats" class="btn btn-sm btn-secondary">+ D20 Stats</button>
                         <button id="btn-remove" class="btn btn-sm btn-ghost" style="color:var(--status-error);">Remove</button>
                     </div>
                 </div>
             `;
             main.appendChild(header);
+
+            // Wire Pool Gold
+            const btnPoolGold = header.querySelector('#btn-pool-gold');
+            if (btnPoolGold) {
+                btnPoolGold.onclick = () => {
+                    if (!confirm('Collect all gold from other party members to the leader?')) return;
+                    let total = 0;
+                    getPartyMembers().forEach(m => {
+                        if (m.id !== entity.id) {
+                            total += (m.currency || 0);
+                            m.currency = 0;
+                        }
+                    });
+                    if (total > 0) {
+                        entity.currency = (entity.currency || 0) + total;
+                        A.State.notify();
+                        refreshSidebar();
+                        refreshMain();
+                        if (A.UI?.Toast) A.UI.Toast.show(`Collected ${total} gold!`, 'success');
+                    } else {
+                        if (A.UI?.Toast) A.UI.Toast.show('No gold to collect.', 'neutral');
+                    }
+                };
+            }
 
 
             // --- Content ---
@@ -355,8 +384,11 @@
                         <input type="number" id="edit-maxactions" class="input" style="width:100%;" value="${rpg.maxActions || 1}" min="0" max="10">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Bonus Actions</label>
                         <input type="number" id="edit-maxbonusactions" class="input" style="width:100%;" value="${rpg.maxBonusActions || 1}" min="0" max="10">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; color:var(--text-muted);">Currency (gp)</label>
+                        <input type="number" id="edit-currency" class="input" style="width:100%;" value="${rpg.currency || 0}" min="0">
                     </div>
                 </div>
                 <div style="margin-top:12px;">
@@ -393,6 +425,7 @@
             wireInput('edit-level', 'level', true);
             wireInput('edit-maxactions', 'maxActions');
             wireInput('edit-maxbonusactions', 'maxBonusActions');
+            wireInput('edit-currency', 'currency');
             wireInput('edit-class', 'class', true, v => v);
 
             // === ROW 2: Ability Scores & Radar ===

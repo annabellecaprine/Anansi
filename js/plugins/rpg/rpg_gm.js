@@ -797,7 +797,14 @@
                         📦 Objects
                         <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${objects.length} total)</span>
                     </h3>
-                    <button id="btn-add-object" class="btn btn-primary btn-sm">+ Add Object</button>
+                    <div style="display:flex; gap:8px;">
+                        <select id="new-obj-type" class="input" style="font-size:12px; padding:2px 8px; height:26px;">
+                            <option value="quest">🎯 Quest</option>
+                            <option value="container">📦 Container</option>
+                        </select>
+                        <input type="text" id="new-obj-name" class="input" placeholder="New Object Name" style="font-size:12px; padding:2px 8px; width:150px; height:26px;">
+                        <button id="btn-add-object" class="btn btn-primary btn-sm">+ Add Object</button>
+                    </div>
                 </div>
                 
                 <div style="display:flex; gap:8px; margin-bottom:16px;">
@@ -864,21 +871,25 @@
 
             // Wire add button
             objectsSection.querySelector('#btn-add-object').onclick = () => {
-                const type = prompt('Object type:\n1 = Quest Object (McGuffin)\n2 = Container (Chest/Cabinet)', '1');
-                if (!type) return;
+                const typeSelect = objectsSection.querySelector('#new-obj-type');
+                const nameInput = objectsSection.querySelector('#new-obj-name');
 
-                const objType = type === '2' ? 'container' : 'quest';
-                const name = prompt('Object name:', objType === 'quest' ? 'Ancient Artifact' : 'Treasure Chest');
-                if (!name) return;
+                const type = typeSelect.value;
+                const name = nameInput.value.trim();
+
+                if (!name) {
+                    if (A.UI?.Toast) A.UI.Toast.show('Enter an object name', 'warning');
+                    return;
+                }
 
                 const newObj = {
                     id: 'obj_' + Math.random().toString(36).substr(2, 8),
                     name: name,
-                    type: objType,
+                    type: type,
                     description: '',
                     locationId: null,
                     // Quest properties
-                    questTag: '',
+                    questTag: type === 'quest' ? name.toLowerCase().replace(/\s+/g, '_') : null,
                     discovered: false,
                     collected: false,
                     // Container properties
@@ -890,9 +901,10 @@
                 };
 
                 state.rpg.objects.push(newObj);
+                nameInput.value = ''; // Clear input
                 A.State.notify();
                 renderObjects();
-                if (A.UI?.Toast) A.UI.Toast.show(`Created ${objType} object: ${name}`, 'success');
+                if (A.UI?.Toast) A.UI.Toast.show(`Created ${type}: ${name}`, 'success');
             };
 
             // Wire name inputs
@@ -965,10 +977,39 @@
 
         // Object Editor Modal
         const showObjectEditor = (obj, onSave) => {
+            const state = A.State.get();
+            const armoryItems = state.rpg?.armory?.items || [];
+
             const modal = document.createElement('div');
             modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;';
 
             const isQuest = obj.type === 'quest';
+
+            // Helper to preserve state before re-rendering
+            const saveState = () => {
+                const nameIn = modal.querySelector('#obj-ed-name');
+                if (nameIn) obj.name = nameIn.value;
+                const descIn = modal.querySelector('#obj-ed-desc');
+                if (descIn) obj.description = descIn.value;
+
+                if (isQuest) {
+                    const tagIn = modal.querySelector('#obj-ed-tag');
+                    if (tagIn) obj.questTag = tagIn.value;
+                    const discCk = modal.querySelector('#obj-ed-discovered');
+                    if (discCk) obj.discovered = discCk.checked;
+                    const collCk = modal.querySelector('#obj-ed-collected');
+                    if (collCk) obj.collected = collCk.checked;
+                } else {
+                    const lockCk = modal.querySelector('#obj-ed-locked');
+                    if (lockCk) obj.locked = lockCk.checked;
+                    const lockDc = modal.querySelector('#obj-ed-lockdc');
+                    if (lockDc) obj.lockDC = parseInt(lockDc.value) || 15;
+                    const trapCk = modal.querySelector('#obj-ed-trapped');
+                    if (trapCk) obj.trapped = trapCk.checked;
+                    const trapDc = modal.querySelector('#obj-ed-trapdc');
+                    if (trapDc) obj.trapDC = parseInt(trapDc.value) || 12;
+                }
+            };
 
             modal.innerHTML = `
                 <div style="background:var(--bg-elevated); width:500px; max-height:80vh; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.5); border:1px solid var(--border-default);">
@@ -1017,11 +1058,299 @@
                                     <input type="number" class="input" id="obj-ed-trapdc" value="${obj.trapDC || 12}" style="width:60px;">
                                 </div>
                             </div>
-                            <div>
-                                <label class="label">Contents (item IDs, one per line)</label>
-                                <textarea class="input" id="obj-ed-contents" rows="4" style="width:100%; font-family:monospace; font-size:11px;" placeholder="Enter item IDs from Armory...">${(obj.contents || []).join('\n')}</textarea>
+                            <div style="border-top:1px solid var(--border-subtle); padding-top:12px;">
+                                <label class="label" style="margin-bottom:8px;">Contents</label>
+                                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                                    <select id="obj-add-item" class="input" style="flex:1; font-size:11px;">
+                                        <option value="">-- Add Item --</option>
+                                        ${armoryItems.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join('')}
+                                    </select>
+                                    <button class="btn btn-sm btn-secondary" id="btn-add-content">+</button>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto; background:var(--bg-base); border-radius:6px; padding:8px;">
+                                    ${(obj.contents || []).length === 0 ? `<div style="font-size:11px; color:var(--text-muted); text-align:center;">Empty</div>` : ''}
+                                    ${(obj.contents || []).map((itemId, idx) => {
+                const item = armoryItems.find(a => a.id === itemId) || { name: itemId };
+                return `
+                                            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:4px; background:var(--bg-surface); border-radius:4px;">
+                                                <span>${item.name}</span>
+                                                <button class="btn btn-ghost btn-sm remove-content" data-idx="${idx}" style="padding:0 6px; color:var(--status-error); height:18px; line-height:18px;">×</button>
+                                            </div>
+                                        `;
+            }).join('')}
+                                </div>
                             </div>
                         `}
+                    </div>
+                    <div style="padding:12px 16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;">
+                        <button class="btn btn-ghost" id="modal-cancel">Done</button>
+                        <button class="btn btn-primary" id="modal-save">Save & Close</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('#modal-close').onclick = () => modal.remove();
+            modal.querySelector('#modal-cancel').onclick = () => modal.remove(); // Acts as close without final confirm, but changes are live on 'obj'
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            // Content list wiring
+            if (!isQuest) {
+                // Add item
+                modal.querySelector('#btn-add-content').onclick = () => {
+                    const select = modal.querySelector('#obj-add-item');
+                    if (select.value) {
+                        saveState(); // Update existing fields first
+                        if (!obj.contents) obj.contents = [];
+                        obj.contents.push(select.value);
+                        modal.remove();
+                        showObjectEditor(obj, onSave);
+                    }
+                };
+
+                // Remove item
+                modal.querySelectorAll('.remove-content').forEach(btn => {
+                    btn.onclick = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        saveState();
+                        obj.contents.splice(idx, 1);
+                        modal.remove();
+                        showObjectEditor(obj, onSave);
+                    };
+                });
+            }
+
+            modal.querySelector('#modal-save').onclick = () => {
+                saveState(); // Ensure final inputs are captured
+                modal.remove();
+                if (onSave) onSave();
+                if (A.UI?.Toast) A.UI.Toast.show('Object updated', 'success');
+            };
+        };
+
+        content.appendChild(objectsSection);
+        renderObjects();
+
+        // === SECTION: Shops ===
+        const shopsSection = document.createElement('div');
+        shopsSection.className = 'card';
+        shopsSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+
+        // Initialize shops array
+        if (!state.rpg.shops) state.rpg.shops = [];
+
+        // Get actors for shopkeeper dropdown
+        const actors = Object.values(state.nodes?.actors?.items || {});
+        const npcs = actors.filter(a => a.data?.rpg?.type !== 'monster');
+
+        const renderShops = () => {
+            const shops = state.rpg.shops || [];
+
+            shopsSection.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0; font-size:14px; display:flex; align-items:center; gap:8px;">
+                        🏪 Shops
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${shops.length} total)</span>
+                    </h3>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="new-shop-name" class="input" placeholder="New Shop Name" style="font-size:12px; padding:2px 8px; width:150px;">
+                        <button id="btn-add-shop" class="btn btn-primary btn-sm">+ Add Shop</button>
+                    </div>
+                </div>
+                
+                <div id="shops-list" style="display:grid; gap:12px; max-height:400px; overflow-y:auto;">
+                    ${shops.length === 0 ? `
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <div style="font-size:32px; margin-bottom:8px;">🏪</div>
+                            <div>No shops defined</div>
+                            <div style="font-size:11px; margin-top:4px;">Add merchant NPCs for trading</div>
+                        </div>
+                    ` : shops.map((shop, idx) => {
+                const shopkeeper = npcs.find(a => a.id === shop.shopkeeperId);
+                const location = allLocations.find(l => l.id === shop.locationId);
+                return `
+                        <div class="card" style="padding:12px; background:var(--bg-base); display:flex; gap:12px; align-items:start;">
+                            <div style="font-size:24px;">🏪</div>
+                            <div style="flex:1; min-width:0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <input type="text" class="input shop-name" data-idx="${idx}" value="${shop.name || ''}" 
+                                           style="font-weight:600; font-size:13px; padding:4px 8px; flex:1; max-width:200px;">
+                                    <div style="display:flex; gap:4px;">
+                                        <span class="badge" style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border-radius:8px;">
+                                            ${(shop.stock || []).length} items
+                                        </span>
+                                        <span class="badge" style="font-size:9px; padding:2px 6px; background:var(--status-success); border-radius:8px;">
+                                            💰 ${shop.currency || 0}
+                                        </span>
+                                        <button class="btn btn-ghost btn-sm shop-edit" data-idx="${idx}" style="padding:2px 6px;">✏️</button>
+                                        <button class="btn btn-ghost btn-sm shop-delete" data-idx="${idx}" style="padding:2px 6px; color:var(--status-error);">×</button>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:16px; font-size:11px; color:var(--text-muted);">
+                                    <span>👤 ${shopkeeper?.name || '(No shopkeeper)'}</span>
+                                    <span>📍 ${location?.name || '(No location)'}</span>
+                                    <span>💹 ${Math.round((shop.buybackRate || 0.5) * 100)}% buyback</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+            }).join('')}
+                </div>
+            `;
+
+            // Wire add button
+            shopsSection.querySelector('#btn-add-shop').onclick = () => {
+                const nameInput = shopsSection.querySelector('#new-shop-name');
+                const name = nameInput.value.trim();
+
+                if (!name) {
+                    if (A.UI?.Toast) A.UI.Toast.show('Enter a shop name', 'warning');
+                    return;
+                }
+
+                const newShop = {
+                    id: 'shop_' + Math.random().toString(36).substr(2, 8),
+                    name: name,
+                    shopkeeperId: null,
+                    locationId: null,
+                    type: 'general',
+                    buybackRate: 0.5,
+                    stock: [],
+                    currency: 500
+                };
+
+                state.rpg.shops.push(newShop);
+                nameInput.value = ''; // Clear input
+                A.State.notify();
+                renderShops();
+                if (A.UI?.Toast) A.UI.Toast.show(`Created shop: ${name}`, 'success');
+            };
+
+            // Wire name inputs
+            shopsSection.querySelectorAll('.shop-name').forEach(input => {
+                input.onchange = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    if (state.rpg.shops[idx]) {
+                        state.rpg.shops[idx].name = e.target.value;
+                        A.State.notify();
+                    }
+                };
+            });
+
+            // Wire edit buttons
+            shopsSection.querySelectorAll('.shop-edit').forEach(btn => {
+                btn.onclick = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const shop = state.rpg.shops[idx];
+                    if (!shop) return;
+                    showShopEditor(shop, () => {
+                        A.State.notify();
+                        renderShops();
+                    });
+                };
+            });
+
+            // Wire delete buttons
+            shopsSection.querySelectorAll('.shop-delete').forEach(btn => {
+                btn.onclick = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    const shop = state.rpg.shops[idx];
+                    if (!shop) return;
+
+                    if (confirm(`Delete "${shop.name}"?`)) {
+                        state.rpg.shops.splice(idx, 1);
+                        A.State.notify();
+                        renderShops();
+                        if (A.UI?.Toast) A.UI.Toast.show('Shop deleted', 'info');
+                    }
+                };
+            });
+        };
+
+        // Shop Editor Modal
+        const showShopEditor = (shop, onSave) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+            // Get armory items for stock selection
+            const armoryItems = Object.values(state.rpg?.armory?.items || {});
+
+            modal.innerHTML = `
+                <div style="background:var(--bg-elevated); width:600px; max-height:85vh; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.5); border:1px solid var(--border-default);">
+                    <div style="padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:16px;">🏪 Edit Shop: ${shop.name}</h3>
+                        <button class="btn btn-ghost btn-sm" id="modal-close">×</button>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:16px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <div>
+                                <label class="label">Shopkeeper</label>
+                                <select class="input" id="shop-ed-keeper" style="width:100%;">
+                                    <option value="">(None)</option>
+                                    ${npcs.map(a => `<option value="${a.id}" ${shop.shopkeeperId === a.id ? 'selected' : ''}>${a.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Location</label>
+                                <select class="input" id="shop-ed-location" style="width:100%;">
+                                    <option value="">(None)</option>
+                                    ${allLocations.map(l => `<option value="${l.id}" ${shop.locationId === l.id ? 'selected' : ''}>${l._mapName ? `${l.name} (${l._mapName})` : l.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                            <div>
+                                <label class="label">Type</label>
+                                <select class="input" id="shop-ed-type" style="width:100%;">
+                                    <option value="general" ${shop.type === 'general' ? 'selected' : ''}>General</option>
+                                    <option value="weapons" ${shop.type === 'weapons' ? 'selected' : ''}>Weapons</option>
+                                    <option value="armor" ${shop.type === 'armor' ? 'selected' : ''}>Armor</option>
+                                    <option value="magic" ${shop.type === 'magic' ? 'selected' : ''}>Magic</option>
+                                    <option value="potions" ${shop.type === 'potions' ? 'selected' : ''}>Potions</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Buyback Rate</label>
+                                <input type="number" class="input" id="shop-ed-buyback" value="${Math.round((shop.buybackRate || 0.5) * 100)}" min="0" max="100" style="width:100%;">
+                                <span style="font-size:10px; color:var(--text-muted);">% of item value</span>
+                            </div>
+                            <div>
+                                <label class="label">Shop Currency</label>
+                                <input type="number" class="input" id="shop-ed-currency" value="${shop.currency || 0}" min="0" style="width:100%;">
+                            </div>
+                        </div>
+                        
+                        <div style="border-top:1px solid var(--border-subtle); padding-top:16px;">
+                            <label class="label" style="margin-bottom:12px;">Stock (${(shop.stock || []).length} items)</label>
+                            
+                            <!-- Add Item Row -->
+                            <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
+                                <select class="input" id="add-item-select" style="flex:1; height:28px; font-size:11px;">
+                                    <option value="">-- Select item from Armory --</option>
+                                    ${armoryItems.map(a => `<option value="${a.id}" data-value="${a.value || 100}">${a.name} (${a.type || 'item'})</option>`).join('')}
+                                </select>
+                                <input type="number" class="input" id="add-item-qty" value="5" min="1" style="width:50px; height:28px; font-size:11px;" placeholder="Qty">
+                                <input type="number" class="input" id="add-item-price" value="100" min="0" style="width:70px; height:28px; font-size:11px;" placeholder="Price">
+                                <button class="btn btn-primary btn-sm" id="btn-add-stock" style="height:28px;">Add</button>
+                            </div>
+
+                            <div id="stock-list" style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto;">
+                                ${(shop.stock || []).length === 0 ? `
+                                    <div style="text-align:center; padding:16px; color:var(--text-muted); font-size:11px;">No items in stock yet</div>
+                                ` : (shop.stock || []).map((item, i) => {
+                const armoryItem = armoryItems.find(a => a.id === item.itemId);
+                return `
+                                    <div style="display:flex; gap:8px; align-items:center; background:var(--bg-base); padding:8px; border-radius:6px;">
+                                        <span style="flex:1; font-size:12px;">${armoryItem?.name || item.itemId}</span>
+                                        <input type="number" class="input stock-qty" data-idx="${i}" value="${item.quantity || 1}" min="1" style="width:50px; height:24px; font-size:11px;">
+                                        <input type="number" class="input stock-price" data-idx="${i}" value="${item.price || 0}" min="0" style="width:70px; height:24px; font-size:11px;" placeholder="Price">
+                                        <button class="btn btn-ghost btn-sm stock-remove" data-idx="${i}" style="padding:2px 6px; color:var(--status-error);">×</button>
+                                    </div>
+                                `;
+            }).join('')}
+                            </div>
+                        </div>
                     </div>
                     <div style="padding:12px 16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;">
                         <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
@@ -1036,30 +1365,72 @@
             modal.querySelector('#modal-cancel').onclick = () => modal.remove();
             modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-            modal.querySelector('#modal-save').onclick = () => {
-                obj.name = modal.querySelector('#obj-ed-name').value;
-                obj.description = modal.querySelector('#obj-ed-desc').value;
+            // Add stock item from inline controls
+            modal.querySelector('#btn-add-stock').onclick = () => {
+                const select = modal.querySelector('#add-item-select');
+                const itemId = select.value;
 
-                if (isQuest) {
-                    obj.questTag = modal.querySelector('#obj-ed-tag').value;
-                    obj.discovered = modal.querySelector('#obj-ed-discovered').checked;
-                    obj.collected = modal.querySelector('#obj-ed-collected').checked;
-                } else {
-                    obj.locked = modal.querySelector('#obj-ed-locked').checked;
-                    obj.lockDC = parseInt(modal.querySelector('#obj-ed-lockdc').value) || 15;
-                    obj.trapped = modal.querySelector('#obj-ed-trapped').checked;
-                    obj.trapDC = parseInt(modal.querySelector('#obj-ed-trapdc').value) || 12;
-                    obj.contents = modal.querySelector('#obj-ed-contents').value.split('\n').map(s => s.trim()).filter(Boolean);
+                if (!itemId) {
+                    if (A.UI?.Toast) A.UI.Toast.show('Select an item first', 'warning');
+                    return;
                 }
+
+                const quantity = parseInt(modal.querySelector('#add-item-qty').value) || 5;
+                const price = parseInt(modal.querySelector('#add-item-price').value) || 100;
+
+                if (!shop.stock) shop.stock = [];
+                shop.stock.push({ itemId, quantity, price });
+
+                // Re-render modal content
+                modal.remove();
+                showShopEditor(shop, onSave);
+            };
+
+            // Auto-fill price when item is selected
+            modal.querySelector('#add-item-select').onchange = (e) => {
+                const option = e.target.options[e.target.selectedIndex];
+                if (option && option.dataset.value) {
+                    modal.querySelector('#add-item-price').value = option.dataset.value;
+                }
+            };
+
+            // Wire stock quantity/price changes
+            modal.querySelectorAll('.stock-qty').forEach(input => {
+                input.onchange = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    if (shop.stock[idx]) shop.stock[idx].quantity = parseInt(e.target.value) || 1;
+                };
+            });
+            modal.querySelectorAll('.stock-price').forEach(input => {
+                input.onchange = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    if (shop.stock[idx]) shop.stock[idx].price = parseInt(e.target.value) || 0;
+                };
+            });
+            modal.querySelectorAll('.stock-remove').forEach(btn => {
+                btn.onclick = (e) => {
+                    const idx = parseInt(e.target.dataset.idx);
+                    shop.stock.splice(idx, 1);
+                    modal.remove();
+                    showShopEditor(shop, onSave);
+                };
+            });
+
+            modal.querySelector('#modal-save').onclick = () => {
+                shop.shopkeeperId = modal.querySelector('#shop-ed-keeper').value || null;
+                shop.locationId = modal.querySelector('#shop-ed-location').value || null;
+                shop.type = modal.querySelector('#shop-ed-type').value;
+                shop.buybackRate = (parseInt(modal.querySelector('#shop-ed-buyback').value) || 50) / 100;
+                shop.currency = parseInt(modal.querySelector('#shop-ed-currency').value) || 0;
 
                 modal.remove();
                 if (onSave) onSave();
-                if (A.UI?.Toast) A.UI.Toast.show('Object updated', 'success');
+                if (A.UI?.Toast) A.UI.Toast.show('Shop updated', 'success');
             };
         };
 
-        content.appendChild(objectsSection);
-        renderObjects();
+        content.appendChild(shopsSection);
+        renderShops();
     }
 
     // Expose core rule IDs for other modules

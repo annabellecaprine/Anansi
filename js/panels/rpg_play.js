@@ -822,20 +822,45 @@
             obj.locationId === currentLocId
         );
 
-        if (objectsHere.length === 0) {
+        // Get shops at current location
+        const shopsHere = (state.rpg?.shops || []).filter(shop =>
+            shop.locationId === currentLocId
+        );
+
+        if (objectsHere.length === 0 && shopsHere.length === 0) {
             appendMessage('system', '❓ Nothing to interact with here.');
             return;
         }
 
         // Build options with icons
-        const options = objectsHere.map(obj => ({
-            id: obj.id,
-            label: `${obj.type === 'quest' ? '🎯' : '📦'} ${obj.name}`,
-            obj: obj
-        }));
+        const options = [];
+
+        // Add shops first
+        shopsHere.forEach(shop => {
+            options.push({
+                id: shop.id,
+                label: `🏪 ${shop.name}`,
+                isShop: true,
+                shop: shop
+            });
+        });
+
+        // Add objects
+        objectsHere.forEach(obj => {
+            options.push({
+                id: obj.id,
+                label: `${obj.type === 'quest' ? '🎯' : '📦'} ${obj.name}`,
+                isShop: false,
+                obj: obj
+            });
+        });
 
         showSelector('Interact with', options, (opt) => {
-            showObjectActionMenu(opt.obj);
+            if (opt.isShop) {
+                enterShop(opt.shop);
+            } else {
+                showObjectActionMenu(opt.obj);
+            }
         });
     }
 
@@ -941,9 +966,9 @@
         }
 
         // Try to resolve item names from Armory
-        const armory = state.rpg?.armory?.items || {};
+        const armoryItems = state.rpg?.armory?.items || [];
         const itemNames = contents.map(itemId => {
-            const item = armory[itemId];
+            const item = armoryItems.find(a => a.id === itemId);
             return item ? item.name : itemId;
         });
 
@@ -1004,9 +1029,9 @@
         }
 
         // Get item names for message
-        const armory = state.rpg?.armory?.items || {};
+        const armoryItems = state.rpg?.armory?.items || [];
         const itemNames = contents.map(itemId => {
-            const item = armory[itemId];
+            const item = armoryItems.find(a => a.id === itemId);
             return item ? item.name : itemId;
         });
 
@@ -1040,6 +1065,251 @@
             A.UI.Toast.show(`Quest item collected: ${obj.name}`, 'success');
         }
     }
+
+    // === SHOP SYSTEM ===
+    function enterShop(shop) {
+        const state = A.State.get();
+        const armoryItems = state.rpg?.armory?.items || [];
+
+        // Get shopkeeper name
+        const actors = Object.values(state.nodes?.actors?.items || {});
+        const shopkeeper = actors.find(a => a.id === shop.shopkeeperId);
+
+        // Get party currency
+        const leaderId = state.rpg?.partyLeader;
+        const partyMember = leaderId
+            ? (state.rpg?.entities?.[leaderId] || Object.values(state.rpg?.entities || {}).find(e => e.sourceActorId === leaderId))
+            : Object.values(state.rpg?.entities || {}).find(e => e.type === 'party_member');
+
+        const partyGold = partyMember?.currency || 0;
+
+        appendMessage('system', `🏪 You enter **${shop.name}**${shopkeeper ? ` and are greeted by ${shopkeeper.name}` : ''}.`);
+
+        // Show shop modal
+        const modal = document.createElement('div');
+        modal.id = 'shop-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+        let currentTab = 'buy';
+
+        const renderShopUI = () => {
+            const currentGold = partyMember?.currency || 0;
+            const buybackRate = shop.buybackRate || 0.5;
+
+            // Group party inventory for sell tab
+            const inventoryCounts = {};
+            (partyMember?.inventory || []).forEach(itemId => {
+                inventoryCounts[itemId] = (inventoryCounts[itemId] || 0) + 1;
+            });
+
+            const renderBuyTab = () => {
+                if ((shop.stock || []).length === 0) {
+                    return `
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <div style="font-size:24px; margin-bottom:8px;">📭</div>
+                            <div>Shop is out of stock!</div>
+                        </div>
+                    `;
+                }
+                return (shop.stock || []).map((item, idx) => {
+                    const armoryItem = armoryItems.find(a => a.id === item.itemId) || { name: item.itemId };
+                    const canAfford = currentGold >= item.price;
+                    return `
+                        <div class="card" style="padding:12px; background:var(--bg-base); display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div style="flex:1;">
+                                <div style="font-weight:600; font-size:13px;">${armoryItem.name || item.itemId}</div>
+                                <div style="font-size:10px; color:var(--text-muted);">
+                                    ${armoryItem.type || 'Item'} ${armoryItem.damage ? `• ${armoryItem.damage} dmg` : ''} ${armoryItem.armor ? `• +${armoryItem.armor} AC` : ''}
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:11px; color:var(--text-muted);">×${item.quantity || 0}</span>
+                                <span style="font-size:13px; font-weight:bold; color:${canAfford ? 'var(--status-success)' : 'var(--status-error)'};">💰 ${item.price}</span>
+                                <button class="btn btn-sm ${canAfford ? 'btn-primary' : 'btn-ghost'} shop-buy" data-idx="${idx}" ${!canAfford || item.quantity <= 0 ? 'disabled' : ''}>
+                                    ${canAfford ? 'Buy' : 'Can\'t Afford'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            const renderSellTab = () => {
+                const itemIds = Object.keys(inventoryCounts);
+                if (itemIds.length === 0) {
+                    return `
+                        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                            <div style="font-size:24px; margin-bottom:8px;">🎒</div>
+                            <div>Your inventory is empty.</div>
+                        </div>
+                    `;
+                }
+                return itemIds.map(itemId => {
+                    const armoryItem = armoryItems.find(a => a.id === itemId) || { name: itemId, value: 0 };
+                    const sellPrice = Math.floor((armoryItem.value || 0) * buybackRate);
+                    const qty = inventoryCounts[itemId];
+                    return `
+                        <div class="card" style="padding:12px; background:var(--bg-base); display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div style="flex:1;">
+                                <div style="font-weight:600; font-size:13px;">${armoryItem.name}</div>
+                                <div style="font-size:10px; color:var(--text-muted);">
+                                    Value: ${armoryItem.value || 0} gp • Sell Price: ${sellPrice} gp
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:11px; color:var(--text-muted);">Owned: ${qty}</span>
+                                <button class="btn btn-sm btn-secondary shop-sell" data-id="${itemId}" data-price="${sellPrice}">
+                                    Sell (💰 ${sellPrice})
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            modal.innerHTML = `
+                <div style="background:var(--bg-elevated); width:650px; max-height:80vh; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.5); border:1px solid var(--border-default);">
+                    <div style="padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg, var(--bg-elevated), var(--bg-surface));">
+                        <div>
+                            <h3 style="margin:0; font-size:18px;">🏪 ${shop.name}</h3>
+                            ${shopkeeper ? `<div style="font-size:11px; color:var(--text-muted);">Proprietor: ${shopkeeper.name}</div>` : ''}
+                        </div>
+                        <div style="display:flex; align-items:center; gap:16px;">
+                            <span style="font-size:14px; font-weight:bold; color:var(--status-success);">💰 Your Gold: ${currentGold}</span>
+                            <button class="btn btn-ghost btn-sm" id="shop-close">Leave</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; border-bottom:1px solid var(--border-subtle);">
+                        <button id="tab-buy" class="btn btn-ghost" style="flex:1; border-radius:0; border-bottom:2px solid ${currentTab === 'buy' ? 'var(--accent-primary)' : 'transparent'}; opacity:${currentTab === 'buy' ? 1 : 0.5};">Buy Items</button>
+                        <button id="tab-sell" class="btn btn-ghost" style="flex:1; border-radius:0; border-bottom:2px solid ${currentTab === 'sell' ? 'var(--accent-primary)' : 'transparent'}; opacity:${currentTab === 'sell' ? 1 : 0.5};">Sell Items</button>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding:16px;">
+                        <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">
+                            ${currentTab === 'buy'
+                    ? `Shop has 💰 ${shop.currency || 0} gold`
+                    : `Shop buys items at ${Math.round(buybackRate * 100)}% value`}
+                        </div>
+                        <div style="display:grid; gap:12px;">
+                            ${currentTab === 'buy' ? renderBuyTab() : renderSellTab()}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.querySelector('#shop-close').onclick = () => {
+                modal.remove();
+                appendMessage('system', `👋 You leave ${shop.name}.`);
+            };
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    appendMessage('system', `👋 You leave ${shop.name}.`);
+                }
+            };
+
+            // Tabs
+            modal.querySelector('#tab-buy').onclick = () => { currentTab = 'buy'; renderShopUI(); };
+            modal.querySelector('#tab-sell').onclick = () => { currentTab = 'sell'; renderShopUI(); };
+
+            // Wire buttons
+            if (currentTab === 'buy') {
+                modal.querySelectorAll('.shop-buy').forEach(btn => {
+                    btn.onclick = (e) => {
+                        const idx = parseInt(e.target.dataset.idx);
+                        const item = shop.stock[idx];
+                        if (!item) return;
+                        buyItem(shop, item, partyMember, () => renderShopUI());
+                    };
+                });
+            } else {
+                modal.querySelectorAll('.shop-sell').forEach(btn => {
+                    btn.onclick = (e) => {
+                        const itemId = e.target.dataset.id;
+                        const price = parseInt(e.target.dataset.price);
+                        sellItem(shop, itemId, price, partyMember, () => renderShopUI());
+                    };
+                });
+            }
+        };
+
+        document.body.appendChild(modal);
+        renderShopUI();
+    }
+
+    function buyItem(shop, stockItem, partyMember, onComplete) {
+        const state = A.State.get();
+        const armoryItems = state.rpg?.armory?.items || [];
+        const armoryItem = armoryItems.find(a => a.id === stockItem.itemId) || { name: stockItem.itemId };
+
+        // Deduct gold from player
+        if (!partyMember.currency) partyMember.currency = 0;
+        partyMember.currency -= stockItem.price;
+
+        // Add gold to shop
+        shop.currency = (shop.currency || 0) + stockItem.price;
+
+        // Reduce stock
+        stockItem.quantity = (stockItem.quantity || 1) - 1;
+
+        // Remove from stock if empty
+        if (stockItem.quantity <= 0) {
+            const idx = shop.stock.indexOf(stockItem);
+            if (idx > -1) shop.stock.splice(idx, 1);
+        }
+
+        // Add item to player inventory
+        if (!partyMember.inventory) partyMember.inventory = [];
+        partyMember.inventory.push(stockItem.itemId);
+
+        A.State.notify();
+        appendMessage('system', `💰 Purchased **${armoryItem.name}** for ${stockItem.price} gold.`);
+
+        if (A.UI?.Toast) {
+            A.UI.Toast.show(`Purchased ${armoryItem.name}`, 'success');
+        }
+
+        if (onComplete) onComplete();
+    }
+
+    function sellItem(shop, itemId, price, partyMember, onComplete) {
+        const state = A.State.get();
+        const armoryItems = state.rpg?.armory?.items || [];
+        const armoryItem = armoryItems.find(a => a.id === itemId) || { name: itemId };
+
+        // Remove from player inventory
+        const idx = partyMember.inventory.indexOf(itemId);
+        if (idx > -1) partyMember.inventory.splice(idx, 1);
+
+        // Add gold to player
+        if (!partyMember.currency) partyMember.currency = 0;
+        partyMember.currency += price;
+
+        // Deduct gold from shop
+        shop.currency = (shop.currency || 0) - price;
+
+        // Add to shop stock
+        if (!shop.stock) shop.stock = [];
+        const stockItem = shop.stock.find(i => i.itemId === itemId);
+        if (stockItem) {
+            stockItem.quantity = (stockItem.quantity || 0) + 1;
+        } else {
+            shop.stock.push({
+                itemId: itemId,
+                quantity: 1,
+                price: armoryItem.value || 10 // Default resale price
+            });
+        }
+
+        A.State.notify();
+        appendMessage('system', `💰 Sold **${armoryItem.name}** for ${price} gold.`);
+
+        if (A.UI?.Toast) {
+            A.UI.Toast.show(`Sold ${armoryItem.name}`, 'success');
+        }
+
+        if (onComplete) onComplete();
+    }
+
     function showMoveSelector() {
         const state = A.State.get();
         const currentLoc = state.rpg?.currentLocation;
