@@ -1,0 +1,143 @@
+{
+  "version": "1.0",
+  "templates": [
+    {
+      "id": "hub_spoke_interior",
+      "name": "Hub & Spoke Interior",
+      "description": "A central location branching to multiple connected zones. Perfect for markets, taverns, guild halls, or space stations.",
+      "tags": ["interior", "market", "tavern", "guild", "station", "hub"],
+      "genre": "any",
+      "scale": "building",
+      "author": "Anansi",
+      "locations": [
+        { "key": "hub", "name": "Central Hall", "type": "hub", "description": "The heart of this establishment, where all paths converge.", "expandable": false },
+        { "key": "branch_1", "name": "Northern Wing", "type": "room", "description": "", "expandable": true },
+        { "key": "branch_2", "name": "Eastern Wing", "type": "room", "description": "", "expandable": true },
+        { "key": "branch_3", "name": "Southern Wing", "type": "room", "description": "", "expandable": true },
+        { "key": "branch_4", "name": "Western Wing", "type": "room", "description": "", "expandable": true },
+        { "key": "back_room", "name": "Back Room", "type": "restricted", "description": "A private area, not meant for casual visitors.", "expandable": false }
+      ],
+      "connections": [
+        { "from": "hub", "to": "branch_1" },
+        { "from": "hub", "to": "branch_2" },
+        { "from": "hub", "to": "branch_3" },
+        { "from": "hub", "to": "branch_4" },
+        { "from": "hub", "to": "back_room", "hidden": true }
+      ]
+    },
+    {
+      "id": "linear_journey",
+      "name": "Linear Journey",
+      "description": "A straightforward path from start to finish. Ideal for roads, corridors, river routes, or story-driven progressions.",
+      "tags": ["linear", "road", "corridor", "river", "journey", "path"],
+      "genre": "any",
+      "scale": "region",
+      "author": "Anansi",
+      "locations": [
+        { "key": "start", "name": "Starting Point", "type": "waypoint", "description": "Where the journey begins.", "expandable": true },
+        { "key": "waypoint_1", "name": "First Waypoint", "type": "waypoint", "description": "", "expandable": true },
+        { "key": "waypoint_2", "name": "Midpoint", "type": "waypoint", "description": "Halfway through the journey.", "expandable": true },
+        { "key": "waypoint_3", "name": "Third Waypoint", "type": "waypoint", "description": "", "expandable": true },
+        { "key": "destination", "name": "Destination", "type": "landmark", "description": "The end of the road.", "expandable": true }
+      ],
+      "connections": [
+        { "from": "start", "to": "waypoint_1" },
+        { "from": "waypoint_1", "to": "waypoint_2" },
+        { "from": "waypoint_2", "to": "waypoint_3" },
+        { "from": "waypoint_3", "to": "destination" }
+      ]
+    },
+    {
+      "id": "regional_kingdom",
+      "name": "Regional Kingdom",
+      "description": "A central seat of power surrounded by settlements and wild territories. Great for fantasy kingdoms, colonies, or faction territories.",
+      "tags": ["kingdom", "region", "castle", "village", "wilderness", "political"],
+      "genre": "fantasy",
+      "scale": "kingdom",
+      "author": "Anansi",
+      "locations": [
+        { "key": "capital", "name": "The Capital", "type": "city", "description": "The seat of power, where rulers hold court.", "expandable": true },
+        { "key": "village_north", "name": "Northern Village", "type": "village", "description": "A hardy settlement near the border.", "expandable": true },
+        { "key": "village_east", "name": "Eastern Village", "type": "village", "description": "A trading post along the main road.", "expandable": true },
+        { "key": "village_south", "name": "Southern Village", "type": "village", "description": "A farming community in fertile lands.", "expandable": true },
+        { "key": "forest", "name": "The Deep Woods", "type": "wilderness", "description": "An ancient forest, home to secrets and danger.", "expandable": true },
+        { "key": "mountains", "name": "The High Peaks", "type": "wilderness", "description": "Treacherous mountains guarding the realm's edge.", "expandable": true },
+        { "key": "ruins", "name": "The Old Ruins", "type": "landmark", "description": "Remnants of a forgotten age, whispered to be haunted.", "expandable": true }
+      ],
+      "connections": [
+        { "from": "capital", "to": "village_north" },
+        { "from": "capital", "to": "village_east" },
+        { "from": "capital", "to": "village_south" },
+        { "from": "village_north", "to": "mountains" },
+        { "from": "village_east", "to": "forest" },
+        { "from": "village_south", "to": "forest" },
+        { "from": "forest", "to": "ruins" },
+        { "from": "mountains", "to": "ruins", "hidden": true }
+      ]
+    },
+    {
+      "id": "branching_dungeon",
+      "name": "Branching Dungeon",
+      "description": "A classic dungeon layout with an entrance, branching paths, dead ends, and a final boss chamber. Perfect for RPG adventures.",
+      "tags": ["dungeon", "cave", "labyrinth", "underground", "adventure"],
+      "genre": "fantasy",
+      "scale": "building",
+      "author": "Anansi",
+      "locations": [
+        { "key": "entrance", "name": "Dungeon Entrance", "type": "entrance", "description": "The mouth of the dungeon, yawning into darkness.", "expandable": false },
+        { "key": "hall_1", "name": "Entry Hall", "type": "room", "description": "The first chamber, littered with debris.", "expandable": false },
+        { "key": "fork", "name": "The Fork", "type": "room", "description": "The path splits here. Choose wisely.", "expandable": false },
+        { "key": "left_path", "name": "Left Passage", "type": "corridor", "description": "", "expandable": true },
+        { "key": "right_path", "name": "Right Passage", "type": "corridor", "description": "", "expandable": true },
+        { "key": "dead_end", "name": "Dead End", "type": "trap", "description": "A collapsed tunnel. Something glints in the rubble.", "expandable": false },
+        { "key": "treasure_room", "name": "Treasure Vault", "type": "loot", "description": "A hidden cache of valuables, guarded by ancient wards.", "expandable": false },
+        { "key": "boss_antechamber", "name": "Antechamber", "type": "room", "description": "The air grows heavy. Something powerful awaits beyond.", "expandable": false },
+        { "key": "boss_chamber", "name": "Boss Chamber", "type": "boss", "description": "The heart of the dungeon. The final confrontation.", "expandable": false }
+      ],
+      "connections": [
+        { "from": "entrance", "to": "hall_1" },
+        { "from": "hall_1", "to": "fork" },
+        { "from": "fork", "to": "left_path" },
+        { "from": "fork", "to": "right_path" },
+        { "from": "left_path", "to": "dead_end" },
+        { "from": "left_path", "to": "treasure_room", "hidden": true },
+        { "from": "right_path", "to": "boss_antechamber" },
+        { "from": "boss_antechamber", "to": "boss_chamber" }
+      ]
+    },
+    {
+      "id": "neighborhood_grid",
+      "name": "Neighborhood Grid",
+      "description": "A 2D grid layout with adjacent connections. Ideal for city districts, residential areas, or any zone with spatial structure.",
+      "tags": ["city", "district", "grid", "neighborhood", "urban"],
+      "genre": "modern",
+      "scale": "district",
+      "author": "Anansi",
+      "locations": [
+        { "key": "nw", "name": "Northwest Block", "type": "block", "description": "", "expandable": true },
+        { "key": "n", "name": "North Block", "type": "block", "description": "", "expandable": true },
+        { "key": "ne", "name": "Northeast Block", "type": "block", "description": "", "expandable": true },
+        { "key": "w", "name": "West Block", "type": "block", "description": "", "expandable": true },
+        { "key": "center", "name": "Central Plaza", "type": "landmark", "description": "The heart of the neighborhood, always bustling.", "expandable": true },
+        { "key": "e", "name": "East Block", "type": "block", "description": "", "expandable": true },
+        { "key": "sw", "name": "Southwest Block", "type": "block", "description": "", "expandable": true },
+        { "key": "s", "name": "South Block", "type": "block", "description": "", "expandable": true },
+        { "key": "se", "name": "Southeast Block", "type": "block", "description": "", "expandable": true }
+      ],
+      "connections": [
+        { "from": "nw", "to": "n" },
+        { "from": "nw", "to": "w" },
+        { "from": "n", "to": "ne" },
+        { "from": "n", "to": "center" },
+        { "from": "ne", "to": "e" },
+        { "from": "w", "to": "center" },
+        { "from": "w", "to": "sw" },
+        { "from": "center", "to": "e" },
+        { "from": "center", "to": "s" },
+        { "from": "e", "to": "se" },
+        { "from": "sw", "to": "s" },
+        { "from": "s", "to": "se" }
+      ]
+    }
+  ]
+}

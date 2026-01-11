@@ -31,7 +31,8 @@
     event: '⚡',
     pair: '💑',
     'scenario-block': '📝',
-    'rule-block': '⚙️'
+    'rule-block': '⚙️',
+    'map_template': '🗺️'
   };
 
   // Type labels
@@ -43,7 +44,8 @@
     event: 'Events',
     pair: 'Pairs',
     'scenario-block': 'Scenario Blocks',
-    'rule-block': 'Rule Blocks'
+    'rule-block': 'Rule Blocks',
+    'map_template': 'Map Templates'
   };
 
   async function loadVaultData() {
@@ -889,6 +891,62 @@
         });
 
         if (!silent && A.UI.Toast) A.UI.Toast.show(`Added script "${name}" to project`, 'success');
+        return;
+
+      } else if (item.type === 'map_template') {
+        // Map templates import into Locations panel
+        if (!state.weaves) state.weaves = {};
+        if (!state.weaves.locations) state.weaves.locations = [];
+
+        const template = item.data;
+        const existingIds = new Set(state.weaves.locations.map(l => l.id));
+        const idMap = {};
+
+        // Generate unique IDs and import locations
+        (template.locations || []).forEach(loc => {
+          let newId = `${template.id}_${loc.key}`;
+          let counter = 1;
+          while (existingIds.has(newId)) {
+            newId = `${template.id}_${loc.key}_${counter++}`;
+          }
+          idMap[loc.key] = newId;
+
+          state.weaves.locations.push({
+            id: newId,
+            name: loc.name,
+            description: loc.description || '',
+            type: loc.type || 'location',
+            expandable: loc.expandable || false,
+            connections: [],
+            _templateSource: template.id,
+            vaultLink: {
+              vaultId: item.id,
+              pulledVersion: item.version,
+              lastSyncedAt: new Date().toISOString()
+            }
+          });
+
+          existingIds.add(newId);
+        });
+
+        // Add connections
+        (template.connections || []).forEach(conn => {
+          const fromId = idMap[conn.from];
+          const toId = idMap[conn.to];
+          if (fromId && toId) {
+            const fromLoc = state.weaves.locations.find(l => l.id === fromId);
+            if (fromLoc) {
+              if (!fromLoc.connections) fromLoc.connections = [];
+              fromLoc.connections.push({
+                target: toId,
+                hidden: conn.hidden || false
+              });
+            }
+          }
+        });
+
+        A.State.notify();
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Imported map template "${name}" with ${template.locations?.length || 0} locations`, 'success');
         return;
 
       } else {

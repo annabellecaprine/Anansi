@@ -50,6 +50,7 @@ All notable changes to Anansi will be documented in this file.
 - **Smart Monster Inventory**: Bestiary inventory now features a Search/Select dropdown linked to the Armory, automatically populating damage, type, and range properties for monsters.
 - **Enhanced Narration Context**: Combat narration now draws from multi-source metadata including Actor profiles (taglines, personality, aliases, physical/biological traits), Monster descriptions, and Weapon details.
 - **Genre & Setting Priming**: AI narrator now contextually styles its descriptions based on active campaign settings and GM atmospheric notes.
+- **Hina's Travel Guide**: New map building wizard in Forbidden Secrets. Browse pre-made templates, import them to your project, or export your current locations as a template to the Vault.
 
 ### Autonomous Narrative Systems (LlamaTale-Inspired)
 - **Sentiment System**: NPCs now track relationship states toward other entities (hostile → suspicious → neutral → friendly → loyal). Use `RPG.Entities.getSentiment()`, `setSentiment()`, and `adjustSentiment()`.
