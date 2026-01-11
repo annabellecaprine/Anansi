@@ -2,7 +2,7 @@
 
 All notable changes to Anansi will be documented in this file.
 
-## v1.9.6 - 2026-01-10
+## v1.9.6 - 2026-01-11
 ### New Features
 - **Hina's Travel Guide (Beta)**: Added a comprehensive Map Builder panel.
     - **Map Wizard**: Generate custom map layouts based on Genre, Scale, and Structure.
@@ -10,7 +10,6 @@ All notable changes to Anansi will be documented in this file.
     - **Smart Import**: Auto-layout system arranges imported locations in a tidy grid.
     - **Vault Integration**: Publish and share your custom Map Templates with other projects.
     - **AI Enrichment**: Now active! Procedurally generates atmospheric descriptions, hidden DM secrets, and suggestions for Loot and Encounters.
-    - **Virtual GM**: Engine now supports autonomous Combat triggers, Ad-Hoc Spawning (for AI monsters), and Real Loot distribution.
     - **Virtual GM**: Engine now supports autonomous Combat triggers, Ad-Hoc Spawning (for AI monsters), and Real Loot distribution.
     - **Auto-Pilot**: New "Sim Mode" allows a bot to play the game autonomously for stress-testing and world simulation.
     - **Quest System**: Full quest support with Kill, Fetch, Visit, and Talk objectives.
