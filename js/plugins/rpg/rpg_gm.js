@@ -312,10 +312,40 @@
                 </div>
                 <div style="display:flex; gap:8px;">
                     <button id="btn-reset-rules" class="btn btn-ghost btn-sm" title="Reset rules to default">🔄 Reset Rules</button>
+                    <button id="btn-export-player" class="btn btn-ghost btn-sm" title="Export locked player version" style="color:var(--accent-primary);">🔒 Export Player Mode</button>
                 </div>
             </div>
         `;
         container.appendChild(header);
+
+        // Bind Export Player Mode
+        header.querySelector('#btn-export-player').onclick = () => {
+            if (confirm('Create "Player Mode" export?\n\nThis will download a project file with GM panels hidden.\nUse this for distributing campaigns to players.')) {
+                try {
+                    const state = A.State.get();
+                    const playerState = JSON.parse(JSON.stringify(state)); // Deep clone
+
+                    if (!playerState.meta) playerState.meta = {};
+                    playerState.meta.mode = 'player';
+                    // Append suffix to name so specific project ID checks treat it as same or different? 
+                    // Best to keep ID same for compatibility, but change name.
+                    playerState.meta.name = (playerState.meta.name || 'Campaign') + ' (Player Mode)';
+
+                    const blob = new Blob([JSON.stringify(playerState, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${(playerState.meta.name).replace(/[^a-z0-9]/gi, '_').toLowerCase()}.anansi.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    if (A.UI && A.UI.Toast) A.UI.Toast.show('Player Mode export successful', 'success');
+                } catch (err) {
+                    console.error('Export failed:', err);
+                    alert('Export failed: ' + err.message);
+                }
+            };
+        };
 
         // Content
         const content = document.createElement('div');
@@ -1443,6 +1473,7 @@
         category: 'RPG Experiment',
         subcategory: 'Game Master',
         order: 10,
+        gmOnly: true,
         icon: '🎲',
         render: render
     });

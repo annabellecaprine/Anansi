@@ -198,6 +198,13 @@
             // Subscribe to State Changes
             A.State.subscribe(state => {
                 if (!state) return;
+
+                // Refresh Nav if Mode Changes (e.g. Import Player Mode)
+                if (state.meta?.mode !== this.lastMode) {
+                    this.lastMode = state.meta?.mode;
+                    this.refreshNav();
+                }
+
                 this.els.displayName.textContent = state.meta.name + (state.isDirty ? ' •' : '');
                 this.updateIntegrityBadge(state);
 
@@ -285,11 +292,11 @@
             // --- RPG EXPERIMENT PLACEHOLDERS ---
             // Register placeholder panels for the new RPG category
             const rpgPanels = [
-                { id: 'rpg_party', label: 'Party', desc: 'Hero management' },
-                { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks' },
-                { id: 'rpg_map', label: 'Map', desc: 'Locations' },
-                { id: 'rpg_dm_map', label: 'DM Map', desc: 'World building' },
-                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells' }
+                { id: 'rpg_party', label: 'Party', desc: 'Hero management' }, // Player facing
+                { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks', gmOnly: true },
+                { id: 'rpg_map', label: 'Map', desc: 'Locations' }, // Player facing? Or GM? Usually shared. "Hina's Guide" handles map building.
+                { id: 'rpg_dm_map', label: 'DM Map', desc: 'World building', gmOnly: true },
+                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells', gmOnly: true }
             ];
 
             rpgPanels.forEach(p => {
@@ -407,6 +414,12 @@
 
                 // Helper to render a generic item button
                 const renderBtn = (section, containerDiv) => {
+                    // Check for Player Mode Lock
+                    const state = A.State.get();
+                    if (state && state.meta && state.meta.mode === 'player' && section.gmOnly) {
+                        return;
+                    }
+
                     // Check for hidden property
                     if (section.hidden) {
                         if (section.id === 'gamemaster') {

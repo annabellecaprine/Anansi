@@ -199,6 +199,7 @@
         category: 'RPG Experiment',
         subcategory: 'Game Master',
         order: 16,
+        gmOnly: true,
         icon: '📈',
         render: render
     });
