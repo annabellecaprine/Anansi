@@ -896,10 +896,20 @@
       } else if (item.type === 'map_template') {
         // Map templates import into Locations panel
         if (!state.weaves) state.weaves = {};
-        if (!state.weaves.locations) state.weaves.locations = [];
+
+        // Ensure map structure exists
+        if (!state.weaves.maps || state.weaves.maps.length === 0) {
+          state.weaves.maps = [{ id: 'map_default', name: 'Main Map', type: 'region', locations: [] }];
+          state.weaves.activeMap = 'map_default';
+        }
+
+        // Use active map or default
+        const activeId = state.weaves.activeMap || state.weaves.maps[0].id;
+        const targetMap = state.weaves.maps.find(m => m.id === activeId) || state.weaves.maps[0];
 
         const template = item.data;
-        const existingIds = new Set(state.weaves.locations.map(l => l.id));
+        if (!targetMap.locations) targetMap.locations = [];
+        const existingIds = new Set(targetMap.locations.map(l => l.id));
         const idMap = {};
 
         // Generate unique IDs and import locations
@@ -911,13 +921,24 @@
           }
           idMap[loc.key] = newId;
 
-          state.weaves.locations.push({
+          // Grid Layout Logic
+          const startCount = targetMap.locations.length;
+          const idx = counter; // Use counter or local index for offset
+          const gridSize = 40;
+          const baseOffset = startCount;
+          // Just use simple incrementing offset relative to existing count
+          const effectiveIdx = targetMap.locations.length;
+          const offsetX = ((effectiveIdx) % 5) * gridSize * 2;
+          const offsetY = Math.floor((effectiveIdx) / 5) * gridSize * 2 + (startCount > 0 ? 100 : 0);
+
+          targetMap.locations.push({
             id: newId,
             name: loc.name,
             description: loc.description || '',
             type: loc.type || 'location',
             expandable: loc.expandable || false,
-            connections: [],
+            exits: [], // Use 'exits' schema to match Locations panel
+            pos: { x: offsetX, y: offsetY }, // Apply calculated position
             _templateSource: template.id,
             vaultLink: {
               vaultId: item.id,
@@ -929,21 +950,21 @@
           existingIds.add(newId);
         });
 
-        // Add connections
+        // Add connections (Convert template connections to exits)
         (template.connections || []).forEach(conn => {
           const fromId = idMap[conn.from];
           const toId = idMap[conn.to];
           if (fromId && toId) {
-            const fromLoc = state.weaves.locations.find(l => l.id === fromId);
-            if (fromLoc) {
-              if (!fromLoc.connections) fromLoc.connections = [];
-              fromLoc.connections.push({
-                target: toId,
-                hidden: conn.hidden || false
-              });
+            const fromLoc = targetMap.locations.find(l => l.id === fromId);
+            if (fromLoc && !fromLoc.exits.includes(toId)) {
+              fromLoc.exits.push(toId);
             }
           }
         });
+
+        A.State.notify();
+        if (window.renderLocationPanel) window.renderLocationPanel();
+
 
         A.State.notify();
         if (!silent && A.UI.Toast) A.UI.Toast.show(`Imported map template "${name}" with ${template.locations?.length || 0} locations`, 'success');

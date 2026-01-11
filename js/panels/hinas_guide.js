@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Anansi Panel: Hina's Travel Guide
  * File: js/panels/hinas_guide.js
  * Category: Forbidden Secrets
@@ -214,20 +214,100 @@
         const templateGrid = cabinetSection.querySelector('#template-grid');
         renderTemplateCards(templateGrid);
 
-        // === SECTION: Custom Builder (Coming Soon) ===
+        // === SECTION: Custom Map Builder (Wizard) ===
         const builderSection = document.createElement('div');
         builderSection.className = 'card';
-        builderSection.style.cssText = 'padding:20px; margin-bottom:20px; opacity:0.6;';
+        builderSection.style.cssText = 'padding:20px; margin-bottom:20px;';
         builderSection.innerHTML = `
             <h3 style="margin:0 0 16px; font-size:14px; display:flex; align-items:center; gap:8px;">
                 ✏️ Custom Map Builder
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(Coming Soon)</span>
+                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(Create from scratch)</span>
             </h3>
-            <p style="margin:0; font-size:12px; color:var(--text-muted);">
-                Build a map from scratch with a step-by-step wizard. Define your genre, scale, structure, and let AI enrich the details.
-            </p>
+            
+            <div id="wizard-container">
+                <!-- Step 1: Basic Info -->
+                <div id="wizard-step-1" class="wizard-step">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div>
+                            <label class="label">Map Name</label>
+                            <input type="text" id="wizard-name" class="input" style="width:100%;" placeholder="My Custom Map">
+                        </div>
+                        <div>
+                            <label class="label">Genre</label>
+                            <select id="wizard-genre" class="input" style="width:100%;">
+                                <option value="fantasy">⚔️ Fantasy</option>
+                                <option value="scifi">🚀 Sci-Fi</option>
+                                <option value="modern">🏙️ Modern</option>
+                                <option value="horror">👻 Horror</option>
+                                <option value="any">🌐 Any/Generic</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div>
+                            <label class="label">Scale</label>
+                            <select id="wizard-scale" class="input" style="width:100%;">
+                                <option value="building">🏠 Building (rooms, floors)</option>
+                                <option value="district">🏘️ District (streets, blocks)</option>
+                                <option value="region" selected>🏔️ Region (areas, zones)</option>
+                                <option value="kingdom">👑 Kingdom (cities, territories)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Structure</label>
+                            <select id="wizard-structure" class="input" style="width:100%;">
+                                <option value="hub">🎯 Hub & Spoke (central + branches)</option>
+                                <option value="linear">➡️ Linear (A → B → C)</option>
+                                <option value="grid">🔲 Grid (2D layout)</option>
+                                <option value="branching">🌳 Branching (forks + dead ends)</option>
+                                <option value="freeform">🎨 Freeform (I'll define it)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label class="label">Number of Locations</label>
+                        <input type="range" id="wizard-count" min="3" max="15" value="5" style="width:100%;">
+                        <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);">
+                            <span>Small (3)</span>
+                            <span id="wizard-count-display">5 locations</span>
+                            <span>Large (15)</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label class="label">Key Landmarks (optional, comma-separated)</label>
+                        <input type="text" id="wizard-landmarks" class="input" style="width:100%;" placeholder="e.g., The Castle, Dark Forest, Old Mill">
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label class="label">Tone/Atmosphere Keywords (optional)</label>
+                        <input type="text" id="wizard-tone" class="input" style="width:100%;" placeholder="e.g., grim, mysterious, war-torn, peaceful">
+                    </div>
+                    
+                    <div style="display:flex; gap:12px; justify-content:flex-end;">
+                        <button id="btn-wizard-generate" class="btn btn-primary">🎲 Generate Map</button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Preview (hidden until generated) -->
+                <div id="wizard-step-2" class="wizard-step" style="display:none;">
+                    <div id="wizard-preview" style="margin-bottom:16px;"></div>
+                    <div style="display:flex; gap:12px; justify-content:space-between;">
+                        <button id="btn-wizard-back" class="btn btn-ghost">⬅️ Back to Settings</button>
+                        <div style="display:flex; gap:12px;">
+                            <button id="btn-wizard-regenerate" class="btn btn-ghost">🔄 Regenerate</button>
+                            <button id="btn-wizard-commit" class="btn btn-primary">📥 Import to Project</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         `;
         content.appendChild(builderSection);
+
+        // Wire up wizard
+        wireWizard(builderSection);
 
         // === SECTION: Quick Links ===
         const linksSection = document.createElement('div');
@@ -259,12 +339,12 @@
         publishSection.className = 'card';
         publishSection.style.cssText = 'padding:20px;';
         publishSection.innerHTML = `
-            <h3 style="margin:0 0 16px; font-size:14px;">📤 Publish to Vault</h3>
+            <h3 style="margin:0 0 16px; font-size:14px;">📥 Publish to Vault</h3>
             <p style="margin:0 0 12px; font-size:12px; color:var(--text-muted);">
                 Export your current Locations as a reusable map template and save it to your Vault.
             </p>
             <button id="btn-publish-template" class="btn btn-primary" style="width:100%;">
-                📤 Export Current Locations as Template
+                📥 Export Current Locations as Template
             </button>
         `;
         content.appendChild(publishSection);
@@ -336,7 +416,7 @@
             width: 450,
             actions: [
                 {
-                    label: '📤 Publish to Vault',
+                    label: '📥 Publish to Vault',
                     class: 'btn-primary',
                     onclick: async (modal) => {
                         const name = modal.querySelector('#template-name').value.trim() || 'Custom Map';
@@ -434,11 +514,327 @@
     }
 
     // ===========================================
+    // IMPORT TEMPLATE TO PROJECT
+    // ===========================================
+    function importTemplateToProject(template) {
+        const state = A.State.get();
+        let targetMap = null;
+
+        // 1. Resolve Target Map (Prefer A.Locations helper)
+        if (A.Locations && A.Locations.getActiveMap) {
+            targetMap = A.Locations.getActiveMap(state);
+        } else {
+            // Manual Fallback
+            if (!state.weaves) state.weaves = {};
+            if (!state.weaves.maps || state.weaves.maps.length === 0) {
+                state.weaves.maps = [{ id: 'map_default', name: 'Main Map', type: 'region', locations: [] }];
+                state.weaves.activeMap = 'map_default';
+            }
+            const activeId = state.weaves.activeMap || state.weaves.maps[0].id;
+            targetMap = state.weaves.maps.find(m => m.id === activeId);
+        }
+
+        if (!targetMap) {
+            console.warn('[Hina] CRITICAL: No map found to import into.');
+            if (A.UI?.Toast) A.UI.Toast.show('Error: No target map.', 'error');
+            return;
+        }
+
+        console.warn(`[Hina] Importing "${template.name}" into Map: "${targetMap.name}" (${targetMap.id})`);
+
+        // 2. Prepare Data
+        if (!targetMap.locations) targetMap.locations = [];
+        const existingIds = new Set(targetMap.locations.map(l => l.id));
+        const idMap = {};
+        const startCount = targetMap.locations.length;
+
+        // 3. Import Locations
+        template.locations.forEach((loc, idx) => {
+            let newId = `${template.id}_${loc.key}`;
+            let counter = 1;
+            while (existingIds.has(newId)) newId = `${template.id}_${loc.key}_${counter++}`;
+            idMap[loc.key] = newId;
+
+            // Grid Layout
+            const gridSize = 40;
+            const baseOffset = startCount;
+            const offsetX = ((baseOffset + idx) % 5) * gridSize * 2;
+            const offsetY = Math.floor((baseOffset + idx) / 5) * gridSize * 2 + (startCount > 0 ? 100 : 0);
+
+            targetMap.locations.push({
+                id: newId,
+                name: loc.name,
+                description: loc.description || '',
+                type: loc.type || 'location',
+                expandable: !!loc.expandable,
+                exits: [],
+                pos: { x: offsetX, y: offsetY },
+                _templateSource: template.id
+            });
+            existingIds.add(newId);
+        });
+
+        // 4. Connect Exits
+        template.connections.forEach(conn => {
+            const fromId = idMap[conn.from];
+            const toId = idMap[conn.to];
+            if (fromId && toId) {
+                const fromLoc = targetMap.locations.find(l => l.id === fromId);
+                if (fromLoc && !fromLoc.exits.includes(toId)) {
+                    fromLoc.exits.push(toId);
+                }
+            }
+        });
+
+        console.warn(`[Hina] Import Success. Locations count: ${startCount} -> ${targetMap.locations.length}`);
+
+        // 5. Save & Notify
+        A.State.notify();
+        if (window.renderLocationPanel) window.renderLocationPanel();
+
+        if (A.UI?.Toast) A.UI.Toast.show(`✅ Imported "${template.name}" with ${template.locations.length} locations!`, 'success');
+    }
+
+    // ===========================================
+    // WIZARD WIRING
+    // ===========================================
+    let wizardState = {
+        template: null
+    };
+
+    function wireWizard(container) {
+        const countSlider = container.querySelector('#wizard-count');
+        const countDisplay = container.querySelector('#wizard-count-display');
+        const generateBtn = container.querySelector('#btn-wizard-generate');
+        const backBtn = container.querySelector('#btn-wizard-back');
+        const regenerateBtn = container.querySelector('#btn-wizard-regenerate');
+        const commitBtn = container.querySelector('#btn-wizard-commit');
+        const step1 = container.querySelector('#wizard-step-1');
+        const step2 = container.querySelector('#wizard-step-2');
+        const previewEl = container.querySelector('#wizard-preview');
+
+        if (!countSlider) return;
+
+        countSlider.oninput = () => {
+            countDisplay.textContent = `${countSlider.value} locations`;
+        };
+
+        generateBtn.onclick = () => {
+            const config = {
+                name: container.querySelector('#wizard-name').value.trim() || 'Custom Map',
+                genre: container.querySelector('#wizard-genre').value,
+                scale: container.querySelector('#wizard-scale').value,
+                structure: container.querySelector('#wizard-structure').value,
+                count: parseInt(countSlider.value),
+                landmarks: container.querySelector('#wizard-landmarks').value.split(',').map(s => s.trim()).filter(Boolean),
+                tone: container.querySelector('#wizard-tone').value.trim()
+            };
+
+            wizardState.template = generateMapFromConfig(config);
+            renderPreview(previewEl, wizardState.template);
+            step1.style.display = 'none';
+            step2.style.display = 'block';
+        };
+
+        backBtn.onclick = () => {
+            step1.style.display = 'block';
+            step2.style.display = 'none';
+        };
+
+        regenerateBtn.onclick = () => {
+            generateBtn.click();
+        };
+
+        commitBtn.onclick = () => {
+            if (wizardState.template) {
+                importTemplateToProject(wizardState.template);
+                step1.style.display = 'block';
+                step2.style.display = 'none';
+                wizardState.template = null;
+            }
+        };
+    }
+
+    // ===========================================
+    // MAP GENERATION LOGIC
+    // ===========================================
+    function generateMapFromConfig(config) {
+        const { name, genre, scale, structure, count, landmarks, tone } = config;
+
+        const locationTypes = {
+            building: ['room', 'hall', 'chamber', 'corridor', 'alcove', 'office', 'storage'],
+            district: ['block', 'street', 'plaza', 'alley', 'park', 'market', 'shop'],
+            region: ['area', 'zone', 'crossing', 'settlement', 'outpost', 'wilderness', 'waypoint'],
+            kingdom: ['city', 'town', 'village', 'fortress', 'territory', 'province', 'capital']
+        };
+
+        const nameTemplates = {
+            fantasy: ['The {adj} {noun}', '{noun} of {element}', '{adj} {place}', "The {noun}'s Rest"],
+            scifi: ['Sector {alpha}', '{noun} Station', 'The {adj} Hub', 'Deck {num}'],
+            modern: ['{adj} {place}', 'The {noun}', '{noun} District', 'Downtown {place}'],
+            horror: ['The {adj} {noun}', 'Forsaken {place}', '{noun} of Shadows', 'The Fallen {noun}'],
+            any: ['The {noun}', '{adj} {place}', 'Central {noun}', '{place} {area}']
+        };
+
+        const words = {
+            fantasy: {
+                adj: ['Ancient', 'Mystic', 'Crystal', 'Golden', 'Shadowed', 'Sacred', 'Hollow', 'Iron', 'Silent', 'Crimson'],
+                noun: ['Tower', 'Keep', 'Grove', 'Sanctuary', 'Forge', 'Gate', 'Well', 'Throne', 'Shrine', 'Spire'],
+                place: ['Hall', 'Bridge', 'Path', 'Court', 'Garden', 'Chamber', 'Cavern', 'Passage'],
+                element: ['Fire', 'Ice', 'Light', 'Darkness', 'Wind', 'Stone', 'Stars', 'Dreams']
+            },
+            scifi: {
+                adj: ['Primary', 'Alpha', 'Quantum', 'Neural', 'Stellar', 'Core', 'Fusion', 'Nano'],
+                noun: ['Command', 'Engineering', 'Medical', 'Cargo', 'Reactor', 'Bridge', 'Lab', 'Dock'],
+                alpha: ['A1', 'B7', 'C3', 'D9', 'E4', 'F2', 'G8', 'H5'],
+                num: ['01', '07', '13', '42', '99', '12', '37', '88']
+            },
+            modern: {
+                adj: ['Grand', 'Old', 'New', 'Central', 'Riverside', 'Highland', 'Western', 'Eastern'],
+                noun: ['Square', 'Avenue', 'Street', 'Plaza', 'Center', 'Park', 'Building', 'Office'],
+                place: ['Heights', 'Gardens', 'Crossing', 'Station', 'Terminal', 'Market', 'Commons']
+            },
+            horror: {
+                adj: ['Rotting', 'Abandoned', 'Twisted', 'Bleeding', 'Silent', 'Hungry', 'Broken', 'Cursed'],
+                noun: ['Asylum', 'Crypt', 'Manor', 'Chapel', 'Pit', 'Grave', 'Cellar', 'Attic'],
+                place: ['Woods', 'Hollow', 'Depths', 'Ruins', 'Basement', 'Corridor', 'Chamber']
+            },
+            any: {
+                adj: ['Central', 'Northern', 'Western', 'Upper', 'Lower', 'Hidden', 'Main', 'Old'],
+                noun: ['Hub', 'Center', 'Area', 'Zone', 'Point', 'Station', 'Post', 'Base'],
+                place: ['Sector', 'Region', 'District', 'Territory', 'Quarter', 'Wing', 'Level']
+            }
+        };
+
+        function generateName(genreKey, usedNames) {
+            const templates = nameTemplates[genreKey] || nameTemplates.any;
+            const wordPool = words[genreKey] || words.any;
+            let attempts = 0;
+            let name;
+            do {
+                const template = templates[Math.floor(Math.random() * templates.length)];
+                name = template.replace(/\{(\w+)\}/g, (match, key) => {
+                    const pool = wordPool[key];
+                    return pool ? pool[Math.floor(Math.random() * pool.length)] : match;
+                });
+                attempts++;
+            } while (usedNames.has(name) && attempts < 20);
+            usedNames.add(name);
+            return name;
+        }
+
+        const locations = [];
+        const usedNames = new Set();
+        const types = locationTypes[scale] || locationTypes.region;
+
+        landmarks.forEach((lm, i) => {
+            if (i < count) {
+                usedNames.add(lm);
+                locations.push({
+                    key: `loc_${i}`,
+                    name: lm,
+                    type: types[Math.floor(Math.random() * types.length)],
+                    description: '',
+                    expandable: true
+                });
+            }
+        });
+
+        for (let i = locations.length; i < count; i++) {
+            locations.push({
+                key: `loc_${i}`,
+                name: generateName(genre, usedNames),
+                type: types[Math.floor(Math.random() * types.length)],
+                description: '',
+                expandable: true
+            });
+        }
+
+        const connections = generateConnections(locations, structure);
+
+        return {
+            id: 'wizard_' + Math.random().toString(36).substr(2, 8),
+            name: name,
+            description: tone ? `A ${tone} ${scale}` : `A ${genre} ${scale}`,
+            tags: ['custom', 'wizard', genre, scale],
+            genre: genre,
+            scale: scale,
+            author: 'Hina\'s Guide',
+            locations: locations,
+            connections: connections
+        };
+    }
+
+    function generateConnections(locations, structure) {
+        const connections = [];
+        const n = locations.length;
+
+        if (n < 2) return connections;
+
+        switch (structure) {
+            case 'hub':
+                for (let i = 1; i < n; i++) {
+                    connections.push({ from: locations[0].key, to: locations[i].key });
+                }
+                break;
+            case 'linear':
+                for (let i = 0; i < n - 1; i++) {
+                    connections.push({ from: locations[i].key, to: locations[i + 1].key });
+                }
+                break;
+            case 'grid':
+                const cols = Math.ceil(Math.sqrt(n));
+                for (let i = 0; i < n; i++) {
+                    const right = i + 1;
+                    const down = i + cols;
+                    if (right < n && (right % cols !== 0)) connections.push({ from: locations[i].key, to: locations[right].key });
+                    if (down < n) connections.push({ from: locations[i].key, to: locations[down].key });
+                }
+                break;
+            case 'branching':
+                for (let i = 0; i < n; i++) {
+                    const left = 2 * i + 1;
+                    const right = 2 * i + 2;
+                    if (left < n) connections.push({ from: locations[i].key, to: locations[left].key });
+                    if (right < n) connections.push({ from: locations[i].key, to: locations[right].key });
+                }
+                break;
+            default:
+                for (let i = 0; i < n; i++) {
+                    const numConnections = Math.floor(Math.random() * 2) + 1;
+                    for (let c = 0; c < numConnections; c++) {
+                        let target = Math.floor(Math.random() * n);
+                        if (target !== i) connections.push({ from: locations[i].key, to: locations[target].key });
+                    }
+                }
+                break;
+        }
+        return connections;
+    }
+
+    // ===========================================
+    // WIZARD PREVIEW RENDERER
+    // ===========================================
+    function renderPreview(container, template) {
+        if (!template) return;
+        container.innerHTML = `
+            <div class="card" style="border:1px solid var(--border-subtle); background:var(--bg-surface); overflow:hidden;">
+                <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
+                    <div style="font-weight:600; font-size:14px; margin-bottom:4px;">${template.name}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${template.description}</div>
+                </div>
+                <div style="padding:12px 16px; background:var(--bg-inset); border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-muted);">
+                    📍 ${template.locations.length} locations • 🔗 ${template.connections.length} connections
+                </div>
+            </div>
+        `;
+    }
+
+    // ===========================================
     // TEMPLATE CARD RENDERER
     // ===========================================
     function renderTemplateCards(container) {
         container.innerHTML = '';
-
         if (templates.length === 0) {
             container.innerHTML = '<div style="color:var(--text-muted); font-style:italic; padding:20px; text-align:center;">No templates found.</div>';
             return;
@@ -455,24 +851,9 @@
                 background:var(--bg-surface);
             `;
 
-            // Genre icon mapping
-            const genreIcons = {
-                fantasy: '⚔️',
-                scifi: '🚀',
-                modern: '🏙️',
-                horror: '👻',
-                any: '🌐'
-            };
+            const genreIcons = { fantasy: '⚔️', scifi: '🚀', modern: '🏙️', horror: '👻', any: '🌐' };
             const genreIcon = genreIcons[template.genre] || '🌐';
-
-            // Scale icon mapping
-            const scaleIcons = {
-                building: '🏠',
-                district: '🏘️',
-                region: '🏔️',
-                kingdom: '👑',
-                planet: '🌍'
-            };
+            const scaleIcons = { building: '🏠', district: '🏘️', region: '🏔️', kingdom: '👑', planet: '🌍' };
             const scaleIcon = scaleIcons[template.scale] || '📍';
 
             card.innerHTML = `
@@ -488,18 +869,9 @@
                     </div>
                 </div>
             `;
-
-            card.onmouseenter = () => {
-                card.style.borderColor = 'var(--accent-primary)';
-                card.style.background = 'var(--bg-elevated)';
-            };
-            card.onmouseleave = () => {
-                card.style.borderColor = 'var(--border-subtle)';
-                card.style.background = 'var(--bg-surface)';
-            };
-
+            card.onmouseenter = () => { card.style.borderColor = 'var(--accent-primary)'; card.style.background = 'var(--bg-elevated)'; };
+            card.onmouseleave = () => { card.style.borderColor = 'var(--border-subtle)'; card.style.background = 'var(--bg-surface)'; };
             card.onclick = () => showTemplatePreview(template);
-
             container.appendChild(card);
         });
     }
@@ -527,7 +899,6 @@
                         <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);">${template.description}</p>
                     </div>
                 </div>
-
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                     <div>
                         <h4 style="margin:0 0 8px; font-size:13px;">📍 Locations (${template.locations.length})</h4>
@@ -538,7 +909,6 @@
                         <ul style="margin:0; padding-left:20px;">${connectionsList}</ul>
                     </div>
                 </div>
-
                 <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-subtle); display:flex; gap:12px;">
                     <button id="btn-import-template" class="btn btn-primary" style="flex:1;">📥 Import to Project</button>
                     <button id="btn-enrich-template" class="btn btn-ghost" style="flex:1;" disabled title="Coming in Phase 3">✨ AI Enrich (Soon)</button>
@@ -558,64 +928,6 @@
     }
 
     // ===========================================
-    // IMPORT TEMPLATE TO PROJECT
-    // ===========================================
-    function importTemplateToProject(template) {
-        const state = A.State.get();
-
-        // Ensure locations array exists
-        if (!state.weaves) state.weaves = {};
-        if (!state.weaves.locations) state.weaves.locations = [];
-
-        const existingIds = new Set(state.weaves.locations.map(l => l.id));
-
-        // Generate unique IDs and import locations
-        const idMap = {};
-        template.locations.forEach(loc => {
-            let newId = `${template.id}_${loc.key}`;
-            let counter = 1;
-            while (existingIds.has(newId)) {
-                newId = `${template.id}_${loc.key}_${counter++}`;
-            }
-            idMap[loc.key] = newId;
-
-            state.weaves.locations.push({
-                id: newId,
-                name: loc.name,
-                description: loc.description || '',
-                type: loc.type || 'location',
-                expandable: loc.expandable || false,
-                connections: [],
-                _templateSource: template.id
-            });
-
-            existingIds.add(newId);
-        });
-
-        // Add connections
-        template.connections.forEach(conn => {
-            const fromId = idMap[conn.from];
-            const toId = idMap[conn.to];
-            if (fromId && toId) {
-                const fromLoc = state.weaves.locations.find(l => l.id === fromId);
-                if (fromLoc) {
-                    if (!fromLoc.connections) fromLoc.connections = [];
-                    fromLoc.connections.push({
-                        target: toId,
-                        hidden: conn.hidden || false
-                    });
-                }
-            }
-        });
-
-        A.State.notify();
-
-        if (A.UI?.Toast) {
-            A.UI.Toast.show(`✅ Imported "${template.name}" with ${template.locations.length} locations!`, 'success');
-        }
-    }
-
-    // ===========================================
     // PANEL REGISTRATION
     // ===========================================
     A.registerPanel('hinas_guide', {
@@ -629,44 +941,52 @@
     // ===========================================
     // CONSOLE HELPERS (for testing)
     // ===========================================
-    /**
-     * Export current locations as a template object
-     * Usage: Anansi.HinasGuide.exportLocationsAsTemplate()
-     * Usage: Anansi.HinasGuide.exportLocationsAsTemplate("My Map", "Main Map")
-     */
     if (!A.HinasGuide) A.HinasGuide = {};
 
     // Debug helper
     A.HinasGuide.debugState = function () {
         const state = A.State.get();
-        console.log('[Hina\'s Guide] Full weaves structure:', state.weaves);
-        console.log('[Hina\'s Guide] Maps:', state.weaves?.maps);
-        console.log('[Hina\'s Guide] Locations (legacy):', state.weaves?.locations);
+        console.log('[Hina] Full weaves structure:', state.weaves);
+        console.log('[Hina] Maps:', state.weaves?.maps);
         return state.weaves;
+    };
+
+    // Test import helper
+    A.HinasGuide.testImport = function () {
+        console.warn('[Hina] testImport (Robust) running...');
+        const testTemplate = {
+            id: 'test_' + Date.now(),
+            name: 'Debug Test ' + Math.floor(Math.random() * 999),
+            locations: [
+                { key: 'A', name: 'TEST A', type: 'waypoint' },
+                { key: 'B', name: 'TEST B', type: 'waypoint' }
+            ],
+            connections: [{ from: 'A', to: 'B' }]
+        };
+        try {
+            importTemplateToProject(testTemplate);
+        } catch (err) {
+            console.error('[Hina] ERROR:', err);
+        }
     };
 
     A.HinasGuide.exportLocationsAsTemplate = function (name = 'Exported Map', mapName = null) {
         const state = A.State.get();
-
-        // Handle multi-map structure
         let locations = [];
         if (state.weaves?.maps && state.weaves.maps.length > 0) {
-            // Find the specified map or use the first one
             const targetMap = mapName
                 ? state.weaves.maps.find(m => m.name === mapName)
                 : state.weaves.maps[0];
             if (targetMap) {
                 locations = targetMap.locations || [];
-                console.log(`[Hina's Guide] Exporting from map: "${targetMap.name}"`);
+                console.log(`[Hina] Exporting from map: "${targetMap.name}"`);
             }
         } else if (state.weaves?.locations) {
-            // Legacy flat structure
             locations = state.weaves.locations;
         }
 
         if (locations.length === 0) {
-            console.warn('[Hina\'s Guide] No locations to export.');
-            console.log('[Hina\'s Guide] Available maps:', state.weaves?.maps?.map(m => m.name) || 'none');
+            console.warn('[Hina] No locations to export.');
             return null;
         }
 
@@ -688,32 +1008,20 @@
             connections: []
         };
 
-        // Build connections from location exits/connections
         locations.forEach(loc => {
-            // Handle 'exits' array (array of location IDs)
             if (loc.exits && Array.isArray(loc.exits)) {
                 loc.exits.forEach(exitId => {
-                    template.connections.push({
-                        from: loc.id,
-                        to: exitId,
-                        hidden: false
-                    });
+                    template.connections.push({ from: loc.id, to: exitId, hidden: false });
                 });
-            }
-            // Handle 'connections' array (array of objects with target)
-            else if (loc.connections && Array.isArray(loc.connections)) {
+            } else if (loc.connections && Array.isArray(loc.connections)) {
                 loc.connections.forEach(conn => {
-                    template.connections.push({
-                        from: loc.id,
-                        to: conn.target,
-                        hidden: conn.hidden || false
-                    });
+                    template.connections.push({ from: loc.id, to: conn.target, hidden: conn.hidden || false });
                 });
             }
         });
 
-        console.log('[Hina\'s Guide] Exported template:', template);
-        console.log('[Hina\'s Guide] Copy this JSON:', JSON.stringify(template, null, 2));
+        console.log('[Hina] Exported template:', template);
+        console.log('[Hina] Copy this JSON:', JSON.stringify(template, null, 2));
         return template;
     };
 

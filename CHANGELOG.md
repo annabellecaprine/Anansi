@@ -2,8 +2,22 @@
 
 All notable changes to Anansi will be documented in this file.
 
-## v1.9.5 - 2026-01-10
+## v1.9.6 - 2026-01-10
+### New Features
+- **Hina's Travel Guide (Beta)**: Added a comprehensive Map Builder panel.
+    - **Map Wizard**: Generate custom map layouts based on Genre, Scale, and Structure.
+    - **Template Library**: Includes 5 starter templates (Hub & Spoke, Linear, Grid, etc.).
+    - **Smart Import**: Auto-layout system arranges imported locations in a tidy grid.
+    - **Vault Integration**: Publish and share your custom Map Templates with other projects.
+- **UI & Visualization**:
+    - Fixed emoji rendering issues in Hina's Guide.
+    - Added "Map Template" content type support to Vault.
+
 ### Bug Fixes
+- **Vault Import**: Resolved critical issue where imported maps would stack all locations on a single tile.
+- **System Stability**: Fixed potential state conflicts during complex imports.
+
+
 - **Script Vault Integration**: Fixed scripts publishing to Vault with "[object Object]" instead of name. Scripts now correctly store metadata and can be pulled back into projects.
 - **Stats Panel Display**: Stat references now display actor names instead of IDs (e.g., `{{stats.Luna.battle_stats.PUPP}}` instead of `{{stats.actor_xyz.battle_stats.PUPP}}`).
 - **Location Node Overlap**: New location nodes now cascade instead of stacking on top of each other.
