@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- Release Workflow Test 1.10.1 -->
+<!-- Release Workflow Test 1.10.2 -->
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anansi - v1.10.1</title>
+  <title>Anansi - v1.10.2</title>
 
   <!-- Open Graph / Social Media Previews -->
   <meta property="og:title" content="Anansi: AI Narrative Engine" />
@@ -253,6 +253,9 @@
   <script src="js/core/state.js"></script>
 
   <script src="js/core/ui.js?v=2"></script>
+  <script src="js/core/ui-modal.js"></script>
+  <script src="js/core/ui-components.js"></script>
+  <script src="js/core/ui-api-config.js"></script>
   <script src="js/core/ui-assistant.js"></script>
   <script src="js/core/ui-dragdrop.js"></script>
   <script src="js/core/tour.js"></script>
@@ -275,8 +278,14 @@
   <!-- Panels -->
   <script src="js/panels/project.js"></script>
   <script src="js/panels/sources.js"></script>
+  <script src="js/plugins/character/character-synth.js"></script>
+  <script src="js/plugins/character/character-solo.js"></script>
+  <script src="js/plugins/character/character-ensemble.js"></script>
   <script src="js/panels/character.js"></script>
+  <script src="js/plugins/actors/actors-gallery.js"></script>
+  <script src="js/plugins/actors/actors-tabs.js"></script>
   <script src="js/panels/actors.js"></script>
+
   <script src="js/panels/lorebook.js"></script>
   <script src="js/panels/vault.js"></script>
   <script src="js/panels/voices.js"></script>
@@ -291,9 +300,14 @@
   <script src="js/panels/writers-block.js"></script>
   <script src="js/panels/hinas_guide.js?v=9"></script>
   <script src="js/core/chat-formatter.js"></script>
-  <script src="js/panels/simulator.js?v=2"></script>
+  <script src="js/core/simulator-llm.js"></script>
+  <script src="js/panels/simulator-lens.js"></script>
+  <script src="js/panels/simulator-live.js"></script>
+  <script src="js/panels/simulator.js?v=3"></script>
   <script src="js/panels/flow-explorer.js"></script>
   <script src="js/panels/advanced.js"></script>
+  <script src="js/plugins/parlor/parlor-prompts.js"></script>
+  <script src="js/plugins/parlor/parlor-preview.js"></script>
   <script src="js/panels/parlor.js"></script>
   <script src="js/panels/nabu.js"></script>
   <script src="js/panels/constellation.js"></script>

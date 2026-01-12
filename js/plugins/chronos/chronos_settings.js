@@ -169,13 +169,19 @@
                 <div class="settings-section">
                     <div class="settings-section-header">
                         <span>🧠</span>
-                        <span>Memory Cleanup</span>
+                        <span>Memory & History</span>
                     </div>
                     <div class="settings-section-body">
                         <div class="settings-description">
-                            The "Earlier Context" memory summarizes past events. If an unwanted event (like a hallucinated dragon) persists even after deleting messages, clear the memory here.
+                            Manage the AI's long-term memory and chat history.
                         </div>
-                        <button class="btn btn-ghost btn-sm" id="clear-memory-btn" style="color:var(--status-warning); border:1px solid var(--border-subtle); width:100%;">Clear Global Context Memory</button>
+                        <div style="display:grid; gap:8px;">
+                            <button class="btn btn-ghost btn-sm" id="clear-memory-btn" style="border:1px solid var(--border-subtle);">Clear Global Context Memory (Summaries)</button>
+                            <button class="btn btn-ghost btn-sm" id="purge-chat-btn" style="color:var(--status-error); border:1px solid var(--status-error);">🔥 Purge All History & State</button>
+                        </div>
+                        <div class="settings-description" style="margin-top:8px; font-size:10px;">
+                            <strong>Purge All:</strong> Deletes all Chronos chat messages, clears Sim tags, actors, and memory. Use this to start a completely fresh scene.
+                        </div>
                     </div>
                 </div>
 
@@ -351,15 +357,43 @@
         // ─────────────────────────────────────────────────────────────────────
         // MEMORY CLEANUP
         // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────────
+        // MEMORY CLEANUP
+        // ─────────────────────────────────────────────────────────────────────
         const clearMemBtn = container.querySelector('#clear-memory-btn');
         if (clearMemBtn) {
             clearMemBtn.onclick = () => {
                 if (state.sim) {
-                    if (confirm('Clear the global context summary? This will make the AI forget summarized past events.')) {
+                    if (confirm('Clear only the global context summary? Chat history will remain.')) {
                         state.sim.contextSummary = null;
                         A.State.notify();
                         if (A.UI.Toast) A.UI.Toast.show('Global memory cleared', 'success');
                     }
+                }
+            };
+        }
+
+        const purgeBtn = container.querySelector('#purge-chat-btn');
+        if (purgeBtn) {
+            purgeBtn.onclick = () => {
+                if (confirm('⚠️ NUCLEAR OPTION: Clear EVERYTHING?\n\nThis will delete:\n- All Chronos Chat History\n- Global Context Memory\n- Active Tags & Sim State\n- Present Actors List\n\nThis cannot be undone.')) {
+                    if (state.sim) {
+                        state.sim.contextSummary = null;
+                        state.sim.activeTags = [];
+                        state.sim.actors = []; // Clear injected actors
+                        // We do NOT clear sim.history because Chronos uses its own history, but we should verify.
+                        // Actually, if we want to be safe, we clear Sim history too to prevent leakage.
+                        state.sim.history = [];
+                    }
+                    if (state.chronos) {
+                        state.chronos.history = [];
+                        state.chronos.pendingChanges = null;
+                        state.chronos.weather = { condition: 'clear', intensity: 'light' }; // Reset weather too? Maybe not.
+                        // Let's keep settings but clear narrative state.
+                    }
+
+                    A.State.notify();
+                    if (A.UI.Toast) A.UI.Toast.show('Full purge complete. The slate is clean.', 'success');
                 }
             };
         }

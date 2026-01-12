@@ -2,6 +2,17 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.10.2 - 2026-01-12
+### Chronos & State Fixes
+- **Prompt Conflict Resolution**: Fixed an issue where the "World State" header would override pending transitions. The system now dynamically switches the header to "PREVIOUS WORLD STATE" during time/weather shifts, ensuring the LLM respects the change.
+- **Nuclear Purge**: Added a **"Purge All History & State"** button to Chronos Settings. This performs a deep clean of all simulation artifacts (Active Tags, Present Actors, History), solving issues with "phantom characters" persisting between sessions.
+- **Stability**: Fixed stale state references in UI event handlers.
+
+### Code Architecture
+- **Simulator Refactor**: Split the monolithic `simulator.js` into modular components: `simulator-llm.js` (Logic), `simulator-live.js` (UI), and `simulator-lens.js` (Sidebar).
+- **Panel Modularization**: Refactored `actors.js`, `character.js`, and `parlor.js` into sub-modules (e.g., `actors-gallery.js`, `character-solo.js`) to improve maintainability and performance.
+- **UI API**: Standardized UI component usage via `ui-components.js` and `ui-modal.js`.
+
 ## v1.10.1 - 2026-01-12
 ### Chronos Panel Enhancements
 - **Personas**: Added a User Persona tool (👤) to the Chronos chat bar. Players can now define their Name and Description, which are injected into the narration prompt for better personalization.

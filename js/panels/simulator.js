@@ -1,8 +1,8 @@
-
 /*
  * Anansi Panel: The Spindle (Logic Simulator & Debugger)
  * File: js/panels/simulator.js
- * Modes: Simulated (logic-only) | Live (LLM integration)
+ * Purpose: Main panel registration and mode switching. 
+ *          Delegates to simulator-llm.js, simulator-lens.js, and simulator-live.js.
  */
 
 (function (A) {
@@ -35,6 +35,8 @@
       if (!_s.sim.simSources) _s.sim.simSources = {};
       if (!_s.sim.simMessages) _s.sim.simMessages = [];
       if (!_s.sim.actors) _s.sim.actors = [];
+      if (!_s.sim.emotions) _s.sim.emotions = { current: 'NEUTRAL', all: [] };
+      if (!_s.sim.eros) _s.sim.eros = { currentVibe: 0, longTerm: 0 };
     }
 
     // Get current mode from localStorage
@@ -88,7 +90,7 @@
       localStorage.setItem('anansi_spindle_mode', mode);
       updateModeButtons();
       renderContent();
-      updateTour(); // Update tour steps for new mode
+      updateTour();
     }
 
     function updateTour() {
@@ -96,45 +98,16 @@
 
       if (currentMode === 'simulated') {
         A.UI.Tour.register('simulator', [
-          {
-            target: '#sim-sources-list',
-            title: 'Source Overrides',
-            content: 'Manually inject values for any defined Source. Useful for testing specific conditions without full context.'
-          },
-          {
-            target: '#sim-msg-list',
-            title: 'Context Injection',
-            content: 'Draft a mock conversation history to seed the simulation. You can roleplay both User and AI sides.'
-          },
-          {
-            target: '#btn-run-sim',
-            title: 'Recall (Execute)',
-            content: 'Runs the Logic Engine (Neural Stack) on the current inputs. It does NOT call the LLM, but processes all logic gates.'
-          },
-          {
-            target: '#sim-diff-view',
-            title: 'State Impact',
-            content: 'See exactly how these inputs changed the world state. Tracks Context updates and Tag emissions.'
-          }
+          { target: '#sim-sources-list', title: 'Source Overrides', content: 'Manually inject values for any defined Source.' },
+          { target: '#sim-msg-list', title: 'Context Injection', content: 'Draft a mock conversation history to seed the simulation.' },
+          { target: '#btn-run-sim', title: 'Recall (Execute)', content: 'Runs the Logic Engine without calling the LLM.' },
+          { target: '#sim-diff-view', title: 'State Impact', content: 'See exactly how inputs changed the world state.' }
         ]);
       } else {
-        // Live Mode
         A.UI.Tour.register('simulator', [
-          {
-            target: '#sim-chat-log',
-            title: 'Live Spindle',
-            content: 'A real-time chat interface with the AI. It uses the actual Logic Engine and State for every reply.'
-          },
-          {
-            target: '#sim-input',
-            title: 'Weaving',
-            content: 'Type your message here. The AI will respond based on the current Persona, Scenario, and Context.'
-          },
-          {
-            target: '#btn-run-all',
-            title: 'Trace Debugging',
-            content: 'Run a full logic trace on the current state without generating a reply, useful for checking gate logic.'
-          }
+          { target: '#sim-chat-log', title: 'Live Spindle', content: 'A real-time chat interface with the AI.' },
+          { target: '#sim-input', title: 'Weaving', content: 'Type your message here. The AI responds based on current Persona, Scenario, and Context.' },
+          { target: '#btn-run-all', title: 'Trace Debugging', content: 'Run a full logic trace on the current state without generating a reply.' }
         ]);
       }
     }
@@ -150,7 +123,12 @@
       if (currentMode === 'simulated') {
         renderSimulatedMode(contentArea);
       } else {
-        renderLiveMode(contentArea);
+        // Delegate to SimulatorLive module
+        if (A.SimulatorLive && A.SimulatorLive.renderLiveMode) {
+          A.SimulatorLive.renderLiveMode(contentArea, { updateGlobalLens, activeLens });
+        } else {
+          contentArea.innerHTML = '<div class="empty-state">Live mode module not loaded.</div>';
+        }
       }
     }
 
@@ -169,7 +147,7 @@
           <div class="lens-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
             ${[
             { k: 'state', l: 'State' },
-            { k: 'arc', l: 'Arc' },       // NEW: Emotional Arc Visualization
+            { k: 'arc', l: 'Arc' },
             { k: 'context', l: 'Ctx' },
             { k: 'prompt', l: 'Prompt' },
             { k: 'tokens', l: 'Tokens' },
@@ -192,14 +170,17 @@
         });
 
         const inner = lensRoot.querySelector('#lens-inner-content');
-        renderLensContent(inner, activeLens);
+        // Delegate to SimulatorLens module
+        if (A.SimulatorLens && A.SimulatorLens.renderLensContent) {
+          A.SimulatorLens.renderLensContent(inner, activeLens, { updateGlobalLens });
+        }
       });
     };
 
     // --- SIMULATED MODE ---
     function renderSimulatedMode(target) {
       target.style.display = 'grid';
-      target.style.gridTemplateColumns = '35% 65%'; // Adjusted split for better log verification
+      target.style.gridTemplateColumns = '35% 65%';
       target.style.gap = 'var(--space-4)';
       target.style.height = '100%';
       target.style.overflow = 'hidden';
@@ -228,11 +209,11 @@
       rightCol.style.overflow = 'hidden';
       rightCol.style.height = '100%';
 
-      // 1. Message History (Compact)
+      // Message History
       const msgCard = document.createElement('div');
       msgCard.className = 'card';
       msgCard.style.flex = '0 0 auto';
-      msgCard.style.maxHeight = '30%'; // Limit height
+      msgCard.style.maxHeight = '30%';
       msgCard.style.display = 'flex';
       msgCard.style.flexDirection = 'column';
       msgCard.style.marginBottom = '0';
@@ -254,15 +235,15 @@
       `;
       rightCol.appendChild(msgCard);
 
-      // 2. Execution Log
+      // Execution Log
       const runCard = document.createElement('div');
       runCard.className = 'card';
-      runCard.style.flex = '1'; // Primary flex
+      runCard.style.flex = '1';
       runCard.style.display = 'flex';
       runCard.style.flexDirection = 'column';
       runCard.style.marginBottom = '0';
-      runCard.style.minHeight = '0'; // Flex scroll fix
-      runCard.style.flex = '0 0 auto'; // Don't grow, just fit content
+      runCard.style.minHeight = '0';
+      runCard.style.flex = '0 0 auto';
       runCard.innerHTML = `
         <div class="card-header" style="background:var(--ink-700); border-bottom:1px solid var(--border-subtle);">
           <div style="display:flex; align-items:center; gap:8px;">
@@ -277,22 +258,19 @@
         <div class="card-body" id="sim-output" style="padding:12px; background:var(--bg-app);">
           <div style="color:var(--text-muted); text-align:center; font-size:12px;">
              Set sources and messages, then click <strong>Recall</strong> to run simulation.
-             <br><span style="font-size:11px;">View detailed execution log in <a href="#" onclick="Anansi.UI.switchPanel('flow-explorer'); return false;" style="color:var(--accent-primary);">Flow Explorer</a>.</span>
           </div>
         </div>
       `;
       rightCol.appendChild(runCard);
 
-      // 3. State Impact (Diff) - Now Resizable / Flex
-      // User complaint: "cuts off after two lines". We need to give it more height or make it draggable.
-      // Let's make it a substantial fixed percentage or flex-grow.
+      // State Impact (Diff)
       const diffCard = document.createElement('div');
       diffCard.className = 'card';
       diffCard.style.marginBottom = '0';
-      diffCard.style.flex = '0 0 35%'; // Give it 35% of the height strictly
-      diffCard.style.display = 'flex';           // Enable flex layout for children
-      diffCard.style.flexDirection = 'column';   // Vertical stack
-      diffCard.style.minHeight = '160px';        // Absolute minimum
+      diffCard.style.flex = '0 0 35%';
+      diffCard.style.display = 'flex';
+      diffCard.style.flexDirection = 'column';
+      diffCard.style.minHeight = '160px';
       diffCard.innerHTML = `
         <div class="card-header" style="border-top:2px solid var(--accent-primary);">
           <strong>State Impact</strong>
@@ -304,17 +282,13 @@
       `;
       rightCol.appendChild(diffCard);
 
-
       target.appendChild(rightCol);
 
-      // Populate Sources
+      // Populate and bind
       renderSourcesConfig();
       renderMessageHistory();
-
-      // Ensure Lens is active (still keep Lens for deep inspection if needed, but primary diff is now visible)
       updateGlobalLens();
 
-      // Bind events
       sourcesCard.querySelector('#btn-reset-sources').onclick = () => {
         const state = A.State.get();
         state.sim.simSources = {};
@@ -330,14 +304,13 @@
         renderMessageHistory();
       };
 
-      // --- Session Management (Simulated Mode) ---
+      // Session Management
       const sessionSelect = msgCard.querySelector('#sim-session-select');
 
       const refreshSessionList = () => {
         const state = A.State.get();
         if (!state.sim.chatSessions) state.sim.chatSessions = {};
         const sessions = Object.keys(state.sim.chatSessions);
-
         sessionSelect.innerHTML = `<option value="">-- Sessions (${sessions.length}) --</option>`;
         sessions.forEach(name => {
           const session = state.sim.chatSessions[name];
@@ -354,16 +327,13 @@
       msgCard.querySelector('#btn-save-session').onclick = () => {
         const state = A.State.get();
         if (!state.sim.chatSessions) state.sim.chatSessions = {};
-
         const name = prompt('Session name:', `Session ${Object.keys(state.sim.chatSessions).length + 1}`);
         if (!name) return;
-
         state.sim.chatSessions[name] = {
           messages: JSON.parse(JSON.stringify(state.sim.simMessages || [])),
           savedAt: new Date().toISOString(),
           mode: 'simulated'
         };
-
         A.State.notify();
         refreshSessionList();
         if (A.UI.Toast) A.UI.Toast.show(`Session "${name}" saved`, 'success');
@@ -375,41 +345,31 @@
           if (A.UI.Toast) A.UI.Toast.show('Select a session first', 'warning');
           return;
         }
-
         const state = A.State.get();
         const session = state.sim.chatSessions?.[name];
         if (!session) {
           if (A.UI.Toast) A.UI.Toast.show('Session not found', 'error');
           return;
         }
-
         state.sim.simMessages = JSON.parse(JSON.stringify(session.messages || []));
         A.State.notify();
         renderMessageHistory();
         if (A.UI.Toast) A.UI.Toast.show(`Loaded "${name}"`, 'success');
       };
 
-      // Flow Explorer button
       const flowBtn = runCard.querySelector('#btn-flow-explorer');
-      if (flowBtn) {
-        flowBtn.onclick = () => A.UI.switchPanel('flow-explorer');
-      }
+      if (flowBtn) flowBtn.onclick = () => A.UI.switchPanel('flow-explorer');
 
       runCard.querySelector('#btn-run-sim').onclick = () => {
         runSimulation();
-        // Update Lens after Run
         updateGlobalLens();
-        // Update Local Diff View
-        const diffEl = diffCard.querySelector('#sim-diff-view');
-        renderDiffPanel(diffEl);
+        renderDiffPanel(diffCard.querySelector('#sim-diff-view'));
       };
     }
 
-    // Helper to render Diff in the panel
     function renderDiffPanel(container) {
       if (!container) return;
       container.innerHTML = '';
-
       const state = A.State.get();
       const diff = state.sim.lastDiff;
 
@@ -419,48 +379,36 @@
       }
 
       let html = '';
-
-      // Fields
       if (diff.fields && diff.fields.length) {
         html += `<div style="font-weight:bold; font-size:10px; margin-bottom:8px; color:var(--text-secondary); text-transform:uppercase;">Context Updates</div>`;
         diff.fields.forEach(f => {
           if (f.type === 'append') {
             html += `<div style="margin-bottom:8px; border-left:3px solid var(--accent-primary); padding-left:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                           <span style="color:var(--accent-primary); font-weight:bold; font-size:10px;">${f.key.toUpperCase()}</span>
-                           <span style="color:var(--text-muted); font-size:9px;">+${f.addedLength} chars</span>
-                        </div>
-                        <div style="background:var(--bg-surface); padding:6px; border-radius:4px; margin-top:4px; font-family:var(--font-mono); color:var(--text-main); white-space:pre-wrap; border:1px solid var(--border-subtle);">${f.val}</div>
-                     </div>`;
+              <span style="color:var(--accent-primary); font-weight:bold; font-size:10px;">${f.key.toUpperCase()}</span>
+              <span style="color:var(--text-muted); font-size:9px;">+${f.addedLength} chars</span>
+              <div style="background:var(--bg-surface); padding:6px; border-radius:4px; margin-top:4px; font-family:var(--font-mono); white-space:pre-wrap;">${f.val}</div>
+            </div>`;
           } else if (f.type === 'modify') {
             html += `<div style="margin-bottom:8px; border-left:3px solid var(--status-warning); padding-left:8px;">
-                        <span style="color:var(--status-warning); font-weight:bold; font-size:10px;">${f.key.toUpperCase()}</span> 
-                        <span style="color:var(--text-secondary);">modified</span>
-                        <div style="font-size:9px; color:var(--text-muted);">Length: ${f.oldLen} → ${f.newLen}</div>
-                     </div>`;
+              <span style="color:var(--status-warning); font-weight:bold; font-size:10px;">${f.key.toUpperCase()}</span> modified
+            </div>`;
           }
         });
       }
 
-      // Tags
       if (diff.tags && diff.tags.length) {
         html += `<div style="font-weight:bold; font-size:10px; margin-top:12px; margin-bottom:8px; color:var(--text-secondary); text-transform:uppercase;">Tags Emitted</div>`;
         html += `<div style="display:flex; flex-wrap:wrap; gap:6px;">
-                ${diff.tags.map(t => `<span style="background:rgba(60, 177, 121, 0.2); border:1px solid var(--status-success); color:var(--status-success); padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">${t}</span>`).join('')}
-             </div>`;
+          ${diff.tags.map(t => `<span style="background:rgba(60, 177, 121, 0.2); border:1px solid var(--status-success); color:var(--status-success); padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold;">${t}</span>`).join('')}
+        </div>`;
       }
 
-      if (!html) {
-        container.innerHTML = '<div style="color:var(--text-muted); font-style:italic; opacity:0.6;">Scripts ran, but no context changes were detected.</div>';
-      } else {
-        container.innerHTML = html;
-      }
+      container.innerHTML = html || '<div style="color:var(--text-muted); font-style:italic; opacity:0.6;">Scripts ran, but no context changes were detected.</div>';
     }
 
     function renderSourcesConfig() {
       const state = A.State.get();
       const list = contentArea.querySelector('#sim-sources-list');
-
       if (!list) return;
       list.innerHTML = '';
 
@@ -470,9 +418,6 @@
       if (sourceKeys.length === 0) {
         list.innerHTML = `
           <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100px; color:var(--text-muted); opacity:0.7;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
-            </svg>
             <div style="font-size:11px;">No sources defined</div>
             <div style="font-size:9px; opacity:0.7;">Add in Sources Panel</div>
           </div>
@@ -483,18 +428,15 @@
       sourceKeys.forEach(key => {
         const src = sources[key];
         const currentVal = state.sim.simSources[key] ?? '';
-        // READ PERSISTENCE FROM DEFINITION (Read-Only indicator)
         const isPersistent = src.persistent || false;
 
         const row = document.createElement('div');
         row.style.marginBottom = '12px';
-
         row.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <label style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">
                 ${src.label || key} <code style="font-size:9px; color:grey;">${src.kind}</code>
               </label>
-              <!-- Indicator Only -->
               ${isPersistent ? '<span style="font-size:9px; color:var(--accent-secondary); border:1px solid var(--accent-secondary); padding:0 3px; border-radius:3px;">KEEP</span>' : ''}
           </div>
           ${src.kind === 'boolean'
@@ -507,12 +449,10 @@
         list.appendChild(row);
       });
 
-      // Bind inputs (Value)
       list.querySelectorAll('.sim-source-input').forEach(input => {
         input.oninput = input.onchange = () => {
           const state = A.State.get();
-          const key = input.dataset.key;
-          state.sim.simSources[key] = input.type === 'checkbox' ? input.checked : input.value;
+          state.sim.simSources[input.dataset.key] = input.type === 'checkbox' ? input.checked : input.value;
         };
       });
     }
@@ -527,54 +467,39 @@
 
       if (messages.length === 0) {
         list.innerHTML = `
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7; padding:16px;">
             <div style="margin-bottom:16px;">Start a Conversation</div>
             <button class="btn btn-secondary" id="btn-add-first-msg">Add Message</button>
           </div>
         `;
-
         const startBtn = list.querySelector('#btn-add-first-msg');
         if (startBtn) startBtn.onclick = () => addMessage('user');
         return;
       }
 
       messages.forEach((msg, idx) => {
-        console.log("Render Message Item:", idx, msg.role);
         const row = document.createElement('div');
-
-        // Debug visibility
-        setTimeout(() => {
-          const rect = row.getBoundingClientRect();
-          const style = window.getComputedStyle(row);
-          console.log(`Message Row [${idx}]: Display=${style.display}, Visibility=${style.visibility}, H=${rect.height}, W=${rect.width}, DOM=${row.isConnected}`);
-        }, 100);
-
         row.style.padding = '8px 12px';
         row.style.borderBottom = '1px solid var(--border-subtle)';
         row.style.display = 'flex';
         row.style.gap = '8px';
         row.style.alignItems = 'flex-start';
-        // Highlight logic to show "Newest" if it was just added? Not strictly necessary but nice.
         row.innerHTML = `
-          <div style="cursor:pointer; min-width:40px; font-size:10px; font-weight:bold; color:${msg.role === 'user' ? 'var(--accent-primary)' : 'var(--status-success)'}; text-transform:uppercase; margin-top:4px;" title="Click to toggle role" class="sim-msg-role" data-idx="${idx}">
+          <div style="cursor:pointer; min-width:40px; font-size:10px; font-weight:bold; color:${msg.role === 'user' ? 'var(--accent-primary)' : 'var(--status-success)'}; text-transform:uppercase; margin-top:4px;" class="sim-msg-role" data-idx="${idx}">
             ${msg.role}
           </div>
-          <textarea class="input sim-msg-content" data-idx="${idx}" rows="2" style="flex:1; font-size:11px; font-family:var(--font-primary);" placeholder="Message content...">${msg.content}</textarea>
+          <textarea class="input sim-msg-content" data-idx="${idx}" rows="2" style="flex:1; font-size:11px;" placeholder="Message content...">${msg.content}</textarea>
           <button class="btn btn-ghost btn-sm sim-msg-del" data-idx="${idx}" style="color:var(--status-error); padding:2px 6px;">✕</button>
         `;
         list.appendChild(row);
       });
 
-      // Bind
       list.querySelectorAll('.sim-msg-role').forEach(div => {
         div.onclick = () => {
           const state = A.State.get();
           const idx = parseInt(div.dataset.idx);
           state.sim.simMessages[idx].role = state.sim.simMessages[idx].role === 'user' ? 'ai' : 'user';
-          A.State.notify(); // Re-render to update color
+          A.State.notify();
           renderMessageHistory();
         };
       });
@@ -594,11 +519,6 @@
           renderMessageHistory();
         };
       });
-
-      // Ensure we are scrolled to the bottom to see new messages
-      // list.scrollTop = list.scrollHeight; 
-      // Actually, let's only scroll if we are near the bottom or if a new message was added?
-      // For now, simpler is better.
     }
 
     function addMessage(role = 'user') {
@@ -608,7 +528,6 @@
       A.State.notify();
       renderMessageHistory();
 
-      // Auto-focus and scroll to new message
       setTimeout(() => {
         const list = contentArea.querySelector('#sim-msg-list');
         if (!list) return;
@@ -621,29 +540,24 @@
       }, 50);
     }
 
-
     function runSimulation() {
       const output = contentArea.querySelector('#sim-output');
       if (!output) return;
+      output.innerHTML = '';
 
-      output.innerHTML = ''; // Clear previous run
-
-      // Start flow logging for this turn
       const simState = A.State.get();
       const turnNumber = (simState.sim?.executionLog?.length || 0) + 1;
       const lastMsg = (simState.sim?.simMessages || []).slice(-1)[0];
       const userMessage = lastMsg?.content || '(No message)';
       if (A.FlowLogger) A.FlowLogger.startTurn(turnNumber, userMessage);
 
-      // --- SIMULATED MODE: Re-uses processRound logic for consistency ---
-      const result = processRound("", simState.sim?.simMessages || []);
+      // Use simulator-llm.js processRound
+      const result = A.Simulator.processRound("", simState.sim?.simMessages || []);
 
       const logs = result.logs;
       const context = result.context;
       const diff = result.diff;
-      const snapshot = result.snapshot;
 
-      // Push logs to Tester for Trace lens auto-update
       if (A.Tester) {
         A.Tester.clear();
         A.Tester.log('system', `Simulation Run #${turnNumber}`);
@@ -652,13 +566,10 @@
         A.Tester.log('system', 'Simulation Complete');
       }
 
-      // --- PERSISTENCE WRITE-BACK ---
-      // --- PERSISTENCE WRITE-BACK ---
+      // Persistence write-back
       const sourceDefs = simState.strands && simState.strands.sources ? simState.strands.sources.items : {};
-
       Object.keys(sourceDefs).forEach(key => {
         if (sourceDefs[key].persistent && context.hasOwnProperty(key)) {
-          // Write back from Context (Final State) to State (Input Field)
           const oldVal = simState.sim.simSources[key];
           const newVal = context[key];
           if (oldVal !== newVal) {
@@ -668,16 +579,12 @@
         }
       });
 
-      // Force UI refresh if needed (e.g. if we are looking at the sources list)
       const sourcesList = contentArea.querySelector('#sim-sources-list');
       if (sourcesList && sourcesList.isConnected) renderSourcesConfig();
 
-      // Update State with Diff from processRound
       simState.sim.lastDiff = diff;
       A.State.notify();
 
-      // Show simple success message (detailed logs in Flow Explorer)
-      // Read from saved log since currentTurn is cleared by endTurn()
       const lastLog = simState.sim?.executionLog?.slice(-1)[0];
       const entries = lastLog?.entries || [];
       const passedCount = entries.filter(e => e.passed).length;
@@ -700,7 +607,6 @@
     // Subscription for external updates
     A.State.subscribe(() => {
       if (currentMode === 'simulated' && contentArea.isConnected) {
-        // Smart update for sources list (only if keys changed)
         const state = A.State.get();
         const list = contentArea.querySelector('#sim-sources-list');
         if (list) {
@@ -713,1725 +619,10 @@
       }
     });
 
-    // --- LIVE MODE (existing functionality) ---
-    function renderLiveMode(target) {
-      target.style.display = 'flex';
-      target.style.flexDirection = 'column';
-      target.style.gap = 'var(--space-4)';
-      target.style.overflow = 'hidden';
-
-      // Chat Area
-      const chatCol = document.createElement('div');
-      chatCol.className = 'card';
-      chatCol.style.display = 'flex';
-      chatCol.style.flexDirection = 'column';
-      chatCol.style.padding = '0';
-      chatCol.style.minHeight = '0';
-      chatCol.style.flex = '1';
-
-      chatCol.innerHTML = `
-        <div class="card-header" style="flex-wrap:wrap; gap:8px;">
-          <strong>The Spindle (Live)</strong>
-          <div style="display: flex; gap: 8px; align-items:center;">
-            <select class="input" id="live-session-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:100px;">
-              <option value="">-- Sessions --</option>
-            </select>
-            <button class="btn btn-ghost btn-sm" id="btn-live-load" title="Load session">Load</button>
-            <button class="btn btn-ghost btn-sm" id="btn-live-save" title="Save session">Save</button>
-            <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
-            <select class="input" id="branch-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:80px; background:var(--bg-elevated);">
-              <option value="main">🌿 main</option>
-            </select>
-            <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
-            <button class="btn btn-ghost btn-sm" id="btn-run-all" title="Run Full Simulation Trace">Run Trace</button>
-            <button class="btn btn-ghost btn-sm" id="btn-export-story" title="Export as Story">Export</button>
-            <button class="btn btn-ghost btn-sm" id="btn-clear-chat" style="color:var(--status-error);">Clear</button>
-            <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
-            <label style="display:flex; align-items:center; gap:4px; font-size:10px; cursor:pointer; user-select:none;">
-               <input type="checkbox" id="chk-show-thinking">
-               <span style="color:var(--text-muted);">Thinking</span>
-            </label>
-          </div>
-        </div>
-        <div class="card-body" id="sim-chat-log" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; background: var(--bg-surface);"></div>
-        
-        <style>
-            /* Thinking Block Styles */
-            .chat-thinking {
-                font-size: 0.85em;
-                margin-bottom: 8px;
-                background: var(--bg-deep);
-                border: 1px solid var(--border-subtle);
-                border-radius: 6px;
-                overflow: hidden;
-            }
-            .chat-thinking summary {
-                padding: 6px 10px;
-                cursor: pointer;
-                color: var(--text-muted);
-                font-weight: 600;
-                user-select: none;
-                background: rgba(0,0,0,0.2);
-            }
-            .chat-thinking summary:hover {
-                color: var(--text-primary);
-            }
-            .thinking-content {
-                padding: 10px;
-                white-space: pre-wrap;
-                color: var(--text-secondary);
-                font-family: var(--font-mono);
-                border-top: 1px solid var(--border-subtle);
-                max-height: 300px;
-                overflow-y: auto;
-                opacity: 0.9;
-            }
-            
-            /* Toggle Visibility Logic */
-            #sim-chat-log:not(.show-thoughts) .chat-thinking {
-                display: none;
-            }
-        </style>
-        <div class="card-footer" style="padding:12px;">
-          <!-- Director's Console -->
-          <div class="director-toolbar collapsed" id="director-toolbar">
-              <div style="cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:bold; color:var(--text-muted); font-size:10px;" onclick="document.getElementById('director-toolbar').classList.toggle('collapsed')">
-                  <span>🎬 DIRECTOR</span>
-                  <span style="font-size:8px;">▼</span>
-              </div>
-              
-              <div class="director-group" style="flex:1;">
-                  <span class="director-label">Guide</span>
-                  <input type="text" class="director-input" id="dir-guidance" placeholder="Inject instruction for LLM (appended to system prompt)...">
-              </div>
-          </div>
-
-          <div style="display:flex; gap:8px; align-items:flex-end;">
-            <textarea class="input" id="sim-input" placeholder="Weave a message... (Shift+Enter for new line)" style="flex:1; resize:none; min-height:36px; max-height:120px; line-height:1.4;" rows="1"></textarea>
-            <button class="btn btn-primary" id="sim-send" style="height:36px;">Send</button>
-          </div>
-        </div>
-      `;
-      target.appendChild(chatCol);
-
-
-      // Lens Integration (Scoped to Live Mode)
-      // let activeLens = localStorage.getItem('anansi_sim_active_lens') || 'state'; // MOVED
-
-      // const switchLens = (key) => { // MOVED
-      //   activeLens = key;
-      //   localStorage.setItem('anansi_sim_active_lens', key);
-      //   updateGlobalLens();
-      // };
-
-      // const updateGlobalLens = () => { // MOVED
-      //   A.UI.setLens((lensRoot) => {
-      //     lensRoot.innerHTML = `
-      //     <div class="lens-tabs" style="display:flex; gap:2px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
-      //       ${['state', 'context', 'diff', 'integrity', 'trace', 'config'].map(k => `
-      //         <button class="btn btn-ghost btn-sm lens-tab-btn ${activeLens === k ? 'active' : ''}"
-      //                 style="font-size:10px; padding:4px 8px; ${activeLens === k ? 'background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border-subtle);' : ''}"
-      //                 data-lens="${k}">${k.toUpperCase()}</button>
-      //       `).join('')}
-      //     </div>
-      //     <div id="lens-inner-content"></div>
-      //   `;
-
-      //     lensRoot.querySelectorAll('.lens-tab-btn').forEach(btn => {
-      //       btn.onclick = () => switchLens(btn.dataset.lens);
-      //     });
-
-      //     const inner = lensRoot.querySelector('#lens-inner-content');
-      //     renderLensContent(inner, activeLens);
-      //   });
-      // };
-
-      // Trigger global lens update
-      updateGlobalLens();
-
-      // --- Chat Logic ---
-      const chatLog = chatCol.querySelector('#sim-chat-log');
-      const input = chatCol.querySelector('#sim-input');
-      const sendBtn = chatCol.querySelector('#sim-send');
-
-      // --- Thinking Toggle Logic ---
-      const chkThoughts = chatCol.querySelector('#chk-show-thinking');
-      if (chkThoughts) {
-        // Load preference
-        const showThoughts = localStorage.getItem('anansi_show_thoughts') === 'true';
-        chkThoughts.checked = showThoughts;
-        if (showThoughts) chatLog.classList.add('show-thoughts');
-
-        chkThoughts.onchange = (e) => {
-          localStorage.setItem('anansi_show_thoughts', e.target.checked);
-          if (e.target.checked) chatLog.classList.add('show-thoughts');
-          else chatLog.classList.remove('show-thoughts');
-        };
-      }
-
-      // --- Director Console Binders ---
-      const dirGuidance = chatCol.querySelector('#dir-guidance');
-
-      // Guidance handler is in sendMessage - no need for oninput since we capture at send time
-
-      const refreshChat = () => {
-        const state = A.State.get();
-        const history = state.sim.history || [];
-
-        chatLog.innerHTML = '';
-        chatLog.className = 'card-body chat-log';
-
-        history.forEach((msg, idx) => {
-          const wrapper = document.createElement('div');
-          wrapper.className = `chat-message chat-message-${msg.role}`;
-          wrapper.dataset.index = idx;
-
-          const bubble = document.createElement('div');
-          bubble.className = `chat-bubble chat-bubble-${msg.role}`;
-
-          // Role label
-          const roleLabel = document.createElement('div');
-          roleLabel.className = 'chat-role';
-          roleLabel.textContent = msg.role.toUpperCase();
-          if (msg.edited) {
-            const editedTag = document.createElement('span');
-            editedTag.className = 'chat-edited';
-            editedTag.textContent = '(edited)';
-            roleLabel.appendChild(editedTag);
-          }
-          bubble.appendChild(roleLabel);
-
-          // Message content (formatted)
-          const content = document.createElement('div');
-          content.className = 'chat-content';
-          content.innerHTML = A.ChatFormatter ? A.ChatFormatter.format(msg.content) : msg.content;
-          bubble.appendChild(content);
-
-          // Timestamp (relative)
-          if (msg.timestamp) {
-            const ts = document.createElement('span');
-            ts.className = 'chat-timestamp';
-            ts.textContent = getRelativeTime(msg.timestamp);
-            bubble.appendChild(ts);
-          }
-
-          // --- AVATAR LOGIC ---
-          const isAI = msg.role === 'model';
-          const avatarSize = 40;
-
-          let avatarHtml = '';
-          if (isAI) {
-            // Find Actor
-            const charId = state.character?.char?.id;
-            const actor = (state.nodes && state.nodes.actors && state.nodes.actors.items && charId)
-              ? state.nodes.actors.items[charId]
-              : null;
-
-            // Get Image
-            const imgParams = (actor && actor.gallery && actor.gallery.primary && actor.gallery.images)
-              ? actor.gallery.images.find(i => i.id === actor.gallery.primary)
-              : null;
-            const imgSrc = imgParams ? imgParams.data : null;
-
-            if (imgSrc) {
-              // Determine Pulse Animation
-              const pulse = msg.emotionalSnapshot ? (msg.emotionalSnapshot.pulse || []) : [];
-              let pulseClass = '';
-
-              if (pulse.includes('ANGER') || pulse.includes('RAGE') || pulse.includes('HATE')) pulseClass = 'avatar-pulse-anger';
-              else if (pulse.includes('JOY') || pulse.includes('HAPPY') || pulse.includes('EXCITED')) pulseClass = 'avatar-pulse-joy';
-              else if (pulse.includes('SADNESS') || pulse.includes('GRIEF') || pulse.includes('DEPRESSED')) pulseClass = 'avatar-pulse-sad';
-              else if (pulse.includes('FEAR') || pulse.includes('TERROR') || pulse.includes('ANXIOUS')) pulseClass = 'avatar-pulse-fear';
-              else if (pulse.includes('SURPRISE') || pulse.includes('SHOCK')) pulseClass = 'avatar-pulse-surprise';
-              else if (pulse.includes('LOVE') || pulse.includes('LUST') || pulse.includes('ADORATION')) pulseClass = 'avatar-pulse-love';
-              else if (pulse.includes('RELAXED') || pulse.includes('CALM')) pulseClass = 'avatar-pulse-relaxed';
-
-              avatarHtml = `
-                 <div class="chat-avatar-frame ${pulseClass}" style="
-                    width:${avatarSize}px; height:${avatarSize}px; 
-                    border-radius:50%; overflow:hidden; flex-shrink:0; 
-                    background:var(--bg-base); margin-top:4px;
-                    border:2px solid ${pulseClass ? 'var(--accent-primary)' : 'var(--border-subtle)'};
-                 ">
-                    <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;">
-                 </div>
-               `;
-            }
-          }
-
-          // Flex layout for avatar + bubble
-          wrapper.style.display = 'flex';
-          wrapper.style.gap = '12px';
-          wrapper.style.alignItems = 'flex-start';
-          if (!isAI) wrapper.style.flexDirection = 'row-reverse'; // User on Right
-
-          if (isAI && avatarHtml) {
-            const avDiv = document.createElement('div');
-            avDiv.innerHTML = avatarHtml;
-            wrapper.appendChild(avDiv.firstElementChild);
-          } else if (isAI) {
-            // Spacer for AI if no avatar found
-            const spacer = document.createElement('div');
-            spacer.style.width = `${avatarSize}px`;
-            wrapper.appendChild(spacer);
-          }
-
-          const actions = document.createElement('div');
-          actions.className = 'chat-actions';
-          actions.innerHTML = `
-            <button class="chat-action-btn" data-action="edit" title="Edit">✏️</button>
-            <button class="chat-action-btn" data-action="copy" title="Copy">📋</button>
-            <button class="chat-action-btn" data-action="fork" title="Fork from here">🌿</button>
-            ${msg.injections ? '<button class="chat-action-btn" data-action="inspect" title="View Injections">ℹ️</button>' : ''}
-            ${msg.role === 'model' ? '<button class="chat-action-btn" data-action="regenerate" title="Regenerate">🔄</button>' : ''}
-            <button class="chat-action-btn danger" data-action="delete" title="Delete">🗑️</button>
-          `;
-
-          wrapper.appendChild(bubble);
-          bubble.appendChild(actions); // Move actions inside bubble container or keep abs positioned relative to wrapper?
-          // The actions toolbar relies on absolute positioning usually.
-          // Let's attach actions to bubble to keep them together.
-          bubble.style.position = 'relative';
-
-
-          // --- Greeting Swipe Arrows (First AI message with alternates) ---
-          if (idx === 0 && msg.role === 'model' && Array.isArray(state.seed.firstMessage) && state.seed.firstMessage.length > 1) {
-            const greetings = state.seed.firstMessage;
-            if (state.sim.greetingIndex === undefined) state.sim.greetingIndex = 0;
-            const gIdx = state.sim.greetingIndex;
-
-            const swipeOverlay = document.createElement('div');
-            swipeOverlay.style.cssText = 'display:flex; justify-content:space-between; align-items:center; position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); pointer-events:none;';
-
-            swipeOverlay.innerHTML = `
-              <button class="btn btn-ghost btn-sm swipe-btn swipe-prev" style="pointer-events:auto; font-size:18px; opacity:0.7;">&lt;</button>
-              <span style="font-size:10px; color:var(--text-muted); background:var(--bg-base); padding:2px 6px; border-radius:4px;">${gIdx + 1} / ${greetings.length}</span>
-              <button class="btn btn-ghost btn-sm swipe-btn swipe-next" style="pointer-events:auto; font-size:18px; opacity:0.7;">&gt;</button>
-            `;
-
-            wrapper.style.position = 'relative';
-            wrapper.appendChild(swipeOverlay);
-
-            // Bind swipe buttons (defer to avoid immediate re-render loop)
-            setTimeout(() => {
-              const prevBtn = wrapper.querySelector('.swipe-prev');
-              const nextBtn = wrapper.querySelector('.swipe-next');
-              if (prevBtn) {
-                prevBtn.onclick = () => {
-                  const newIdx = (gIdx - 1 + greetings.length) % greetings.length;
-                  state.sim.greetingIndex = newIdx;
-                  state.sim.history[0].content = greetings[newIdx];
-                  A.State.notify();
-                  refreshChat();
-                };
-              }
-              if (nextBtn) {
-                nextBtn.onclick = () => {
-                  const newIdx = (gIdx + 1) % greetings.length;
-                  state.sim.greetingIndex = newIdx;
-                  state.sim.history[0].content = greetings[newIdx];
-                  A.State.notify();
-                  refreshChat();
-                };
-              }
-            }, 0);
-          }
-
-          chatLog.appendChild(wrapper);
-        });
-
-        // Bind action buttons
-        chatLog.querySelectorAll('.chat-action-btn').forEach(btn => {
-          btn.onclick = (e) => handleMessageAction(e.target.dataset.action, parseInt(e.target.closest('.chat-message').dataset.index));
-        });
-
-        chatLog.scrollTop = chatLog.scrollHeight;
-      };
-
-      // Relative time helper
-      function getRelativeTime(timestamp) {
-        const diff = Date.now() - new Date(timestamp).getTime();
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'now';
-        if (mins < 60) return `${mins}m ago`;
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h ago`;
-        return `${Math.floor(hrs / 24)}d ago`;
-      }
-
-      // Message action handler
-      function handleMessageAction(action, index) {
-        const state = A.State.get();
-        const msg = state.sim.history[index];
-        if (!msg) return;
-
-        if (action === 'edit') {
-          openEditModal(index, msg);
-        } else if (action === 'copy') {
-          const text = A.ChatFormatter ? A.ChatFormatter.toPlainText(msg.content) : msg.content;
-          navigator.clipboard.writeText(text);
-          if (A.UI.Toast) A.UI.Toast.show('Copied to clipboard', 'success');
-        } else if (action === 'delete') {
-          const msgCount = state.sim.history.length - index;
-          const confirmMsg = msgCount > 1
-            ? `Delete this message and ${msgCount - 1} subsequent message(s)?`
-            : 'Delete this message?';
-          if (confirm(confirmMsg)) {
-            state.sim.history = state.sim.history.slice(0, index);
-            A.State.notify();
-            refreshChat();
-          }
-        } else if (action === 'regenerate') {
-          regenerateMessage(index);
-        } else if (action === 'fork') {
-          // Create a new branch from this point
-          const branchName = prompt('Branch name:', `branch-${Date.now().toString(36)}`);
-          if (!branchName) return;
-
-          // Initialize branches structure if needed
-          if (!state.sim.branches) {
-            state.sim.branches = {
-              'main': {
-                history: JSON.parse(JSON.stringify(state.sim.history)),
-                createdAt: new Date().toISOString()
-              }
-            };
-            state.sim.activeBranch = 'main';
-          }
-
-          // Save current branch state
-          state.sim.branches[state.sim.activeBranch].history = JSON.parse(JSON.stringify(state.sim.history));
-
-          // Create new branch from this point (include messages up to and including selected)
-          const branchHistory = state.sim.history.slice(0, index + 1);
-          state.sim.branches[branchName] = {
-            history: JSON.parse(JSON.stringify(branchHistory)),
-            parentBranch: state.sim.activeBranch,
-            forkIndex: index,
-            createdAt: new Date().toISOString()
-          };
-
-          // Switch to new branch
-          state.sim.activeBranch = branchName;
-          state.sim.history = JSON.parse(JSON.stringify(branchHistory));
-
-          A.State.notify();
-          refreshChat();
-          refreshBranchSelect();
-          if (A.UI.Toast) A.UI.Toast.show(`Created branch "${branchName}"`, 'success');
-        } else if (action === 'inspect') {
-          // Show injection details modal for this message
-          const injections = msg.injections;
-          if (!injections) {
-            if (A.UI.Toast) A.UI.Toast.show('No injection data for this message', 'info');
-            return;
-          }
-
-          // Helper: Highlight text that was added (not in original)
-          const highlightDiff = (original, final) => {
-            if (!final) return '<span style="color:var(--text-muted); font-style:italic;">Empty</span>';
-            if (!original || original === final) return escapeHtml(final);
-
-            // Find the added portion (simple: if final starts with original, highlight the rest)
-            if (final.startsWith(original)) {
-              const added = final.slice(original.length);
-              return escapeHtml(original) + '<span style="background:rgba(0,255,100,0.15); border-bottom:1px solid var(--status-success);">' + escapeHtml(added) + '</span>';
-            }
-
-            // If completely different or complex injection, highlight entire final
-            return '<span style="background:rgba(0,255,100,0.15); border-bottom:1px solid var(--status-success);">' + escapeHtml(final) + '</span>';
-          };
-
-          const logsHtml = injections.logs.length
-            ? injections.logs.map(l => `<div style="font-size:10px; padding:2px 0; border-bottom:1px solid var(--border-subtle);">${escapeHtml(l)}</div>`).join('')
-            : '<div style="color:var(--text-muted); font-style:italic;">No script logs</div>';
-
-          const tagsHtml = injections.activeTags?.length
-            ? injections.activeTags.map(t => `<span style="background:var(--bg-elevated); padding:2px 6px; border-radius:4px; font-size:10px; margin-right:4px;">${t}</span>`).join('')
-            : '<span style="color:var(--text-muted); font-style:italic;">None</span>';
-
-          // Build diff sections if we have original/final
-          let diffHtml = '';
-          if (injections.original && injections.final) {
-            diffHtml = `
-              <div style="margin-bottom:12px;">
-                <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">PERSONALITY <span style="font-size:9px; background:rgba(0,255,100,0.15); padding:1px 4px; border-radius:2px;">added = highlighted</span></div>
-                <div style="max-height:80px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px; font-size:10px; white-space:pre-wrap;">${highlightDiff(injections.original.personality, injections.final.personality)}</div>
-              </div>
-              <div style="margin-bottom:12px;">
-                <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SCENARIO <span style="font-size:9px; background:rgba(0,255,100,0.15); padding:1px 4px; border-radius:2px;">added = highlighted</span></div>
-                <div style="max-height:80px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px; font-size:10px; white-space:pre-wrap;">${highlightDiff(injections.original.scenario, injections.final.scenario)}</div>
-              </div>
-            `;
-          }
-
-          A.UI.Modal.show({
-            title: `Message #${index + 1} - Injection Details`,
-            content: `
-              <div style="font-size:11px; font-family:var(--font-mono);">
-                <div style="margin-bottom:12px;">
-                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">ACTIVE TAGS</div>
-                  <div>${tagsHtml}</div>
-                </div>
-                <div style="margin-bottom:12px;">
-                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">LOREBOOK ENTRIES</div>
-                  <div>${injections.loreEntries || 0} entries injected</div>
-                </div>
-                ${diffHtml}
-                <div style="margin-bottom:12px;">
-                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">SCRIPT LOGS</div>
-                  <div style="max-height:100px; overflow-y:auto; background:var(--bg-surface); padding:8px; border-radius:4px;">${logsHtml}</div>
-                </div>
-                <div>
-                  <div style="font-weight:bold; color:var(--text-muted); margin-bottom:4px;">FULL SYSTEM PROMPT</div>
-                  <pre style="max-height:150px; overflow-y:auto; background:var(--ink-900); padding:8px; border-radius:4px; white-space:pre-wrap; word-break:break-word; font-size:10px;">${escapeHtml(injections.systemPrompt || 'N/A')}</pre>
-                </div>
-              </div>
-            `,
-            actions: [
-              { label: 'Close', class: 'btn-primary', onclick: () => true }
-            ]
-          });
-        }
-      }
-
-      // Edit modal
-      function openEditModal(index, msg) {
-        const state = A.State.get();
-        A.UI.Modal.show({
-          title: `Edit ${msg.role.toUpperCase()} Message`,
-          content: `
-            <textarea id="edit-msg-content" class="input chat-edit-textarea" style="width:100%; min-height:120px;">${msg.content}</textarea>
-          `,
-          actions: [
-            { label: 'Cancel', class: 'btn-ghost', onclick: () => true },
-            {
-              label: 'Save', class: 'btn-primary', onclick: (modal) => {
-                const newContent = modal.querySelector('#edit-msg-content').value;
-                state.sim.history[index].content = newContent;
-                state.sim.history[index].edited = true;
-                A.State.notify();
-                refreshChat();
-                if (A.UI.Toast) A.UI.Toast.show('Message updated', 'success');
-                return true;
-              }
-            }
-          ]
-        });
-      }
-
-      // Shared AI Processing Logic
-      const processAIResponse = async (txt) => {
-        const state = A.State.get();
-
-        sendBtn.disabled = true;
-        sendBtn.textContent = 'Weaving...'; // Processing Scripts
-
-        try {
-          // 1. PROCESS ROUND (Actions 2, 4, 5)
-          // This runs the Neural Stack (P->I->E->A) and returns the mutated Final State
-          const roundResult = processRound(txt, state.sim.history);
-
-          // Debug Log Scripts
-          if (A.Tester) {
-            roundResult.logs.forEach(l => A.Tester.log('system', l));
-          }
-          if (activeLens === 'trace') updateGlobalLens();
-
-          const finalContext = roundResult.context;
-
-          // --- PERSISTENCE WRITE-BACK ---
-          const sourceDefs = state.strands && state.strands.sources ? state.strands.sources.items : {};
-
-          Object.keys(sourceDefs).forEach(key => {
-            if (sourceDefs[key].persistent && finalContext.hasOwnProperty(key)) {
-              // Write back from Context (Final State) to State (Input Field)
-              const oldVal = state.sim.simSources[key];
-              const newVal = finalContext[key];
-              if (oldVal !== newVal) {
-                state.sim.simSources[key] = newVal;
-                if (A.UI.Toast) A.UI.Toast.show(`Updated persistent source: ${sourceDefs[key].label || key}`, 'success');
-              }
-            }
-          });
-
-          // No need to force render here
-
-          // 2. BUILD SYSTEM PROMPT (Action 6)
-          // Uses the MUTATED Final State (e.g. if EROS changed Scenario, LLM sees it)
-
-          // Helper: Strip internal AURA tags that shouldn't be sent to LLM
-          const stripAuraTags = (text) => {
-            if (!text) return '';
-            // Remove [WORD], [WORD.WORD], [LT_WORD] patterns (AURA internal tags)
-            return text.replace(/\[\s*(?:LT_)?[A-Z_]+(?:\.[A-Z_]+)?\s*\]/gi, '').replace(/\s+/g, ' ').trim();
-          };
-
-          let systemPrompt = `You are playing the role of ${finalContext.character.name}.\n`;
-          if (finalContext.character.personality) systemPrompt += `[Personality: ${stripAuraTags(finalContext.character.personality)}]\n`;
-          if (finalContext.character.scenario) systemPrompt += `[Scenario: ${stripAuraTags(finalContext.character.scenario)}]\n`;
-          if (finalContext.character.tags && finalContext.character.tags.length) systemPrompt += `[Active Tags: ${finalContext.character.tags.join(', ')}]\n`;
-          // Note: using state context tags if available, but finalContext should have them merged? 
-          // Previous code used finalContext.tags. Let's stick to previous code if possible.
-          if (finalContext.tags && finalContext.tags.length) systemPrompt += `[Active Tags: ${finalContext.tags.join(', ')}]\n`;
-
-          // Append Logic Engine Hints (Lorebook)
-          if (finalContext.system_notes) {
-            systemPrompt += `\n[Context Notes]:\n${finalContext.system_notes}\n`;
-          }
-
-          // Append Logic Engine Hints (Lorebook)
-          if (state.sim.lastLogicResult) {
-            const lore = state.sim.lastLogicResult.filter(r => r.type === 'entry').map(r => r.data.content).join('\n---\n');
-            if (lore && !finalContext.system_notes) systemPrompt += `\n[Context Notes]:\n${lore}\n`;
-          }
-
-          // Append Context Summary (from auto-summarization)
-          if (state.sim.contextSummary) {
-            systemPrompt += `\n[Earlier Context]:\n${state.sim.contextSummary}\n`;
-          }
-
-          // --- DIRECTOR'S GUIDANCE (Action 6b) ---
-          // Injected from Director's Console
-          if (state.sim.directorGuidance) {
-            systemPrompt += `\n[SYSTEM INSTRUCTION]: ${state.sim.directorGuidance}\n`;
-            // Clear after use? User might want it persistent?
-            // "Additional prompt to LLM" usually implies "for this turn".
-            // Let's clear it to prevent stuck states, but maybe keep it in UI?
-            // For now, clear logic state but UI might persist if we don't clear input.
-            // We'll clear the input in the Logic binder below.
-            delete state.sim.directorGuidance;
-          }
-
-          sendBtn.textContent = 'Thinking...'; // Calling LLM
-
-          // Store system prompt for Prompt Inspector
-          state.sim.lastSystemPrompt = systemPrompt;
-
-          // 3. CALL LLM (Action 7)
-          const llmConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
-          if (!llmConfig || !llmConfig.apiKey) throw new Error("No API Key configured. Open API Configuration from the CFG lens.");
-
-          const responseText = await callLLM(llmConfig.provider, llmConfig.model, llmConfig.apiKey, systemPrompt, state.sim.history, llmConfig.baseUrl);
-
-          // Store response with injection details for per-message inspection
-          // Extract microcues that fired from the execution log
-          const firedMicrocues = [];
-          if (state.sim.executionLog && state.sim.executionLog.length > 0) {
-            const lastTurn = state.sim.executionLog[state.sim.executionLog.length - 1];
-            (lastTurn.entries || []).forEach(e => {
-              if (e.passed && (e.type === 'microcue' || e.type === 'actor-cue')) {
-                firedMicrocues.push(e.name);
-              }
-            });
-          }
-
-          // 4. POST-PROCESSING (Action 8 - NEW)
-          // Run scripts again in 'output' phase to modify narrative or append stats
-          // We create a temporary context wrapping the response
-          let finalResponse = responseText;
-
-          try {
-            // We pass the response as 'userText' effectively to the round processor, 
-            // but the scripts should look at context.responseText in output phase.
-            // Actually, processRound builds context from state. 
-            // We need to inject the response into the context so scripts can modify it.
-            // But processRound is designed into the 'input' flow (state -> context).
-
-            // Let's modify processRound to accept an override context or handle this better?
-            // Simpler: Just run processRound again. It builds fresh context. 
-            // We assume scripts will READ state, and WRITE to a new field 'responseText'.
-
-            // Wait, processRound builds context from STATE. The LLM response is not in state yet (except history push).
-            // But we haven't pushed history yet! (Line 1329 is below).
-
-            // Let's push to history FIRST so the state is up to date?
-            // No, we want to modify the content BEFORE it goes into history.
-
-            // Solution: We run processRound with phase='output'. 
-            // We attach the raw response to the context object directly after creation.
-            // This requires a small tweak in processRound or we just monkey-patch it here if possible.
-            // We can't monkey-patch inside processRound easily.
-
-            // REVISION: processRound accepts `userText`. We can use that? 
-            // In input phase, userText is user input.
-            // In output phase, userText can be LLM response.
-
-            const postResult = processRound(responseText, state.sim.history, 'output');
-
-            // If scripts modified 'responseText' in context, use it.
-            // We need to check if 'responseText' exists in the returned context.
-            if (postResult.context.responseText && postResult.context.responseText !== responseText) {
-              finalResponse = postResult.context.responseText;
-              // Log that we modified it
-              console.log("Response modified by scripts:", finalResponse);
-            } else if (postResult.context.output && postResult.context.output !== responseText) {
-              // Fallback check for 'output'
-              finalResponse = postResult.context.output;
-            }
-
-            // Merge any logs
-            if (postResult.logs && postResult.logs.length) {
-              roundResult.logs.push(...postResult.logs);
-            }
-
-          } catch (e) {
-            console.warn("Post-processing failed", e);
-          }
-
-          state.sim.history.push({
-            role: 'model',
-            content: finalResponse,
-            timestamp: new Date().toISOString(),
-            emotionalSnapshot: {
-              pulse: [...(state.sim.emotions?.all || [])],
-              eros: state.sim.eros?.currentVibe || 0,
-              intent: state.sim.intent || 'unknown',
-              microcuesFired: firedMicrocues
-            },
-            injections: {
-              logs: roundResult.logs || [],
-              systemPrompt: systemPrompt,
-              activeTags: finalContext.tags || [],
-              loreEntries: state.sim.lastLogicResult ? state.sim.lastLogicResult.filter(r => r.type === 'entry').length : 0,
-              // Store original vs final for diff highlighting
-              original: {
-                personality: state.character?.compiled?.personality || state.seed?.persona || '',
-                scenario: state.character?.compiled?.scenario || state.seed?.scenario || '',
-                exampleDialogue: state.character?.compiled?.examples || state.seed?.examples || ''
-              },
-              final: {
-                personality: finalContext.character?.personality || '',
-                scenario: finalContext.character?.scenario || ''
-              }
-            }
-          });
-
-          refreshChat();
-
-        } catch (e) {
-          console.error(e);
-          A.UI.Toast.show(e.message, 'error');
-          state.sim.history.push({ role: 'system', content: `[Error: ${e.message}]`, timestamp: new Date().toISOString() });
-          refreshChat();
-        } finally {
-          sendBtn.disabled = false;
-          sendBtn.textContent = 'Send';
-        }
-      };
-
-      // Regenerate AI message
-      async function regenerateMessage(index) {
-        const state = A.State.get();
-        // Remove everything from this index onwards
-        state.sim.history = state.sim.history.slice(0, index);
-        A.State.notify();
-        refreshChat();
-
-        // Trigger a new AI response
-        if (state.sim.history.length > 0) {
-          const lastMsg = state.sim.history[state.sim.history.length - 1];
-          // Ensure last message is from user to retry against it
-          if (lastMsg.role === 'user') {
-            await processAIResponse(lastMsg.content);
-          } else {
-            if (A.UI.Toast) A.UI.Toast.show('Cannot regenerate: Context does not end with a user message', 'warning');
-          }
-        }
-      }
-
-
-      // Initialize after definition
-      refreshChat();
-
-      const sendMessage = async () => {
-        const txt = input.value.trim();
-        if (!txt) return;
-
-        // Capture Director's Guidance from DOM at send time (more reliable than oninput)
-        const state = A.State.get();
-        if (dirGuidance && dirGuidance.value.trim()) {
-          state.sim.directorGuidance = dirGuidance.value.trim();
-          dirGuidance.value = ''; // Clear after capture
-        }
-
-        // 0. Push User Message with emotional snapshot
-        state.sim.history.push({
-          role: 'user',
-          content: txt,
-          timestamp: new Date().toISOString(),
-          emotionalSnapshot: {
-            pulse: [...(state.sim.emotions?.all || [])],
-            eros: state.sim.eros?.currentVibe || 0,
-            intent: state.sim.intent || 'unknown',
-            microcuesFired: [] // User messages don't trigger microcues
-          }
-        });
-        input.value = '';
-        refreshChat();
-
-        await processAIResponse(txt);
-      };
-
-      sendBtn.onclick = sendMessage;
-      input.onkeydown = e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          sendMessage();
-        }
-      };
-
-      chatCol.querySelector('#btn-clear-chat').onclick = () => {
-        const state = A.State.get();
-        state.sim.history = [];
-        A.State.notify();
-        refreshChat();
-      };
-
-      // --- Branch Management ---
-      const branchSelect = chatCol.querySelector('#branch-select');
-
-      function refreshBranchSelect() {
-        const state = A.State.get();
-        const branches = state.sim?.branches || {};
-        const activeBranch = state.sim?.activeBranch || 'main';
-
-        // Ensure at least 'main' exists
-        if (!branches.main) {
-          branches.main = { history: state.sim.history || [], createdAt: new Date().toISOString() };
-          state.sim.branches = branches;
-          state.sim.activeBranch = 'main';
-        }
-
-        branchSelect.innerHTML = '';
-        Object.keys(branches).forEach(name => {
-          const opt = document.createElement('option');
-          opt.value = name;
-          const msgCount = branches[name].history?.length || 0;
-          opt.textContent = `🌿 ${name} (${msgCount})`;
-          if (name === activeBranch) opt.selected = true;
-          branchSelect.appendChild(opt);
-        });
-      }
-
-      branchSelect.onchange = () => {
-        const state = A.State.get();
-        const targetBranch = branchSelect.value;
-        const currentBranch = state.sim.activeBranch || 'main';
-
-        if (targetBranch === currentBranch) return;
-
-        // Save current branch state
-        if (!state.sim.branches) state.sim.branches = {};
-        state.sim.branches[currentBranch] = {
-          ...state.sim.branches[currentBranch],
-          history: JSON.parse(JSON.stringify(state.sim.history))
-        };
-
-        // Load target branch
-        const target = state.sim.branches[targetBranch];
-        if (target) {
-          state.sim.history = JSON.parse(JSON.stringify(target.history || []));
-          state.sim.activeBranch = targetBranch;
-          A.State.notify();
-          refreshChat();
-          if (A.UI.Toast) A.UI.Toast.show(`Switched to "${targetBranch}"`, 'info');
-        }
-      };
-
-      // Initialize branch select
-      refreshBranchSelect();
-
-      // Delete branch on double-click of selector (or add dedicated button)
-      branchSelect.ondblclick = () => {
-        const state = A.State.get();
-        const branchToDelete = branchSelect.value;
-
-        if (branchToDelete === 'main') {
-          if (A.UI.Toast) A.UI.Toast.show('Cannot delete main branch', 'warning');
-          return;
-        }
-
-        if (!confirm(`Delete branch "${branchToDelete}"?`)) return;
-
-        // Delete the branch
-        delete state.sim.branches[branchToDelete];
-
-        // Switch to main
-        state.sim.activeBranch = 'main';
-        state.sim.history = JSON.parse(JSON.stringify(state.sim.branches.main?.history || []));
-
-        A.State.notify();
-        refreshChat();
-        refreshBranchSelect();
-        if (A.UI.Toast) A.UI.Toast.show(`Deleted branch "${branchToDelete}"`, 'info');
-      };
-
-      chatCol.querySelector('#btn-run-all').onclick = async () => {
-        if (A.Tester) {
-          A.Tester.clear();
-          A.Tester.log('system', 'Running full simulation trace...');
-          A.Tester.run();
-          A.State.notify(); // Re-render lens to show trace
-        }
-      };
-
-      // --- Story Export ---
-      chatCol.querySelector('#btn-export-story').onclick = () => {
-        const state = A.State.get();
-        const history = state.sim?.history || [];
-
-        if (!history.length) {
-          if (A.UI.Toast) A.UI.Toast.show('No messages to export', 'warning');
-          return;
-        }
-
-        // Get character name for the story
-        const characterName = state.character?.compiled?.name || state.seed?.name || 'Character';
-
-        // Convert chat to prose
-        const storyLines = [];
-        storyLines.push(`# Story Export`);
-        storyLines.push(`*Featuring: ${characterName}*`);
-        storyLines.push('');
-        storyLines.push('---');
-        storyLines.push('');
-
-        history.forEach(msg => {
-          if (msg.role === 'system') return; // Skip system messages
-
-          let content = msg.content || '';
-
-          // Convert *action* to italics (already markdown-style)
-          // Leave formatting as-is since we're exporting to markdown
-
-          if (msg.role === 'user') {
-            // User messages as their perspective
-            storyLines.push(content);
-          } else if (msg.role === 'model') {
-            // AI messages as the character
-            storyLines.push(content);
-          }
-
-          storyLines.push(''); // Add spacing between messages
-        });
-
-        const storyText = storyLines.join('\n');
-
-        // Create download
-        const blob = new Blob([storyText], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        a.href = url;
-        a.download = `story_${characterName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        if (A.UI.Toast) A.UI.Toast.show('Story exported successfully', 'success');
-      };
-
-      // --- Live Session Management ---
-      const liveSessionSelect = chatCol.querySelector('#live-session-select');
-
-      const refreshLiveSessionList = () => {
-        const state = A.State.get();
-        if (!state.sim.chatSessions) state.sim.chatSessions = {};
-        const sessions = Object.entries(state.sim.chatSessions)
-          .filter(([_, s]) => s.mode === 'live')
-          .map(([name, s]) => ({ name, ...s }));
-
-        liveSessionSelect.innerHTML = `<option value="">-- Sessions (${sessions.length}) --</option>`;
-        sessions.forEach(s => {
-          const msgCount = s.messages?.length || 0;
-          const opt = document.createElement('option');
-          opt.value = s.name;
-          opt.textContent = `${s.name} (${msgCount} msgs)`;
-          liveSessionSelect.appendChild(opt);
-        });
-      };
-
-      refreshLiveSessionList();
-
-      // Delete session on double-click
-      liveSessionSelect.ondblclick = () => {
-        const state = A.State.get();
-        const sessionToDelete = liveSessionSelect.value;
-
-        if (!sessionToDelete) {
-          if (A.UI.Toast) A.UI.Toast.show('Select a session to delete', 'warning');
-          return;
-        }
-
-        if (!confirm(`Delete session "${sessionToDelete}"?`)) return;
-
-        delete state.sim.chatSessions[sessionToDelete];
-        A.State.notify();
-        refreshLiveSessionList();
-        if (A.UI.Toast) A.UI.Toast.show(`Deleted session "${sessionToDelete}"`, 'info');
-      };
-
-      chatCol.querySelector('#btn-live-save').onclick = () => {
-        const state = A.State.get();
-        if (!state.sim.chatSessions) state.sim.chatSessions = {};
-
-        const name = prompt('Session name:', `Live ${Object.keys(state.sim.chatSessions).length + 1}`);
-        if (!name) return;
-
-        state.sim.chatSessions[name] = {
-          messages: JSON.parse(JSON.stringify(state.sim.history || [])),
-          savedAt: new Date().toISOString(),
-          mode: 'live'
-        };
-
-        A.State.notify();
-        refreshLiveSessionList();
-        if (A.UI.Toast) A.UI.Toast.show(`Session "${name}" saved`, 'success');
-      };
-
-      chatCol.querySelector('#btn-live-load').onclick = () => {
-        const name = liveSessionSelect.value;
-        if (!name) {
-          if (A.UI.Toast) A.UI.Toast.show('Select a session first', 'warning');
-          return;
-        }
-
-        const state = A.State.get();
-        const session = state.sim.chatSessions?.[name];
-        if (!session) {
-          if (A.UI.Toast) A.UI.Toast.show('Session not found', 'error');
-          return;
-        }
-
-        state.sim.history = JSON.parse(JSON.stringify(session.messages || []));
-        A.State.notify();
-        refreshChat();
-        if (A.UI.Toast) A.UI.Toast.show(`Loaded "${name}"`, 'success');
-      };
-    }
-
-    // --- Helper Logic (Shared/Hoisted) ---
-
-    // Note: These need to be accessible to renderLensContent, so they are defined here in the scope of render()
-
-    function renderLensContent(lensContent, activeLens) {
-      const state = A.State.get();
-      lensContent.innerHTML = '';
-
-      if (activeLens === 'state') {
-        // --- State Tab ---
-        lensContent.innerHTML = `
-              <div style="display:flex; flex-direction:column; gap:16px;">
-                <!-- Tags Section -->
-                <section>
-                  <div style="font-weight: bold; color: var(--text-muted); text-transform: uppercase; font-size: 10px; margin-bottom: 8px; display:flex; justify-content:space-between;">
-                    <span>Active Tags</span>
-                    <span id="sim-tag-count" style="color:var(--accent-primary);">${state.sim.activeTags.length}</span>
-                  </div>
-                  <div id="sim-tags" style="display: flex; flex-wrap: wrap; gap: 4px; background: var(--bg-surface); padding: 8px; border-radius: 4px; border: 1px solid var(--border-subtle); min-height: 48px;"></div>
-                  <input class="input" id="sim-add-tag" placeholder="+ Add Tag" style="margin-top: 8px; font-size: 10px; padding: 4px;">
-                </section>
-
-                <!-- Emotions Section -->
-                <section>
-                  <div style="font-weight: bold; color: var(--text-muted); text-transform: uppercase; font-size: 10px; margin-bottom: 8px;">Emotion State</div>
-                  <label class="l-lab" style="font-size:9px;">Current Mood</label>
-                  <select class="input" id="sim-emo-current" style="font-size:11px; margin-bottom:4px;"></select>
-                  <label class="l-lab" style="font-size:9px; margin-top:4px;">Active Pulses</label>
-                  <div id="sim-emo-all" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; background:var(--bg-surface); padding:4px; border-radius:4px; min-height:24px;"></div>
-                  <div style="margin-top:8px;">
-                    <input class="input" id="sim-add-emo" placeholder="+ Pulse Emotion" style="font-size: 10px; padding: 4px;" list="dl-emotions">
-                    <datalist id="dl-emotions"></datalist>
-                  </div>
-                </section>
-
-                <!-- EROS Section -->
-                <section>
-                  <div style="font-weight: bold; color: var(--text-muted); text-transform: uppercase; font-size: 10px; margin-bottom: 8px;">EROS Levels</div>
-                  <div class="form-group" style="margin-bottom:8px;">
-                    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-bottom:4px;">
-                      <span>Vibe (current)</span>
-                      <span id="val-eros-vibe">${state.sim.eros?.currentVibe || 0}</span>
-                    </div>
-                    <input type="range" class="input" id="sim-eros-vibe" min="0" max="10" step="1" value="${state.sim.eros?.currentVibe || 0}" style="padding:0; height:12px;">
-                    <div id="lbl-eros-vibe" style="font-size:9px; color:var(--accent-primary); text-align:right; font-weight:bold;">NONE</div>
-                  </div>
-                  <div class="form-group">
-                    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-bottom:4px;">
-                      <span>Long-term Relationship</span>
-                      <span id="val-eros-long">${state.sim.eros?.longTerm || 0}</span>
-                    </div>
-                    <input type="range" class="input" id="sim-eros-long" min="0" max="10" step="1" value="${state.sim.eros?.longTerm || 0}" style="padding:0; height:12px;">
-                  </div>
-                </section>
-
-                <!-- Intent Section -->
-                <section>
-                  <div style="font-weight: bold; color: var(--text-muted); text-transform: uppercase; font-size: 10px; margin-bottom: 8px;">Current Intent</div>
-                  <select class="input" id="sim-intent" style="font-size:11px;"></select>
-                </section>
-
-                <!-- Actors Section -->
-                <section>
-                  <div style="font-weight: bold; color: var(--text-muted); text-transform: uppercase; font-size: 10px; margin-bottom: 8px;">Active Actors</div>
-                  <div id="sim-actors" style="display:flex; flex-direction:column; gap:4px; max-height:120px; overflow-y:auto; padding:8px; border:1px solid var(--border-subtle); border-radius:4px; background:var(--bg-surface);"></div>
-                </section>
-              </div>
-            `;
-
-        renderTags(lensContent.querySelector('#sim-tags'));
-        renderEmotions(lensContent);
-        renderEros(lensContent);
-        renderIntents(lensContent);
-        renderActors(lensContent.querySelector('#sim-actors'));
-
-        const tagInput = lensContent.querySelector('#sim-add-tag');
-        if (tagInput) {
-          tagInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-              const t = e.target.value.trim().toUpperCase();
-              if (t && !state.sim.activeTags.includes(t)) {
-                state.sim.activeTags.push(t);
-                A.State.notify();
-              }
-              e.target.value = '';
-            }
-          };
-        }
-
-      } else if (activeLens === 'arc') {
-        // --- Emotional Arc Tab ---
-        const history = state.sim.history || [];
-
-        if (history.length === 0) {
-          lensContent.innerHTML = `
-            <div style="text-align:center; padding:24px; color:var(--text-muted);">
-              <div style="font-size:32px; margin-bottom:12px;">📊</div>
-              <div style="font-size:13px;">No conversation history yet.</div>
-              <div style="font-size:11px; opacity:0.7; margin-top:4px;">Send messages in Live mode to see the emotional arc.</div>
-            </div>
-          `;
-          return;
-        }
-
-        // Extract emotional data from history
-        const labels = [];
-        const erosData = [];
-        const pulseData = [];
-        const messageData = [];
-
-        history.forEach((msg, idx) => {
-          if (msg.role === 'system') return; // Skip system messages
-
-          labels.push(`#${idx + 1}`);
-
-          // Get emotional snapshot from message or current state as fallback
-          const snapshot = msg.emotionalSnapshot || {};
-          erosData.push(snapshot.eros ?? state.sim.eros?.currentVibe ?? 0);
-
-          // For PULSE, count active emotions (simplified as intensity)
-          const pulseCount = (snapshot.pulse || []).length;
-          pulseData.push(pulseCount);
-
-          messageData.push({
-            role: msg.role,
-            content: (msg.content || '').substring(0, 50) + '...',
-            pulse: snapshot.pulse || [],
-            eros: snapshot.eros ?? 0,
-            intent: snapshot.intent || 'unknown',
-            microcues: snapshot.microcuesFired || []
-          });
-        });
-
-        lensContent.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <div style="height:160px; position:relative;">
-              <canvas id="arc-chart"></canvas>
-            </div>
-            <div style="border-top:1px solid var(--border-subtle); padding-top:12px;">
-              <div style="font-weight:bold; font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Message Timeline</div>
-              <div id="arc-timeline" style="max-height:200px; overflow-y:auto; font-size:11px;"></div>
-            </div>
-          </div>
-        `;
-
-        // Render Chart
-        const ctx = lensContent.querySelector('#arc-chart');
-        if (ctx && typeof Chart !== 'undefined') {
-          new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: 'EROS',
-                  data: erosData,
-                  borderColor: 'rgba(255, 99, 132, 1)',
-                  backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                  tension: 0.3,
-                  fill: true,
-                  yAxisID: 'y'
-                },
-                {
-                  label: 'PULSE (count)',
-                  data: pulseData,
-                  borderColor: 'rgba(54, 162, 235, 1)',
-                  backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                  tension: 0.3,
-                  fill: true,
-                  yAxisID: 'y1'
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
-              plugins: {
-                legend: {
-                  display: true,
-                  position: 'top',
-                  labels: { boxWidth: 12, font: { size: 10 } }
-                }
-              },
-              scales: {
-                x: {
-                  display: true,
-                  ticks: { font: { size: 9 } }
-                },
-                y: {
-                  type: 'linear',
-                  display: true,
-                  position: 'left',
-                  min: 0,
-                  max: 10,
-                  title: { display: true, text: 'EROS', font: { size: 9 } },
-                  ticks: { font: { size: 9 } }
-                },
-                y1: {
-                  type: 'linear',
-                  display: true,
-                  position: 'right',
-                  min: 0,
-                  title: { display: true, text: 'PULSE', font: { size: 9 } },
-                  ticks: { font: { size: 9 } },
-                  grid: { drawOnChartArea: false }
-                }
-              }
-            }
-          });
-        }
-
-        // Render Timeline
-        const timelineEl = lensContent.querySelector('#arc-timeline');
-        if (timelineEl) {
-          timelineEl.innerHTML = messageData.map((msg, idx) => {
-            const roleColor = msg.role === 'user' ? 'var(--accent-primary)' : 'var(--status-success)';
-            const pulsePills = msg.pulse.map(p =>
-              `<span style="background:var(--accent-soft); color:var(--accent-primary); padding:1px 4px; border-radius:4px; font-size:9px; margin-right:2px;">${p}</span>`
-            ).join('');
-            const microcuePills = msg.microcues.map(m =>
-              `<span style="background:rgba(255,193,7,0.2); color:#ffc107; padding:1px 4px; border-radius:4px; font-size:9px; margin-right:2px;">⚡${m}</span>`
-            ).join('');
-
-            return `
-              <div style="padding:8px; border-bottom:1px solid var(--border-subtle); ${idx === messageData.length - 1 ? 'border-bottom:none;' : ''}">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                  <span style="font-weight:bold; color:${roleColor}; text-transform:uppercase; font-size:9px;">${msg.role}</span>
-                  <span style="font-size:9px; color:var(--text-muted);">EROS: ${msg.eros} | Intent: ${msg.intent}</span>
-                </div>
-                <div style="margin-bottom:4px;">${pulsePills || '<span style="opacity:0.5; font-size:9px;">no emotions</span>'}</div>
-                ${microcuePills ? `<div style="margin-bottom:4px;">${microcuePills}</div>` : ''}
-              </div>
-            `;
-          }).join('');
-        }
-
-      } else if (activeLens === 'context') {
-        // --- Context Tab ---
-        const lastResult = state.sim.lastLogicResult || [];
-        const loreHits = lastResult.filter(r => r.type === 'entry').map(r => r.data.title || r.data.id).join(', ') || 'None';
-
-        lensContent.innerHTML = `
-                  <div style="display:flex; flex-direction:column; gap:12px;">
-                    <div>
-                      <div style="font-weight:bold; color:var(--text-muted); text-transform:uppercase; font-size:10px; margin-bottom:4px;">Lorebook Hits</div>
-                      <div style="color:var(--accent-primary); font-size:11px; font-weight:bold;">${loreHits}</div>
-                    </div>
-                    <div>
-                      <div style="font-weight:bold; color:var(--text-muted); text-transform:uppercase; font-size:10px; margin-bottom:4px;">Full Content Context</div>
-                      <div id="ctx-preview" style="background:var(--bg-surface); padding:8px; border-radius:4px; border:1px solid var(--border-subtle); font-family:var(--font-mono); font-size:10px; white-space:pre-wrap; max-height:400px; overflow-y:auto;">Loading preview...</div>
-                    </div>
-                  </div>
-                `;
-
-        let previewText = "";
-        if (state.seed && state.seed.persona) previewText += `--- PERSONA ---\n${state.seed.persona}\n\n`;
-        if (state.seed && state.seed.scenario) previewText += `--- SCENARIO ---\n${state.seed.scenario}\n\n`;
-
-        lastResult.forEach(res => {
-          previewText += `[${res.type.toUpperCase()}: ${res.data.title || res.data.id}]\n${res.data.content}\n\n`;
-        });
-
-        lensContent.querySelector('#ctx-preview').textContent = previewText || "No context data available. Send a message to generate context.";
-
-      } else if (activeLens === 'integrity') {
-        const issues = A.Validator ? A.Validator.run(state) : [];
-        if (issues.length === 0) {
-          lensContent.innerHTML = '<div style="color: var(--status-success); text-align: center; padding: 20px;">All strands intact. Integrity 100%.</div>';
-        } else {
-          issues.forEach(issue => {
-            const div = document.createElement('div');
-            div.style.padding = '8px';
-            div.style.borderBottom = '1px solid var(--border-subtle)';
-            div.style.color = issue.severity === 'error' ? 'var(--status-error)' : 'var(--status-warning)';
-            div.innerHTML = `<strong>${issue.severity.toUpperCase()}:</strong> ${issue.message}`;
-            lensContent.appendChild(div);
-          });
-        }
-
-      } else if (activeLens === 'trace') {
-        const log = A.Tester ? A.Tester.getTrace() : [];
-        if (log.length === 0) {
-          lensContent.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No trace data. Run a simulation.</div>';
-        } else {
-          log.forEach(entry => {
-            const row = document.createElement('div');
-            row.style.padding = '4px 0';
-            row.style.borderBottom = '1px solid #333';
-            row.style.fontFamily = 'var(--font-mono)';
-            row.style.fontSize = '10px';
-            let color = '#ccc';
-            if (entry.type === 'error') color = 'var(--status-error)';
-            if (entry.type === 'system') color = 'var(--accent-primary)';
-            row.innerHTML = `<span style="color:#666;">[${new Date(entry.timestamp).toLocaleTimeString()}]</span> <span style="color:${color}">${entry.message}</span>`;
-            lensContent.appendChild(row);
-          });
-          lensContent.scrollTop = lensContent.scrollHeight;
-        }
-
-      } else if (activeLens === 'stats') {
-        const stats = state.weaves?.stats || { blocks: [], values: {} };
-        lensContent.innerHTML = '<div style="padding:12px; font-family:var(--font-mono); font-size:11px;">';
-
-        if (!stats.blocks?.length) {
-          lensContent.innerHTML += '<div style="color:var(--text-muted); font-style:italic;">No stats defined. Go to Forbidden Secrets > Stats to configure.</div>';
-        } else {
-          lensContent.innerHTML += '<div style="margin-bottom:12px; font-weight:bold; color:var(--accent-primary); border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Stat References</div>';
-
-          // Helper
-          const renderGroup = (targetId, targetLabel) => {
-            let html = `<div style="margin-top:12px; margin-bottom:8px; font-weight:bold; font-size:10px; color:var(--text-muted); text-transform:uppercase;">${targetLabel}</div>`;
-
-            stats.blocks.forEach(blk => {
-              html += `<div style="margin-left:8px; margin-bottom:8px;">`;
-              html += `<div style="color:var(--text-secondary); font-size:10px; margin-bottom:4px; font-weight:bold;">${blk.label} <span style="opacity:0.5;">(${blk.id})</span></div>`;
-
-              const vals = (stats.values[targetId] && stats.values[targetId][blk.id]) || {};
-
-              blk.defs.forEach(def => {
-                const val = vals[def.key] ?? def.min;
-                html += `
-                              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; background:var(--bg-elevated); padding:4px 6px; border-radius:4px;">
-                                 <code style="color:var(--text-main); font-weight:bold;">{{stats.${targetId}.${blk.id}.${def.key}}}</code>
-                                 <span style="color:var(--text-muted); font-size:10px;">${val}</span>
-                              </div>
-                          `;
-              });
-              html += `</div>`;
-            });
-            return html;
-          };
-
-          // User
-          lensContent.innerHTML += renderGroup('user', 'User Identity');
-
-          // Find an actor example
-          const actors = Object.keys(stats.values).filter(k => k !== 'user');
-          if (actors.length > 0) {
-            lensContent.innerHTML += renderGroup(actors[0], `Actor Example (${actors[0]})`);
-            if (actors.length > 1) {
-              lensContent.innerHTML += `<div style="margin-top:8px; font-style:italic; color:var(--text-muted); font-size:10px;">+ ${actors.length - 1} other actors (use ID)</div>`;
-            }
-          }
-        }
-        lensContent.innerHTML += '</div>';
-
-      } else if (activeLens === 'locations') {
-        const locs = state.weaves?.locations || [];
-        lensContent.innerHTML = '<div style="padding:12px; font-family:var(--font-mono); font-size:11px;">';
-
-        if (!locs.length) {
-          lensContent.innerHTML += '<div style="color:var(--text-muted); font-style:italic;">No locations defined. Go to Forbidden Secrets > Locations.</div>';
-        } else {
-          lensContent.innerHTML += '<div style="margin-bottom:12px; font-weight:bold; color:var(--accent-primary); border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">World Map</div>';
-
-          locs.forEach(loc => {
-            const exits = (loc.exits || []).map(eid => {
-              const t = locs.find(x => x.id === eid);
-              return t ? (t.name || t.id) : eid;
-            }).join(', ');
-
-            lensContent.innerHTML += `
-                    <div style="margin-bottom:12px; background:var(--bg-elevated); padding:8px; border-radius:4px; border:1px solid var(--border-subtle);">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <strong style="color:var(--text-main);">${loc.name}</strong>
-                            <span style="color:var(--text-muted); font-size:9px;">${loc.id}</span>
-                        </div>
-                        <div style="color:var(--text-secondary); white-space:pre-wrap; margin-bottom:6px;">${loc.description || '<em style="opacity:0.5">No description</em>'}</div>
-                        <div style="font-size:10px;">
-                            <span style="color:var(--text-muted); font-weight:bold;">EXITS:</span> 
-                            <span style="color:var(--accent-secondary);">${exits || 'None'}</span>
-                        </div>
-                    </div>
-                `;
-          });
-        }
-        lensContent.innerHTML += '</div>';
-
-      } else if (activeLens === 'prompt') {
-        // PROMPT INSPECTOR - Show the last system prompt sent to LLM
-        const lastPrompt = state.sim?.lastSystemPrompt || null;
-
-        lensContent.innerHTML = '<div style="padding:12px; font-family:var(--font-mono); font-size:11px;">';
-        lensContent.innerHTML += '<div style="margin-bottom:12px; font-weight:bold; color:var(--accent-primary); border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">System Prompt Inspector</div>';
-
-        if (!lastPrompt) {
-          lensContent.innerHTML += '<div style="color:var(--text-muted); font-style:italic;">No prompt captured yet. Send a message to see the system prompt.</div>';
-        } else {
-          // Token estimate for the prompt
-          const promptTokens = A.Utils?.estimateTokens ? A.Utils.estimateTokens(lastPrompt) : Math.ceil(lastPrompt.length / 4);
-          lensContent.innerHTML += `<div style="margin-bottom:8px; padding:6px 8px; background:var(--bg-elevated); border-radius:4px; display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted);">Estimated Tokens:</span>
-            <span style="color:var(--accent-secondary); font-weight:bold;">${promptTokens.toLocaleString()}</span>
-          </div>`;
-
-          // The prompt itself in a scrollable code block
-          lensContent.innerHTML += `<pre style="background:var(--ink-900); padding:12px; border-radius:6px; white-space:pre-wrap; word-break:break-word; max-height:400px; overflow-y:auto; border:1px solid var(--border-subtle); color:var(--text-primary);">${escapeHtml(lastPrompt)}</pre>`;
-
-          // Copy button
-          lensContent.innerHTML += `<button class="btn btn-ghost btn-sm" id="btn-copy-prompt" style="margin-top:8px; width:100%;">📋 Copy Prompt</button>`;
-        }
-        lensContent.innerHTML += '</div>';
-
-        // Bind copy button
-        const copyBtn = lensContent.querySelector('#btn-copy-prompt');
-        if (copyBtn) {
-          copyBtn.onclick = () => {
-            navigator.clipboard.writeText(lastPrompt);
-            if (A.UI.Toast) A.UI.Toast.show('Prompt copied to clipboard', 'success');
-          };
-        }
-
-      } else if (activeLens === 'tokens') {
-        // TOKEN VISUALIZER - Show context window usage
-        const lastPrompt = state.sim?.lastSystemPrompt || '';
-        const history = state.sim?.history || [];
-
-        // Estimate tokens
-        const estimateTokens = A.Utils?.estimateTokens ? A.Utils.estimateTokens : (t => Math.ceil(String(t).length / 4));
-        const promptTokens = estimateTokens(lastPrompt);
-        const historyText = history.map(m => m.content || '').join(' ');
-        const historyTokens = estimateTokens(historyText);
-        const totalTokens = promptTokens + historyTokens;
-
-        // Assume 8K context window (configurable in future)
-        const maxTokens = 8000;
-        const usagePercent = Math.min(100, Math.round((totalTokens / maxTokens) * 100));
-        const remaining = Math.max(0, maxTokens - totalTokens);
-
-        // Color based on usage
-        let barColor = 'var(--status-success)';
-        if (usagePercent > 70) barColor = 'var(--status-warning)';
-        if (usagePercent > 90) barColor = 'var(--status-error)';
-
-        lensContent.innerHTML = `
-          <div style="padding:12px;">
-            <div style="margin-bottom:12px; font-weight:bold; color:var(--accent-primary); border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">Context Window Usage</div>
-            
-            <!-- Progress Bar -->
-            <div style="background:var(--bg-elevated); border-radius:8px; overflow:hidden; height:24px; margin-bottom:12px; border:1px solid var(--border-subtle);">
-              <div style="width:${usagePercent}%; height:100%; background:${barColor}; transition:width 0.3s ease;"></div>
-            </div>
-            
-            <div style="display:flex; justify-content:space-between; margin-bottom:16px; font-size:12px;">
-              <span style="color:var(--text-muted);">${usagePercent}% Used</span>
-              <span style="color:var(--text-primary); font-weight:bold;">${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} tokens</span>
-            </div>
-            
-            <!-- Breakdown -->
-            <div style="font-size:11px; font-family:var(--font-mono); display:flex; flex-direction:column; gap:8px;">
-              <div style="display:flex; justify-content:space-between; padding:6px 8px; background:var(--bg-surface); border-radius:4px;">
-                <span style="color:var(--text-muted);">System Prompt</span>
-                <span style="color:var(--accent-primary);">${promptTokens.toLocaleString()}</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 8px; background:var(--bg-surface); border-radius:4px;">
-                <span style="color:var(--text-muted);">Chat History (${history.length} msgs)</span>
-                <span style="color:var(--accent-secondary);">${historyTokens.toLocaleString()}</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:6px 8px; background:var(--bg-elevated); border-radius:4px; border:1px solid var(--border-subtle);">
-                <span style="color:var(--text-primary); font-weight:bold;">Remaining</span>
-                <span style="color:${remaining < 500 ? 'var(--status-error)' : 'var(--status-success)'}; font-weight:bold;">${remaining.toLocaleString()}</span>
-              </div>
-            </div>
-            
-            ${usagePercent > 80 ? '<div style="margin-top:12px; padding:8px; background:rgba(255,200,0,0.1); border-left:3px solid var(--status-warning); font-size:11px; color:var(--status-warning);">⚠️ Context window is filling up. Consider summarizing or clearing older messages.</div>' : ''}
-            
-            <!-- Summarize Controls -->
-            ${history.length > 4 ? `
-              <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border-subtle);">
-                <div style="font-size:10px; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; font-weight:bold;">Context Management</div>
-                <button class="btn btn-secondary btn-sm" id="btn-summarize-history" style="width:100%;">📝 Summarize Oldest Messages</button>
-                <div style="font-size:9px; color:var(--text-muted); margin-top:4px; text-align:center;">Compresses first half of chat history into a summary</div>
-              </div>
-            ` : ''}
-            
-            ${state.sim?.contextSummary ? `
-              <div style="margin-top:12px; padding:8px; background:var(--bg-surface); border-radius:4px; border:1px solid var(--border-subtle);">
-                <div style="font-size:9px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase;">Active Summary</div>
-                <div style="font-size:11px; color:var(--text-secondary); white-space:pre-wrap;">${escapeHtml(state.sim.contextSummary)}</div>
-                <button class="btn btn-ghost btn-sm" id="btn-clear-summary" style="margin-top:8px; font-size:10px; width:100%;">Clear Summary</button>
-              </div>
-            ` : ''}
-          </div>
-        `;
-
-        // Bind summarize button
-        const summarizeBtn = lensContent.querySelector('#btn-summarize-history');
-        if (summarizeBtn) {
-          summarizeBtn.onclick = () => {
-            const currentState = A.State.get();
-            const currentHistory = currentState.sim?.history || [];
-
-            if (currentHistory.length < 5) {
-              if (A.UI.Toast) A.UI.Toast.show('Not enough messages to summarize', 'warning');
-              return;
-            }
-
-            // Take first half of messages to summarize
-            const splitPoint = Math.floor(currentHistory.length / 2);
-            const toSummarize = currentHistory.slice(0, splitPoint);
-            const toKeep = currentHistory.slice(splitPoint);
-
-            // Build a simple summary
-            const summaryParts = [];
-            toSummarize.forEach(msg => {
-              const preview = (msg.content || '').slice(0, 100);
-              const role = msg.role === 'user' ? 'User' : msg.role === 'model' ? 'Character' : 'System';
-              if (preview) summaryParts.push(`${role}: ${preview}${msg.content.length > 100 ? '...' : ''}`);
-            });
-
-            // Create context summary
-            currentState.sim.contextSummary = `[Earlier in conversation (${toSummarize.length} messages)]\n${summaryParts.join('\n')}`;
-
-            // Replace history with only kept messages
-            currentState.sim.history = toKeep;
-
-            A.State.notify();
-            updateGlobalLens(); // Refresh to show new state
-            if (typeof refreshChat === 'function') refreshChat();
-
-            if (A.UI.Toast) A.UI.Toast.show(`Summarized ${toSummarize.length} messages`, 'success');
-          };
-        }
-
-        // Bind clear summary button
-        const clearSummaryBtn = lensContent.querySelector('#btn-clear-summary');
-        if (clearSummaryBtn) {
-          clearSummaryBtn.onclick = () => {
-            const currentState = A.State.get();
-            delete currentState.sim.contextSummary;
-            A.State.notify();
-            updateGlobalLens();
-            if (A.UI.Toast) A.UI.Toast.show('Summary cleared', 'info');
-          };
-        }
-
-      } else if (activeLens === 'config') {
-        const activeConfig = A.UI.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null;
-
-        lensContent.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <section>
-              <div style="font-weight:bold; margin-bottom:8px; color:var(--text-muted); text-transform:uppercase; font-size:10px;">Active LLM Configuration</div>
-              ${activeConfig ? `
-                <div style="padding:12px; background:var(--bg-elevated); border:1px solid var(--accent-primary); border-radius:var(--radius-md);">
-                  <div style="font-size:13px; font-weight:bold; color:var(--text-primary);">${activeConfig.provider.toUpperCase()}</div>
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Model: <strong>${activeConfig.model}</strong></div>
-                  ${activeConfig.provider === 'custom' ? `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">URL: ${activeConfig.baseUrl}</div>` : ''}
-                  <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">API Key: ${activeConfig.apiKey ? '••••••••' + activeConfig.apiKey.slice(-4) : '<span style="color:var(--status-error);">Not set</span>'}</div>
-                </div>
-              ` : `
-                <div style="padding:12px; background:var(--bg-surface); border-radius:var(--radius-md); text-align:center; color:var(--text-muted); font-size:11px;">
-                  No configuration set. Click below to add one.
-                </div>
-              `}
-            </section>
-            
-            <button class="btn btn-primary btn-sm" id="btn-manage-keys" style="width:100%;">⚙️ Manage API Configurations</button>
-          </div>
-        `;
-
-        lensContent.querySelector('#btn-manage-keys').onclick = () => A.UI.showApiKeyManager();
-      }
-    }
-
-
-
-    // Dummy implementations for render helpers to prevent errors if they weren't copied fully
-    // If they exist in original file, this might duplicate, but we are replacing the end of file.
-    // Ideally we should have kept them.
-
-    function renderTags(target) {
-      if (!target) return;
-      const state = A.State.get();
-      target.innerHTML = (state.sim.activeTags || []).map(t =>
-        `<span style="background:var(--accent-soft); color:var(--accent-primary); padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer;" data-tag="${t}">${t} ×</span>`
-      ).join('');
-      target.querySelectorAll('span').forEach(sp => {
-        sp.onclick = () => {
-          state.sim.activeTags = state.sim.activeTags.filter(x => x !== sp.dataset.tag);
-          A.State.notify();
-        };
-      });
-    }
-
-    function renderEmotions(container) {
-      const state = A.State.get();
-      const curSel = container.querySelector('#sim-emo-current');
-      const allBoxes = container.querySelector('#sim-emo-all');
-      const addInp = container.querySelector('#sim-add-emo');
-      const dl = container.querySelector('#dl-emotions');
-
-      const emotions = A.EMOTIONS || [];
-
-      // Current Mood Dropdown
-      curSel.innerHTML = emotions.map(e => `<option value="${e}" ${e === state.sim.emotions.current ? 'selected' : ''}>${e}</option>`).join('');
-      curSel.onchange = (e) => {
-        state.sim.emotions.current = e.target.value;
-        A.State.notify();
-      };
-
-      // Datalist for Pulses
-      dl.innerHTML = emotions.map(e => `<option value="${e}">`).join('');
-
-      // Active Pulses
-      allBoxes.innerHTML = (state.sim.emotions.all || []).map(e =>
-        `<span style="background:var(--accent-soft); color:var(--accent-primary); padding:1px 4px; border-radius:4px; font-size:9px; cursor:pointer;" data-emo="${e}">${e} ×</span>`
-      ).join('');
-
-      allBoxes.querySelectorAll('span').forEach(sp => {
-        sp.onclick = () => {
-          state.sim.emotions.all = state.sim.emotions.all.filter(x => x !== sp.dataset.emo);
-          A.State.notify();
-        };
-      });
-
-      // Add Pulse
-      addInp.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-          const val = e.target.value.trim().toUpperCase();
-          if (val && !state.sim.emotions.all.includes(val)) {
-            state.sim.emotions.all.push(val);
-            A.State.notify();
-          }
-          e.target.value = '';
-        }
-      };
-    }
-
-    function renderEros(container) {
-      const state = A.State.get();
-      const vibeInp = container.querySelector('#sim-eros-vibe');
-      const longInp = container.querySelector('#sim-eros-long');
-      const vibeVal = container.querySelector('#val-eros-vibe');
-      const longVal = container.querySelector('#val-eros-long');
-      const vibeLbl = container.querySelector('#lbl-eros-vibe');
-
-      const levels = A.EROS_LEVELS || {};
-
-      const updateLabs = () => {
-        if (!vibeVal) return;
-        vibeVal.textContent = vibeInp.value;
-        longVal.textContent = longInp.value;
-        const lv = Object.entries(levels).find(([k, v]) => v == vibeInp.value);
-        vibeLbl.textContent = lv ? lv[0] : '';
-      };
-
-      if (vibeInp) {
-        [vibeInp, longInp].forEach(inp => {
-          inp.oninput = updateLabs;
-          inp.onchange = () => {
-            state.sim.eros.currentVibe = parseInt(vibeInp.value);
-            state.sim.eros.longTerm = parseInt(longInp.value);
-            A.State.notify();
-          };
-        });
-        updateLabs();
-      }
-    }
-
-    function renderIntents(container) {
-      const state = A.State.get();
-      const sel = container.querySelector('#sim-intent');
-      const intents = A.INTENTS || [];
-
-      if (sel) {
-        sel.innerHTML = intents.map(i => `<option value="${i}" ${i === state.sim.intent ? 'selected' : ''}>${i}</option>`).join('');
-        sel.onchange = (e) => {
-          state.sim.intent = e.target.value;
-          A.State.notify();
-        };
-      }
-    }
-
-    function renderActors(container) {
-      const state = A.State.get();
-      const actors = state.nodes?.actors?.items ? Object.values(state.nodes.actors.items) : [];
-
-      if (actors.length === 0) {
-        container.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:10px;">No actors defined.</div>';
-        return;
-      }
-
-      container.innerHTML = actors.map(a => `
-                <label style="display:flex; align-items:center; gap:8px; font-size:11px; cursor:pointer;">
-                    <input type="checkbox" data-id="${a.id}" ${state.sim.actors.includes(a.id) ? 'checked' : ''}>
-                    <span>${a.name || a.id}</span>
-                </label>
-            `).join('');
-
-      container.querySelectorAll('input').forEach(chk => {
-        chk.onchange = (e) => {
-          const id = e.target.dataset.id;
-          if (e.target.checked) {
-            if (!state.sim.actors.includes(id)) state.sim.actors.push(id);
-          } else {
-            state.sim.actors = state.sim.actors.filter(x => x !== id);
-          }
-          A.State.notify();
-        };
-      });
-    }
-
-    function renderTags(target) {
-      if (!target) return;
-      const state = A.State.get();
-      target.innerHTML = (state.sim.activeTags || []).map(t =>
-        `<span style="background:var(--accent-soft); color:var(--accent-primary); padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer;" data-tag="${t}">${t} ×</span>`
-      ).join('');
-      target.querySelectorAll('span').forEach(sp => {
-        sp.onclick = () => {
-          state.sim.activeTags = state.sim.activeTags.filter(x => x !== sp.dataset.tag);
-          A.State.notify();
-        };
-      });
-    }
+    // Initial render
+    updateModeButtons();
+    renderContent();
   }
-
-
 
   A.registerPanel('simulator', {
     label: 'The Spindle',
@@ -2439,394 +630,5 @@
     category: 'Magic',
     render: render
   });
-
-  // --- CORE LOGIC: THE ROUND ---
-  function processRound(userText, history, phase = 'input', params = {}) {
-    try {
-      const state = A.State.get();
-      const logs = [];
-
-      // 1. ACTION 2: RESET WRITABLE FIELDS (Build Context from Source of Truth)
-      // Resolve Sources
-      const definedSources = (state.strands && state.strands.sources && state.strands.sources.items) ? state.strands.sources.items : {};
-      const rawSources = {};
-
-      // Merge keys
-      const allSourceKeys = new Set([
-        ...Object.keys(definedSources),
-        ...Object.keys(state.sim.simSources || {}),
-        'character.name', 'character.personality', 'character.scenario', 'user.name'
-      ]);
-
-      allSourceKeys.forEach(key => {
-        const src = definedSources[key] || { id: key, defaultValue: '' };
-        let val = state.sim?.simSources?.[key]; // Priority 1: Sim
-
-        if (!val) { // Priority 2: Compiled V2 > Seed V1
-          const compiled = state.character?.compiled;
-
-          if (compiled) {
-            if (key === 'character.name' || key === 'name') val = compiled.name;
-            else if (key === 'character.personality' || key === 'personality') val = compiled.personality;
-            else if (key === 'character.scenario' || key === 'scenario') val = compiled.scenario;
-            else if (key === 'character.exampleDialogs' || key === 'example') val = compiled.examples;
-          }
-
-          if (!val) { // Fallback to Legacy Seed
-            if (!state.seed) state.seed = {}; // Safeguard
-            if (key === 'character.name' || key === 'name') val = state.seed.name || state.seed.characterName;
-            else if (key === 'character.personality' || key === 'personality') val = state.seed.persona;
-            else if (key === 'character.scenario' || key === 'scenario') val = state.seed.scenario;
-            else if (key === 'character.examples' || key === 'example') val = state.seed.examples;
-          }
-
-          // User Name override
-          if (key === 'user.name' && !val) val = state.meta?.author || 'User';
-        }
-        if (!val && val !== '') val = src.defaultValue; // Priority 3: Default
-        rawSources[key] = val || '';
-      });
-
-      // Construct Chat History with Legacy Support
-      const chatHistory = history.map(m => {
-        const txt = m.content || '';
-        return {
-          role: m.role,
-          content: txt,
-          mes: txt,      // Lorebook Legacy
-          message: txt,  // SBX Legacy
-          name: m.role === 'user' ? (rawSources['user.name'] || 'User') : (rawSources['character.name'] || 'Char')
-        };
-      });
-
-      // 3. Final Context Construction
-      const hybridChat = [...chatHistory];
-      hybridChat.last_messages = chatHistory;
-
-      const context = {
-        // Standard Aliases
-        chat: hybridChat,
-        messages: chatHistory,
-
-        // Phase Info
-        phase: phase || 'input',
-
-        // INPUT: The raw text from the user (Essential for command parsing)
-        user_input: userText,
-
-        // For Output Phase: default responseText to input (which is invoked with LLM response)
-        responseText: phase === 'output' ? userText : undefined,
-
-        // Flatten Sources
-        ...rawSources,
-
-        // Merged Params (e.g. source: 'rpg_session')
-        ...params,
-        sources: rawSources,
-
-        // Shim for Character Object (Writable targets)
-        character: {
-          name: rawSources['character.name'] || rawSources.name || 'Unknown',
-          personality: rawSources['character.personality'] || rawSources.personality || '',
-          description: rawSources['character.description'] || rawSources.description || '',
-          scenario: rawSources['character.scenario'] || rawSources.scenario || '',
-          example: rawSources['character.exampleDialogs'] || rawSources.example || ''
-        },
-
-        tags: [...(state.sim?.activeTags || [])],
-        // Inject Stats
-        stats: state.weaves?.stats?.values || {},
-        // Inject Locations
-        locations: state.weaves?.locations || [],
-        // Inject Actors (Allow Override from Plugins)
-        actors: [...(params.actors || state.sim?.actors || [])],
-        // Inject Chronos Context (Enhanced RP)
-        chronos: A.Chronos ? A.Chronos.buildContext(state) : null
-      };
-
-      // Snapshot for Diffing
-      const snapshot = JSON.parse(JSON.stringify(context));
-
-      // NOTE: All rule evaluation (lorebook, microcues, voices, events, etc.)
-      // now happens inside the instrumented AURA script built by AuraSimBuilder.
-      // This ensures correct execution order (e.g., emotion signals available for lorebook).
-
-      // 2. ACTION 4: RUN SCRIPTS SEQUENTIALLY
-      let scripts = (A.Scripts && A.Scripts.getAll) ? A.Scripts.getAll() : [];
-      const executionOrder = ['sys_pulse', 'sys_intent', 'sys_eros', 'sys_aura', 'sys_rpg'];
-
-      scripts.sort((a, b) => {
-        const aIdx = executionOrder.indexOf(a.id);
-        const bIdx = executionOrder.indexOf(b.id);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return (a.order || 0) - (b.order || 0);
-      });
-
-      // Dynamic Stack Injection (sys_aura) - Use INSTRUMENTED SimBuilder for accurate logging
-      if (A.AuraSimBuilder) {
-        const auraScript = scripts.find(s => s.id === 'sys_aura');
-        if (auraScript && auraScript.enabled) {
-          try {
-            const dynamicCode = A.AuraSimBuilder.build(state);
-            scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
-            logs.push("AURA Stack Compiled (Instrumented)");
-          } catch (e) { logs.push("AURA SimBuild Failed: " + e.message); }
-        }
-      } else if (A.AuraBuilder) {
-        // Fallback to regular builder if SimBuilder not available
-        const auraScript = scripts.find(s => s.id === 'sys_aura');
-        if (auraScript && auraScript.enabled) {
-          try {
-            const dynamicCode = A.AuraBuilder.build(state);
-            scripts = scripts.map(s => s.id === 'sys_aura' ? { ...s, source: { code: dynamicCode } } : s);
-            logs.push("AURA Stack Compiled");
-          } catch (e) { logs.push("AURA Build Failed: " + e.message); }
-        }
-      }
-
-      // Execute
-      const scriptLogs = [];
-
-      scripts.forEach(script => {
-        if (!script.enabled) return;
-        const logger = {
-          log: (...args) => scriptLogs.push(`[${script.name}] ${args.join(' ')}`),
-          warn: (...args) => scriptLogs.push(`[${script.name}] WARN: ${args.join(' ')}`),
-          error: (...args) => scriptLogs.push(`[${script.name}] ERROR: ${args.join(' ')}`),
-          info: (...args) => scriptLogs.push(`[${script.name}] INFO: ${args.join(' ')}`)
-        };
-        try {
-          // SAFE EXECUTION: Do not use template literals to build the body, as user code containing backticks will break it.
-          const checkPhase = 'if (!context.phase) context.phase = "' + phase + '";\n';
-          const body = '"use strict";\n' +
-            'try {\n' +
-            checkPhase +
-            script.source.code + '\n' +
-            '} catch (e) { console.error("[Script Error] " + e.message); }';
-
-          const runFn = new Function('context', 'console', 'A', body);
-          runFn(context, logger, A);
-        } catch (err) {
-          scriptLogs.push(`[${script.name}] CRITICAL: ${err.message}`);
-        }
-      });
-
-      // Log script execution results
-      if (A.FlowLogger) {
-        scripts.forEach(script => {
-          A.FlowLogger.log({
-            name: script.name,
-            type: 'script',
-            passed: script.enabled,
-            reason: script.enabled ? 'Script executed' : 'Script disabled'
-          });
-        });
-        A.FlowLogger.endTurn();
-      }
-
-      // 3. ACTION 5: FINAL STATE ACHIEVED
-      return {
-        context: context,
-        logs: scriptLogs,
-        snapshot: snapshot,
-        diff: calculateDiff(snapshot, context)
-      };
-
-    } catch (err) {
-      console.error("[LogicEngine] Critical Error in processRound:", err);
-      if (A.UI && A.UI.Toast) A.UI.Toast.show("Logic Engine Crash: " + err.message, 'error');
-      // Return a safe fallback to prevent infinite loops or UI freeze
-      return {
-        context: {},
-        logs: ["CRITICAL EXECUTION FAILURE: " + err.message],
-        snapshot: {},
-        diff: { fields: [], tags: [] }
-      };
-    }
-  }
-
-  function calculateDiff(snapshot, context) {
-    const diff = { fields: [], tags: [] };
-    ['personality', 'scenario', 'example', 'description'].forEach(k => {
-      const oldVal = snapshot.character[k] || '';
-      const newVal = context.character[k] || '';
-      if (oldVal !== newVal) {
-        if (newVal.startsWith(oldVal)) {
-          diff.fields.push({ type: 'append', key: k, val: newVal.substring(oldVal.length), addedLength: newVal.length - oldVal.length });
-        } else {
-          diff.fields.push({ type: 'modify', key: k });
-        }
-      }
-    });
-    return diff;
-  }
-
-  // --- API CLIENT ---
-  async function callLLM(provider, model, key, system, history) {
-    console.log(`[LLM] Calling ${provider} (${model})...`);
-
-    if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-
-      const contents = history.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }]
-      }));
-
-      const payload = {
-        contents: contents,
-        system_instruction: { parts: [{ text: system }] },
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 1024
-        }
-      };
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "(No response)";
-    }
-
-    if (provider === 'openai') {
-      const url = 'https://api.openai.com/v1/chat/completions';
-      const messages = [
-        { role: 'system', content: system },
-        ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
-      ];
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.9
-        })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || "(No response)";
-    }
-
-    if (provider === 'chutes') {
-      // Chutes AI - OpenAI-compatible API
-      const url = 'https://llm.chutes.ai/v1/chat/completions';
-      const messages = [
-        { role: 'system', content: system },
-        ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
-      ];
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.9
-        })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || "(No response)";
-    }
-
-    if (provider === 'custom') {
-      // Custom OpenAI-compatible endpoint
-      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
-      const baseUrl = (config.baseUrl || 'https://api.example.com/v1').replace(/\/$/, ''); // Remove trailing slash
-      const url = `${baseUrl}/chat/completions`;
-
-      const messages = [
-        { role: 'system', content: system },
-        ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
-      ];
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.9
-        })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error?.message || resp.statusText);
-      }
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || "(No response)";
-    }
-
-    if (provider === 'kobold') {
-      // Kobold AI - Local Server
-      const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');
-      const baseUrl = (config.baseUrl || 'http://localhost:5001').replace(/\/$/, '');
-      const url = `${baseUrl}/api/v1/generate`;
-
-      // Kobold uses a different format - single prompt string
-      const fullPrompt = `${system}\n\n${history.map(m => `${m.role === 'user' ? 'User' : 'Character'}: ${m.content}`).join('\n')}`;
-
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: fullPrompt,
-          max_context_length: 4096,
-          max_length: 512,
-          temperature: 0.9
-        })
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`Kobold Error: ${errText || resp.statusText}`);
-      }
-
-      const data = await resp.json();
-      return data.results?.[0]?.text || "(No response)";
-    }
-
-    throw new Error(`Unknown provider: ${provider}`);
-  }
-
-  // --- API EXPORTS ---
-  A.Simulator = {
-    processRound: processRound,
-    // Future exports: generateResponse, etc.
-  };
 
 })(window.Anansi);

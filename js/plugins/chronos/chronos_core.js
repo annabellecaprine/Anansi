@@ -360,7 +360,7 @@
         }
 
         return {
-            enabled: chronos.userLocation != null,
+            enabled: chronos.userLocation != null || (pendingInfo && Object.keys(pendingInfo).length > 0),
             time: {
                 slot: currentTime,
                 label: timeSlot.label,
@@ -395,10 +395,17 @@
 
         const lines = [];
 
-        // Header
+        // Header & Conflict Resolution
+        const pendingCheck = chronosContext.pendingChanges;
+        const isTransitioning = pendingCheck && Object.keys(pendingCheck).length > 0;
+
         lines.push('');
         lines.push('═══════════════════════════════════════════════════════════');
-        lines.push('WORLD STATE (Authoritative — Do Not Contradict)');
+        if (isTransitioning) {
+            lines.push('PREVIOUS WORLD STATE (Reference Only - Context is changing)');
+        } else {
+            lines.push('WORLD STATE (Authoritative — Do Not Contradict)');
+        }
         lines.push('═══════════════════════════════════════════════════════════');
         lines.push('');
 
@@ -462,7 +469,12 @@
             lines.push('  ✗ Move any actor to a different location');
             lines.push('  ✗ Have NEARBY actors enter the scene unless User explicitly goes to them');
             lines.push('  ✗ Introduce actors not listed as Present or Nearby');
-            lines.push('  ✗ Change the time of day or weather conditions');
+
+            if (!isTransitioning) {
+                lines.push('  ✗ Change the time of day or weather conditions');
+            } else {
+                lines.push('  ✓ Change time/weather ONLY as specified in Pending Transitions');
+            }
 
             if (level === 'strict') {
                 lines.push('  ✗ Have PRESENT actors leave the scene for any reason');
@@ -478,7 +490,7 @@
             lines.push('⚡ PENDING TRANSITIONS — NARRATE THESE IN YOUR RESPONSE');
             lines.push('═══════════════════════════════════════════════════════════');
             lines.push('');
-            lines.push('The following changes are about to occur. Naturally weave the transition into your narrative:');
+            lines.push('The following changes are occurring RIGHT NOW. You MUST weave them into the narrative:');
             lines.push('');
 
             if (pending.time) {
@@ -501,6 +513,34 @@
         lines.push('');
 
         return lines.join('\n');
+    }
+
+    /**
+     * Get a plain text description of pending changes (for injection into chat stream)
+     */
+    function getPendingDescription(state) {
+        const chronos = ensureChronosState(state);
+        const pending = chronos.pendingChanges;
+        if (!pending || Object.keys(pending).length === 0) return null;
+
+        const parts = [];
+        if (pending.time) {
+            const slot = chronos.timeSlots[pending.time] || DEFAULT_TIME_SLOTS[pending.time];
+            parts.push(`Time shifting to ${slot?.label || pending.time}`);
+        }
+        if (pending.weather) {
+            const preset = chronos.weatherPresets[pending.weather];
+            parts.push(`Weather changing to ${pending.weather} (${preset?.description || ''})`);
+        } else if (pending.intensity) {
+            parts.push(`Weather intensity changing to ${pending.intensity}`);
+        }
+        if (pending.location) {
+            const loc = getLocationById(state, pending.location);
+            parts.push(`Moving to location: ${loc?.name || pending.location}`);
+        }
+
+        if (parts.length === 0) return null;
+        return `[TRANSITION EVENT: ${parts.join('; ')}. Narrate this change/movement in your response.]`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -604,6 +644,7 @@
         applyPendingChanges,
         clearPendingChanges,
         hasPendingChanges,
+        getPendingDescription,
 
         // Defaults (for UI)
         DEFAULT_TIME_SLOTS,

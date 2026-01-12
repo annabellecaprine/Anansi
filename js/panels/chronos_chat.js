@@ -711,7 +711,8 @@
         // Event Bindings
         timeSelect.onchange = () => {
             if (A.Chronos) {
-                A.Chronos.stagePendingChange(state, 'time', timeSelect.value);
+                const s = A.State.get();
+                A.Chronos.stagePendingChange(s, 'time', timeSelect.value);
                 A.State.notify();
                 refreshControls(); // Update UI to show pending state
             }
@@ -719,7 +720,8 @@
 
         weatherSelect.onchange = () => {
             if (A.Chronos) {
-                A.Chronos.stagePendingChange(state, 'weather', weatherSelect.value);
+                const s = A.State.get();
+                A.Chronos.stagePendingChange(s, 'weather', weatherSelect.value);
                 A.State.notify();
                 refreshControls();
             }
@@ -727,7 +729,8 @@
 
         weatherIntensity.onchange = () => {
             if (A.Chronos) {
-                A.Chronos.stagePendingChange(state, 'intensity', weatherIntensity.value);
+                const s = A.State.get();
+                A.Chronos.stagePendingChange(s, 'intensity', weatherIntensity.value);
                 A.State.notify();
                 refreshControls();
             }
@@ -735,7 +738,8 @@
 
         locationSelect.onchange = () => {
             if (A.Chronos) {
-                A.Chronos.stagePendingChange(state, 'location', locationSelect.value || null);
+                const s = A.State.get();
+                A.Chronos.stagePendingChange(s, 'location', locationSelect.value || null);
                 A.State.notify();
                 refreshControls();
             }
@@ -743,20 +747,17 @@
 
         controlBar.querySelector('#btn-advance-time').onclick = () => {
             if (A.Chronos) {
+                const s = A.State.get();
                 // Determine next slot
-                const slots = Object.values(state.chronos?.timeSlots || A.Chronos.DEFAULT_TIME_SLOTS).sort((a, b) => a.order - b.order);
-                const currentIdx = slots.findIndex(s => s.label === (state.chronos?.timeSlots?.[state.chronos?.currentTime]?.label || 'Afternoon')); // Rough match
-                // Logic simpler: just use keys if possible, but let's stick to core advance logic if we want immediate?
-                // No, user wants transition. Use stagePendingChange.
-                // We need to know the *next* key.
-                const currentKey = state.chronos?.currentTime;
-                const keys = Object.keys(state.chronos?.timeSlots || A.Chronos.DEFAULT_TIME_SLOTS);
+                const slots = Object.values(s.chronos?.timeSlots || A.Chronos.DEFAULT_TIME_SLOTS).sort((a, b) => a.order - b.order);
+                const currentKey = s.chronos?.currentTime;
+                const keys = Object.keys(s.chronos?.timeSlots || A.Chronos.DEFAULT_TIME_SLOTS);
                 // Sort keys by order
-                keys.sort((a, b) => (state.chronos?.timeSlots?.[a]?.order || 0) - (state.chronos?.timeSlots?.[b]?.order || 0));
+                keys.sort((a, b) => (s.chronos?.timeSlots?.[a]?.order || 0) - (s.chronos?.timeSlots?.[b]?.order || 0));
                 const idx = keys.indexOf(currentKey);
                 const nextKey = keys[(idx + 1) % keys.length];
 
-                A.Chronos.stagePendingChange(state, 'time', nextKey);
+                A.Chronos.stagePendingChange(s, 'time', nextKey);
                 A.State.notify();
                 refreshControls();
                 if (A.UI?.Toast) A.UI.Toast.show(`Time advance staged: ${nextKey}`, 'info');
@@ -928,6 +929,21 @@
                     role: m.role === 'model' ? 'assistant' : m.role,
                     content: m.content
                 }));
+
+                // INJECT PENDING TRANSITION (High Priority)
+                if (A.Chronos && A.Chronos.hasPendingChanges(state)) {
+                    const transDesc = A.Chronos.getPendingDescription(state);
+                    if (transDesc) {
+                        console.log('[Chronos] Injecting transition instruction:', transDesc);
+
+                        // Force a user message to make it unavoidable? No, system is better.
+                        // But let's make it ALL CAPS and imperatively styled.
+                        apiHistory.push({
+                            role: 'system',
+                            content: `IMPORTANT: YOU MUST EXECUTE THE FOLLOWING TRANSITION IN YOUR NARRATIVE:\n${transDesc}\nIGNORE ANY PREVIOUS CONTEXT THAT CONTRADICTS THIS CHANGE.`
+                        });
+                    }
+                }
 
                 const responseText = await A.LLM.generate(
                     systemPrompt,
