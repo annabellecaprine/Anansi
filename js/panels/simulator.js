@@ -1406,6 +1406,7 @@
               }
             }
           });
+
           refreshChat();
 
         } catch (e) {
@@ -2538,7 +2539,9 @@
         // Inject Locations
         locations: state.weaves?.locations || [],
         // Inject Actors (Allow Override from Plugins)
-        actors: [...(params.actors || state.sim?.actors || [])]
+        actors: [...(params.actors || state.sim?.actors || [])],
+        // Inject Chronos Context (Enhanced RP)
+        chronos: A.Chronos ? A.Chronos.buildContext(state) : null
       };
 
       // Snapshot for Diffing

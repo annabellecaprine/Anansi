@@ -2,6 +2,14 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.10.1 - 2026-01-12
+### Chronos Panel Enhancements
+- **Personas**: Added a User Persona tool (👤) to the Chronos chat bar. Players can now define their Name and Description, which are injected into the narration prompt for better personalization.
+- **Narrator Constraints**: Enforced strict "Prose-Only" rules. The AI is now explicitly forbidden from using "Narrator:" prefixes or writing actions/dialogue for the player.
+- **Logic Engine Parity**: Integrated the full Simulator `processRound` flow into Chronos. This enables active tag detection, lorebook lookup, and genre enforcement within the Chronos panel.
+- **Context Management**: Fixed "context bleed" where Simulator memories leaked into Chronos. Added a **"Clear Global Context"** button to settings for manual memory cleanup.
+
+
 ## v1.10.0 - 2026-01-11
 ### Major Release: RPG Completeness
 This release delivers the **RPG Feature Complete** milestone, enabling fully autonomous storylines and GM-designed campaigns.
