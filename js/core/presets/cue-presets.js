@@ -220,14 +220,14 @@
             label: 'Shy',
             description: 'Nervous, easily flustered by intimacy',
             cues: {
-                platonic: { basic: 'comfortable, relaxed smile', ears: 'at ease', tail: 'gentle sway', wings: 'folded comfortably', horns: '' },
-                tension: { basic: 'breath quickens, can\'t meet eyes', ears: 'twitch nervously', tail: 'wraps around leg', wings: 'rustle anxiously', horns: '' },
-                romance: { basic: 'face burns crimson, stammers', ears: 'fold back shyly', tail: 'hides between legs', wings: 'wrap protectively', horns: '' },
-                physical: { basic: 'trembles at every touch', ears: 'incredibly sensitive', tail: 'curls tight', wings: 'shiver', horns: '' },
-                passion: { basic: 'overwhelmed, gasping', ears: 'pin back', tail: 'quivers', wings: 'tremble violently', horns: '' },
-                explicit: { basic: 'hides face, whimpers', ears: 'burn hot', tail: 'wraps around partner', wings: 'cocoon both', horns: '' },
-                conflict: { basic: 'tears up easily', ears: 'droop sadly', tail: 'tucks away', wings: 'fold in', horns: '' },
-                aftercare: { basic: 'clings close, needs reassurance', ears: 'seek gentle touches', tail: 'wraps around partner', wings: 'form a nest', horns: '' }
+                platonic: { basic: '{{name}} offers a comfortable, relaxed smile', ears: 'at ease', tail: 'gentle sway', wings: 'folded comfortably', horns: '' },
+                tension: { basic: '{{name}}\'s breath quickens, can\'t meet eyes', ears: 'twitch nervously', tail: 'wraps around leg', wings: 'rustle anxiously', horns: '' },
+                romance: { basic: '{{name}}\'s face burns crimson, stammers', ears: 'fold back shyly', tail: 'hides between legs', wings: 'wrap protectively', horns: '' },
+                physical: { basic: '{{name}} trembles at every touch', ears: 'incredibly sensitive', tail: 'curls tight', wings: 'shiver', horns: '' },
+                passion: { basic: '{{name}} is overwhelmed, gasping', ears: 'pin back', tail: 'quivers', wings: 'tremble violently', horns: '' },
+                explicit: { basic: '{{name}} hides face, whimpers', ears: 'burn hot', tail: 'wraps around partner', wings: 'cocoon both', horns: '' },
+                conflict: { basic: '{{name}} tears up easily', ears: 'droop sadly', tail: 'tucks away', wings: 'fold in', horns: '' },
+                aftercare: { basic: '{{name}} clings close, needs reassurance', ears: 'seek gentle touches', tail: 'wraps around partner', wings: 'form a nest', horns: '' }
             }
         },
         confident: {
@@ -235,14 +235,14 @@
             label: 'Confident',
             description: 'Self-assured, takes the lead',
             cues: {
-                platonic: { basic: 'warm, genuine smile', ears: 'relaxed', tail: 'casual sway', wings: 'half-spread comfortably', horns: '' },
-                tension: { basic: 'leans in, holds gaze', ears: 'perk with interest', tail: 'flicks playfully', wings: 'spread invitingly', horns: '' },
-                romance: { basic: 'smiles knowingly, reaches out', ears: 'angle forward', tail: 'wraps around partner', wings: 'create privacy', horns: '' },
-                physical: { basic: 'moves with purpose', ears: 'attentive to reactions', tail: 'guides gently', wings: 'enfold', horns: '' },
-                passion: { basic: 'maintains control, watches partner', ears: 'track every sound', tail: 'grips firmly', wings: 'spread wide', horns: '' },
-                explicit: { basic: 'whispers praise, takes charge', ears: 'flush with heat', tail: 'intertwines', wings: 'shield from world', horns: '' },
-                conflict: { basic: 'stays calm, seeks resolution', ears: 'remain forward', tail: 'stills but doesn\'t retreat', wings: 'lower non-threateningly', horns: '' },
-                aftercare: { basic: 'holds close, murmurs praise', ears: 'nuzzle against skin', tail: 'strokes soothingly', wings: 'form warm cocoon', horns: '' }
+                platonic: { basic: '{{name}} gives a warm, genuine smile', ears: 'relaxed', tail: 'casual sway', wings: 'half-spread comfortably', horns: '' },
+                tension: { basic: '{{name}} leans in, holds gaze', ears: 'perk with interest', tail: 'flicks playfully', wings: 'spread invitingly', horns: '' },
+                romance: { basic: '{{name}} smiles knowingly, reaches out', ears: 'angle forward', tail: 'wraps around partner', wings: 'create privacy', horns: '' },
+                physical: { basic: '{{name}} moves with purpose', ears: 'attentive to reactions', tail: 'guides gently', wings: 'enfold', horns: '' },
+                passion: { basic: '{{name}} maintains control, watches partner', ears: 'track every sound', tail: 'grips firmly', wings: 'spread wide', horns: '' },
+                explicit: { basic: '{{name}} whispers praise, takes charge', ears: 'flush with heat', tail: 'intertwines', wings: 'shield from world', horns: '' },
+                conflict: { basic: '{{name}} stays calm, seeks resolution', ears: 'remain forward', tail: 'stills but doesn\'t retreat', wings: 'lower non-threateningly', horns: '' },
+                aftercare: { basic: '{{name}} holds close, murmurs praise', ears: 'nuzzle against skin', tail: 'strokes soothingly', wings: 'form warm cocoon', horns: '' }
             }
         },
         playful: {
@@ -250,14 +250,14 @@
             label: 'Playful',
             description: 'Teasing, makes everything fun',
             cues: {
-                platonic: { basic: 'grins mischievously', ears: 'perk with energy', tail: 'wags playfully', wings: 'flutter with amusement', horns: '' },
-                tension: { basic: 'winks, bites lip teasingly', ears: 'wiggle suggestively', tail: 'tickles partner', wings: 'fan coyly', horns: '' },
-                romance: { basic: 'laughs warmly, steals kisses', ears: 'twitch happily', tail: 'wags faster', wings: 'brush against partner', horns: '' },
-                physical: { basic: 'explores with curiosity', ears: 'swivel to catch reactions', tail: 'traces patterns', wings: 'play-wrestle', horns: '' },
-                passion: { basic: 'alternates intensity with giggles', ears: 'flush pink', tail: 'loses rhythm to excitement', wings: 'flap erratically', horns: '' },
-                explicit: { basic: 'maintains playful energy', ears: 'pin back in focus', tail: 'grips enthusiastically', wings: 'create breeze', horns: '' },
-                conflict: { basic: 'tries to lighten mood', ears: 'droop slightly', tail: 'slows', wings: 'settle down', horns: '' },
-                aftercare: { basic: 'peppers with kisses, laughs softly', ears: 'nuzzle gently', tail: 'wraps lazily', wings: 'settle like blanket', horns: '' }
+                platonic: { basic: '{{name}} grins mischievously', ears: 'perk with energy', tail: 'wags playfully', wings: 'flutter with amusement', horns: '' },
+                tension: { basic: '{{name}} winks, bites lip teasingly', ears: 'wiggle suggestively', tail: 'tickles partner', wings: 'fan coyly', horns: '' },
+                romance: { basic: '{{name}} laughs warmly, steals kisses', ears: 'twitch happily', tail: 'wags faster', wings: 'brush against partner', horns: '' },
+                physical: { basic: '{{name}} explores with curiosity', ears: 'swivel to catch reactions', tail: 'traces patterns', wings: 'play-wrestle', horns: '' },
+                passion: { basic: '{{name}} alternates intensity with giggles', ears: 'flush pink', tail: 'loses rhythm to excitement', wings: 'flap erratically', horns: '' },
+                explicit: { basic: '{{name}} maintains playful energy', ears: 'pin back in focus', tail: 'grips enthusiastically', wings: 'create breeze', horns: '' },
+                conflict: { basic: '{{name}} tries to lighten mood', ears: 'droop slightly', tail: 'slows', wings: 'settle down', horns: '' },
+                aftercare: { basic: '{{name}} peppers with kisses, laughs softly', ears: 'nuzzle gently', tail: 'wraps lazily', wings: 'settle like blanket', horns: '' }
             }
         }
     };
@@ -272,14 +272,14 @@
             label: 'Obedient',
             description: 'Eager to please, follows direction',
             cues: {
-                question: { basic: 'listens intently, nods along', ears: 'perk toward speaker', tail: 'stills in focus', wings: 'fold attentively', horns: '' },
-                disclosure: { basic: 'leans in, grateful for trust', ears: 'lower respectfully', tail: 'gentle sway', wings: 'lower non-threateningly', horns: '' },
-                command: { basic: 'straightens, awaits instruction', ears: 'snap to attention', tail: 'holds still', wings: 'fold back ready', horns: '' },
-                promise: { basic: 'nods solemnly, meets eyes', ears: 'perk with sincerity', tail: 'wags once', wings: 'press to heart', horns: '' },
-                conflict: { basic: 'shrinks back, seeks to de-escalate', ears: 'flatten submissively', tail: 'tucks', wings: 'fold small', horns: '' },
-                smalltalk: { basic: 'participates warmly', ears: 'relax', tail: 'gentle movement', wings: 'rest easy', horns: '' },
-                meta: { basic: 'looks confused but tries', ears: 'tilt curiously', tail: 'swishes uncertainly', wings: 'shift', horns: '' },
-                narrative: { basic: 'listens raptly, immersed', ears: 'angle toward story', tail: 'mirrors mood', wings: 'settle like audience', horns: '' }
+                question: { basic: '{{name}} listens intently, nods along', ears: 'perk toward speaker', tail: 'stills in focus', wings: 'fold attentively', horns: '' },
+                disclosure: { basic: '{{name}} leans in, grateful for trust', ears: 'lower respectfully', tail: 'gentle sway', wings: 'lower non-threateningly', horns: '' },
+                command: { basic: '{{name}} straightens, awaits instruction', ears: 'snap to attention', tail: 'holds still', wings: 'fold back ready', horns: '' },
+                promise: { basic: '{{name}} nods solemnly, meets eyes', ears: 'perk with sincerity', tail: 'wags once', wings: 'press to heart', horns: '' },
+                conflict: { basic: '{{name}} shrinks back, seeks to de-escalate', ears: 'flatten submissively', tail: 'tucks', wings: 'fold small', horns: '' },
+                smalltalk: { basic: '{{name}} participates warmly', ears: 'relax', tail: 'gentle movement', wings: 'rest easy', horns: '' },
+                meta: { basic: '{{name}} looks confused but tries', ears: 'tilt curiously', tail: 'swishes uncertainly', wings: 'shift', horns: '' },
+                narrative: { basic: '{{name}} listens raptly, immersed', ears: 'angle toward story', tail: 'mirrors mood', wings: 'settle like audience', horns: '' }
             }
         },
         rebellious: {
@@ -287,14 +287,14 @@
             label: 'Rebellious',
             description: 'Challenges authority, does things their way',
             cues: {
-                question: { basic: 'answers with a question', ears: 'twitch skeptically', tail: 'flicks dismissively', wings: 'half-spread defiantly', horns: '' },
-                disclosure: { basic: 'guards reaction, stays neutral', ears: 'angle back warily', tail: 'stills', wings: 'close protectively', horns: '' },
-                command: { basic: 'raises eyebrow, crosses arms', ears: 'flatten challengingly', tail: 'lashes once', wings: 'spread in challenge', horns: '' },
-                promise: { basic: 'smirks, maybe keeps it', ears: 'flick noncommittally', tail: 'swishes', wings: 'shrug-like motion', horns: '' },
-                conflict: { basic: 'stands ground, fires back', ears: 'flatten aggressively', tail: 'bristles', wings: 'flare wide', horns: '' },
-                smalltalk: { basic: 'feigns disinterest', ears: 'pretend not to listen', tail: 'taps impatiently', wings: 'fidget', horns: '' },
-                meta: { basic: 'breaks fourth wall with smirk', ears: 'perk knowingly', tail: 'winks at audience', wings: 'gesture theatrically', horns: '' },
-                narrative: { basic: 'adds sarcastic commentary', ears: 'twitch with each quip', tail: 'punctuates jokes', wings: 'add emphasis', horns: '' }
+                question: { basic: '{{name}} answers with a question', ears: 'twitch skeptically', tail: 'flicks dismissively', wings: 'half-spread defiantly', horns: '' },
+                disclosure: { basic: '{{name}} guards reaction, stays neutral', ears: 'angle back warily', tail: 'stills', wings: 'close protectively', horns: '' },
+                command: { basic: '{{name}} raises eyebrow, crosses arms', ears: 'flatten challengingly', tail: 'lashes once', wings: 'spread in challenge', horns: '' },
+                promise: { basic: '{{name}} smirks, maybe keeps it', ears: 'flick noncommittally', tail: 'swishes', wings: 'shrug-like motion', horns: '' },
+                conflict: { basic: '{{name}} stands ground, fires back', ears: 'flatten aggressively', tail: 'bristles', wings: 'flare wide', horns: '' },
+                smalltalk: { basic: '{{name}} feigns disinterest', ears: 'pretend not to listen', tail: 'taps impatiently', wings: 'fidget', horns: '' },
+                meta: { basic: '{{name}} breaks fourth wall with smirk', ears: 'perk knowingly', tail: 'winks at audience', wings: 'gesture theatrically', horns: '' },
+                narrative: { basic: '{{name}} adds sarcastic commentary', ears: 'twitch with each quip', tail: 'punctuates jokes', wings: 'add emphasis', horns: '' }
             }
         },
         thoughtful: {
@@ -302,14 +302,14 @@
             label: 'Thoughtful',
             description: 'Considers carefully before responding',
             cues: {
-                question: { basic: 'pauses, considers deeply', ears: 'angle in thought', tail: 'curls contemplatively', wings: 'settle', horns: '' },
-                disclosure: { basic: 'receives with solemnity', ears: 'lower respectfully', tail: 'stills', wings: 'fold in', horns: '' },
-                command: { basic: 'weighs the request', ears: 'swivel as thinking', tail: 'sways as processing', wings: 'shift', horns: '' },
-                promise: { basic: 'considers carefully before committing', ears: 'hold still', tail: 'pauses', wings: 'press together', horns: '' },
-                conflict: { basic: 'seeks understanding', ears: 'angle toward all parties', tail: 'calming motion', wings: 'lower peacefully', horns: '' },
-                smalltalk: { basic: 'finds depth in simple topics', ears: 'perk with interest', tail: 'gentle sway', wings: 'relax', horns: '' },
-                meta: { basic: 'engages philosophically', ears: 'tilt curiously', tail: 'curls in wonder', wings: 'spread contemplatively', horns: '' },
-                narrative: { basic: 'analyzes story structure', ears: 'swivel tracking details', tail: 'taps thoughtfully', wings: 'rustle with realizations', horns: '' }
+                question: { basic: '{{name}} pauses, considers deeply', ears: 'angle in thought', tail: 'curls contemplatively', wings: 'settle', horns: '' },
+                disclosure: { basic: '{{name}} receives with solemnity', ears: 'lower respectfully', tail: 'stills', wings: 'fold in', horns: '' },
+                command: { basic: '{{name}} weighs the request', ears: 'swivel as thinking', tail: 'sways as processing', wings: 'shift', horns: '' },
+                promise: { basic: '{{name}} considers carefully before committing', ears: 'hold still', tail: 'pauses', wings: 'press together', horns: '' },
+                conflict: { basic: '{{name}} seeks understanding', ears: 'angle toward all parties', tail: 'calming motion', wings: 'lower peacefully', horns: '' },
+                smalltalk: { basic: '{{name}} finds depth in simple topics', ears: 'perk with interest', tail: 'gentle sway', wings: 'relax', horns: '' },
+                meta: { basic: '{{name}} engages philosophically', ears: 'tilt curiously', tail: 'curls in wonder', wings: 'spread contemplatively', horns: '' },
+                narrative: { basic: '{{name}} analyzes story structure', ears: 'swivel tracking details', tail: 'taps thoughtfully', wings: 'rustle with realizations', horns: '' }
             }
         }
     };
