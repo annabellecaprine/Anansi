@@ -292,6 +292,78 @@
       groupSelect.onchange = (e) => renderPickerList(searchInput.value, e.target.value);
 
       dialog.querySelector('#btn-close').onclick = () => dialog.remove();
+    },
+
+    /**
+     * Show Conflict Resolution Dialog
+     * @param {Object} options
+     * @param {string} options.itemName - Name of item being imported
+     * @param {string} options.existingName - Name of existing item
+     * @param {string} options.type - Item type
+     * @param {Function} options.onOverwrite - Callback for overwrite
+     * @param {Function} options.onClone - Callback for clone
+     */
+    showConflictDialog: function (options) {
+      const { itemName, existingName, type, onOverwrite, onClone } = options;
+
+      const dialog = document.createElement('div');
+      dialog.className = 'modal-backdrop';
+      dialog.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:9100; display:flex; align-items:center; justify-content:center;';
+
+      dialog.innerHTML = `
+        <div class="card" style="width:400px; box-shadow:0 4px 25px rgba(0,0,0,0.6); background:var(--bg-surface); border:1px solid var(--border-subtle);">
+          <div class="card-header" style="background:var(--bg-inset); border-bottom:1px solid var(--border-subtle);">
+            <strong style="color:var(--status-warning);">⚠️ ID Conflict Detected</strong>
+          </div>
+          <div class="card-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <div style="font-size:13px; line-height:1.4;">
+              An actor with this ID already exists in your project.
+            </div>
+            
+            <div style="background:var(--bg-base); padding:8px 12px; border-radius:4px; font-size:12px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-muted);">Incoming:</span>
+                <strong>${itemName}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Existing:</span>
+                <strong>${existingName}</strong>
+              </div>
+            </div>
+
+            <div style="font-size:12px; color:var(--text-secondary);">
+              How would you like to proceed?
+            </div>
+          </div>
+          <div class="card-footer" style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+            <button class="btn" id="btn-overwrite" style="background:var(--status-warning); color:var(--bg-base); justify-content:center;">
+              Overwrite Existing
+              <span style="font-size:10px; opacity:0.8; margin-left:8px;">(Revert/Update)</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-clone" style="justify-content:center;">
+              Create Copy
+              <span style="font-size:10px; opacity:0.8; margin-left:8px;">(New ID)</span>
+            </button>
+            <button class="btn btn-ghost" id="btn-cancel" style="justify-content:center; margin-top:4px;">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(dialog);
+
+      dialog.querySelector('#btn-overwrite').onclick = () => {
+        dialog.remove();
+        if (onOverwrite) onOverwrite();
+      };
+
+      dialog.querySelector('#btn-clone').onclick = () => {
+        dialog.remove();
+        if (onClone) onClone();
+      };
+
+      dialog.querySelector('#btn-cancel').onclick = () => {
+        dialog.remove();
+      };
     }
   };
 

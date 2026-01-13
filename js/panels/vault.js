@@ -975,26 +975,63 @@
         return;
       }
 
-      // Generate new ID to avoid conflicts
-      const newId = item.type + '_' + Math.random().toString(36).substr(2, 9);
-      const copiedData = JSON.parse(JSON.stringify(item.data));
-      copiedData[idField] = newId;
+      // Conflict Detection & Finalize
+      const originalId = item.data.id;
+      let finalId = null;
 
-      // Add vaultLink to track source
-      copiedData.vaultLink = {
-        vaultId: item.id,
-        pulledVersion: item.version,
-        locallyModified: false,
-        lastSyncedAt: new Date().toISOString(),
-        universe: item.universe,
-        tags: item.tags
-      };
+      function finalizeImport(useId) {
+        const copiedData = JSON.parse(JSON.stringify(item.data));
+        copiedData[idField] = useId;
 
-      // Add to project
-      targetPath[newId] = copiedData;
-      A.State.notify();
+        // Add vaultLink to track source
+        copiedData.vaultLink = {
+          vaultId: item.id,
+          pulledVersion: item.version,
+          locallyModified: false,
+          lastSyncedAt: new Date().toISOString(),
+          universe: item.universe,
+          tags: item.tags
+        };
 
-      if (!silent && A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
+        // Add to project
+        targetPath[useId] = copiedData;
+        A.State.notify();
+
+        if (!silent && A.UI.Toast) A.UI.Toast.show(`Added "${name}" to project`, 'success');
+      }
+
+      if (targetPath && originalId && targetPath[originalId]) {
+        // CONFLICT DETECTED
+        if (!silent && A.VaultUI && A.VaultUI.showConflictDialog) {
+          return new Promise(resolve => {
+            A.VaultUI.showConflictDialog({
+              itemName: name,
+              existingName: targetPath[originalId].name || 'Existing Item',
+              type: item.type,
+              onOverwrite: () => {
+                finalizeImport(originalId);
+                resolve();
+              },
+              onClone: () => {
+                const newId = item.type + '_' + Math.random().toString(36).substr(2, 9);
+                finalizeImport(newId);
+                resolve();
+              }
+            });
+          });
+        } else {
+          // Silent mode (e.g. block import) - Default to Clone to prevent dataloss
+          finalId = item.type + '_' + Math.random().toString(36).substr(2, 9);
+        }
+      } else if (originalId) {
+        // NO CONFLICT - Use Original ID (Restores State)
+        finalId = originalId;
+      } else {
+        // Fallback (Rare)
+        finalId = item.type + '_' + Math.random().toString(36).substr(2, 9);
+      }
+
+      if (finalId) finalizeImport(finalId);
     }
 
     // --- Dynamic Layout Helper ---
