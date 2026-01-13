@@ -29,11 +29,11 @@
                 { key: "back_room", name: "Back Room", type: "restricted", description: "A private area, not meant for casual visitors.", expandable: false }
             ],
             connections: [
-                { from: "hub", to: "branch_1" },
-                { from: "hub", to: "branch_2" },
-                { from: "hub", to: "branch_3" },
-                { from: "hub", to: "branch_4" },
-                { from: "hub", to: "back_room", hidden: true }
+                { from: "hub", to: "branch_1", type: "door", description: "Wooden Door", soundproof: false },
+                { from: "hub", to: "branch_2", type: "door", description: "Wooden Door", soundproof: false },
+                { from: "hub", to: "branch_3", type: "door", description: "Wooden Door", soundproof: false },
+                { from: "hub", to: "branch_4", type: "door", description: "Wooden Door", soundproof: false },
+                { from: "hub", to: "back_room", hidden: true, type: "door", description: "Locked Iron Door", soundproof: true }
             ]
         },
         {
@@ -76,14 +76,14 @@
                 { key: "ruins", name: "The Old Ruins", type: "landmark", description: "Remnants of a forgotten age, whispered to be haunted.", expandable: true }
             ],
             connections: [
-                { from: "capital", to: "village_north" },
-                { from: "capital", to: "village_east" },
-                { from: "capital", to: "village_south" },
-                { from: "village_north", to: "mountains" },
-                { from: "village_east", to: "forest" },
-                { from: "village_south", to: "forest" },
-                { from: "forest", to: "ruins" },
-                { from: "mountains", to: "ruins", hidden: true }
+                { from: "capital", to: "village_north", type: "road", description: "King's Road", soundproof: true },
+                { from: "capital", to: "village_east", type: "road", description: "Trade Route", soundproof: true },
+                { from: "capital", to: "village_south", type: "road", description: "Farm Lane", soundproof: true },
+                { from: "village_north", to: "mountains", type: "trail", description: "Mountain Path", soundproof: true },
+                { from: "village_east", to: "forest", type: "trail", description: "Forest Trail", soundproof: true },
+                { from: "village_south", to: "forest", type: "trail", description: "Overgrown Path", soundproof: true },
+                { from: "forest", to: "ruins", type: "path", description: "Ancient Road", soundproof: true },
+                { from: "mountains", to: "ruins", hidden: true, type: "secret", description: "Hidden Pass", soundproof: true }
             ]
         },
         {
@@ -289,6 +289,11 @@
                     <div style="margin-bottom:16px;">
                         <label class="label">Tone/Atmosphere Keywords (optional)</label>
                         <input type="text" id="wizard-tone" class="input" style="width:100%;" placeholder="e.g., grim, mysterious, war-torn, peaceful">
+                    </div>
+                    
+                    <div style="margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="wizard-logic" style="cursor:pointer;">
+                        <label for="wizard-logic" class="label" style="margin:0; cursor:pointer;">Enable Dynamic Connections (Keys & Times)</label>
                     </div>
                     
                     <div style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
@@ -645,7 +650,8 @@
         structure: 'hub',
         count: 5,
         landmarks: '',
-        tone: ''
+        tone: '',
+        useLogic: false
     };
 
     // Persisted state for the wizard
@@ -666,8 +672,10 @@
             scale: container.querySelector('#wizard-scale'),
             structure: container.querySelector('#wizard-structure'),
             count: container.querySelector('#wizard-count'),
+            count: container.querySelector('#wizard-count'),
             landmarks: container.querySelector('#wizard-landmarks'),
-            tone: container.querySelector('#wizard-tone')
+            tone: container.querySelector('#wizard-tone'),
+            useLogic: container.querySelector('#wizard-logic')
         };
 
         const generateBtn = container.querySelector('#btn-wizard-generate');
@@ -687,7 +695,11 @@
         // Apply saved values to inputs
         Object.keys(inputs).forEach(key => {
             if (inputs[key] && wizardState.inputs[key] !== undefined) {
-                inputs[key].value = wizardState.inputs[key];
+                if (inputs[key].type === 'checkbox') {
+                    inputs[key].checked = wizardState.inputs[key];
+                } else {
+                    inputs[key].value = wizardState.inputs[key];
+                }
             }
         });
 
@@ -706,7 +718,8 @@
             if (inputs[key]) {
                 const eventType = (key === 'name' || key === 'landmarks' || key === 'tone') ? 'input' : 'change';
                 inputs[key].addEventListener(eventType, (e) => {
-                    wizardState.inputs[key] = e.target.value;
+                    const val = (e.target.type === 'checkbox') ? e.target.checked : e.target.value;
+                    wizardState.inputs[key] = val;
                     // Special handler for slider display
                     if (key === 'count') {
                         countDisplay.textContent = `${e.target.value} locations`;
@@ -726,7 +739,8 @@
                 structure: inputs.structure.value,
                 count: parseInt(inputs.count.value),
                 landmarks: inputs.landmarks.value.split(',').map(s => s.trim()).filter(Boolean),
-                tone: inputs.tone.value.trim()
+                tone: inputs.tone.value.trim(),
+                useLogic: inputs.useLogic.checked
             };
 
             wizardState.template = generateMapFromConfig(config);
@@ -798,7 +812,7 @@
     // MAP GENERATION LOGIC
     // ===========================================
     function generateMapFromConfig(config) {
-        const { name, genre, scale, structure, count, landmarks, tone } = config;
+        const { name, genre, scale, structure, count, landmarks, tone, useLogic } = config;
 
         const locationTypes = {
             building: ['room', 'hall', 'chamber', 'corridor', 'alcove', 'office', 'storage'],
@@ -889,7 +903,7 @@
             });
         }
 
-        const connections = generateConnections(locations, structure);
+        const connections = generateConnections(locations, structure, scale, genre, useLogic);
 
         return {
             id: 'wizard_' + Math.random().toString(36).substr(2, 8),
@@ -904,21 +918,92 @@
         };
     }
 
-    function generateConnections(locations, structure) {
+    function generateConnections(locations, structure, scale, genre, useLogic = false) {
         const connections = [];
         const n = locations.length;
+        const locMap = {};
+        locations.forEach(l => locMap[l.key] = l);
+
+        function addConn(fromKey, toKey, hidden = false) {
+            const fromLoc = locMap[fromKey];
+            const toLoc = locMap[toKey];
+            const fromType = fromLoc ? fromLoc.type : 'location';
+            const toType = toLoc ? toLoc.type : 'location';
+
+            let type = 'path';
+            let desc = 'Path';
+            let soundproof = false;
+            let time = null;
+            let condition = null;
+            let lockedMsg = null;
+
+            // Heuristics
+            if (scale === 'building' || scale === 'dungeon') {
+                soundproof = false; // Generally can hear nearby in buildings
+                if (fromType === 'room' && toType === 'corridor') { type = 'archway'; desc = 'Open Archway'; }
+                else if (fromType === 'corridor' && toType === 'room') { type = 'archway'; desc = 'Open Archway'; }
+                else if (fromType === 'room' && toType === 'room') { type = 'door'; desc = 'Wooden Door'; }
+                else if (fromType === 'hub' && toType.includes('room')) { type = 'door'; desc = 'Sturdy Door'; }
+                else if (hidden) { type = 'secret'; desc = 'Hidden Panel'; soundproof = true; }
+                else { type = 'door'; desc = 'Door'; }
+
+                // LOGIC GATES (If enabled)
+                if (useLogic) {
+                    if (toLoc && toLoc.type === 'restricted') {
+                        condition = 'vip_access';
+                        lockedMsg = 'The door is locked electronically.';
+                        desc = 'Reinforced Door';
+                    }
+                }
+
+            } else if (scale === 'district' || scale === 'city') {
+                soundproof = false;
+                if (fromType === 'street' || toType === 'street') { type = 'street'; desc = 'Street'; }
+                else if (fromType === 'park' || toType === 'park') {
+                    type = 'path';
+                    desc = 'Park Path';
+                    // TIME GATES (If enabled)
+                    if (useLogic && Math.random() > 0.5) {
+                        time = ['morning', 'afternoon']; // Closed at night (implied)
+                        lockedMsg = 'The park gates are locked for the night.';
+                        desc = 'Park Gates';
+                    }
+                }
+                else { type = 'entrance'; desc = 'Entrance'; }
+            } else {
+                // Region/Kingdom/Planet - Large distances
+                soundproof = true;
+                type = 'road'; desc = 'Road';
+                if (fromType === 'wilderness' || toType === 'wilderness') { type = 'trail'; desc = 'Dirt Trail'; }
+            }
+
+            const conn = {
+                from: fromKey,
+                to: toKey,
+                hidden: hidden,
+                type: type,
+                description: desc,
+                soundproof: soundproof
+            };
+
+            if (time) conn.time = time;
+            if (condition) conn.condition = condition;
+            if (lockedMsg) conn.locked_msg = lockedMsg;
+
+            connections.push(conn);
+        }
 
         if (n < 2) return connections;
 
         switch (structure) {
             case 'hub':
                 for (let i = 1; i < n; i++) {
-                    connections.push({ from: locations[0].key, to: locations[i].key });
+                    addConn(locations[0].key, locations[i].key);
                 }
                 break;
             case 'linear':
                 for (let i = 0; i < n - 1; i++) {
-                    connections.push({ from: locations[i].key, to: locations[i + 1].key });
+                    addConn(locations[i].key, locations[i + 1].key);
                 }
                 break;
             case 'grid':
@@ -926,16 +1011,16 @@
                 for (let i = 0; i < n; i++) {
                     const right = i + 1;
                     const down = i + cols;
-                    if (right < n && (right % cols !== 0)) connections.push({ from: locations[i].key, to: locations[right].key });
-                    if (down < n) connections.push({ from: locations[i].key, to: locations[down].key });
+                    if (right < n && (right % cols !== 0)) addConn(locations[i].key, locations[right].key);
+                    if (down < n) addConn(locations[i].key, locations[down].key);
                 }
                 break;
             case 'branching':
                 for (let i = 0; i < n; i++) {
                     const left = 2 * i + 1;
                     const right = 2 * i + 2;
-                    if (left < n) connections.push({ from: locations[i].key, to: locations[left].key });
-                    if (right < n) connections.push({ from: locations[i].key, to: locations[right].key });
+                    if (left < n) addConn(locations[i].key, locations[left].key);
+                    if (right < n) addConn(locations[i].key, locations[right].key);
                 }
                 break;
             default:
@@ -943,7 +1028,7 @@
                     const numConnections = Math.floor(Math.random() * 2) + 1;
                     for (let c = 0; c < numConnections; c++) {
                         let target = Math.floor(Math.random() * n);
-                        if (target !== i) connections.push({ from: locations[i].key, to: locations[target].key });
+                        if (target !== i) addConn(locations[i].key, locations[target].key);
                     }
                 }
                 break;

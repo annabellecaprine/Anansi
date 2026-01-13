@@ -2,6 +2,13 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.0 - 2026-01-13
+### Dynamic World Update
+- **Map Dynamic Connections**: Hina's Travel Guide now supports Time-based gates (e.g., Parks closed at night) and Logic-based gates (e.g., VIP Keycard required).
+- **Chronos Core**: Updates to movement validation to respect new connection types (Closed/Locked status).
+- **Nabu Formats**: Added "Personality Format" selector to Nabu Generator (Prose, List/W++, Hybrid).
+- **Quality of Life**: Added "Enable Dynamic Connections" checkbox to Map Wizard; Logic Gates are opt-in.
+
 ## v1.10.3 - 2026-01-12
 ### SurgeonFish Update
 - **Hina's Travel Guide**: Implemented state persistence for the Map Builder. Inputs and wizard steps are now saved when tabbing away.

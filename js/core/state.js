@@ -19,7 +19,7 @@
                 name: 'Untitled Project',
                 description: '',
                 author: '',
-                version: '1.10.3',
+                version: '1.11.0',
                 createdAt: now,
                 updatedAt: now
             },

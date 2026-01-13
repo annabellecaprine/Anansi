@@ -219,17 +219,59 @@
             .filter(l => l !== null);
     }
 
-    function isAdjacent(state, locA, locB) {
+    function getConnection(state, locAId, locBId) {
         const locs = getLocations(state);
-        const loc = locs[locA];
-        if (!loc) return false;
+        const locA = locs[locAId];
+        if (!locA) return null;
 
-        // Connections are in 'exits' field
-        const exits = loc.exits || loc.connections || [];
-        return exits.some(exit => {
-            const exitId = typeof exit === 'string' ? exit : exit.id;
-            return exitId === locB;
+        const exits = locA.exits || locA.connections || [];
+        // Check for direct object with ID, or string ID matches
+        // Standardize: exit can be "locB" or { id: "locB", ... }
+        const exit = exits.find(e => {
+            const eId = typeof e === 'string' ? e : e.id;
+            return eId === locBId;
         });
+
+        if (!exit) return null;
+
+        // If string, return default connection
+        if (typeof exit === 'string') {
+            return { id: exit, type: 'path', description: 'adjacent', status: 'open' };
+        }
+
+        // Clone to avoid mutating state
+        const conn = { ...exit };
+        conn.status = 'open';
+
+        // 1. Time Check
+        if (conn.time) {
+            const chronos = ensureChronosState(state);
+            const current = chronos.currentTime;
+            const validTimes = Array.isArray(conn.time) ? conn.time : [conn.time];
+            // If current time is NOT in valid list, it's closed
+            if (!validTimes.includes(current)) {
+                conn.status = 'closed';
+                conn.description = conn.locked_msg || `Closed (${conn.description})`;
+            }
+        }
+
+        // 2. Condition Check (Logic Gate)
+        if (conn.condition) {
+            // Check global flags (bucket for quest items/state)
+            const flags = state.flags || {};
+            // If condition flag is missing/false, it's locked
+            if (!flags[conn.condition]) {
+                conn.status = 'locked';
+                if (conn.locked_msg) conn.description = conn.locked_msg;
+            }
+        }
+
+        return conn;
+
+    }
+
+    function isAdjacent(state, locA, locB) {
+        return !!getConnection(state, locA, locB);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -330,10 +372,36 @@
                 elsewhere.push(entry);
             } else if (pos.location === userLocId) {
                 present.push(entry);
-            } else if (isAdjacent(state, userLocId, pos.location)) {
-                nearby.push(entry);
             } else {
-                elsewhere.push(entry);
+                // Check adjacency and soundproofness
+                const conn = getConnection(state, userLocId, pos.location);
+                if (conn) {
+                    // Status Check
+                    if (conn.status === 'closed') {
+                        // Time-gated / Closed: Treat as elsewhere (blocked view/audio)
+                        elsewhere.push(entry);
+                    }
+                    else if (conn.soundproof) {
+                        // Soundproof: Treat as elsewhere
+                        elsewhere.push(entry);
+                    }
+                    else {
+                        // Open/Locked and audible
+                        // Add connection flavor
+                        let desc = conn.description ? `(via ${conn.description})` :
+                            conn.type ? `(via ${conn.type})` : '';
+
+                        // Append Lock status to description for prompt awareness
+                        if (conn.status === 'locked') {
+                            desc += ' [LOCKED]';
+                        }
+
+                        entry.connectionDesc = desc;
+                        nearby.push(entry);
+                    }
+                } else {
+                    elsewhere.push(entry);
+                }
             }
         });
 
@@ -395,123 +463,106 @@
 
         const lines = [];
 
-        // Header & Conflict Resolution
-        const pendingCheck = chronosContext.pendingChanges;
-        const isTransitioning = pendingCheck && Object.keys(pendingCheck).length > 0;
+        // 1. STATE SNAPSHOT (The "Mechanical" Truth)
+        // This is designed for the LLM to parse as a strict constraint.
+        lines.push('*** STATE_SNAPSHOT (Canonical Truth) ***');
 
-        lines.push('');
-        lines.push('═══════════════════════════════════════════════════════════');
-        if (isTransitioning) {
-            lines.push('PREVIOUS WORLD STATE (Reference Only - Context is changing)');
-        } else {
-            lines.push('WORLD STATE (Authoritative — Do Not Contradict)');
-        }
-        lines.push('═══════════════════════════════════════════════════════════');
-        lines.push('');
-
-        // Time
+        // Time & Weather
         const time = chronosContext.time;
-        lines.push(`【TIME】 ${time.label} (${time.hours || ''})`);
-
-        // Weather
         const weather = chronosContext.weather;
-        if (weather && weather.condition !== 'clear') {
-            const desc = weather.description || DEFAULT_WEATHER_PRESETS[weather.condition]?.description || '';
-            lines.push(`【WEATHER】 ${weather.intensity} ${weather.condition}${desc ? ' — ' + desc : ''}`);
-        } else if (weather) {
-            lines.push(`【WEATHER】 Clear and pleasant`);
-        }
+        lines.push(`TIME_ID: ${time.slot} (${time.label})`);
+        lines.push(`WEATHER_ID: ${weather.condition} (${weather.intensity})`);
 
         // Location
         const loc = chronosContext.userLocation;
-        if (loc) {
-            lines.push(`【LOCATION】 ${loc.name}`);
-            if (loc.description) {
-                lines.push(`            ${loc.description}`);
-            }
+        const locName = loc ? loc.name : 'Unknown';
+        const locId = loc ? loc.id : 'null';
+        lines.push(`USER_LOC_ID: ${locId}`);
+        lines.push(`USER_LOC_NAME: ${locName}`);
+
+        // Actors Present
+        const presentIds = chronosContext.actorsPresent.map(a => a.name).join(', ');
+        lines.push(`PRESENT_ACTORS: [${presentIds}]`);
+
+        // Actors Nearby (Grouped by location + connection for clarity)
+        const nearbyMap = {};
+        chronosContext.actorsNearby.forEach(a => {
+            // Include connection desc in the grouping key if present
+            const key = a.connectionDesc ? `${a.locationName} ${a.connectionDesc}` : a.locationName;
+            if (!nearbyMap[key]) nearbyMap[key] = [];
+            nearbyMap[key].push(a.name);
+        });
+        const nearbyStr = Object.entries(nearbyMap)
+            .map(([l, actors]) => `${l}:[${actors.join(', ')}]`)
+            .join(' | ');
+
+        lines.push(`NEARBY_MAP: { ${nearbyStr || 'None'} }`);
+        lines.push(''); // Spacer
+
+
+        // 2. DESCRIPTIVE CONTEXT (The "Flavor")
+        // This provides the narrative details for the above snapshot.
+        lines.push('*** DESCRIPTIVE CONTEXT ***');
+
+        if (loc && loc.description) {
+            lines.push(`LOCATION_DESC: "${loc.description}"`);
         }
 
-        // Present in scene
-        lines.push('');
-        lines.push('【PRESENT IN SCENE】');
-        if (chronosContext.actorsPresent.length === 0) {
-            lines.push('  (No one else is here)');
-        } else {
+        if (weather && weather.description) {
+            lines.push(`WEATHER_DESC: "${weather.description}"`);
+        }
+
+        if (chronosContext.actorsPresent.length > 0) {
+            lines.push('ACTIVE_SCENE_ACTORS:');
             chronosContext.actorsPresent.forEach(a => {
-                const availNote = a.available ? '' : ' [occupied, may not respond]';
-                lines.push(`  • ${a.name} — ${a.activity}${availNote}`);
+                const availNote = a.available ? '' : ' (Occupied)';
+                lines.push(` - ${a.name}: ${a.activity}${availNote}`);
             });
         }
+        lines.push(''); // Spacer
 
-        // Nearby
-        if (chronosContext.actorsNearby.length > 0) {
-            lines.push('');
-            lines.push('【NEARBY (can be heard/glimpsed, not directly interacted with unless User goes there)】');
-            chronosContext.actorsNearby.forEach(a => {
-                lines.push(`  • ${a.name} — In ${a.locationName}, ${a.activity}`);
-            });
-        }
 
-        // Constraints (based on level)
-        if (level !== 'minimal') {
-            lines.push('');
-            lines.push('═══════════════════════════════════════════════════════════');
-            lines.push('NARRATOR CONSTRAINTS');
-            lines.push('═══════════════════════════════════════════════════════════');
-            lines.push('');
-            lines.push('YOU MAY:');
-            lines.push('  ✓ Describe the current location and ambient details');
-            lines.push('  ✓ Have PRESENT actors speak and react naturally within their activity');
-            lines.push('  ✓ Reference sounds or glimpses from NEARBY actors');
-            lines.push('  ✓ Describe weather effects appropriate to the conditions');
-            lines.push('');
-            lines.push('YOU MAY NOT:');
-            lines.push('  ✗ Move any actor to a different location');
-            lines.push('  ✗ Have NEARBY actors enter the scene unless User explicitly goes to them');
-            lines.push('  ✗ Introduce actors not listed as Present or Nearby');
-
-            if (!isTransitioning) {
-                lines.push('  ✗ Change the time of day or weather conditions');
-            } else {
-                lines.push('  ✓ Change time/weather ONLY as specified in Pending Transitions');
-            }
-
-            if (level === 'strict') {
-                lines.push('  ✗ Have PRESENT actors leave the scene for any reason');
-                lines.push('  ✗ Reference actors listed as elsewhere');
-            }
-        }
-
-        // Pending Transitions (narrate these changes in response)
+        // 3. PENDING TRANSITIONS (The "Delta")
+        // These MUST be enacted.
         const pending = chronosContext.pendingChanges;
-        if (pending) {
-            lines.push('');
-            lines.push('═══════════════════════════════════════════════════════════');
-            lines.push('⚡ PENDING TRANSITIONS — NARRATE THESE IN YOUR RESPONSE');
-            lines.push('═══════════════════════════════════════════════════════════');
-            lines.push('');
-            lines.push('The following changes are occurring RIGHT NOW. You MUST weave them into the narrative:');
-            lines.push('');
+        const isTransitioning = pending && Object.keys(pending).length > 0;
 
+        if (isTransitioning) {
+            lines.push('*** STATE_DELTA (Pending Transitions - ENACT THIS) ***');
             if (pending.time) {
-                lines.push(`  → Time is shifting to ${pending.time.label}`);
+                lines.push(`>>> DELTA_TIME: Shift to ${pending.time.label}`);
             }
             if (pending.weather) {
                 const intensityLabel = pending.intensity ? `${pending.intensity} ` : '';
-                lines.push(`  → Weather is changing to ${intensityLabel}${pending.weather.label}`);
+                lines.push(`>>> DELTA_WEATHER: Change to ${intensityLabel}${pending.weather.label}`);
             } else if (pending.intensity) {
-                lines.push(`  → Weather intensity is changing to ${pending.intensity}`);
+                lines.push(`>>> DELTA_WEATHER_INTENSITY: Change to ${pending.intensity}`);
             }
             if (pending.location) {
-                lines.push(`  → User is moving to ${pending.location.name}`);
+                lines.push(`>>> DELTA_LOCATION: User moves to ${pending.location.name}`);
+            }
+            lines.push('INSTRUCTION: You MUST narrate these changes occurring.');
+            lines.push('');
+        }
+
+
+        // 4. COMPLIANCE CONTRACT (The "Grader")
+        if (level !== 'minimal') {
+            lines.push('*** COMPLIANCE CONTRACT (Failure Conditions) ***');
+            lines.push('1. CRITICAL ERROR: Contradicting the STATE_SNAPSHOT (e.g. claiming it is Night when TIME_ID is Afternoon).');
+            lines.push('2. HALLUCINATION: Depicting actors not listed in PRESENT_ACTORS as being in the room.');
+            lines.push('3. BOUNDARY VIOLATION: Spawning actors from NEARBY_MAP without an explicit transition event.');
+
+            if (level === 'strict') {
+                lines.push('4. STRICT MODE: You must not imply the user leaves the current location unless DELTA_LOCATION is present.');
             }
 
-            lines.push('');
-            lines.push('Describe this transition naturally (e.g., "As the sun dips toward the horizon...", "The first drops of rain begin to fall...")');
+            if (!isTransitioning) {
+                lines.push('5. STASIS: Do not change weather or time unless a DELTA is present.');
+            }
         }
 
         lines.push('');
-
         return lines.join('\n');
     }
 

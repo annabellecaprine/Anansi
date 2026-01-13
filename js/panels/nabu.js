@@ -33,8 +33,15 @@ ${opts.actor ? `Associated Actor: ${opts.actor.name}` : ''}
 Respond with JSON only:
 {"title": "...", "keywords": ["word1","word2","word3"], "category": "${CATEGORIES.join('/')}", "content": "2-3 paragraphs using {{char}} and {{user}}", "priority": 50}`,
 
-    actor: (req, opts) => `You are Nabu, the Scribe. Create a complete Character Actor:
+    actor: (req, opts) => {
+      let formatInstr = "Write personality as natural, flowing text.";
+      if (opts.format === 'list') formatInstr = "Write personality using ONLY the W++ format (e.g., `[Mind: text]`). Do not use prose.";
+      if (opts.format === 'hybrid') formatInstr = "Start with a W++ block (e.g., `[Mind: text]`), then provide a prose summary.";
+
+      return `You are Nabu, the Scribe. Create a complete Character Actor:
 REQUEST: ${req}
+
+Format Instruction: ${formatInstr}
 
 Respond with JSON only. Ensure rigorous detail.
 {
@@ -44,7 +51,7 @@ Respond with JSON only. Ensure rigorous detail.
   "aliases": ["Alias1", "Title"],
   "tags": ["tag1", "tag2"],
   "cardFields": {
-    "personality": "Comprehensive personality traits, demeanor, and quirks...",
+    "personality": "Personality description in the requested format...",
     "description": "Full physical, mental, and outfit description...",
     "scenario": "Current setting and context...",
     "firstMessage": "Opening chat message..."
@@ -59,7 +66,8 @@ Respond with JSON only. Ensure rigorous detail.
         "horns": {"present": false, "style": "ONLY set true if present"} 
     }
   }
-}`,
+}`;
+    },
 
     pair: (req, opts) => `You are Nabu, the Scribe. Create a Relationship Pair definition:
 REQUEST: ${req}
@@ -92,6 +100,7 @@ Respond with JSON only:
 
     // Local state
     let selectedType = 'lorebook';
+    let selectedFormat = 'prose';
     let selectedActorId = '';
     let selectedPulse = [];
     let selectedEros = [];
@@ -176,6 +185,22 @@ Respond with JSON only:
             <select id="sel-actor" class="input" style="width: 100%; font-size: 11px;">
               <option value="">None</option>
               ${actors.map(a => `<option value="${a.id}">${a.name || 'Unnamed'}</option>`).join('')}
+            </select>
+          </div>
+
+          <!-- Format Selection (conditional for Actor) -->
+          <div id="format-section" style="
+            background: var(--bg-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            padding: var(--space-3);
+            display: none;
+          ">
+            <label style="font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 6px;">Personality Format</label>
+            <select id="sel-format" class="input" style="width: 100%; font-size: 11px;">
+              <option value="prose">Natural Prose (Default)</option>
+              <option value="list">List / W++ (Tags)</option>
+              <option value="hybrid">Hybrid (W++ & Prose)</option>
             </select>
           </div>
           
@@ -299,6 +324,7 @@ Respond with JSON only:
     const typeDesc = container.querySelector('#type-desc');
     const inputLabel = container.querySelector('#input-label');
     const actorSection = container.querySelector('#actor-section');
+    const formatSection = container.querySelector('#format-section');
     const auraSection = container.querySelector('#aura-section');
     const requestInput = container.querySelector('#nabu-request');
 
@@ -310,6 +336,7 @@ Respond with JSON only:
 
       // Show/hide sections based on type
       actorSection.style.display = ['lorebook', 'voice'].includes(selectedType) ? 'block' : 'none';
+      formatSection.style.display = selectedType === 'actor' ? 'block' : 'none';
       auraSection.style.display = selectedType === 'lorebook' ? 'block' : 'none';
 
       // Update placeholder
@@ -351,6 +378,10 @@ Respond with JSON only:
       selectedActorId = e.target.value;
     };
 
+    container.querySelector('#sel-format').onchange = (e) => {
+      selectedFormat = e.target.value;
+    };
+
     // Invoke Button
     container.querySelector('#btn-invoke').onclick = async () => {
       const request = requestInput.value.trim();
@@ -372,7 +403,8 @@ Respond with JSON only:
         actors: actors,
         pulse: selectedPulse,
         eros: selectedEros,
-        intent: selectedIntent
+        intent: selectedIntent,
+        format: selectedFormat
       });
 
       // Show loading state
