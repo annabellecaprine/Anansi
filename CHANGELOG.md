@@ -2,6 +2,11 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.10.3 - 2026-01-12
+### SurgeonFish Update
+- **Hina's Travel Guide**: Implemented state persistence for the Map Builder. Inputs and wizard steps are now saved when tabbing away.
+- **Clear Form**: Added a "Clear Form" button to the wizard to manually reset state.
+
 ## v1.10.2 - 2026-01-12
 ### Chronos & State Fixes
 - **Prompt Conflict Resolution**: Fixed an issue where the "World State" header would override pending transitions. The system now dynamically switches the header to "PREVIOUS WORLD STATE" during time/weather shifts, ensuring the LLM respects the change.

@@ -218,6 +218,11 @@
         const builderSection = document.createElement('div');
         builderSection.className = 'card';
         builderSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+
+        // Determine visibility based on persistent step
+        const showStep1 = wizardState.step === 1 ? 'block' : 'none';
+        const showStep2 = wizardState.step === 2 ? 'block' : 'none';
+
         builderSection.innerHTML = `
             <h3 style="margin:0 0 16px; font-size:14px; display:flex; align-items:center; gap:8px;">
                 ✏️ Custom Map Builder
@@ -226,7 +231,7 @@
             
             <div id="wizard-container">
                 <!-- Step 1: Basic Info -->
-                <div id="wizard-step-1" class="wizard-step">
+                <div id="wizard-step-1" class="wizard-step" style="display:${showStep1};">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
                         <div>
                             <label class="label">Map Name</label>
@@ -250,7 +255,7 @@
                             <select id="wizard-scale" class="input" style="width:100%;">
                                 <option value="building">🏠 Building (rooms, floors)</option>
                                 <option value="district">🏘️ District (streets, blocks)</option>
-                                <option value="region" selected>🏔️ Region (areas, zones)</option>
+                                <option value="region">🏔️ Region (areas, zones)</option>
                                 <option value="kingdom">👑 Kingdom (cities, territories)</option>
                             </select>
                         </div>
@@ -286,13 +291,14 @@
                         <input type="text" id="wizard-tone" class="input" style="width:100%;" placeholder="e.g., grim, mysterious, war-torn, peaceful">
                     </div>
                     
-                    <div style="display:flex; gap:12px; justify-content:flex-end;">
+                    <div style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
+                        <button id="btn-wizard-clear" class="btn btn-ghost" style="color:var(--text-muted); font-size:12px;">❌ Clear Form</button>
                         <button id="btn-wizard-generate" class="btn btn-primary">🎲 Generate Map</button>
                     </div>
                 </div>
                 
                 <!-- Step 2: Preview (hidden until generated) -->
-                <div id="wizard-step-2" class="wizard-step" style="display:none;">
+                <div id="wizard-step-2" class="wizard-step" style="display:${showStep2};">
                     <div id="wizard-preview" style="margin-bottom:16px;"></div>
                     <div style="display:flex; gap:12px; justify-content:space-between;">
                         <button id="btn-wizard-back" class="btn btn-ghost">⬅️ Back to Settings</button>
@@ -627,59 +633,163 @@
     // ===========================================
     // WIZARD WIRING
     // ===========================================
+    // ===========================================
+    // WIZARD WIRING
+    // ===========================================
+
+    // Default initial inputs
+    const DEFAULT_WIZARD_INPUTS = {
+        name: '',
+        genre: 'fantasy',
+        scale: 'region',
+        structure: 'hub',
+        count: 5,
+        landmarks: '',
+        tone: ''
+    };
+
+    // Persisted state for the wizard
     let wizardState = {
-        template: null
+        step: 1, // 1: Inputs, 2: Preview
+        template: null,
+        inputs: { ...DEFAULT_WIZARD_INPUTS }
     };
 
     function wireWizard(container) {
+        // Elements
         const countSlider = container.querySelector('#wizard-count');
         const countDisplay = container.querySelector('#wizard-count-display');
+
+        const inputs = {
+            name: container.querySelector('#wizard-name'),
+            genre: container.querySelector('#wizard-genre'),
+            scale: container.querySelector('#wizard-scale'),
+            structure: container.querySelector('#wizard-structure'),
+            count: container.querySelector('#wizard-count'),
+            landmarks: container.querySelector('#wizard-landmarks'),
+            tone: container.querySelector('#wizard-tone')
+        };
+
         const generateBtn = container.querySelector('#btn-wizard-generate');
+        const clearBtn = container.querySelector('#btn-wizard-clear');
+
         const backBtn = container.querySelector('#btn-wizard-back');
         const regenerateBtn = container.querySelector('#btn-wizard-regenerate');
         const commitBtn = container.querySelector('#btn-wizard-commit');
+
         const step1 = container.querySelector('#wizard-step-1');
         const step2 = container.querySelector('#wizard-step-2');
         const previewEl = container.querySelector('#wizard-preview');
 
         if (!countSlider) return;
 
-        countSlider.oninput = () => {
-            countDisplay.textContent = `${countSlider.value} locations`;
-        };
+        // --- 1. RESTORE STATE ---
+        // Apply saved values to inputs
+        Object.keys(inputs).forEach(key => {
+            if (inputs[key] && wizardState.inputs[key] !== undefined) {
+                inputs[key].value = wizardState.inputs[key];
+            }
+        });
 
+        // Update labels (specifically for the slider)
+        if (inputs.count) {
+            countDisplay.textContent = `${inputs.count.value} locations`;
+        }
+
+        // If in Step 2, re-render preview
+        if (wizardState.step === 2 && wizardState.template) {
+            renderPreview(previewEl, wizardState.template);
+        }
+
+        // --- 2. BIND LISTENERS (Auto-save) ---
+        Object.keys(inputs).forEach(key => {
+            if (inputs[key]) {
+                const eventType = (key === 'name' || key === 'landmarks' || key === 'tone') ? 'input' : 'change';
+                inputs[key].addEventListener(eventType, (e) => {
+                    wizardState.inputs[key] = e.target.value;
+                    // Special handler for slider display
+                    if (key === 'count') {
+                        countDisplay.textContent = `${e.target.value} locations`;
+                    }
+                });
+            }
+        });
+
+        // --- 3. ACTIONS ---
+
+        // Generate (Go to Step 2)
         generateBtn.onclick = () => {
             const config = {
-                name: container.querySelector('#wizard-name').value.trim() || 'Custom Map',
-                genre: container.querySelector('#wizard-genre').value,
-                scale: container.querySelector('#wizard-scale').value,
-                structure: container.querySelector('#wizard-structure').value,
-                count: parseInt(countSlider.value),
-                landmarks: container.querySelector('#wizard-landmarks').value.split(',').map(s => s.trim()).filter(Boolean),
-                tone: container.querySelector('#wizard-tone').value.trim()
+                name: inputs.name.value.trim() || 'Custom Map',
+                genre: inputs.genre.value,
+                scale: inputs.scale.value,
+                structure: inputs.structure.value,
+                count: parseInt(inputs.count.value),
+                landmarks: inputs.landmarks.value.split(',').map(s => s.trim()).filter(Boolean),
+                tone: inputs.tone.value.trim()
             };
 
             wizardState.template = generateMapFromConfig(config);
             renderPreview(previewEl, wizardState.template);
+
+            // Update State
+            wizardState.step = 2;
             step1.style.display = 'none';
             step2.style.display = 'block';
         };
 
+        // Clear Form
+        if (clearBtn) {
+            clearBtn.onclick = () => {
+                // Reset State
+                wizardState.inputs = { ...DEFAULT_WIZARD_INPUTS };
+                wizardState.step = 1;
+                wizardState.template = null;
+
+                // Reset UI Inputs
+                Object.keys(inputs).forEach(key => {
+                    if (inputs[key]) inputs[key].value = DEFAULT_WIZARD_INPUTS[key];
+                });
+                countDisplay.textContent = `${DEFAULT_WIZARD_INPUTS.count} locations`;
+
+                // Ensure Step 1 is visible
+                step1.style.display = 'block';
+                step2.style.display = 'none';
+
+                if (A.UI?.Toast) A.UI.Toast.show('Form cleared', 'info');
+            };
+        }
+
+        // Back (Go to Step 1)
         backBtn.onclick = () => {
+            wizardState.step = 1;
             step1.style.display = 'block';
             step2.style.display = 'none';
         };
 
+        // Regenerate
         regenerateBtn.onclick = () => {
             generateBtn.click();
         };
 
+        // Import
         commitBtn.onclick = () => {
             if (wizardState.template) {
                 importTemplateToProject(wizardState.template);
+
+                // Reset State after successful import
+                wizardState.inputs = { ...DEFAULT_WIZARD_INPUTS };
+                wizardState.step = 1;
+                wizardState.template = null;
+
+                // Reset UI
+                Object.keys(inputs).forEach(key => {
+                    if (inputs[key]) inputs[key].value = DEFAULT_WIZARD_INPUTS[key];
+                });
+                countDisplay.textContent = `${DEFAULT_WIZARD_INPUTS.count} locations`;
+
                 step1.style.display = 'block';
                 step2.style.display = 'none';
-                wizardState.template = null;
             }
         };
     }
