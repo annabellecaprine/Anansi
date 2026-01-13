@@ -440,17 +440,20 @@
                     // Use registered icon (emoji) or lookup SVG
                     // Detect if icon is an SVG string or simple text
                     let iconContent = '';
-                    if (section.icon && !section.icon.includes('<') && section.icon.length < 10) {
-                        // Likely emoji
-                        iconContent = `<span style="font-size:14px; line-height:1;">${section.icon}</span>`;
-                    } else if (ICONS[section.id]) {
-                        // Standard ID-based SVG
+                    // 1. Check if ID matches a known SVG icon first (prioritize standard icons)
+                    if (ICONS[section.id]) {
                         iconContent = ICONS[section.id];
-                    } else if (section.icon && section.icon.includes('<svg')) {
-                        // Explicit SVG passed in register
+                    }
+                    // 2. Check explicitly provided SVG string
+                    else if (section.icon && section.icon.includes('<svg')) {
                         iconContent = section.icon;
-                    } else {
-                        // Fallback
+                    }
+                    // 3. Fallback to assuming it's an emoji/text if it's a short string
+                    else if (section.icon && !section.icon.includes('<') && section.icon.length < 10) {
+                        iconContent = `<span style="font-size:14px; line-height:1;">${section.icon}</span>`;
+                    }
+                    // 4. Default fallback
+                    else {
                         iconContent = ICONS['advanced'];
                     }
 
