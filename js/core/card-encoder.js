@@ -332,7 +332,6 @@
                     anansi: {
                         actorId: actor.id,
                         gender: actor.gender,
-                        pronouns: actor.pronouns,
                         aliases: actor.aliases
                     }
                 }
@@ -357,7 +356,6 @@
             tags: d.tags || [],
             notes: d.creator_notes || '',
             gender: d.extensions?.anansi?.gender || 'N',
-            pronouns: d.extensions?.anansi?.pronouns || '',
             aliases: d.extensions?.anansi?.aliases || [],
             traits: {
                 description: d.description || '',
