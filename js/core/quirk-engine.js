@@ -97,13 +97,28 @@
             const gender = actor.gender || 'N';
 
             // Pronoun maps
-            const pronouns = {
+            const pronounMaps = {
                 M: { subject: 'he', object: 'him', possessive: 'his' },
                 F: { subject: 'she', object: 'her', possessive: 'her' },
                 N: { subject: 'they', object: 'them', possessive: 'their' }
             };
 
-            const p = pronouns[gender] || pronouns.N;
+            let p = pronounMaps[gender] || pronounMaps.N;
+
+            // Override with custom pronouns if available
+            if (actor.pronouns) {
+                const custom = actor.pronouns.split(/[\/\+]/); // split by / or +
+                if (custom.length >= 2) {
+                    p = {
+                        subject: custom[0].trim(),
+                        object: custom[1].trim(),
+                        possessive: (custom[2] || custom[1] || 'their').trim()
+                    };
+                } else if (pronounMaps[actor.pronouns]) {
+                    // In case actor.pronouns is just 'M', 'F', 'N' (unlikely now but for safety)
+                    p = pronounMaps[actor.pronouns];
+                }
+            }
 
             return text
                 .replace(/\{\{name\}\}/gi, name)

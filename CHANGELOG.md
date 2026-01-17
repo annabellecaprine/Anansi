@@ -2,6 +2,12 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.1 - 2026-01-16
+### Actor Identity & Pronouns
+- **Identity Split**: Separated the combined "Gender & Pronouns" field into two dedicated fields in the Actor Editor.
+- **Custom Pronouns**: The Quirk Engine now supports custom pronoun sets (e.g., "ne/nem/nir") via slash-separated strings.
+- **Persistence**: Updated Character Card v2 serialization to include the new `pronouns` property, ensuring full portability.
+
 ## v1.11.0 - 2026-01-13
 ### Dynamic World Update
 - **Map Dynamic Connections**: Hina's Travel Guide now supports Time-based gates (e.g., Parks closed at night) and Logic-based gates (e.g., VIP Keycard required).
