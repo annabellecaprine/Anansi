@@ -420,12 +420,50 @@ Respond with JSON only:
       `;
 
       try {
-        const response = await A.LLM.generate(systemPrompt, [{ role: 'user', content: request }]);
+        let attempts = 0;
+        const maxAttempts = 2; // Initial + 1 retry
+        let history = [{ role: 'user', content: request }];
+        let entry = null;
+        let lastError = null;
 
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('No valid JSON in response');
+        while (attempts <= maxAttempts) {
+          try {
+            const response = await A.LLM.generate(systemPrompt, history);
 
-        const entry = JSON.parse(jsonMatch[0]);
+            // Use new Repair Utility
+            if (A.JSONRepair) {
+              entry = A.JSONRepair.repairAndParse(response);
+            } else {
+              // Fallback if utility missing (shouldn't happen if loaded)
+              const jsonMatch = response.match(/\{[\s\S]*\}/);
+              if (!jsonMatch) throw new Error('No parseable JSON found');
+              entry = JSON.parse(jsonMatch[0]);
+            }
+
+            // If we get here, it parsed!
+            break;
+
+          } catch (parseErr) {
+            lastError = parseErr;
+            console.warn(`[Nabu] Attempt ${attempts + 1} failed:`, parseErr);
+
+            if (attempts < maxAttempts) {
+              attempts++;
+              // Updates for retry
+              history.push({ role: 'model', content: parseErr.originalText || "(Invalid JSON)" });
+              history.push({
+                role: 'user',
+                content: `SYSTEM: The previous response was invalid JSON. Error: ${parseErr.message}. Please fix the format and respond with ONLY the valid JSON object.`
+              });
+
+              // Update UI to show retry status
+              invokeBtn.innerHTML = `✨ Retrying (${attempts})...`;
+            } else {
+              throw parseErr; // Rethrow final error
+            }
+          }
+        }
+
         renderPreview(previewDiv, entry, selectedActor);
 
       } catch (err) {
