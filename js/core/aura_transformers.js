@@ -581,6 +581,35 @@
        return 0;
     },
 
+    // Pick N random items from a list (N is random between countMin and countMax)
+    pickRandom: function(listId, countMin, countMax, prefix, separator) {
+       if (!listId) return "";
+       var list = this.lists.find(function(l){ return l.id === listId; });
+       if (!list) return "";
+       var items = (list.itemsText || "").split(/\\n/).map(function(t){ return t.trim(); }).filter(function(t){ return t; });
+       if (!items.length) return "";
+       
+       // Calculate count from range
+       var min = countMin || 1;
+       var max = countMax || min;
+       if (max < min) max = min;
+       var count = min + Math.floor(Math.random() * (max - min + 1));
+       
+       // Fisher-Yates shuffle
+       var shuffled = items.slice();
+       for (var i = shuffled.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var temp = shuffled[i];
+          shuffled[i] = shuffled[j];
+          shuffled[j] = temp;
+       }
+       
+       // Pick N items
+       var picked = shuffled.slice(0, Math.min(count, shuffled.length));
+       var result = picked.join(separator || ", ");
+       return (prefix || "") + result;
+    },
+
     // Execution Logic
     _registry: {},
     exec: function(id) {
@@ -637,6 +666,16 @@
                     actions.forEach(act => {
                         if (act.type === 'execute_rule' && act.targetRuleId) {
                             s += `      SBX.exec("${act.targetRuleId}");\n`;
+                        } else if (act.type === 'pick_random' && act.listId) {
+                            const prefix = jsStr(act.prefix || '');
+                            const separator = jsStr(act.separator || ', ');
+                            const countMin = act.countMin || act.count || 3;
+                            const countMax = act.countMax || act.count || countMin;
+                            if (act.target === 'character.scenario') {
+                                s += `      context.character.scenario = (context.character.scenario||"") + "\\n" + SBX.pickRandom("${act.listId}", ${countMin}, ${countMax}, ${prefix}, ${separator});\n`;
+                            } else {
+                                s += `      context.character.personality = (context.character.personality||"") + " " + SBX.pickRandom("${act.listId}", ${countMin}, ${countMax}, ${prefix}, ${separator});\n`;
+                            }
                         } else {
                             const txt = jsStr(act.text);
                             if (act.target === 'character.scenario') {

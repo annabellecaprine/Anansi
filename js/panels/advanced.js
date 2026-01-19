@@ -553,11 +553,12 @@
                     block.actions.forEach((a, aIdx) => {
                         const aRow = document.createElement('div');
 
-                        // Action Type Selector (Modify Text vs Execute Shift)
+                        // Action Type Selector (Modify Text vs Execute Shift vs Pick Random)
                         const actionTypeParams = `
-                            <select class="input btn-xs action-type" style="width:100px; margin-bottom:4px;">
+                            <select class="input btn-xs action-type" style="width:120px; margin-bottom:4px;">
                                 <option value="modify" ${a.type === 'modify' || !a.type ? 'selected' : ''}>Modify</option>
                                 <option value="execute_rule" ${a.type === 'execute_rule' ? 'selected' : ''}>Execute Shift</option>
+                                <option value="pick_random" ${a.type === 'pick_random' ? 'selected' : ''}>Pick Random</option>
                             </select>
                         `;
 
@@ -574,6 +575,44 @@
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <span style="font-size:11px; color:var(--text-muted);">Shift to:</span>
                                     <select class="input action-rule-target" style="flex:1;">${ruleOpts}</select>
+                                </div>
+                            `;
+                        } else if (a.type === 'pick_random') {
+                            // Pick Random from List
+                            let listOpts = '<option value="">(Select List)</option>';
+                            (state.sbx.lists || []).forEach(l => {
+                                listOpts += `<option value="${l.id}" ${l.id === a.listId ? 'selected' : ''}>${l.name}</option>`;
+                            });
+                            contentHtml = `
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:11px; color:var(--text-muted); width:60px;">Source:</span>
+                                        <select class="input action-pick-list" style="flex:1;">${listOpts}</select>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:11px; color:var(--text-muted); width:60px;">Count:</span>
+                                        <input type="number" class="input action-pick-count-min" value="${a.countMin || a.count || 3}" min="1" max="20" style="width:50px;" title="Minimum">
+                                        <span style="font-size:10px; color:var(--text-muted);">to</span>
+                                        <input type="number" class="input action-pick-count-max" value="${a.countMax || a.count || 3}" min="1" max="20" style="width:50px;" title="Maximum">
+                                        <span style="font-size:10px; color:var(--text-muted);">items</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:11px; color:var(--text-muted); width:60px;">Prefix:</span>
+                                        <input type="text" class="input action-pick-prefix" value="${(a.prefix || '').replace(/"/g, '&quot;')}" placeholder="e.g. 'Seek out:'" style="flex:1;">
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:11px; color:var(--text-muted); width:60px;">Join:</span>
+                                        <select class="input action-pick-separator" style="width:100px;">
+                                            <option value=", " ${a.separator === ', ' || !a.separator ? 'selected' : ''}>Comma</option>
+                                            <option value=" | " ${a.separator === ' | ' ? 'selected' : ''}>Pipe</option>
+                                            <option value="\\n" ${a.separator === '\\n' ? 'selected' : ''}>Newline</option>
+                                            <option value=" and " ${a.separator === ' and ' ? 'selected' : ''}>And</option>
+                                        </select>
+                                        <select class="input btn-xs action-target" style="width:auto;">
+                                            <option value="character.personality" ${a.target === 'character.personality' ? 'selected' : ''}>Personality</option>
+                                            <option value="character.scenario" ${a.target === 'character.scenario' ? 'selected' : ''}>Scenario</option>
+                                        </select>
+                                    </div>
                                 </div>
                             `;
                         } else {
@@ -606,11 +645,14 @@
                             a.type = e.target.value;
                             // Reset fields appropriate for type
                             if (a.type === 'execute_rule') {
-                                delete a.text; delete a.target;
+                                delete a.text; delete a.target; delete a.listId; delete a.countMin; delete a.countMax; delete a.prefix; delete a.separator;
                                 a.targetRuleId = '';
+                            } else if (a.type === 'pick_random') {
+                                delete a.text; delete a.targetRuleId;
+                                a.listId = ''; a.countMin = 3; a.countMax = 3; a.prefix = ''; a.separator = ', '; a.target = 'character.personality';
                             } else {
                                 a.text = ''; a.target = 'character.personality';
-                                delete a.targetRuleId;
+                                delete a.targetRuleId; delete a.listId; delete a.countMin; delete a.countMax; delete a.prefix; delete a.separator;
                             }
                             markMod(); renderChain(); A.State.notify();
                         };
@@ -619,6 +661,13 @@
 
                         if (a.type === 'execute_rule') {
                             aRow.querySelector('.action-rule-target').onchange = e => { a.targetRuleId = e.target.value; markMod(); A.State.notify(); };
+                        } else if (a.type === 'pick_random') {
+                            aRow.querySelector('.action-pick-list').onchange = e => { a.listId = e.target.value; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-pick-count-min').onchange = e => { a.countMin = parseInt(e.target.value) || 1; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-pick-count-max').onchange = e => { a.countMax = parseInt(e.target.value) || a.countMin || 3; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-pick-prefix').onchange = e => { a.prefix = e.target.value; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-pick-separator').onchange = e => { a.separator = e.target.value; markMod(); A.State.notify(); };
+                            aRow.querySelector('.action-target').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
                         } else {
                             aRow.querySelector('.action-text').oninput = e => { a.text = e.target.value; markMod(); A.State.notify(); };
                             aRow.querySelector('.action-target').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };

@@ -2,6 +2,10 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.4 - 2026-01-19
+### New Features
+- **Pick Random Action**: New action type in Custom Rules for randomly selecting items from a List. Supports configurable count range (min-max for variability), prefix text, separator (comma/pipe/newline/and), and target field. Use cases include scavenger hunts, random party names, item quests, and more.
+
 ## v1.11.3 - 2026-01-18
 ### Bug Fixes
 - **Identity Split Restoration**: Restored the separated Gender & Pronouns fields that were accidentally removed. Actors now have distinct Gender and Pronouns dropdowns with Custom options for non-standard entries.
