@@ -21,6 +21,14 @@ All notable changes to Anansi will be documented in this file.
 - **JSDoc Documentation**: Added comprehensive JSDoc to core APIs (`state.js`, `anansi.js`, `ui.js`) including type definitions for `ProjectMeta`, `Actor`, `AnansiState`, `PanelConfig`
 - **Inline Event Handler Removal**: Created new `A.UI.createEmptyStateElement()` function with proper DOM event listeners; deprecated `getEmptyStateHTML()`. Migrated 7 panels (actors, voices, events, lorebook, scoring, microcues, scripts) to use the new pattern
 
+### Architecture Improvements (Phase 2)
+- **File Splitting**: Extracted shared modules to reduce large file sizes:
+  - `lorebook.js`: 1641 → 1285 lines (22% reduction) → new `lorebook-shared.js`
+  - `hinas_guide.js`: 1380 → 1109 lines (20% reduction) → new `hinas-templates.js`
+
+### Bug Fixes
+- **Hina's Travel Guide**: Fixed template preview modal showing blank content (incorrect Modal API usage)
+
 ## v1.11.3 - 2026-01-18
 ### Bug Fixes
 - **Identity Split Restoration**: Restored the separated Gender & Pronouns fields that were accidentally removed. Actors now have distinct Gender and Pronouns dropdowns with Custom options for non-standard entries.
