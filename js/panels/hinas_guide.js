@@ -1051,6 +1051,13 @@ You will receive a list of locations. Return a JSON object with the following st
     // TEMPLATE PREVIEW MODAL
     // ===========================================
     function showTemplatePreview(template) {
+        // Defensive check
+        if (!template || !template.locations || !template.connections) {
+            console.error('[Hinas] Invalid template:', template);
+            if (A.UI?.Toast) A.UI.Toast.show('Template data not available', 'error');
+            return;
+        }
+
         const locationsList = template.locations.map(loc => {
             const expandIcon = loc.expandable ? ' 🔄' : '';
             const secretIcon = (loc.rpg && loc.rpg.secrets) ? ' 🤫' : '';
@@ -1088,15 +1095,27 @@ You will receive a list of locations. Return a JSON object with the following st
             </div>
         `;
 
-        A.UI.Modal.show('Template Preview', content, {
-            width: '600px',
-            onOpen: (modalEl) => {
-                modalEl.querySelector('#btn-import-template').onclick = () => {
-                    importTemplateToProject(template);
-                    A.UI.Modal.close();
-                };
+        const modalOverlay = A.UI.Modal.show({
+            title: 'Template Preview',
+            content: content,
+            width: '600px'
+        });
 
-                modalEl.querySelector('#btn-enrich-template').onclick = async (e) => {
+        // Bind button handlers after modal is shown
+        const modalEl = modalOverlay.querySelector('.modal-content');
+        if (modalEl) {
+            const importBtn = modalEl.querySelector('#btn-import-template');
+            const enrichBtn = modalEl.querySelector('#btn-enrich-template');
+
+            if (importBtn) {
+                importBtn.onclick = () => {
+                    importTemplateToProject(template);
+                    A.UI.Modal.hide(modalOverlay);
+                };
+            }
+
+            if (enrichBtn) {
+                enrichBtn.onclick = async (e) => {
                     const btn = e.target;
                     btn.disabled = true;
                     btn.textContent = '✨ Dreaming...';
@@ -1104,7 +1123,7 @@ You will receive a list of locations. Return a JSON object with the following st
                     try {
                         await enrichTemplate(template);
                         // Refresh the view
-                        A.UI.Modal.close();
+                        A.UI.Modal.hide(modalOverlay);
                         showTemplatePreview(template);
                         if (A.UI?.Toast) A.UI.Toast.show('Map enriched with AI imagination!', 'success');
                     } catch (err) {
@@ -1118,7 +1137,7 @@ You will receive a list of locations. Return a JSON object with the following st
                     }
                 };
             }
-        });
+        }
     }
 
     // ===========================================
