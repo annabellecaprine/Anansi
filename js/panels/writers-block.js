@@ -743,7 +743,7 @@
     A.registerPanel('writers-block', {
         label: "Writer's Block",
         subtitle: 'AI Assistant',
-        category: 'Forbidden Secrets',
+        category: 'Sacred Tools',
         render: render
     });
 

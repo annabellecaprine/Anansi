@@ -1082,7 +1082,7 @@
   A.registerPanel('vault', {
     label: 'Vault',
     subtitle: 'Archive',
-    category: 'Seeds',
+    category: 'Loom',
     render: render
   });
 

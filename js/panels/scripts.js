@@ -1303,7 +1303,7 @@ const Inventory = {
     A.registerPanel('scripts', {
         label: 'Scripts',
         subtitle: 'External Threads',
-        category: 'Magic',
+        category: 'Weave',
         render: render
     });
 

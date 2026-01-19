@@ -391,8 +391,8 @@
             content.innerHTML = '';
 
             // Update Tab Buttons
-            if(tabs) {
-                 tabs.querySelectorAll('.tab-btn').forEach(btn => {
+            if (tabs) {
+                tabs.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.tab === activeTab);
                     btn.onclick = () => {
                         activeTab = btn.dataset.tab;
@@ -663,6 +663,7 @@
         label: 'Actors',
         subtitle: 'Nodes',
         category: 'Seeds',
+        order: 1,
         render: render
     });
 

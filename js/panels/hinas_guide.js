@@ -1266,7 +1266,7 @@ You will receive a list of locations. Return a JSON object with the following st
     A.registerPanel('hinas_guide', {
         label: "Hina's Travel Guide",
         subtitle: 'Map Builder',
-        category: 'Forbidden Secrets',
+        category: 'Sacred Tools',
         icon: '🗺️',
         render: render
     });

@@ -423,7 +423,8 @@
     A.registerPanel('chronos_settings', {
         label: 'Settings',
         subtitle: 'Immersion Config',
-        category: 'Immersion',
+        category: 'Forbidden Secrets',
+        subcategory: 'Immersion',
         order: 3,
         icon: '⚙️',
         render: render

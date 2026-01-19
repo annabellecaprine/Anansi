@@ -388,7 +388,8 @@
     A.registerPanel('pairs', {
         label: 'Pairs',
         subtitle: 'Relationships',
-        category: 'Weave',
+        category: 'Seeds',
+        order: 3,
         render: render
     });
 

@@ -6,6 +6,17 @@ All notable changes to Anansi will be documented in this file.
 ### New Features
 - **Pick Random Action**: New action type in Custom Rules for randomly selecting items from a List. Supports configurable count range (min-max for variability), prefix text, separator (comma/pipe/newline/and), and target field. Use cases include scavenger hunts, random party names, item quests, and more.
 
+### UI/UX Improvements
+- **Navigation Reorganization**: Overhauled UI navigation categories for improved workflow:
+  - **Loom**: Project, Vault, Guide
+  - **Seeds**: Actors → Character → Pairs → Voices → Lorebook (ordered)
+  - **Weave**: Events, Scoring, Scripts, Custom Rules
+  - **Magic**: Simulator, MicroCues, Flow Explorer
+  - **Sacred Tools**: Spider's Parlor, Nabu, Hina's Guide, Writer's Block
+  - **Deep**: Sources, Tester, Tokens, Validator
+  - **Forbidden Secrets**: Stats, Locations + Immersion subcategory (Chronos panels)
+  - **RPG Experiment**: Unchanged
+
 ## v1.11.3 - 2026-01-18
 ### Bug Fixes
 - **Identity Split Restoration**: Restored the separated Gender & Pronouns fields that were accidentally removed. Actors now have distinct Gender and Pronouns dropdowns with Custom options for non-standard entries.

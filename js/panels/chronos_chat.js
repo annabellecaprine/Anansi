@@ -1008,7 +1008,8 @@
     A.registerPanel('chronos_chat', {
         label: 'Chronos',
         subtitle: 'Enhanced Roleplay',
-        category: 'Immersion',
+        category: 'Forbidden Secrets',
+        subcategory: 'Immersion',
         order: 1,
         icon: '⏳',
         render: render

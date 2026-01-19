@@ -1631,7 +1631,8 @@
   A.registerPanel('lorebook', {
     label: 'Lorebook',
     subtitle: 'World Knowledge',
-    category: 'Weave',
+    category: 'Seeds',
+    order: 5,
     render: render
   });
 

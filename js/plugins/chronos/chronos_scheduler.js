@@ -401,7 +401,8 @@
     A.registerPanel('chronos_scheduler', {
         label: 'Scheduler',
         subtitle: 'Actor Routines',
-        category: 'Immersion',
+        category: 'Forbidden Secrets',
+        subcategory: 'Immersion',
         order: 2,
         icon: '📅',
         render: render

@@ -600,7 +600,8 @@
   A.registerPanel('voices', {
     label: 'Voices',
     subtitle: 'Runtime Injection',
-    category: 'Weave',
+    category: 'Seeds',
+    order: 4,
     render: render
   });
 

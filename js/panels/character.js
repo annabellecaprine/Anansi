@@ -384,6 +384,7 @@
     title: 'Character',
     label: 'Character', // label is used by UI, title might be internal/page title
     category: 'Seeds',
+    order: 2,
     icon: 'character',
     render: render
   });

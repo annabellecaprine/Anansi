@@ -452,7 +452,7 @@
     A.registerPanel('microcues', {
         label: 'MicroCues',
         subtitle: 'Narrative Threads',
-        category: 'Weave',
+        category: 'Magic',
         render: render
     });
 
