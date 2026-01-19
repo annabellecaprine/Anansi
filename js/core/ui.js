@@ -2,14 +2,24 @@
  * Anansi UI Core
  * File: js/core/ui.js
  * Purpose: Layout manager, Navigation, and Panel Rendering.
+ * 
+ * Manages the application shell, sidebar navigation, panel switching,
+ * and the lens (side panel) system.
  */
 
 (function (A) {
     'use strict';
 
+    /** @type {string} Currently active panel ID */
     let activePanelId = 'project';
-    let navSearchTerm = ''; // Search filter for sidebar
-    let panelHistory = []; // Track last 5 visited panels
+
+    /** @type {string} Search filter for sidebar */
+    let navSearchTerm = '';
+
+    /** @type {string[]} History of visited panels for back navigation */
+    let panelHistory = [];
+
+    /** @type {number} Maximum panels to keep in history */
     const MAX_HISTORY = 5;
 
     // Define Category Order (Updated structure)
@@ -36,7 +46,16 @@
         'nabu': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="18" height="20" rx="2"/><path d="M7 7h10M7 11h8M7 15h6M7 19h4"/></svg>'
     };
 
+    /**
+     * UI management singleton.
+     * Handles navigation, panel rendering, and application shell.
+     * @namespace
+     */
     const UI = {
+        /**
+         * Initialize the UI system.
+         * Sets up DOM references, event handlers, and renders initial state.
+         */
         init: function () {
             // DOM Elements
             this.els = {
@@ -529,6 +548,9 @@
             });
         },
 
+        /**
+         * Refresh navigation and re-render the current panel.
+         */
         refresh: function () {
             this.refreshNav();
             this.switchPanel(activePanelId);
@@ -540,6 +562,13 @@
             }
         },
 
+        /**
+         * Switch to a different panel by ID.
+         * Updates navigation, renders the panel, and manages history.
+         * 
+         * @param {string} id - Panel ID to switch to
+         * @param {Object} [context] - Optional context to pass to panel render function
+         */
         switchPanel: function (id, context) {
             try {
                 // Track panel history (skip if it's the same panel)
@@ -613,6 +642,10 @@
             }
         },
 
+        /**
+         * Set the lens (side panel) content.
+         * @param {function(HTMLElement): void|null} renderFn - Function to render lens content, or null to clear
+         */
         setLens: function (renderFn) {
             this.els.lensRoot.innerHTML = '';
             if (!renderFn) {
@@ -622,6 +655,9 @@
             renderFn(this.els.lensRoot);
         },
 
+        /**
+         * Navigate back to the previous panel in history.
+         */
         goBack: function () {
             if (panelHistory.length === 0) return;
 
@@ -639,6 +675,10 @@
             activePanelId = temp; // Prevent switchPanel from re-adding to history
         },
 
+        /**
+         * Toggle the lens panel visibility.
+         * @param {boolean} [force] - Force open (true) or closed (false)
+         */
         toggleLens: function (force) {
             const shell = this.els.appShell;
 

@@ -307,12 +307,13 @@
 
             listBody.innerHTML = '';
             if (items.length === 0) {
-                listBody.innerHTML = A.UI.getEmptyStateHTML(
-                    'No MicroCues Generated',
-                    'MicroCues are automatically generated from your Actors\' PULSE, EROS, and INTENT cues.<br>Add cues in the <strong>Actors</strong> panel to see them appear here.',
-                    'Go to Actors',
-                    "Anansi.UI.switchPanel('actors')"
-                );
+                listBody.innerHTML = '';
+                listBody.appendChild(A.UI.createEmptyStateElement({
+                    title: 'No MicroCues Generated',
+                    message: 'MicroCues are automatically generated from your Actors\' PULSE, EROS, and INTENT cues.<br>Add cues in the <strong>Actors</strong> panel to see them appear here.',
+                    actionLabel: 'Go to Actors',
+                    onAction: () => Anansi.UI.switchPanel('actors')
+                }));
                 return;
             }
 

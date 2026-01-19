@@ -393,12 +393,15 @@
             if (scripts.length === 0) {
                 // Determine if it's a search result empty or total empty
                 const isSearch = !!searchTerm;
-                listBody.innerHTML = A.UI.getEmptyStateHTML(
-                    isSearch ? 'No Matches Found' : 'No Scripts',
-                    isSearch ? `No scripts matching "${searchTerm}"` : 'Manage your project scripts here.',
-                    isSearch ? 'Clear Search' : 'Create New Script',
-                    isSearch ? "document.getElementById('search-scripts').value = ''; document.getElementById('search-scripts').dispatchEvent(new Event('input'));" : "document.getElementById('btn-add-script').click()"
-                );
+                listBody.innerHTML = '';
+                listBody.appendChild(A.UI.createEmptyStateElement({
+                    title: isSearch ? 'No Matches Found' : 'No Scripts',
+                    message: isSearch ? `No scripts matching "${searchTerm}"` : 'Manage your project scripts here.',
+                    actionLabel: isSearch ? 'Clear Search' : 'Create New Script',
+                    onAction: isSearch
+                        ? () => { document.getElementById('search-scripts').value = ''; document.getElementById('search-scripts').dispatchEvent(new Event('input')); }
+                        : () => document.getElementById('btn-add-script').click()
+                }));
                 return;
             }
 

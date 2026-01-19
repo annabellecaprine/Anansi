@@ -320,12 +320,13 @@
       editorCol.innerHTML = '';
       const v = data.voices[currentVoiceIndex];
       if (!v) {
-        editorCol.innerHTML = A.UI.getEmptyStateHTML(
-          'No Voice Selected',
-          'Voice profiles customize how each actor speaks and expresses themselves.',
-          'Create First Voice',
-          "document.getElementById('btn-add-voice').click()"
-        );
+        editorCol.innerHTML = '';
+        editorCol.appendChild(A.UI.createEmptyStateElement({
+          title: 'No Voice Selected',
+          message: 'Voice profiles customize how each actor speaks and expresses themselves.',
+          actionLabel: 'Create First Voice',
+          onAction: () => document.getElementById('btn-add-voice').click()
+        }));
         return;
       }
 

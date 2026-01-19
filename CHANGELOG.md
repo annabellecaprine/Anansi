@@ -17,6 +17,10 @@ All notable changes to Anansi will be documented in this file.
   - **Forbidden Secrets**: Stats, Locations + Immersion subcategory (Chronos panels)
   - **RPG Experiment**: Unchanged
 
+### Architecture Improvements (Phase 1)
+- **JSDoc Documentation**: Added comprehensive JSDoc to core APIs (`state.js`, `anansi.js`, `ui.js`) including type definitions for `ProjectMeta`, `Actor`, `AnansiState`, `PanelConfig`
+- **Inline Event Handler Removal**: Created new `A.UI.createEmptyStateElement()` function with proper DOM event listeners; deprecated `getEmptyStateHTML()`. Migrated 7 panels (actors, voices, events, lorebook, scoring, microcues, scripts) to use the new pattern
+
 ## v1.11.3 - 2026-01-18
 ### Bug Fixes
 - **Identity Split Restoration**: Restored the separated Gender & Pronouns fields that were accidentally removed. Actors now have distinct Gender and Pronouns dropdowns with Custom options for non-standard entries.

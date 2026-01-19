@@ -68,6 +68,56 @@
     };
 
     // --- Empty State Utility ---
+
+    /**
+     * Creates an empty state element with proper DOM event handling.
+     * Preferred over getEmptyStateHTML for new code.
+     * 
+     * @param {Object} options - Configuration object
+     * @param {string} options.title - Main heading text
+     * @param {string} options.message - Description text
+     * @param {string} [options.actionLabel] - Button label (optional)
+     * @param {function} [options.onAction] - Button click handler (optional)
+     * @returns {HTMLElement} The empty state container element
+     */
+    A.UI.createEmptyStateElement = function ({ title, message, actionLabel, onAction }) {
+        const container = document.createElement('div');
+        container.className = 'empty-state-card';
+        Object.assign(container.style, {
+            margin: 'auto',
+            maxWidth: '400px',
+            textAlign: 'center',
+            padding: '40px 20px'
+        });
+
+        container.innerHTML = `
+            <div style="opacity:0.2; margin-bottom:16px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <circle cx="12" cy="16" r="1"></circle>
+                </svg>
+            </div>
+            <div style="font-size:16px; font-weight:600; color:var(--text-main); margin-bottom:8px;">${title}</div>
+            <div style="font-size:13px; color:var(--text-muted); line-height:1.5;">${message}</div>
+        `;
+
+        if (actionLabel && onAction) {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.style.marginTop = '16px';
+            btn.textContent = actionLabel + ' →';
+            btn.onclick = onAction;
+            container.appendChild(btn);
+        }
+
+        return container;
+    };
+
+    /**
+     * @deprecated Use createEmptyStateElement() instead for proper event handling.
+     * Generates empty state HTML with inline onclick (legacy).
+     */
     A.UI.getEmptyStateHTML = function (title, message, actionLabel, actionOnClickStr) {
         // actionOnClickStr should be a string for inline onclick, e.g., "Anansi.UI.switchPanel('actors')"
         const buttonHtml = actionLabel ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="${actionOnClickStr}">${actionLabel} →</button>` : '';

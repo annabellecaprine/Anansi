@@ -637,12 +637,13 @@
         if (!currentId) {
             const hasActors = state && Object.keys(state.nodes?.actors?.items || {}).length > 0;
             if (!hasActors) {
-                content.innerHTML = A.UI.getEmptyStateHTML(
-                    'No Actors Found',
-                    'Create your first actor to begin building your cast.',
-                    'Create New Actor',
-                    "document.getElementById('btn-add-actor').click()"
-                );
+                content.innerHTML = '';
+                content.appendChild(A.UI.createEmptyStateElement({
+                    title: 'No Actors Found',
+                    message: 'Create your first actor to begin building your cast.',
+                    actionLabel: 'Create New Actor',
+                    onAction: () => document.getElementById('btn-add-actor').click()
+                }));
             } else {
                 // Select prompt
                 content.innerHTML = `

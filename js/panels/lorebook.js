@@ -770,12 +770,13 @@
       if (!currentId || !state.weaves.lorebook.entries[currentId]) {
         const hasEntries = Object.keys(state.weaves.lorebook.entries).length > 0;
         if (!hasEntries) {
-          editorCol.innerHTML = A.UI.getEmptyStateHTML(
-            'Lorebook Empty',
-            'The Lorebook stores all your world knowledge, factions, and story details.',
-            '+ Create First Entry',
-            "document.getElementById('btn-add-lore').click()"
-          );
+          editorCol.innerHTML = '';
+          editorCol.appendChild(A.UI.createEmptyStateElement({
+            title: 'Lorebook Empty',
+            message: 'The Lorebook stores all your world knowledge, factions, and story details.',
+            actionLabel: '+ Create First Entry',
+            onAction: () => document.getElementById('btn-add-lore').click()
+          }));
         } else {
           editorCol.innerHTML = `
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.5;">

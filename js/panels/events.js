@@ -341,12 +341,12 @@
     function renderEditor() {
       editorCol.innerHTML = '';
       if (!currentId) {
-        editorCol.innerHTML = A.UI.getEmptyStateHTML(
-          'No Event Selected',
-          'Events track narrative milestones and unlock new story branches.',
-          'Create First Event',
-          "document.getElementById('btn-add').click()"
-        );
+        editorCol.appendChild(A.UI.createEmptyStateElement({
+          title: 'No Event Selected',
+          message: 'Events track narrative milestones and unlock new story branches.',
+          actionLabel: 'Create First Event',
+          onAction: () => document.getElementById('btn-add').click()
+        }));
         return;
       }
 

@@ -1,13 +1,58 @@
 /*
  * Anansi State
  * File: js/core/state.js
- * Purpose: Single source of truth.
+ * Purpose: Single source of truth for application state.
  */
 
 (function (A) {
     'use strict';
 
+    /**
+     * @typedef {Object} ProjectMeta
+     * @property {string} id - Unique project identifier (UUID)
+     * @property {string} name - Display name of the project
+     * @property {string} description - Project description
+     * @property {string} author - Author name
+     * @property {string} version - Project schema version
+     * @property {string} createdAt - ISO timestamp of creation
+     * @property {string} updatedAt - ISO timestamp of last modification
+     */
+
+    /**
+     * @typedef {Object} Actor
+     * @property {string} id - Unique actor identifier
+     * @property {string} name - Actor's display name
+     * @property {string} [gender] - Gender identifier (M/F/N/X/Custom)
+     * @property {string} [pronouns] - Pronoun set (he/him, she/her, custom)
+     * @property {Object} [traits] - Actor traits/characteristics
+     * @property {string[]} [tags] - Associated tags
+     * @property {string} [notes] - Freeform notes
+     * @property {Object} [gallery] - Image gallery with primary, images array
+     * @property {Object} [vaultLink] - Link to Vault if synced
+     */
+
+    /**
+     * @typedef {Object} AnansiState
+     * @property {ProjectMeta} meta - Project metadata
+     * @property {Object} environment - Target platform configuration
+     * @property {Object} strands - Sources and scripts
+     * @property {Object} seed - Legacy character seed (deprecated, use character)
+     * @property {Object} nodes - Actors and pairs
+     * @property {Object} weaves - Lorebook and prompt templates
+     * @property {Object} aura - Events, microcues, and scoring
+     * @property {Object} traces - Session history
+     * @property {Object} sim - Simulator state
+     * @property {Object} writersBlock - Writer's Block panel state
+     * @property {Object} [character] - Character V2 state
+     * @property {Object} [chronos] - Chronos immersion state
+     * @property {Object} [locations] - Location/map data
+     * @property {Object} [customRules] - Advanced custom rules
+     */
+
+    /** @type {AnansiState|null} */
     let _state = null;
+
+    /** @type {Function[]} */
     const listeners = [];
 
     // Default empty state factory
@@ -81,17 +126,34 @@
         };
     }
 
+    /**
+     * State management singleton.
+     * Provides centralized state access with observer pattern.
+     * @namespace
+     */
     const State = {
+        /**
+         * Get the current application state.
+         * @returns {AnansiState|null} The current state object, or null if not loaded
+         */
         get: function () {
             return _state;
         },
 
+        /**
+         * Replace the entire state and notify subscribers.
+         * @param {AnansiState} newState - The new state to set
+         */
         set: function (newState) {
             _state = newState;
             State.notify();
         },
 
-        // Initialize (called by IO)
+        /**
+         * Load state from saved data, merging with defaults and running migrations.
+         * Called by IO during project load.
+         * @param {Object} [data] - Saved state data to load
+         */
         load: function (data) {
             const defaults = createDefault();
             // Simple deep merge for top-level keys
@@ -202,7 +264,10 @@
             }
         },
 
-        // Reset to new project
+        /**
+         * Reset state to a fresh default project.
+         * Applies default sources from the active environment adapter.
+         */
         reset: function () {
             _state = createDefault();
 
@@ -218,24 +283,39 @@
             State.notify();
         },
 
-        // Subscribe to changes
+        /**
+         * Subscribe to state changes. Callback is invoked immediately with current state,
+         * then again whenever notify() is called.
+         * @param {function(AnansiState): void} callback - Function to call on state changes
+         */
         subscribe: function (callback) {
             listeners.push(callback);
             // Immediate callback
             if (_state) callback(_state);
         },
 
+        /**
+         * Notify all subscribers that state has changed.
+         * Call this after making direct mutations to state.
+         */
         notify: function () {
             listeners.forEach(cb => cb(_state));
         },
 
-        // Actions
+        /**
+         * Update project metadata and set updatedAt timestamp.
+         * @param {Partial<ProjectMeta>} updates - Fields to update in meta
+         */
         updateMeta: function (updates) {
             if (!_state) return;
             Object.assign(_state.meta, updates, { updatedAt: new Date().toISOString() });
             State.notify();
         },
 
+        /**
+         * Set the target environment/platform adapter.
+         * @param {string} envId - Environment identifier (e.g., 'jai', 'st')
+         */
         setEnvironment: function (envId) {
             if (!_state) return;
             if (_state.environment.id !== envId) {

@@ -259,12 +259,12 @@
             };
 
             if (!item) {
-                editorCol.innerHTML = A.UI.getEmptyStateHTML(
-                    'No Scoring Rule Selected',
-                    'Track player choices and story outcomes with custom scoring logic.',
-                    'Create First Rule',
-                    "document.getElementById('btn-add').click()"
-                );
+                editorCol.appendChild(A.UI.createEmptyStateElement({
+                    title: 'No Scoring Rule Selected',
+                    message: 'Track player choices and story outcomes with custom scoring logic.',
+                    actionLabel: 'Create First Rule',
+                    onAction: () => document.getElementById('btn-add').click()
+                }));
                 return;
             }
 
