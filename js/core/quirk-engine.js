@@ -86,6 +86,7 @@
         /**
          * Resolve template placeholders in quirk text
          * Supports: {{name}}, {{PossessivePronoun}}, {{SubjectPronoun}}, {{ObjectPronoun}}
+         * Supports custom pronouns via actor.pronouns (e.g., "ne/nem/nir")
          * @param {string} text - Template text
          * @param {Object} actor - Actor object
          * @returns {string}
@@ -96,14 +97,36 @@
             const name = actor.name || 'Actor';
             const gender = actor.gender || 'N';
 
-            // Pronoun maps
-            const pronouns = {
+            // Default pronoun maps
+            const pronounMaps = {
                 M: { subject: 'he', object: 'him', possessive: 'his' },
                 F: { subject: 'she', object: 'her', possessive: 'her' },
                 N: { subject: 'they', object: 'them', possessive: 'their' }
             };
 
-            const p = pronouns[gender] || pronouns.N;
+            let p = pronounMaps[gender] || pronounMaps.N;
+
+            // Check for custom pronouns (overrides gender-based defaults)
+            if (actor.pronouns) {
+                const standardMap = {
+                    'he/him': pronounMaps.M,
+                    'she/her': pronounMaps.F,
+                    'they/them': pronounMaps.N
+                };
+
+                if (standardMap[actor.pronouns]) {
+                    p = standardMap[actor.pronouns];
+                } else {
+                    // Parse custom pronouns: "subject/object/possessive" format
+                    const parts = actor.pronouns.split('/').map(s => s.trim());
+                    if (parts.length >= 3) {
+                        p = { subject: parts[0], object: parts[1], possessive: parts[2] };
+                    } else if (parts.length === 2) {
+                        // Assume "subject/object" with possessive same as object
+                        p = { subject: parts[0], object: parts[1], possessive: parts[1] };
+                    }
+                }
+            }
 
             return text
                 .replace(/\{\{name\}\}/gi, name)

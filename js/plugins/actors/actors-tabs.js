@@ -100,20 +100,41 @@
         // Container for Smart Inputs
         const smartContainer = document.createElement('div');
 
-        // Gender
+        // Gender & Pronouns (Split)
         actor.gender = actor.gender || 'N';
-        const genderWrap = document.createElement('div');
-        genderWrap.className = 'form-col';
-        genderWrap.style.marginBottom = '12px';
-        genderWrap.innerHTML = `
+        actor.pronouns = actor.pronouns || '';
+
+        const isCustomGender = !['M', 'F', 'N'].includes(actor.gender);
+        const standardPronouns = ['he/him', 'she/her', 'they/them'];
+        const isCustomPronouns = actor.pronouns && !standardPronouns.includes(actor.pronouns);
+
+        const identityWrap = document.createElement('div');
+        identityWrap.className = 'form-col';
+        identityWrap.style.marginBottom = '12px';
+        identityWrap.innerHTML = `
             <label class="field-label">Gender & Pronouns</label>
-            <select class="input" id="sel-gender" style="width:180px;">
-                <option value="M" ${actor.gender === 'M' ? 'selected' : ''}>Male (he/him)</option>
-                <option value="F" ${actor.gender === 'F' ? 'selected' : ''}>Female (she/her)</option>
-                <option value="N" ${actor.gender === 'N' ? 'selected' : ''}>Neutral (they/them)</option>
-            </select>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <select class="input" id="sel-gender" style="width:120px;">
+                    <option value="M" ${actor.gender === 'M' ? 'selected' : ''}>Male</option>
+                    <option value="F" ${actor.gender === 'F' ? 'selected' : ''}>Female</option>
+                    <option value="N" ${actor.gender === 'N' ? 'selected' : ''}>Neutral</option>
+                    <option value="C" ${isCustomGender ? 'selected' : ''}>Custom...</option>
+                </select>
+                <input class="input" id="inp-gender-custom" placeholder="Custom gender..." 
+                       style="width:120px; display:${isCustomGender ? 'block' : 'none'};" 
+                       value="${isCustomGender ? actor.gender : ''}">
+                <select class="input" id="sel-pronouns" style="width:120px;">
+                    <option value="he/him" ${actor.pronouns === 'he/him' ? 'selected' : ''}>he/him</option>
+                    <option value="she/her" ${actor.pronouns === 'she/her' ? 'selected' : ''}>she/her</option>
+                    <option value="they/them" ${!actor.pronouns || actor.pronouns === 'they/them' ? 'selected' : ''}>they/them</option>
+                    <option value="C" ${isCustomPronouns ? 'selected' : ''}>Custom...</option>
+                </select>
+                <input class="input" id="inp-pronouns-custom" placeholder="Pronouns..."
+                       style="flex: 1; display:${isCustomPronouns ? 'block' : 'none'};"
+                       value="${isCustomPronouns ? actor.pronouns : ''}">
+            </div>
         `;
-        smartContainer.appendChild(genderWrap);
+        smartContainer.appendChild(identityWrap);
 
         // Aliases
         actor.aliases = actor.aliases || [];
@@ -169,10 +190,46 @@
             if (A.UI.Toast) A.UI.Toast.show('Notes saved', 'info');
         };
 
+        // Gender Handlers
         smartContainer.querySelector('#sel-gender').onchange = (e) => {
+            const val = e.target.value;
+            const customInp = smartContainer.querySelector('#inp-gender-custom');
+            if (val === 'C') {
+                customInp.style.display = 'block';
+                customInp.focus();
+            } else {
+                customInp.style.display = 'none';
+                actor.gender = val;
+                A.State.notify();
+                if (A.UI.Toast) A.UI.Toast.show('Gender updated', 'info');
+            }
+        };
+
+        smartContainer.querySelector('#inp-gender-custom').onchange = (e) => {
             actor.gender = e.target.value;
             A.State.notify();
             if (A.UI.Toast) A.UI.Toast.show('Gender updated', 'info');
+        };
+
+        // Pronouns Handlers
+        smartContainer.querySelector('#sel-pronouns').onchange = (e) => {
+            const val = e.target.value;
+            const customInp = smartContainer.querySelector('#inp-pronouns-custom');
+            if (val === 'C') {
+                customInp.style.display = 'block';
+                customInp.focus();
+            } else {
+                customInp.style.display = 'none';
+                actor.pronouns = val;
+                A.State.notify();
+                if (A.UI.Toast) A.UI.Toast.show('Pronouns updated', 'info');
+            }
+        };
+
+        smartContainer.querySelector('#inp-pronouns-custom').onchange = (e) => {
+            actor.pronouns = e.target.value;
+            A.State.notify();
+            if (A.UI.Toast) A.UI.Toast.show('Pronouns updated', 'info');
         };
     }
 

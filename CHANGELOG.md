@@ -2,6 +2,12 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.3 - 2026-01-18
+### Bug Fixes
+- **Identity Split Restoration**: Restored the separated Gender & Pronouns fields that were accidentally removed. Actors now have distinct Gender and Pronouns dropdowns with Custom options for non-standard entries.
+- **Custom Pronouns**: The Quirk Engine correctly parses custom pronoun sets (e.g., "ne/nem/nir") in slash-separated format.
+- **Persistence**: Character Card v2 exports/imports now include the `pronouns` property.
+
 ## v1.11.2 - 2026-01-17
 ### Bug Fixes
 - **Nabu Resilience**: Implemented robust JSON parsing and retry logic for the Nabu AI Rule Generator. It now automatically repairs common LLM formatting errors (missing quotes, trailing commas) and retries generation if the output is invalid.
