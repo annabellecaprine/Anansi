@@ -300,6 +300,10 @@
          */
         notify: function () {
             listeners.forEach(cb => cb(_state));
+            // Emit state change event for subscribers
+            if (window.Anansi && window.Anansi.Events) {
+                window.Anansi.Events.emit('state:changed', _state);
+            }
         },
 
         /**

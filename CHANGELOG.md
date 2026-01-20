@@ -2,6 +2,12 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.7 - 2026-01-19
+### Infrastructure
+- **Event Bus**: Created `A.Events` module (`js/core/events.js`) for application-wide publish/subscribe communication.
+  - API: `on()`, `off()`, `once()`, `emit()`, `clear()`
+  - Emits `panel:switched` and `state:changed` events for decoupled module integration.
+
 ## v1.11.6 - 2026-01-19
 ### Infrastructure
 - **Error Boundaries**: Implemented robust error handling for Panel rendering. Crashed panels now display a "Panel Crashed" diagnostic screen with stack trace and a "Retry" button, preventing the entire application from freezing.

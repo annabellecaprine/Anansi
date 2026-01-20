@@ -627,6 +627,8 @@
                     if (section.render) {
                         try {
                             section.render(this.els.panelRoot, context);
+                            // Emit panel switch event for interested listeners
+                            if (A.Events) A.Events.emit('panel:switched', { id, context });
                         } catch (renderErr) {
                             console.error(`[UI] Failed to render panel ${id}:`, renderErr);
                             this.renderErrorState(this.els.panelRoot, renderErr, () => {
