@@ -136,7 +136,7 @@
             }));
 
             const hybridChat = [...chatHistory];
-            hybridChat.last_messages = chatHistory;
+            /** @type {any} */ (hybridChat).last_messages = chatHistory;
 
             // Build the context object
             return {

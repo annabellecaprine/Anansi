@@ -323,7 +323,7 @@
         };
 
         mapSelector.onchange = (e) => {
-            state.weaves.activeMap = e.target.value;
+            state.weaves.activeMap = /** @type {HTMLSelectElement} */ (e.target).value;
             G.selection = null;
             A.State.notify();
             renderMapSelector();
@@ -332,7 +332,7 @@
         };
 
         // Create new map
-        leftCol.querySelector('#btn-new-map').onclick = () => {
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-new-map')).onclick = () => {
             const modalContent = document.createElement('div');
             modalContent.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:12px;">
@@ -360,14 +360,14 @@
             A.UI.Modal.show({ title: '🗺️ Create New Map', content: modalContent, width: 350 });
 
             modalContent.querySelector('#btn-create-map').onclick = () => {
-                const name = modalContent.querySelector('#new-map-name').value.trim();
+                const name = /** @type {HTMLInputElement} */ (modalContent.querySelector('#new-map-name')).value.trim();
                 if (!name) return;
 
                 const newMap = {
                     id: 'map_' + Math.random().toString(36).substr(2, 6),
                     name: name,
-                    type: modalContent.querySelector('#new-map-type').value,
-                    parentMap: modalContent.querySelector('#new-map-parent').value || null,
+                    type: /** @type {HTMLSelectElement} */ (modalContent.querySelector('#new-map-type')).value,
+                    parentMap: /** @type {HTMLSelectElement} */ (modalContent.querySelector('#new-map-parent')).value || null,
                     locations: []
                 };
 
@@ -384,7 +384,7 @@
         };
 
         // Edit map properties
-        leftCol.querySelector('#btn-edit-map').onclick = () => {
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-edit-map')).onclick = () => {
             const activeMap = getActiveMap(state);
             if (!activeMap) return;
 
@@ -417,17 +417,17 @@
 
             A.UI.Modal.show({ title: '⚙️ Map Properties', content: modalContent, width: 350 });
 
-            modalContent.querySelector('#btn-save-map').onclick = () => {
-                activeMap.name = modalContent.querySelector('#edit-map-name').value.trim() || activeMap.name;
-                activeMap.type = modalContent.querySelector('#edit-map-type').value;
-                activeMap.parentMap = modalContent.querySelector('#edit-map-parent').value || null;
+            /** @type {HTMLElement} */(modalContent.querySelector('#btn-save-map')).onclick = () => {
+                activeMap.name = /** @type {HTMLInputElement} */ (modalContent.querySelector('#edit-map-name')).value.trim() || activeMap.name;
+                activeMap.type = /** @type {HTMLSelectElement} */ (modalContent.querySelector('#edit-map-type')).value;
+                activeMap.parentMap = /** @type {HTMLSelectElement} */ (modalContent.querySelector('#edit-map-parent')).value || null;
                 A.State.notify();
                 A.UI.Modal.hide();
                 renderMapSelector();
                 if (A.UI.Toast) A.UI.Toast.show('Map updated', 'success');
             };
 
-            const delBtn = modalContent.querySelector('#btn-delete-map');
+            const delBtn = /** @type {HTMLElement} */ (modalContent.querySelector('#btn-delete-map'));
             if (delBtn) {
                 delBtn.onclick = () => {
                     if (confirm(`Delete map "${activeMap.name}"? This will also delete all locations in it.`)) {
@@ -498,47 +498,47 @@
             }
         };
 
-        mapCard.querySelector('#btn-reset-view').onclick = () => {
+            /** @type {HTMLElement} */ (mapCard.querySelector('#btn-reset-view')).onclick = () => {
             const r = G.svg.getBoundingClientRect();
             G.tx = r.width / 2; G.ty = r.height / 2;
             G.zoom = 1;
             renderAll(state);
         };
-        mapCard.querySelector('#chk-snap').onchange = (e) => { G.opts.snap = e.target.checked; };
+            /** @type {HTMLInputElement} */ (mapCard.querySelector('#chk-snap')).onchange = (e) => { G.opts.snap = /** @type {HTMLInputElement} */ (e.target).checked; };
 
         // --- Multi-Select ---
         const updateFooterState = () => {
-            const fStd = leftCol.querySelector('#footer-std-act');
-            const fSel = leftCol.querySelector('#footer-sel-act');
+            const fStd = /** @type {HTMLElement} */ (leftCol.querySelector('#footer-std-act'));
+            const fSel = /** @type {HTMLElement} */ (leftCol.querySelector('#footer-sel-act'));
 
             if (selectionMode) {
                 fStd.style.display = 'none';
                 fSel.style.display = 'flex';
                 fSel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
-                fSel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
-                leftCol.querySelector('#new-loc-name').disabled = true;
-                leftCol.querySelector('#btn-add-loc').disabled = true;
+                /** @type {HTMLButtonElement} */ (fSel.querySelector('#btn-del-multi')).disabled = selectedIds.size === 0;
+                /** @type {HTMLInputElement} */ (leftCol.querySelector('#new-loc-name')).disabled = true;
+                /** @type {HTMLButtonElement} */ (leftCol.querySelector('#btn-add-loc')).disabled = true;
             } else {
                 fStd.style.display = 'block';
                 fSel.style.display = 'none';
-                leftCol.querySelector('#new-loc-name').disabled = false;
-                leftCol.querySelector('#btn-add-loc').disabled = false;
+                /** @type {HTMLInputElement} */ (leftCol.querySelector('#new-loc-name')).disabled = false;
+                /** @type {HTMLButtonElement} */ (leftCol.querySelector('#btn-add-loc')).disabled = false;
             }
         };
 
-        leftCol.querySelector('#btn-select-mode').onclick = () => {
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-select-mode')).onclick = () => {
             selectionMode = true;
             selectedIds.clear();
             updateFooterState();
             renderList();
         };
-        leftCol.querySelector('#btn-cancel-select').onclick = () => {
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-cancel-select')).onclick = () => {
             selectionMode = false;
             selectedIds.clear();
             updateFooterState();
             renderList();
         };
-        leftCol.querySelector('#btn-del-multi').onclick = () => {
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-del-multi')).onclick = () => {
             if (selectedIds.size === 0) return;
             if (confirm(`Delete ${selectedIds.size} locations?`)) {
                 const activeMap = getActiveMap(state);
@@ -631,28 +631,29 @@
                 });
 
                 // Event bindings
-                el.onclick = (e) => {
-                    if (selectionMode && !e.target.closest('input, textarea, select, button')) {
+                /** @type {HTMLElement} */ (el).onclick = (e) => {
+                    const target = /** @type {HTMLElement} */ (e.target);
+                    if (selectionMode && !target.closest('input, textarea, select, button')) {
                         if (selectedIds.has(loc.id)) selectedIds.delete(loc.id);
                         else selectedIds.add(loc.id);
                         updateFooterState();
                         renderList();
                         return;
                     }
-                    if (!e.target.closest('input, textarea, select, button')) {
+                    if (!target.closest('input, textarea, select, button')) {
                         G.selection = loc.id;
                         renderList();
                         renderAll(state);
                     }
                 };
 
-                el.querySelector('.loc-name').oninput = (e) => { loc.name = e.target.value; renderAll(state); };
-                el.querySelector('.loc-name').onchange = () => A.State.notify();
-                el.querySelector('.loc-desc').onchange = (e) => { loc.description = e.target.value; A.State.notify(); };
+                /** @type {HTMLInputElement} */ (el.querySelector('.loc-name')).oninput = (e) => { loc.name = /** @type {HTMLInputElement} */ (e.target).value; renderAll(state); };
+                /** @type {HTMLInputElement} */ (el.querySelector('.loc-name')).onchange = () => A.State.notify();
+                /** @type {HTMLTextAreaElement} */ (el.querySelector('.loc-desc')).onchange = (e) => { loc.description = /** @type {HTMLTextAreaElement} */ (e.target).value; A.State.notify(); };
 
-                el.querySelector('.loc-add-exit').onchange = (e) => {
-                    if (e.target.value) {
-                        const targetId = e.target.value;
+                /** @type {HTMLSelectElement} */ (el.querySelector('.loc-add-exit')).onchange = (e) => {
+                    if (/** @type {HTMLSelectElement} */(e.target).value) {
+                        const targetId = /** @type {HTMLSelectElement} */ (e.target).value;
                         if (!loc.exits) loc.exits = [];
                         if (!loc.exits.some(ex => (typeof ex === 'string' ? ex : ex.id) === targetId)) {
                             loc.exits.push(targetId);
@@ -665,21 +666,21 @@
                                 }
                             }
                         }
-                        e.target.value = '';
+                        /** @type {HTMLSelectElement} */ (e.target).value = '';
                         renderList();
                         renderAll(state);
                         A.State.notify();
                     }
                 };
 
-                el.querySelector('.loc-map-link').onchange = (e) => {
-                    loc.mapLink = e.target.value || null;
+                /** @type {HTMLSelectElement} */ (el.querySelector('.loc-map-link')).onchange = (e) => {
+                    loc.mapLink = /** @type {HTMLSelectElement} */ (e.target).value || null;
                     renderList();
                     renderAll(state);
                     A.State.notify();
                 };
 
-                el.querySelector('.loc-create-submap').onclick = () => {
+                /** @type {HTMLElement} */ (el.querySelector('.loc-create-submap')).onclick = () => {
                     const newMapName = prompt(`Create sub-map from "${loc.name}"?\nEnter map name:`, loc.name);
                     if (newMapName) {
                         const newMap = {
@@ -699,7 +700,7 @@
                     }
                 };
 
-                el.querySelector('.loc-del').onclick = () => {
+                /** @type {HTMLElement} */ (el.querySelector('.loc-del')).onclick = () => {
                     if (confirm('Delete this location?')) {
                         activeMap.locations.splice(idx, 1);
                         renderList();
@@ -713,8 +714,8 @@
         };
 
         // Add Location
-        leftCol.querySelector('#btn-add-loc').onclick = () => {
-            const inp = leftCol.querySelector('#new-loc-name');
+        /** @type {HTMLElement} */ (leftCol.querySelector('#btn-add-loc')).onclick = () => {
+            const inp = /** @type {HTMLInputElement} */ (leftCol.querySelector('#new-loc-name'));
             const name = inp.value.trim();
             if (!name) return;
 

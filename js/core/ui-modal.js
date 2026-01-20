@@ -47,7 +47,7 @@
                 modal.querySelector('.modal-body').appendChild(config.content);
             }
 
-            const footer = modal.querySelector('.card-footer');
+            const footer = /** @type {HTMLElement} */ (modal.querySelector('.card-footer'));
             if (config.actions) {
                 config.actions.forEach(act => {
                     const btn = document.createElement('button');
@@ -57,7 +57,7 @@
                         const result = await act.onclick(modal);
                         if (result !== false) this.hide(overlay);
                     };
-                    footer.appendChild(btn);
+                    /** @type {HTMLElement} */ (footer).appendChild(btn);
                 });
             } else {
                 footer.style.display = 'none';

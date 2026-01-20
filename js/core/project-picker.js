@@ -403,6 +403,7 @@
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
+                    if (typeof e.target.result !== 'string') return;
                     const data = JSON.parse(e.target.result);
                     if (!data.meta) data.meta = {};
                     const importName = data.meta.name || 'Untitled Project';

@@ -197,7 +197,7 @@
 
                   // Re-bind row events
                   listBody.querySelectorAll('.btn-conflict-act').forEach(btn => {
-                    btn.onclick = (e) => {
+                    /** @type {HTMLButtonElement} */ (btn).onclick = (e) => {
                       decisions[btn.dataset.id] = btn.dataset.act;
                       renderConflictList(); // Re-render to update toggle states
                     };
@@ -220,23 +220,28 @@
                 overlay.appendChild(modal);
                 document.body.appendChild(overlay);
 
+                // Auto-open first category if exists
+                // This line seems to be from a different context, removing it.
+                // const first = /** @type {HTMLElement} */ (catList.firstChild);
+                // if (first) first.click();
+
                 // Bulk Actions
                 const setAll = (act) => {
                   collisions.forEach(k => decisions[k] = act);
                   renderConflictList();
                 };
-                modal.querySelector('#bulk-overwrite').onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
-                modal.querySelector('#bulk-copy').onclick = (e) => { e.preventDefault(); setAll('copy'); };
-                modal.querySelector('#bulk-skip').onclick = (e) => { e.preventDefault(); setAll('skip'); };
+                /** @type {HTMLAnchorElement} */ (modal.querySelector('#bulk-overwrite')).onclick = (e) => { e.preventDefault(); setAll('overwrite'); };
+                /** @type {HTMLAnchorElement} */ (modal.querySelector('#bulk-copy')).onclick = (e) => { e.preventDefault(); setAll('copy'); };
+                /** @type {HTMLAnchorElement} */ (modal.querySelector('#bulk-skip')).onclick = (e) => { e.preventDefault(); setAll('skip'); };
 
                 // Cancel
-                modal.querySelector('#btn-resolve-cancel').onclick = () => {
+                /** @type {HTMLButtonElement} */ (modal.querySelector('#btn-resolve-cancel')).onclick = () => {
                   overlay.remove();
                   if (A.UI.Toast) A.UI.Toast.show('Import cancelled.', 'info');
                 };
 
                 // Apply
-                modal.querySelector('#btn-resolve-apply').onclick = () => {
+                /** @type {HTMLButtonElement} */ (modal.querySelector('#btn-resolve-apply')).onclick = () => {
                   let added = 0;
                   let updated = 0;
                   let skipped = 0;
@@ -353,42 +358,42 @@
         if (A.UI.Toast) A.UI.Toast.show(`Lorebook exported as .${ext}`, 'success');
       };
 
-      modal.querySelector('#exp-json').onclick = () => performExport('json');
-      modal.querySelector('#exp-txt').onclick = () => performExport('txt');
-      modal.querySelector('#exp-cancel').onclick = () => overlay.remove();
+      /** @type {HTMLButtonElement} */ (modal.querySelector('#exp-json')).onclick = () => performExport('json');
+      /** @type {HTMLButtonElement} */ (modal.querySelector('#exp-txt')).onclick = () => performExport('txt');
+      /** @type {HTMLButtonElement} */ (modal.querySelector('#exp-cancel')).onclick = () => overlay.remove();
     };
 
     // --- Multi-Select Handlers ---
     const updateFooterState = () => {
-      const std = listCol.querySelector('#footer-standard');
-      const sel = listCol.querySelector('#footer-selection');
+      const std = /** @type {HTMLElement} */ (listCol.querySelector('#footer-standard'));
+      const sel = /** @type {HTMLElement} */ (listCol.querySelector('#footer-selection'));
       if (selectionMode) {
         std.style.display = 'none';
         sel.style.display = 'flex';
-        sel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
-        sel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
-        sel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+        /** @type {HTMLButtonElement} */ (sel.querySelector('#btn-del-multi')).textContent = `Delete Selected (${selectedIds.size})`;
+        /** @type {HTMLButtonElement} */ (sel.querySelector('#btn-del-multi')).disabled = selectedIds.size === 0;
+        /** @type {HTMLButtonElement} */ (sel.querySelector('#btn-del-multi')).style.opacity = selectedIds.size === 0 ? '0.5' : '1';
       } else {
         std.style.display = 'flex';
         sel.style.display = 'none';
       }
     };
 
-    listCol.querySelector('#btn-select-mode').onclick = () => {
+    /** @type {HTMLButtonElement} */ (listCol.querySelector('#btn-select-mode')).onclick = () => {
       selectionMode = true;
       selectedIds.clear();
       updateFooterState();
       renderList();
     };
 
-    listCol.querySelector('#btn-cancel-select').onclick = () => {
+    /** @type {HTMLButtonElement} */ (listCol.querySelector('#btn-cancel-select')).onclick = () => {
       selectionMode = false;
       selectedIds.clear();
       updateFooterState();
       renderList();
     };
 
-    listCol.querySelector('#btn-del-multi').onclick = () => {
+    /** @type {HTMLButtonElement} */ (listCol.querySelector('#btn-del-multi')).onclick = () => {
       if (selectedIds.size === 0) return;
       if (confirm(`Delete ${selectedIds.size} entries? This cannot be undone.`)) {
         let count = 0;
@@ -581,8 +586,8 @@
         };
 
         if (arrows) {
-          const upBtn = row.querySelector('.move-up');
-          const downBtn = row.querySelector('.move-down');
+          const upBtn = /** @type {HTMLElement} */ (row.querySelector('.move-up'));
+          const downBtn = /** @type {HTMLElement} */ (row.querySelector('.move-down'));
           // Prevent selection when clicking arrows
           if (upBtn) upBtn.onclick = (ev) => { ev.stopPropagation(); moveEntry(e.id, -1); };
           if (downBtn) downBtn.onclick = (ev) => { ev.stopPropagation(); moveEntry(e.id, 1); };
@@ -660,7 +665,7 @@
       `;
 
       // Logic Hook
-      header.querySelector('#btn-logic').onclick = () => {
+      /** @type {HTMLElement} */ (header.querySelector('#btn-logic')).onclick = () => {
         if (logicCount === 0) {
           if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
           if (!state.sbx.rules) state.sbx.rules = [];
@@ -681,7 +686,7 @@
       };
 
       // Delete Hook
-      header.querySelector('#btn-del').onclick = () => {
+      /** @type {HTMLElement} */ (header.querySelector('#btn-del')).onclick = () => {
         if (confirm('Delete this entry?')) {
           delete state.weaves.lorebook.entries[currentId];
           currentId = null;
@@ -692,7 +697,7 @@
       };
 
       // Vault Hook - Publish to Vault
-      header.querySelector('#btn-vault-lore').onclick = async () => {
+      /** @type {HTMLElement} */ (header.querySelector('#btn-vault-lore')).onclick = async () => {
         // Get existing universes and tags for autocomplete
         let universes = [];
         let existingTags = [];
@@ -776,16 +781,16 @@
 
         // Close handlers
         const closeModal = () => modal.remove();
-        modal.querySelector('.modal-backdrop').onclick = closeModal;
-        modal.querySelector('.modal-close').onclick = closeModal;
-        modal.querySelector('#vault-cancel').onclick = closeModal;
+        /** @type {HTMLElement} */ (modal.querySelector('.modal-backdrop')).onclick = closeModal;
+        /** @type {HTMLElement} */ (modal.querySelector('.modal-close')).onclick = closeModal;
+        /** @type {HTMLElement} */ (modal.querySelector('#vault-cancel')).onclick = closeModal;
 
         // Confirm handler
-        modal.querySelector('#vault-confirm').onclick = async () => {
-          const universe = modal.querySelector('#vault-universe').value.trim();
-          const tagsStr = modal.querySelector('#vault-tags').value;
+        /** @type {HTMLElement} */ (modal.querySelector('#vault-confirm')).onclick = async () => {
+          const universe = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-universe')).value.trim();
+          const tagsStr = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-tags')).value;
           const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-          const message = modal.querySelector('#vault-message')?.value || '';
+          const message = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-message'))?.value || '';
 
           try {
             let vaultItem;
@@ -845,11 +850,9 @@
         if (A.UI.Toast) A.UI.Toast.show('Title updated', 'info');
       };
 
-      header.querySelector('#chk-en').onchange = (e) => {
-        entry.enabled = e.target.checked;
+      /** @type {HTMLInputElement} */ (header.querySelector('#chk-en')).onchange = (e) => {
+        entry.enabled = /** @type {HTMLInputElement} */ (e.target).checked;
         A.State.notify();
-        renderList();
-        if (A.UI.Toast) A.UI.Toast.show(entry.enabled ? 'Entry enabled' : 'Entry disabled', 'info');
       };
 
       editorCol.appendChild(header);
@@ -1107,13 +1110,13 @@
 
       // Bind EROS sliders
       setTimeout(() => {
-        const vibeMin = erosContent.querySelector('#eros-vibe-min');
-        const vibeMax = erosContent.querySelector('#eros-vibe-max');
-        const ltMin = erosContent.querySelector('#eros-lt-min');
+        const vibeMin = /** @type {HTMLInputElement} */ (erosContent.querySelector('#eros-vibe-min'));
+        const vibeMax = /** @type {HTMLInputElement} */ (erosContent.querySelector('#eros-vibe-max'));
+        const ltMin = /** @type {HTMLInputElement} */ (erosContent.querySelector('#eros-lt-min'));
 
         if (vibeMin) {
           vibeMin.oninput = (e) => {
-            const val = parseInt(e.target.value);
+            const val = parseInt(/** @type {HTMLInputElement} */(e.target).value);
             entry.erosGates.currentVibe.min = val === 0 ? null : val;
             erosContent.querySelector('#eros-vibe-min-label').textContent = val === 0 ? 'Any' : (EROS_LEVELS[val] || val);
           };
@@ -1121,7 +1124,7 @@
         }
         if (vibeMax) {
           vibeMax.oninput = (e) => {
-            const val = parseInt(e.target.value);
+            const val = parseInt(/** @type {HTMLInputElement} */(e.target).value);
             entry.erosGates.currentVibe.max = val === 10 ? null : val;
             erosContent.querySelector('#eros-vibe-max-label').textContent = val === 10 ? 'Any' : (EROS_LEVELS[val] || val);
           };
@@ -1129,7 +1132,7 @@
         }
         if (ltMin) {
           ltMin.oninput = (e) => {
-            const val = parseInt(e.target.value);
+            const val = parseInt(/** @type {HTMLInputElement} */(e.target).value);
             entry.erosGates.longTermMin = val === 0 ? null : val;
             erosContent.querySelector('#eros-lt-label').textContent = val === 0 ? 'Any' : (EROS_LEVELS[val] || val);
           };
@@ -1294,12 +1297,12 @@
            <button class="btn btn-ghost btn-sm" id="btn-back">← Back</button>
            <button class="btn btn-ghost btn-sm" id="btn-del-shift" style="color:var(--status-error);">Delete</button>
         `;
-        head.querySelector('#btn-back').onclick = (e) => {
+        /** @type {HTMLElement} */ (head.querySelector('#btn-back')).onclick = (e) => {
           e.stopPropagation();
           editingShiftIndex = null;
           renderEditor(); // Re-render to show list view
         };
-        head.querySelector('#btn-del-shift').onclick = (e) => {
+        /** @type {HTMLElement} */ (head.querySelector('#btn-del-shift')).onclick = (e) => {
           e.stopPropagation();
           if (confirm('Delete this shift?')) {
             entry.shifts.splice(editingShiftIndex, 1);
@@ -1324,12 +1327,12 @@
         `;
         form.appendChild(fieldsDiv);
 
-        fieldsDiv.querySelector('#inp-sh-keys').onchange = (e) => {
-          shift.keywords = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+        /** @type {HTMLInputElement} */ (fieldsDiv.querySelector('#inp-sh-keys')).onchange = (e) => {
+          shift.keywords = /** @type {HTMLInputElement} */ (e.target).value.split(',').map(s => s.trim()).filter(Boolean);
           A.State.notify();
         };
-        fieldsDiv.querySelector('#inp-sh-content').onchange = (e) => {
-          shift.content = e.target.value;
+        /** @type {HTMLTextAreaElement} */ (fieldsDiv.querySelector('#inp-sh-content')).onchange = (e) => {
+          shift.content = /** @type {HTMLTextAreaElement} */ (e.target).value;
           A.State.notify();
         };
 
@@ -1433,8 +1436,8 @@
       renderList();
     };
 
-    listCol.querySelector('#scan-depth').onchange = (e) => {
-      let val = parseInt(e.target.value) || 3;
+    /** @type {HTMLInputElement} */ (listCol.querySelector('#scan-depth')).onchange = (e) => {
+      let val = parseInt(/** @type {HTMLInputElement} */(e.target).value) || 3;
       if (val < 1) val = 1;
       if (val > 20) val = 20;
       state.weaves.lorebook.scanDepth = val;
@@ -1442,7 +1445,7 @@
     };
 
     // View Script button - navigates to Scripts panel
-    listCol.querySelector('#btn-view-script').onclick = () => {
+    /** @type {HTMLElement} */ (listCol.querySelector('#btn-view-script')).onclick = () => {
       A.State.notify();
       if (A.UI && A.UI.switchPanel) {
         // Navigate to scripts panel (AuraBuilder will handle the merge)

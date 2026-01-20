@@ -31,18 +31,21 @@
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
                 request.onerror = (e) => {
-                    console.error('[ProjectDB] Failed to open database:', e.target.error);
-                    reject(e.target.error || e);
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    console.error('[ProjectDB] Failed to open database:', req.error);
+                    reject(req.error || e);
                 };
 
                 request.onsuccess = (e) => {
-                    db = e.target.result;
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    db = req.result;
                     console.log('[ProjectDB] Database opened successfully');
                     resolve(db);
                 };
 
                 request.onupgradeneeded = (e) => {
-                    const database = e.target.result;
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    const database = req.result;
 
                     // Create projects store
                     if (!database.objectStoreNames.contains(STORE_NAME)) {

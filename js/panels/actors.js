@@ -174,12 +174,13 @@
         container.appendChild(editorCol);
 
         // --- Logic ---
+        // --- Logic ---
         const listBody = listCol.querySelector('#actor-list');
-        const nameInput = header.querySelector('#actor-name');
-        const delBtn = header.querySelector('#btn-del-actor');
-        const vaultBtn = header.querySelector('#btn-vault-actor');
-        const searchInput = listCol.querySelector('#search-actors');
-        const addBtn = listCol.querySelector('#btn-add-actor');
+        const nameInput = /** @type {HTMLInputElement} */ (header.querySelector('#actor-name'));
+        const delBtn = /** @type {HTMLButtonElement} */ (header.querySelector('#btn-del-actor'));
+        const vaultBtn = /** @type {HTMLButtonElement} */ (header.querySelector('#btn-vault-actor'));
+        const searchInput = /** @type {HTMLInputElement} */ (listCol.querySelector('#search-actors'));
+        const addBtn = /** @type {HTMLButtonElement} */ (listCol.querySelector('#btn-add-actor'));
 
         // Handle Context
         if (context && context.createNew) {
@@ -188,24 +189,24 @@
         }
 
         searchInput.oninput = (e) => {
-            searchTerm = e.target.value.toLowerCase();
+            const target = /** @type {HTMLInputElement} */ (e.target);
+            searchTerm = target.value.toLowerCase();
             refreshList();
         };
 
         // --- Multi-Select Handlers ---
         const updateHeaderState = () => {
-            const hId = listCol.querySelector('#header-actions');
-            const hSel = listCol.querySelector('#header-selection');
-            const footer = listCol.querySelector('#footer-actions');
-            const addBtn = listCol.querySelector('#btn-add-actor');
+            const hId = /** @type {HTMLElement} */ (listCol.querySelector('#header-actions'));
+            const hSel = /** @type {HTMLElement} */ (listCol.querySelector('#header-selection'));
+            const footer = /** @type {HTMLElement} */ (listCol.querySelector('#footer-actions'));
 
             if (selectionMode) {
                 hId.style.display = 'none';
                 hSel.style.display = 'flex';
                 footer.style.display = 'block';
                 listCol.querySelector('#sel-count').textContent = `${selectedIds.size} Selected`;
-                listCol.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
-                listCol.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+                /** @type {HTMLButtonElement} */ (listCol.querySelector('#btn-del-multi')).disabled = selectedIds.size === 0;
+                /** @type {HTMLElement} */ (listCol.querySelector('#btn-del-multi')).style.opacity = selectedIds.size === 0 ? '0.5' : '1';
                 //search is still visible
             } else {
                 hId.style.display = 'flex';
@@ -214,21 +215,21 @@
             }
         };
 
-        listCol.querySelector('#btn-select-mode').onclick = () => {
+        /** @type {HTMLElement} */ (listCol.querySelector('#btn-select-mode')).onclick = () => {
             selectionMode = true;
             selectedIds.clear();
             updateHeaderState();
             refreshList();
         };
 
-        listCol.querySelector('#btn-cancel-select').onclick = () => {
+        /** @type {HTMLElement} */ (listCol.querySelector('#btn-cancel-select')).onclick = () => {
             selectionMode = false;
             selectedIds.clear();
             updateHeaderState();
             refreshList();
         };
 
-        listCol.querySelector('#btn-del-multi').onclick = () => {
+        /** @type {HTMLElement} */ (listCol.querySelector('#btn-del-multi')).onclick = () => {
             if (selectedIds.size === 0) return;
             if (confirm(`Delete ${selectedIds.size} actors? This cannot be undone.`)) {
                 let count = 0;
@@ -281,6 +282,13 @@
             }
 
             actors.forEach(actor => {
+                const importInput = document.createElement('input');
+                importInput.type = 'file';
+                importInput.accept = '.json,application/json';
+                importInput.onchange = (e) => {
+                    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
+                    if (!file) return;
+                };
                 const item = document.createElement('div');
                 item.style.padding = '8px 12px';
                 item.style.borderBottom = '1px solid var(--border-subtle)';
@@ -392,13 +400,16 @@
 
             // Update Tab Buttons
             if (tabs) {
-                tabs.querySelectorAll('.tab-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.tab === activeTab);
-                    btn.onclick = () => {
-                        activeTab = btn.dataset.tab;
-                        renderTab();
-                    };
-                });
+                if (tabs) {
+                    tabs.querySelectorAll('.tab-btn').forEach(b => {
+                        const btn = /** @type {HTMLElement} */ (b);
+                        btn.classList.toggle('active', btn.dataset.tab === activeTab);
+                        btn.onclick = () => {
+                            activeTab = btn.dataset.tab;
+                            renderTab();
+                        };
+                    });
+                }
             }
 
             if (A.Actors && A.Actors.Tabs && A.Actors.Tabs.render) {
@@ -410,7 +421,7 @@
 
 
         // Events
-        listCol.querySelector('#btn-add-actor').onclick = () => {
+        /** @type {HTMLElement} */ (listCol.querySelector('#btn-add-actor')).onclick = () => {
             const state = A.State.get();
             // Ensure node
             if (!state.nodes) state.nodes = {};
@@ -538,20 +549,21 @@
             document.body.appendChild(modal);
 
             // Focus universe input
-            setTimeout(() => modal.querySelector('#vault-universe').focus(), 100);
+            setTimeout(() => /** @type {HTMLInputElement} */(modal.querySelector('#vault-universe')).focus(), 100);
 
             // Close handlers
+            // Close handlers
             const closeModal = () => modal.remove();
-            modal.querySelector('.modal-backdrop').onclick = closeModal;
-            modal.querySelector('.modal-close').onclick = closeModal;
-            modal.querySelector('#vault-cancel').onclick = closeModal;
+            /** @type {HTMLElement} */ (modal.querySelector('.modal-backdrop')).onclick = closeModal;
+            /** @type {HTMLElement} */ (modal.querySelector('.modal-close')).onclick = closeModal;
+            /** @type {HTMLElement} */ (modal.querySelector('#vault-cancel')).onclick = closeModal;
 
             // Confirm handler
-            modal.querySelector('#vault-confirm').onclick = async () => {
-                const universe = modal.querySelector('#vault-universe').value.trim();
-                const tagsStr = modal.querySelector('#vault-tags').value;
+            /** @type {HTMLElement} */ (modal.querySelector('#vault-confirm')).onclick = async () => {
+                const universe = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-universe')).value.trim();
+                const tagsStr = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-tags')).value;
                 const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-                const message = modal.querySelector('#vault-message')?.value || '';
+                const message = /** @type {HTMLInputElement} */ (modal.querySelector('#vault-message'))?.value || '';
 
                 try {
                     let vaultItem;
@@ -603,7 +615,7 @@
             const state = A.State.get();
             if (state.nodes.actors.items[currentId]) {
                 const actor = state.nodes.actors.items[currentId];
-                const newName = e.target.value;
+                const newName = /** @type {HTMLInputElement} */ (e.target).value;
                 actor.name = newName;
 
                 // Mark as locally modified if linked to vault

@@ -12,7 +12,8 @@
         "paths": {}
     },
     "include": [
-        "js/core/**/*"
+        "js/core/**/*",
+        "js/panels/**/*"
     ],
     "exclude": [
         "node_modules",

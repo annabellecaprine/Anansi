@@ -30,9 +30,10 @@
             document.addEventListener('keydown', (e) => {
                 if (!this.enabled) return;
 
-                // Skip if typing in input/textarea (unless it's a global shortcut)
-                const tag = e.target.tagName.toLowerCase();
-                const isInput = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+                // Skip if typing in input/textarea (unless it's with modifiers probably? No, shortcuts.js logic)
+                const target = /** @type {HTMLElement} */ (e.target);
+                const tag = target.tagName.toLowerCase();
+                const isInput = tag === 'input' || tag === 'textarea' || target.isContentEditable;
 
                 // Build combo string
                 const combo = this.buildCombo(e);
@@ -121,7 +122,7 @@
             this.register('ctrl+enter', {
                 action: () => {
                     // Find and click the Run button
-                    const runBtn = document.querySelector('#btn-run-sim') || document.querySelector('#sim-send');
+                    const runBtn = /** @type {HTMLElement} */ (document.querySelector('#btn-run-sim') || document.querySelector('#sim-send'));
                     if (runBtn) runBtn.click();
                 },
                 label: 'Run Simulation',
@@ -160,7 +161,7 @@
             // Escape to close modals
             this.register('esc', {
                 action: () => {
-                    const overlay = document.querySelector('.modal-overlay');
+                    const overlay = /** @type {HTMLElement} */ (document.querySelector('.modal-overlay'));
                     if (overlay) overlay.click();
                 },
                 label: 'Close Modal',

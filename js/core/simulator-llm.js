@@ -69,7 +69,7 @@
 
             // 3. Final Context Construction
             const hybridChat = [...chatHistory];
-            hybridChat.last_messages = chatHistory;
+            /** @type {any} */ (hybridChat).last_messages = chatHistory;
 
             const context = {
                 // Standard Aliases

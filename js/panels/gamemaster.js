@@ -144,9 +144,9 @@
             `;
             target.appendChild(toggleCard);
 
-            const toggle = toggleCard.querySelector('#gm-rpg-toggle');
+            const toggle = /** @type {HTMLInputElement} */ (toggleCard.querySelector('#gm-rpg-toggle'));
             toggle.onchange = (e) => {
-                state.rpg.enabled = e.target.checked;
+                state.rpg.enabled = /** @type {HTMLInputElement} */ (e.target).checked;
                 A.State.notify();
                 // Script update logic
                 const sysScript = A.Scripts.getAll().find(s => s.id === 'sys_rpg');
@@ -204,8 +204,8 @@
                 renderStats();
 
                 addStat.onkeydown = (e) => {
-                    if (e.key === 'Enter') {
-                        const val = e.target.value.trim().toUpperCase();
+                    if (/** @type {KeyboardEvent} */ (e).key === 'Enter') {
+                        const val = /** @type {HTMLInputElement} */ (e.target).value.trim().toUpperCase();
                         if (val && !state.rpg.stats.includes(val)) {
                             state.rpg.stats.push(val);
                             A.State.notify();
@@ -215,8 +215,8 @@
                     }
                 };
 
-                configCard.querySelector('#gm-mech-select').onchange = (e) => {
-                    state.rpg.mechanics = e.target.value;
+                /** @type {HTMLSelectElement} */ (configCard.querySelector('#gm-mech-select')).onchange = (e) => {
+                    state.rpg.mechanics = /** @type {HTMLSelectElement} */ (e.target).value;
                     A.State.notify();
                 };
             }
@@ -227,13 +227,13 @@
             footer.style.textAlign = 'center';
             footer.innerHTML = `<button class="btn btn-ghost btn-sm" id="gm-lock">🔒 Lock Panel</button>`;
             target.appendChild(footer);
-            footer.querySelector('#gm-lock').onclick = () => {
+            footer.querySelector('#gm-lock').addEventListener('click', () => {
                 if (confirm('Lock the Game Master panel?')) {
                     localStorage.setItem('anansi_gm_unlocked', 'false');
                     A.UI.switchPanel('project');
                     setTimeout(() => A.UI.buildSidebar(), 100);
                 }
-            };
+            });
         }
 
         function renderRules(target) {
@@ -281,17 +281,17 @@
 
                 // Bindings
                 const updateRule = () => {
-                    rule.name = item.querySelector('.rule-name').value;
-                    rule.roll = item.querySelector('.rule-roll').value;
-                    rule.mod = item.querySelector('.rule-mod').value;
-                    rule.op = item.querySelector('.rule-op').value;
-                    rule.target = item.querySelector('.rule-target').value;
-                    rule.tmod = item.querySelector('.rule-tmod').value;
+                    rule.name = /** @type {HTMLInputElement} */ (item.querySelector('.rule-name')).value;
+                    rule.roll = /** @type {HTMLInputElement} */ (item.querySelector('.rule-roll')).value;
+                    rule.mod = /** @type {HTMLInputElement} */ (item.querySelector('.rule-mod')).value;
+                    rule.op = /** @type {HTMLInputElement} */ (item.querySelector('.rule-op')).value;
+                    rule.target = /** @type {HTMLInputElement} */ (item.querySelector('.rule-target')).value;
+                    rule.tmod = /** @type {HTMLInputElement} */ (item.querySelector('.rule-tmod')).value;
                     A.State.notify();
                 };
 
                 item.querySelectorAll('input').forEach(inp => inp.onchange = updateRule);
-                item.querySelector('.btn-del-rule').onclick = () => {
+                /** @type {HTMLElement} */ (item.querySelector('.btn-del-rule')).onclick = () => {
                     if (confirm('Delete rule?')) {
                         rules.splice(idx, 1);
                         A.State.notify();

@@ -63,13 +63,13 @@
           <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:4px;">📥 Import Chain</button>
         </div>
        `;
-            sideCol.querySelector('#btn-back-adv').onclick = () => {
+            /** @type {HTMLElement} */ (sideCol.querySelector('#btn-back-adv')).onclick = () => {
                 // Clear binding
                 render(container, null);
             };
             // Side Import (Bound) - logic reused below?
             // Actually we need to bind it.
-            const btnImp = sideCol.querySelector('#btn-vault-import');
+            const btnImp = /** @type {HTMLElement} */ (sideCol.querySelector('#btn-vault-import'));
             if (btnImp) btnImp.onclick = () => importHandler('rule');
         } else {
             sideCol.innerHTML = `
@@ -115,28 +115,29 @@
             activeId = null;
             // UI update
             Object.keys(tabs).forEach(k => {
-                tabs[k].style.color = (k === t.substr(0, 1) || k === t) ? 'var(--text-primary)' : 'var(--text-muted)';
-                tabs[k].style.borderBottomColor = (k === t.substr(0, 1) || k === t) ? 'var(--accent-primary)' : 'transparent';
+                const tab = /** @type {HTMLElement} */ (tabs[k]);
+                tab.style.color = (k === t.substr(0, 1) || k === t) ? 'var(--text-primary)' : 'var(--text-muted)';
+                tab.style.borderBottomColor = (k === t.substr(0, 1) || k === t) ? 'var(--accent-primary)' : 'transparent';
             });
             // Specific highlighting
-            tabs.lists.style.color = (t === 'lists' ? 'var(--text-primary)' : 'var(--text-muted)');
-            tabs.lists.style.borderBottomColor = (t === 'lists' ? 'var(--accent-primary)' : 'transparent');
-            tabs.deriv.style.color = (t === 'derived' ? 'var(--text-primary)' : 'var(--text-muted)');
-            tabs.deriv.style.borderBottomColor = (t === 'derived' ? 'var(--accent-primary)' : 'transparent');
-            tabs.rules.style.color = (t === 'rules' ? 'var(--text-primary)' : 'var(--text-muted)');
-            tabs.rules.style.borderBottomColor = (t === 'rules' ? 'var(--accent-primary)' : 'transparent');
+            /** @type {HTMLElement} */ (tabs.lists).style.color = (t === 'lists' ? 'var(--text-primary)' : 'var(--text-muted)');
+            /** @type {HTMLElement} */ (tabs.lists).style.borderBottomColor = (t === 'lists' ? 'var(--accent-primary)' : 'transparent');
+            /** @type {HTMLElement} */ (tabs.deriv).style.color = (t === 'derived' ? 'var(--text-primary)' : 'var(--text-muted)');
+            /** @type {HTMLElement} */ (tabs.deriv).style.borderBottomColor = (t === 'derived' ? 'var(--accent-primary)' : 'transparent');
+            /** @type {HTMLElement} */ (tabs.rules).style.color = (t === 'rules' ? 'var(--text-primary)' : 'var(--text-muted)');
+            /** @type {HTMLElement} */ (tabs.rules).style.borderBottomColor = (t === 'rules' ? 'var(--accent-primary)' : 'transparent');
 
             refreshSidebar();
             renderMain();
         }
 
         if (!isBound) {
-            tabs.lists.onclick = () => switchTab('lists');
-            tabs.deriv.onclick = () => switchTab('derived');
-            tabs.rules.onclick = () => switchTab('rules');
+            /** @type {HTMLElement} */ (tabs.lists).onclick = () => switchTab('lists');
+            /** @type {HTMLElement} */ (tabs.deriv).onclick = () => switchTab('derived');
+            /** @type {HTMLElement} */ (tabs.rules).onclick = () => switchTab('rules');
         }
 
-        sideCol.querySelector('#btn-add-side').onclick = () => {
+        /** @type {HTMLElement} */ (sideCol.querySelector('#btn-add-side')).onclick = () => {
             // Ensure structure
             if (!state.sbx) state.sbx = { lists: [], derived: [], rules: [] };
             if (!state.sbx.lists) state.sbx.lists = [];
@@ -212,8 +213,23 @@
             });
         }
 
-        const btnImp = sideCol.querySelector('#btn-vault-import');
+        const btnImp = /** @type {HTMLElement} */ (sideCol.querySelector('#btn-vault-import'));
         if (btnImp) btnImp.onclick = () => importHandler();
+
+        function markMod() {
+            if (!activeId) return;
+            let list = [];
+            if (activeTab === 'lists') list = state.sbx.lists;
+            else if (activeTab === 'derived') list = state.sbx.derived;
+            else list = state.sbx.rules;
+
+            const item = list.find(i => i.id === activeId);
+            if (item && item.vaultLink && item.vaultLink.vaultId) {
+                item.vaultLink.locallyModified = true;
+                refreshSidebar(); // To update badge
+                // Don't verify main here, we might be typing
+            }
+        }
 
         function refreshSidebar() {
             const listEl = sideCol.querySelector('#side-list');
@@ -288,10 +304,10 @@
 
                 row.innerHTML = `${arrows}<div style="flex:1; font-weight:bold; font-size:13px;">${item.name || item.key || 'Unnamed'}${syncBadge}</div>`;
 
-                row.onclick = () => { activeId = item.id; refreshSidebar(); renderMain(); };
+                /** @type {HTMLElement} */ (row).onclick = () => { activeId = item.id; refreshSidebar(); renderMain(); };
 
-                row.querySelector('.btn-up').onclick = (e) => { e.stopPropagation(); moveItem(idx, -1); };
-                row.querySelector('.btn-down').onclick = (e) => { e.stopPropagation(); moveItem(idx, 1); };
+                /** @type {HTMLElement} */ (row.querySelector('.btn-up')).onclick = (e) => { e.stopPropagation(); moveItem(idx, -1); };
+                /** @type {HTMLElement} */ (row.querySelector('.btn-down')).onclick = (e) => { e.stopPropagation(); moveItem(idx, 1); };
 
                 listEl.appendChild(row);
             });
@@ -329,7 +345,7 @@
        `;
 
             // Delete Logic
-            header.querySelector('#main-del').onclick = () => {
+            /** @type {HTMLElement} */ (header.querySelector('#main-del')).onclick = () => {
                 if (confirm('Delete this item?')) {
                     if (activeTab === 'lists') state.sbx.lists = state.sbx.lists.filter(x => x.id !== activeId);
                     else if (activeTab === 'derived') state.sbx.derived = state.sbx.derived.filter(x => x.id !== activeId);
@@ -342,10 +358,10 @@
             // Mark Mod
             const markMod = () => { if (item.vaultLink && item.vaultLink.vaultId) item.vaultLink.locallyModified = true; };
 
-            header.querySelector('#main-name').oninput = (e) => { item.name = e.target.value; markMod(); A.State.notify(); refreshSidebar(); }; // Sync sidebar name
+            /** @type {HTMLInputElement} */ (header.querySelector('#main-name')).oninput = (e) => { item.name = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); refreshSidebar(); }; // Sync sidebar name
 
             // Publish
-            header.querySelector('#btn-vault-pub').onclick = () => {
+            /** @type {HTMLElement} */ (header.querySelector('#btn-vault-pub')).onclick = () => {
                 if (A.VaultUI) {
                     let subtype = 'custom-chain';
                     if (activeTab === 'lists') subtype = 'custom-list';
@@ -397,8 +413,8 @@
                         lbl.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:11px; padding:2px 6px; background:var(--bg-elevated); border-radius:4px; border:1px solid var(--border-subtle); cursor:pointer; user-select:none;';
                         if (isChecked) lbl.style.borderColor = 'var(--accent-primary)';
                         lbl.innerHTML = `<input type="checkbox" style="margin:0;" ${isChecked ? 'checked' : ''}> ${actor.name || 'Unknown'}`;
-                        lbl.querySelector('input').onchange = (e) => {
-                            if (e.target.checked) {
+                        /** @type {HTMLInputElement} */ (lbl.querySelector('input')).onchange = (e) => {
+                            if (/** @type {HTMLInputElement} */ (e.target).checked) {
                                 item.associatedActors.push(actor.id);
                                 lbl.style.borderColor = 'var(--accent-primary)';
                             } else {
@@ -541,8 +557,8 @@
                             renderConditionDetail(detail, c, state); // Helper
 
                             // Bindings
-                            cRow.querySelector('.c-type').onchange = e => { c.type = e.target.value; markMod(); renderChain(); A.State.notify(); };
-                            cRow.querySelector('.c-del').onclick = () => { block.conditions.splice(cIdx, 1); markMod(); renderChain(); A.State.notify(); };
+                            /** @type {HTMLSelectElement} */ (cRow.querySelector('.c-type')).onchange = e => { c.type = /** @type {HTMLSelectElement} */ (e.target).value; markMod(); renderChain(); A.State.notify(); };
+                            /** @type {HTMLElement} */ (cRow.querySelector('.c-del')).onclick = () => { block.conditions.splice(cIdx, 1); markMod(); renderChain(); A.State.notify(); };
 
                             condRoot.appendChild(cRow);
                         });
@@ -640,9 +656,9 @@
                         `;
 
                         // Events
-                        const typeSel = aRow.querySelector('.action-type');
+                        const typeSel = /** @type {HTMLSelectElement} */ (aRow.querySelector('.action-type'));
                         typeSel.onchange = e => {
-                            a.type = e.target.value;
+                            a.type = /** @type {HTMLSelectElement} */ (e.target).value;
                             // Reset fields appropriate for type
                             if (a.type === 'execute_rule') {
                                 delete a.text; delete a.target; delete a.listId; delete a.countMin; delete a.countMax; delete a.prefix; delete a.separator;
@@ -657,20 +673,20 @@
                             markMod(); renderChain(); A.State.notify();
                         };
 
-                        aRow.querySelector('.action-del').onclick = () => { block.actions.splice(aIdx, 1); markMod(); renderChain(); A.State.notify(); };
+                        /** @type {HTMLElement} */ (aRow.querySelector('.action-del')).onclick = () => { block.actions.splice(aIdx, 1); markMod(); renderChain(); A.State.notify(); };
 
                         if (a.type === 'execute_rule') {
-                            aRow.querySelector('.action-rule-target').onchange = e => { a.targetRuleId = e.target.value; markMod(); A.State.notify(); };
+                            /** @type {HTMLSelectElement} */ (aRow.querySelector('.action-rule-target')).onchange = e => { a.targetRuleId = /** @type {HTMLSelectElement} */ (e.target).value; markMod(); A.State.notify(); };
                         } else if (a.type === 'pick_random') {
-                            aRow.querySelector('.action-pick-list').onchange = e => { a.listId = e.target.value; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-pick-count-min').onchange = e => { a.countMin = parseInt(e.target.value) || 1; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-pick-count-max').onchange = e => { a.countMax = parseInt(e.target.value) || a.countMin || 3; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-pick-prefix').onchange = e => { a.prefix = e.target.value; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-pick-separator').onchange = e => { a.separator = e.target.value; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-target').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-pick-list')).onchange = e => { a.listId = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-pick-count-min')).onchange = e => { a.countMin = parseInt(/** @type {HTMLInputElement} */(e.target).value) || 1; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-pick-count-max')).onchange = e => { a.countMax = parseInt(/** @type {HTMLInputElement} */(e.target).value) || a.countMin || 3; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-pick-prefix')).onchange = e => { a.prefix = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-pick-separator')).onchange = e => { a.separator = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-target')).onchange = e => { a.target = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); };
                         } else {
-                            aRow.querySelector('.action-text').oninput = e => { a.text = e.target.value; markMod(); A.State.notify(); };
-                            aRow.querySelector('.action-target').onchange = e => { a.target = e.target.value; markMod(); A.State.notify(); };
+                            /** @type {HTMLTextAreaElement} */ (aRow.querySelector('.action-text')).oninput = e => { a.text = /** @type {HTMLTextAreaElement} */ (e.target).value; markMod(); A.State.notify(); };
+                            /** @type {HTMLInputElement} */ (aRow.querySelector('.action-target')).onchange = e => { a.target = /** @type {HTMLInputElement} */ (e.target).value; markMod(); A.State.notify(); };
                         }
 
                         actRoot.appendChild(aRow);
@@ -678,19 +694,19 @@
 
                     // Event Delegation for Add Buttons
                     if (card.querySelector('.add-cond')) {
-                        card.querySelector('.add-cond').onclick = () => {
+                        /** @type {HTMLElement} */ (card.querySelector('.add-cond')).onclick = () => {
                             block.conditions.push({ type: 'anyInList', listId: '', op: '>=', threshold: 1 });
                             renderChain(); A.State.notify();
                         };
                     }
                     if (card.querySelector('.add-act')) {
-                        card.querySelector('.add-act').onclick = () => {
+                        /** @type {HTMLElement} */ (card.querySelector('.add-act')).onclick = () => {
                             block.actions.push({ type: 'modify', target: 'character.personality', text: '' });
                             renderChain(); A.State.notify();
                         };
                     }
                     if (card.querySelector('.del-blk')) {
-                        card.querySelector('.del-blk').onclick = () => {
+                        /** @type {HTMLElement} */ (card.querySelector('.del-blk')).onclick = () => {
                             item.chain.splice(idx, 1);
                             renderChain(); A.State.notify();
                         };
@@ -701,8 +717,8 @@
             renderChain();
 
             // Add Blocks
-            container.querySelector('#btn-add-elseif').onclick = () => { item.chain.push(makeBlock('elseif')); renderChain(); addActionTokenCounters(); A.State.notify(); };
-            container.querySelector('#btn-add-else').onclick = () => { item.chain.push(makeBlock('else')); renderChain(); addActionTokenCounters(); A.State.notify(); };
+            /** @type {HTMLElement} */ (container.querySelector('#btn-add-elseif')).onclick = () => { item.chain.push(makeBlock('elseif')); renderChain(); addActionTokenCounters(); A.State.notify(); };
+            /** @type {HTMLElement} */ (container.querySelector('#btn-add-else')).onclick = () => { item.chain.push(makeBlock('else')); renderChain(); addActionTokenCounters(); A.State.notify(); };
 
             // Add token counters to action textareas
             const addActionTokenCounters = () => {
@@ -762,10 +778,10 @@
             el.innerHTML = `<div style="display:flex; gap:4px;">${html}</div>`;
 
             // Wire
-            if (el.querySelector('#c-lst')) el.querySelector('#c-lst').onchange = e => { c.listId = e.target.value; markMod(); A.State.notify(); };
-            if (el.querySelector('#c-derived')) el.querySelector('#c-derived').onchange = e => { c.derivedId = e.target.value; markMod(); A.State.notify(); };
-            if (el.querySelector('#c-op')) el.querySelector('#c-op').onchange = e => { c.op = e.target.value; markMod(); A.State.notify(); };
-            if (el.querySelector('#c-val')) el.querySelector('#c-val').oninput = e => { c.threshold = parseInt(e.target.value); markMod(); A.State.notify(); };
+            if (el.querySelector('#c-lst')) /** @type {HTMLSelectElement} */ (el.querySelector('#c-lst')).onchange = e => { c.listId = /** @type {HTMLSelectElement} */ (e.target).value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-derived')) /** @type {HTMLSelectElement} */ (el.querySelector('#c-derived')).onchange = e => { c.derivedId = /** @type {HTMLSelectElement} */ (e.target).value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-op')) /** @type {HTMLSelectElement} */ (el.querySelector('#c-op')).onchange = e => { c.op = /** @type {HTMLSelectElement} */ (e.target).value; markMod(); A.State.notify(); };
+            if (el.querySelector('#c-val')) /** @type {HTMLInputElement} */ (el.querySelector('#c-val')).oninput = e => { c.threshold = parseInt(/** @type {HTMLInputElement} */(e.target).value); markMod(); A.State.notify(); };
         }
 
 

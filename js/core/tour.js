@@ -89,9 +89,9 @@
             document.body.appendChild(overlay);
 
             // Bindings
-            popup.querySelector('#tour-close-x').onclick = () => this.end();
-            popup.querySelector('#tour-btn-prev').onclick = () => this.prev();
-            popup.querySelector('#tour-btn-next').onclick = () => this.next();
+            /** @type {HTMLElement} */ (popup.querySelector('#tour-close-x')).onclick = () => this.end();
+            /** @type {HTMLElement} */ (popup.querySelector('#tour-btn-prev')).onclick = () => this.prev();
+            /** @type {HTMLElement} */ (popup.querySelector('#tour-btn-next')).onclick = () => this.next();
 
             // Allow clicking overlay to exit? Maybe safer to require explicit exit
             // overlay.onclick = (e) => { if (e.target === overlay) this.end(); };

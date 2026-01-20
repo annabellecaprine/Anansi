@@ -107,7 +107,7 @@
             btn.className = 'btn btn-primary';
             btn.style.marginTop = '16px';
             btn.textContent = actionLabel + ' →';
-            btn.onclick = onAction;
+            btn.onclick = /** @type {any} */ (onAction);
             container.appendChild(btn);
         }
 

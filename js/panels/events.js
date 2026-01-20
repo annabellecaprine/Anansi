@@ -22,6 +22,13 @@
     if (!state.aura.events) state.aura.events = { items: {} }; // Logic events
     if (!state.aura.probability) state.aura.probability = { groups: [] }; // Random groups (array based)
 
+    const markMod = (item) => {
+      // Mark item as locally modified if it has a vaultLink
+      if (item && item.vaultLink && item.vaultLink.vaultId) {
+        item.vaultLink.locallyModified = true;
+      }
+    };
+
     container.style.height = '100%';
     container.style.display = 'grid';
     container.style.gridTemplateColumns = '250px 1fr';
@@ -134,24 +141,24 @@
 
       // Update Tab UI
       if (tab === 'logic') {
-        tabLogic.style.color = 'var(--text-primary)';
-        tabLogic.style.borderBottomColor = 'var(--accent-primary)';
-        tabProb.style.color = 'var(--text-muted)';
-        tabProb.style.borderBottomColor = 'transparent';
+        /** @type {HTMLElement} */ (tabLogic).style.color = 'var(--text-primary)';
+        /** @type {HTMLElement} */ (tabLogic).style.borderBottomColor = 'var(--accent-primary)';
+        /** @type {HTMLElement} */ (tabProb).style.color = 'var(--text-muted)';
+        /** @type {HTMLElement} */ (tabProb).style.borderBottomColor = 'transparent';
         btnAdd.textContent = '+ New Event';
       } else {
-        tabProb.style.color = 'var(--text-primary)';
-        tabProb.style.borderBottomColor = 'var(--accent-primary)';
-        tabLogic.style.color = 'var(--text-muted)';
-        tabLogic.style.borderBottomColor = 'transparent';
+        /** @type {HTMLElement} */ (tabProb).style.color = 'var(--text-primary)';
+        /** @type {HTMLElement} */ (tabProb).style.borderBottomColor = 'var(--accent-primary)';
+        /** @type {HTMLElement} */ (tabLogic).style.color = 'var(--text-muted)';
+        /** @type {HTMLElement} */ (tabLogic).style.borderBottomColor = 'transparent';
         btnAdd.textContent = '+ New Group';
       }
       refreshList();
       renderEditor();
     }
 
-    tabLogic.onclick = () => switchTab('logic');
-    tabProb.onclick = () => switchTab('probability');
+    /** @type {HTMLElement} */ (tabLogic).onclick = () => switchTab('logic');
+    /** @type {HTMLElement} */ (tabProb).onclick = () => switchTab('probability');
 
     function refreshList() {
       listBody.innerHTML = '';
@@ -189,7 +196,7 @@
              </div>
              <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Prob: ${ev.probability || 100}%</div>
            `;
-          row.onclick = () => {
+          /** @type {HTMLElement} */ (row).onclick = () => {
             if (selectionMode) {
               if (selectedIds.has(ev.id)) selectedIds.delete(ev.id); else selectedIds.add(ev.id);
               updateFooterState(); refreshList();
@@ -233,7 +240,7 @@
               </div>
               <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
             `;
-          row.onclick = () => {
+          /** @type {HTMLElement} */ (row).onclick = () => {
             if (selectionMode) {
               if (selectedIds.has(thisId)) selectedIds.delete(thisId); else selectedIds.add(thisId);
               updateFooterState(); refreshList();
@@ -248,37 +255,37 @@
 
     // --- Multi-Select Handlers ---
     const updateFooterState = () => {
-      const std = listCol.querySelector('#footer-standard');
-      const sel = listCol.querySelector('#footer-selection');
+      /** @type {HTMLElement} */ const std = listCol.querySelector('#footer-standard');
+      /** @type {HTMLElement} */ const sel = listCol.querySelector('#footer-selection');
       if (selectionMode) {
         std.style.display = 'none';
         sel.style.display = 'flex';
-        sel.querySelector('#btn-del-multi').textContent = `Delete Selected (${selectedIds.size})`;
-        sel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
-        sel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
+        /** @type {HTMLElement} */ (sel.querySelector('#btn-del-multi')).textContent = `Delete Selected (${selectedIds.size})`;
+        /** @type {HTMLButtonElement} */ (sel.querySelector('#btn-del-multi')).disabled = selectedIds.size === 0;
+        /** @type {HTMLElement} */ (sel.querySelector('#btn-del-multi')).style.opacity = selectedIds.size === 0 ? '0.5' : '1';
       } else {
         std.style.display = 'flex';
         sel.style.display = 'none';
         // Update label based on tab
-        std.querySelector('#btn-add').textContent = currentTab === 'logic' ? '+ New Event' : '+ New Group';
+        /** @type {HTMLElement} */ (std.querySelector('#btn-add')).textContent = currentTab === 'logic' ? '+ New Event' : '+ New Group';
       }
     };
 
-    listCol.querySelector('#btn-select-mode').onclick = () => {
+    /** @type {HTMLElement} */ (listCol.querySelector('#btn-select-mode')).onclick = () => {
       selectionMode = true;
       selectedIds.clear();
       updateFooterState();
       refreshList();
     };
 
-    listCol.querySelector('#btn-cancel-select').onclick = () => {
+    /** @type {HTMLElement} */ (listCol.querySelector('#btn-cancel-select')).onclick = () => {
       selectionMode = false;
       selectedIds.clear();
       updateFooterState();
       refreshList();
     };
 
-    listCol.querySelector('#btn-del-multi').onclick = () => {
+    /** @type {HTMLElement} */ (listCol.querySelector('#btn-del-multi')).onclick = () => {
       if (selectedIds.size === 0) return;
       if (confirm(`Delete ${selectedIds.size} items?`)) {
         let count = 0;
@@ -314,7 +321,7 @@
       }
     };
 
-    btnAdd.onclick = () => {
+    /** @type {HTMLElement} */ (btnAdd).onclick = () => {
       // (Keep existing logic, just refresh footer too)
       if (currentTab === 'logic') {
         const id = 'ev_' + Math.random().toString(36).substr(2, 9);
@@ -345,7 +352,7 @@
           title: 'No Event Selected',
           message: 'Events track narrative milestones and unlock new story branches.',
           actionLabel: 'Create First Event',
-          onAction: () => document.getElementById('btn-add').click()
+          onAction: () => /** @type {HTMLElement} */(document.getElementById('btn-add')).click()
         }));
         return;
       }
@@ -458,10 +465,10 @@
           `;
 
         // --- UI Renders ---
-        const condUI = body.querySelector('#cond-builder-ui');
-        const effUI = body.querySelector('#eff-builder-ui');
-        const inpCond = body.querySelector('#inp-cond');
-        const inpEff = body.querySelector('#inp-eff');
+        /** @type {HTMLElement} */ const condUI = body.querySelector('#cond-builder-ui');
+        /** @type {HTMLElement} */ const effUI = body.querySelector('#eff-builder-ui');
+        /** @type {HTMLInputElement} */ const inpCond = body.querySelector('#inp-cond');
+        /** @type {HTMLTextAreaElement} */ const inpEff = body.querySelector('#inp-eff');
 
         // Render Condition Builder inputs
         const renderCondBuilder = () => {
@@ -470,15 +477,15 @@
             condUI.innerHTML = '<div style="font-size:11px; color:var(--text-muted); padding-top:14px;">Edit logic directly below &darr;</div>';
           } else if (ev._ui.condType === 'keyword') {
             condUI.innerHTML = `<label class="evt-lab">Input Text Contains</label><input class="input" id="b-key" placeholder="Keyword..." value="${ev._ui.keyVal || ''}">`;
-            condUI.querySelector('#b-key').oninput = e => { ev._ui.keyVal = e.target.value; updateCond(); };
+            /** @type {HTMLInputElement} */ (condUI.querySelector('#b-key')).oninput = e => { ev._ui.keyVal = /** @type {HTMLInputElement} */ (e.target).value; updateCond(); };
           } else if (ev._ui.condType === 'flag') {
             condUI.innerHTML = `
                            <div style="display:flex; gap:8px;">
                              <div style="flex:1;"><label class="evt-lab">Flag Name</label><input class="input" id="b-flag" placeholder="e.g. met_gandalf" value="${ev._ui.flagName || ''}"></div>
                              <div style="width:80px;"><label class="evt-lab">Is Set?</label><select class="input" id="b-val"><option value="true">True</option><option value="false" ${ev._ui.flagVal === 'false' ? 'selected' : ''}>False</option></select></div>
                            </div>`;
-            condUI.querySelector('#b-flag').oninput = e => { ev._ui.flagName = e.target.value; updateCond(); };
-            condUI.querySelector('#b-val').onchange = e => { ev._ui.flagVal = e.target.value; updateCond(); };
+            /** @type {HTMLInputElement} */ (condUI.querySelector('#b-flag')).oninput = e => { ev._ui.flagName = /** @type {HTMLInputElement} */ (e.target).value; updateCond(); };
+            /** @type {HTMLSelectElement} */ (condUI.querySelector('#b-val')).onchange = e => { ev._ui.flagVal = /** @type {HTMLSelectElement} */ (e.target).value; updateCond(); };
           } else if (ev._ui.condType === 'stat') {
             condUI.innerHTML = `
                            <div style="display:flex; gap:8px;">
@@ -487,10 +494,10 @@
                              <div style="width:60px;"><label class="evt-lab">Value</label><input type="number" class="input" id="b-val" value="${ev._ui.statVal || 0}"></div>
                            </div>`;
             // Restore select
-            if (ev._ui.statOp) condUI.querySelector('#b-op').value = ev._ui.statOp;
-            condUI.querySelector('#b-stat').oninput = e => { ev._ui.statName = e.target.value; updateCond(); };
-            condUI.querySelector('#b-op').onchange = e => { ev._ui.statOp = e.target.value; updateCond(); };
-            condUI.querySelector('#b-val').oninput = e => { ev._ui.statVal = e.target.value; updateCond(); };
+            if (ev._ui.statOp) /** @type {HTMLSelectElement} */ (condUI.querySelector('#b-op')).value = ev._ui.statOp;
+            /** @type {HTMLInputElement} */ (condUI.querySelector('#b-stat')).oninput = e => { ev._ui.statName = /** @type {HTMLInputElement} */ (e.target).value; updateCond(); };
+            /** @type {HTMLSelectElement} */ (condUI.querySelector('#b-op')).onchange = e => { ev._ui.statOp = /** @type {HTMLSelectElement} */ (e.target).value; updateCond(); };
+            /** @type {HTMLInputElement} */ (condUI.querySelector('#b-val')).oninput = e => { ev._ui.statVal = /** @type {HTMLInputElement} */ (e.target).value; updateCond(); };
           }
         };
 
@@ -513,15 +520,15 @@
 
           if (ev._ui.effType === 'msg') {
             effUI.innerHTML = `<label class="evt-lab">Message Content</label><textarea class="input" id="e-msg" rows="3" placeholder="You hear a sound...">${ev._ui.msgVal || ''}</textarea>`;
-            effUI.querySelector('#e-msg').oninput = e => { ev._ui.msgVal = e.target.value; updateEff(); };
+            /** @type {HTMLTextAreaElement} */ (effUI.querySelector('#e-msg')).oninput = e => { ev._ui.msgVal = /** @type {HTMLTextAreaElement} */ (e.target).value; updateEff(); };
           } else if (ev._ui.effType === 'flag') {
             effUI.innerHTML = `
                            <div style="display:flex; gap:8px;">
                              <div style="flex:1;"><label class="evt-lab">Flag Name</label><input class="input" id="e-flag" placeholder="e.g. quest_started" value="${ev._ui.flagName || ''}"></div>
                              <div style="width:80px;"><label class="evt-lab">Set To</label><select class="input" id="e-val"><option value="true">True</option><option value="false" ${ev._ui.flagVal === 'false' ? 'selected' : ''}>False</option></select></div>
                            </div>`;
-            effUI.querySelector('#e-flag').oninput = e => { ev._ui.flagName = e.target.value; updateEff(); };
-            effUI.querySelector('#e-val').onchange = e => { ev._ui.flagVal = e.target.value; updateEff(); };
+            /** @type {HTMLInputElement} */ (effUI.querySelector('#e-flag')).oninput = e => { ev._ui.flagName = /** @type {HTMLInputElement} */ (e.target).value; updateEff(); };
+            /** @type {HTMLSelectElement} */ (effUI.querySelector('#e-val')).onchange = e => { ev._ui.flagVal = /** @type {HTMLSelectElement} */ (e.target).value; updateEff(); };
           } else if (ev._ui.effType === 'stat') {
             effUI.innerHTML = `
                            <div style="display:flex; gap:8px;">
@@ -529,10 +536,10 @@
                              <div style="width:60px;"><label class="evt-lab">Op</label><select class="input" id="e-op"><option value="=">=</option><option value="+=">+=</option><option value="-=">-=</option></select></div>
                              <div style="width:60px;"><label class="evt-lab">Value</label><input type="number" class="input" id="e-val" value="${ev._ui.statVal || 0}"></div>
                            </div>`;
-            if (ev._ui.statOp) effUI.querySelector('#e-op').value = ev._ui.statOp;
-            effUI.querySelector('#e-stat').oninput = e => { ev._ui.statName = e.target.value; updateEff(); };
-            effUI.querySelector('#e-op').onchange = e => { ev._ui.statOp = e.target.value; updateEff(); };
-            effUI.querySelector('#e-val').oninput = e => { ev._ui.statVal = e.target.value; updateEff(); };
+            if (ev._ui.statOp) /** @type {HTMLSelectElement} */ (effUI.querySelector('#e-op')).value = ev._ui.statOp;
+            /** @type {HTMLInputElement} */ (effUI.querySelector('#e-stat')).oninput = e => { ev._ui.statName = /** @type {HTMLInputElement} */ (e.target).value; updateEff(); };
+            /** @type {HTMLSelectElement} */ (effUI.querySelector('#e-op')).onchange = e => { ev._ui.statOp = /** @type {HTMLSelectElement} */ (e.target).value; updateEff(); };
+            /** @type {HTMLInputElement} */ (effUI.querySelector('#e-val')).oninput = e => { ev._ui.statVal = /** @type {HTMLInputElement} */ (e.target).value; updateEff(); };
           }
         };
 
@@ -558,7 +565,7 @@
         body.appendChild(actorSec);
 
         const assocActors = Object.values(state.nodes?.actors?.items || {});
-        const actorAssocList = actorSec.querySelector('#actor-associations');
+        /** @type {HTMLElement} */ const actorAssocList = actorSec.querySelector('#actor-associations');
         if (assocActors.length === 0) {
           actorAssocList.innerHTML = '<div style="font-size:11px; color:var(--text-muted); padding:4px;">No actors found.</div>';
         } else {
@@ -569,14 +576,15 @@
             lbl.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:11px; padding:2px 6px; background:var(--bg-elevated); border-radius:4px; border:1px solid var(--border-subtle); cursor:pointer; user-select:none;';
             if (isChecked) lbl.style.borderColor = 'var(--accent-primary)';
             lbl.innerHTML = `<input type="checkbox" style="margin:0;" ${isChecked ? 'checked' : ''}> ${actor.name || 'Unknown'}`;
-            lbl.querySelector('input').onchange = (e) => {
-              if (e.target.checked) {
+            /** @type {HTMLInputElement} */ (lbl.querySelector('input')).onchange = (e) => {
+              if (/** @type {HTMLInputElement} */ (e.target).checked) {
                 ev.associatedActors.push(actor.id);
                 lbl.style.borderColor = 'var(--accent-primary)';
               } else {
                 ev.associatedActors = ev.associatedActors.filter(id => id !== actor.id);
                 lbl.style.borderColor = 'var(--border-subtle)';
               }
+              markMod(ev);
               A.State.notify();
             };
             actorAssocList.appendChild(lbl);
@@ -588,8 +596,8 @@
         renderEffBuilder();
 
         // Bindings for dropdowns
-        body.querySelector('#sel-cond-type').onchange = e => {
-          ev._ui.condType = e.target.value;
+        /** @type {HTMLSelectElement} */ (body.querySelector('#sel-cond-type')).onchange = e => {
+          ev._ui.condType = /** @type {HTMLSelectElement} */ (e.target).value;
           renderCondBuilder();
           // Optional: Reset code if switching away from raw? No, keep it safer to not nuke user work.
           if (ev._ui.condType !== 'raw') updateCond();
@@ -598,34 +606,36 @@
           if (ev._ui.condType !== 'raw') inpCond.readOnly = true;
           // Note: If switching to Builder, we might overwrite existing Raw code with default Builder state. 
           // This is acceptable behavior for "switching mode" usually, or we parse. Parsing is hard. We overwrite.
+          markMod(ev);
           A.State.notify();
         };
 
-        body.querySelector('#sel-eff-type').onchange = e => {
-          ev._ui.effType = e.target.value;
+        /** @type {HTMLSelectElement} */ (body.querySelector('#sel-eff-type')).onchange = e => {
+          ev._ui.effType = /** @type {HTMLSelectElement} */ (e.target).value;
           renderEffBuilder();
           if (ev._ui.effType !== 'raw') updateEff();
           else { inpEff.readOnly = false; inpEff.focus(); }
 
           if (ev._ui.effType !== 'raw') inpEff.readOnly = true;
+          markMod(ev);
           A.State.notify();
         };
 
         // Bindings for Raw inputs (when in Raw mode)
-        inpCond.oninput = e => { if (ev._ui.condType === 'raw') { ev.condition = e.target.value; A.State.notify(); } };
-        inpEff.oninput = e => { if (ev._ui.effType === 'raw') { ev.effect = e.target.value; A.State.notify(); } };
+        inpCond.oninput = e => { if (ev._ui.condType === 'raw') { ev.condition = /** @type {HTMLInputElement} */ (e.target).value; markMod(ev); A.State.notify(); } };
+        inpEff.oninput = e => { if (ev._ui.effType === 'raw') { ev.effect = /** @type {HTMLTextAreaElement} */ (e.target).value; markMod(ev); A.State.notify(); } };
 
         // Common Bindings
         const upd = () => { markMod(ev); A.State.notify(); refreshList(); };
-        header.querySelector('#inp-lbl').oninput = e => { ev.label = e.target.value; upd(); };
-        header.querySelector('#inp-lbl').onchange = e => { if (A.UI.Toast) A.UI.Toast.show('Label saved', 'info'); };
+        /** @type {HTMLInputElement} */ (header.querySelector('#inp-lbl')).oninput = e => { ev.label = /** @type {HTMLInputElement} */ (e.target).value; upd(); };
+        /** @type {HTMLInputElement} */ (header.querySelector('#inp-lbl')).onchange = e => { if (A.UI.Toast) A.UI.Toast.show('Label saved', 'info'); };
 
-        header.querySelector('#chk-en').onchange = e => {
-          ev.enabled = e.target.checked;
+        /** @type {HTMLInputElement} */ (header.querySelector('#chk-en')).onchange = e => {
+          ev.enabled = /** @type {HTMLInputElement} */ (e.target).checked;
           upd();
           if (A.UI.Toast) A.UI.Toast.show(ev.enabled ? 'Event enabled' : 'Event disabled', 'info');
         };
-        header.querySelector('#btn-del').onclick = () => {
+        /** @type {HTMLElement} */ (header.querySelector('#btn-del')).onclick = () => {
           if (confirm('Delete event?')) {
             delete state.aura.events.items[currentId];
             currentId = null;
@@ -634,7 +644,7 @@
             if (A.UI.Toast) A.UI.Toast.show('Event deleted', 'info');
           }
         };
-        header.querySelector('#btn-vault-pub').onclick = () => {
+        /** @type {HTMLElement} */ (header.querySelector('#btn-vault-pub')).onclick = () => {
           if (A.VaultUI) {
             A.VaultUI.showPublishDialog({
               type: 'rule-block',
@@ -649,7 +659,7 @@
 
         // Logic Specific Bindings (Probability, etc)
 
-        body.querySelector('#inp-prob').oninput = e => { ev.probability = parseInt(e.target.value); markMod(ev); A.State.notify(); };
+        /** @type {HTMLInputElement} */ (body.querySelector('#inp-prob')).oninput = e => { ev.probability = parseInt(/** @type {HTMLInputElement} */(e.target).value); markMod(ev); A.State.notify(); };
 
         // For dynamic content (conditions/effects) we need to assume modification if editor is open? 
         // Or update bindings inside the dynamic renderers?
@@ -695,10 +705,10 @@
 
         // Bindings
         const upd = () => { markMod(grp); A.State.notify(); refreshList(); };
-        header.querySelector('#inp-name').oninput = e => { grp.name = e.target.value; upd(); };
-        header.querySelector('#chk-en').onchange = e => { grp.enabled = e.target.checked; upd(); };
-        header.querySelector('#btn-del').onclick = () => { if (confirm('Delete group?')) { state.aura.probability.groups.splice(idx, 1); currentId = null; upd(); renderEditor(); } };
-        header.querySelector('#btn-vault-pub').onclick = () => {
+        /** @type {HTMLInputElement} */ (header.querySelector('#inp-name')).oninput = e => { grp.name = /** @type {HTMLInputElement} */ (e.target).value; upd(); };
+        /** @type {HTMLInputElement} */ (header.querySelector('#chk-en')).onchange = e => { grp.enabled = /** @type {HTMLInputElement} */ (e.target).checked; upd(); };
+        /** @type {HTMLElement} */ (header.querySelector('#btn-del')).onclick = () => { if (confirm('Delete group?')) { state.aura.probability.groups.splice(idx, 1); currentId = null; upd(); renderEditor(); } };
+        /** @type {HTMLElement} */ (header.querySelector('#btn-vault-pub')).onclick = () => {
           if (A.VaultUI) {
             A.VaultUI.showPublishDialog({
               type: 'rule-block',
@@ -711,11 +721,11 @@
           }
         };
 
-        body.querySelector('#inp-ch').oninput = e => { grp.triggerChancePct = parseInt(e.target.value); markMod(grp); A.State.notify(); };
-        body.querySelector('#sel-tgt').onchange = e => { grp.target = e.target.value; markMod(grp); A.State.notify(); };
+        /** @type {HTMLInputElement} */ (body.querySelector('#inp-ch')).oninput = e => { grp.triggerChancePct = parseInt(/** @type {HTMLInputElement} */(e.target).value); markMod(grp); A.State.notify(); };
+        /** @type {HTMLSelectElement} */ (body.querySelector('#sel-tgt')).onchange = e => { grp.target = /** @type {HTMLSelectElement} */ (e.target).value; markMod(grp); A.State.notify(); };
 
         // Render Items
-        const itemsContainer = body.querySelector('#prob-items');
+        /** @type {HTMLElement} */ const itemsContainer = body.querySelector('#prob-items');
         function renderItems() {
           itemsContainer.innerHTML = '';
           (grp.items || []).forEach((it, iIdx) => {
@@ -732,14 +742,17 @@
                   <textarea class="input" rows="2" placeholder="Text content..." oninput="this.getRootNode().host_edit(${iIdx}, 'text', this.value)">${it.text || ''}</textarea>
                 `;
 
-            div.host_edit = (i, k, val) => { grp.items[i][k] = (k === 'weight' ? parseInt(val) : val); markMod(grp); A.State.notify(); };
-            div.host_del = (i) => { grp.items.splice(i, 1); renderItems(); markMod(grp); A.State.notify(); };
+            // These are custom properties added to the div element, not standard DOM properties.
+            // Casting to 'any' or a custom interface would be needed for strict TS, but for JSDoc,
+            // the original code implies they are directly attached.
+            /** @type {any} */ (div).host_edit = (i, k, val) => { grp.items[i][k] = (k === 'weight' ? parseInt(val) : val); markMod(grp); A.State.notify(); };
+            /** @type {any} */ (div).host_del = (i) => { grp.items.splice(i, 1); renderItems(); markMod(grp); A.State.notify(); };
             itemsContainer.appendChild(div);
           });
         }
         renderItems();
 
-        body.querySelector('#btn-add-item').onclick = () => {
+        /** @type {HTMLElement} */ (body.querySelector('#btn-add-item')).onclick = () => {
           grp.items = grp.items || [];
           grp.items.push({ name: 'Item', weight: 100, text: '' });
           renderItems();

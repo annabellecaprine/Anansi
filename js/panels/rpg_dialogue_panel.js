@@ -85,7 +85,8 @@
             `;
 
             // Wire edit buttons
-            listSection.querySelectorAll('.dlg-edit').forEach(btn => {
+            listSection.querySelectorAll('.dlg-edit').forEach(btnNode => {
+                const btn = /** @type {HTMLElement} */ (btnNode);
                 btn.onclick = () => {
                     const idx = parseInt(btn.dataset.idx);
                     showDialogueEditor(state.rpg.dialogues[idx]);
@@ -93,7 +94,8 @@
             });
 
             // Wire export buttons
-            listSection.querySelectorAll('.dlg-export').forEach(btn => {
+            listSection.querySelectorAll('.dlg-export').forEach(btnNode => {
+                const btn = /** @type {HTMLElement} */ (btnNode);
                 btn.onclick = () => {
                     const idx = parseInt(btn.dataset.idx);
                     const dlg = state.rpg.dialogues[idx];
@@ -104,7 +106,8 @@
             });
 
             // Wire delete buttons
-            listSection.querySelectorAll('.dlg-delete').forEach(btn => {
+            listSection.querySelectorAll('.dlg-delete').forEach(btnNode => {
+                const btn = /** @type {HTMLElement} */ (btnNode);
                 btn.onclick = () => {
                     const idx = parseInt(btn.dataset.idx);
                     const dlg = state.rpg.dialogues[idx];
@@ -140,7 +143,7 @@
         };
 
         // Import JSON
-        header.querySelector('#btn-import').onclick = () => {
+        /** @type {HTMLElement} */ (header.querySelector('#btn-import')).onclick = () => {
             const jsonText = prompt('Paste dialogue JSON:');
             if (!jsonText) return;
 
@@ -293,8 +296,8 @@
                 `;
 
                 // Wire events
-                modal.querySelector('#modal-close').onclick = () => modal.remove();
-                modal.querySelector('#modal-cancel').onclick = () => modal.remove();
+                /** @type {HTMLElement} */ (modal.querySelector('#modal-close')).onclick = () => modal.remove();
+                /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
                 modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
                 // Header inputs
@@ -302,9 +305,10 @@
                 modal.querySelector('#dlg-npc').onchange = (e) => { dlg.npcId = e.target.value || null; };
 
                 // Node list navigation
-                modal.querySelectorAll('.node-item').forEach(item => {
+                modal.querySelectorAll('.node-item').forEach(itemNode => {
+                    const item = /** @type {HTMLElement} */ (itemNode);
                     item.onclick = (e) => {
-                        if (e.target.classList.contains('btn-del-node')) return;
+                        if (/** @type {HTMLElement} */ (e.target).classList.contains('btn-del-node')) return;
                         selectedNodeIdx = parseInt(item.dataset.idx);
                         renderEditor();
                     };

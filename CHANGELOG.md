@@ -2,6 +2,13 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.5 - 2026-01-19
+### Type Safety (Panels)
+- **Panel Compliance**: Extended `checkJs` validation to `js/panels/`.
+- **Chronos Chat**: Resolved type errors in `chronos_chat.js`, addressing logic around `onchange` and `onclick` events for the control bar and web lens.
+- **RPG Dialogue**: Fixed `onclick` interactions and node logic in `rpg_dialogue_panel.js`.
+- **Pairs**: Resolved type casting issues in shift tagging logic.
+
 ## v1.11.4 - 2026-01-19
 ### New Features
 - **Pick Random Action**: New action type in Custom Rules for randomly selecting items from a List. Supports configurable count range (min-max for variability), prefix text, separator (comma/pipe/newline/and), and target field. Use cases include scavenger hunts, random party names, item quests, and more.

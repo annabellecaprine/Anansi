@@ -197,8 +197,8 @@
     `;
     document.body.appendChild(modal);
 
-    modal.querySelector('#modal-cancel').onclick = () => modal.remove();
-    modal.querySelector('#modal-confirm').onclick = () => {
+    /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
+    /** @type {HTMLElement} */ (modal.querySelector('#modal-confirm')).onclick = () => {
       modal.remove();
       onConfirm();
     };
@@ -245,16 +245,17 @@
       `;
       document.body.appendChild(modal);
 
-      const fileInput = modal.querySelector('#upload-portrait');
-      modal.querySelector('#modal-cancel').onclick = () => modal.remove();
-      modal.querySelector('#modal-upload').onclick = () => fileInput.click();
+      const fileInput = /** @type {HTMLElement} */ (modal.querySelector('#upload-portrait'));
+      /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
+      /** @type {HTMLElement} */ (modal.querySelector('#modal-upload')).onclick = () => fileInput.click();
       modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-      fileInput.onchange = (e) => {
-        const file = e.target.files[0];
+      /** @type {HTMLInputElement} */ (fileInput).onchange = (e) => {
+        const file = /** @type {HTMLInputElement} */ (e.target).files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
+          if (typeof ev.target.result !== 'string') return;
           modal.remove();
           onSelect(ev.target.result);
         };
@@ -294,33 +295,43 @@
     `;
     document.body.appendChild(modal);
 
-    const fileInput = modal.querySelector('#upload-portrait');
-    modal.querySelector('#modal-cancel').onclick = () => modal.remove();
+    const fileInput = /** @type {HTMLInputElement} */ (modal.querySelector('#upload-portrait'));
+    /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
     // Actor portrait selection
-    modal.querySelectorAll('.portrait-option:not(.upload-new)').forEach(opt => {
+    modal.querySelectorAll('.portrait-option:not(.upload-new)').forEach(o => {
+      const opt = /** @type {HTMLElement} */ (o);
       opt.onclick = (e) => {
         e.stopPropagation();
         const idx = parseInt(opt.dataset.index);
         modal.remove();
         onSelect(imageOptions[idx].imageData);
       };
-      opt.onmouseenter = () => opt.querySelector('div').style.borderColor = 'var(--accent-primary)';
-      opt.onmouseleave = () => opt.querySelector('div').style.borderColor = 'var(--border-subtle)';
+
+      opt.onmouseenter = () => {
+        const div = /** @type {HTMLElement} */ (opt.querySelector('div'));
+        if (div) div.style.borderColor = 'var(--accent-primary)';
+      };
+      opt.onmouseleave = () => {
+        const div = /** @type {HTMLElement} */ (opt.querySelector('div'));
+        if (div) div.style.borderColor = 'var(--border-subtle)';
+      };
     });
 
     // Upload new option
-    modal.querySelector('.upload-new').onclick = (e) => {
+    /** @type {HTMLElement} */ (modal.querySelector('.upload-new')).onclick = (e) => {
       e.stopPropagation();
-      fileInput.click();
+      /** @type {HTMLElement} */ (fileInput).click();
     };
 
     fileInput.onchange = (e) => {
-      const file = e.target.files[0];
+      const target = /** @type {HTMLInputElement} */ (e.target);
+      const file = target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
+        if (typeof ev.target.result !== 'string') return;
         modal.remove();
         onSelect(ev.target.result);
       };

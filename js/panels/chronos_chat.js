@@ -339,7 +339,7 @@
                 .map(([key, preset]) => `<option value="${key}" ${displayWeather === key ? 'selected' : ''}>${preset.icon || ''} ${preset.label}</option>`)
                 .join('');
 
-            weatherIntensity.value = displayIntensity || 'moderate';
+            /** @type {HTMLSelectElement} */ (weatherIntensity).value = displayIntensity || 'moderate';
 
             stylePending(weatherSelect, pending.weather !== undefined);
             stylePending(weatherIntensity, pending.intensity !== undefined);
@@ -391,7 +391,8 @@
             }).join('');
 
             // Bind avatar clicks (could show actor details)
-            presentAvatars.querySelectorAll('.chronos-avatar').forEach(av => {
+            presentAvatars.querySelectorAll('.chronos-avatar').forEach(avNode => {
+                const av = /** @type {HTMLElement} */ (avNode);
                 av.onclick = () => {
                     const actorId = av.dataset.actor;
                     if (A.UI?.Modal) {
@@ -478,7 +479,8 @@
                 lensRoot.appendChild(content);
 
                 // Bind lens item clicks (travel to location)
-                lensRoot.querySelectorAll('.chronos-lens-item').forEach(item => {
+                lensRoot.querySelectorAll('.chronos-lens-item').forEach(itemNode => {
+                    const item = /** @type {HTMLElement} */ (itemNode);
                     item.onclick = () => {
                         const locId = item.dataset.location;
                         if (locId && A.Chronos) {
@@ -570,11 +572,13 @@
             });
 
             // Bind action buttons
-            chatLog.querySelectorAll('.chat-action-btn').forEach(btn => {
+            chatLog.querySelectorAll('.chat-action-btn').forEach(btnNode => {
+                const btn = /** @type {HTMLElement} */ (btnNode);
                 btn.onclick = (e) => {
-                    const wrapper = e.target.closest('.chat-message');
+                    const target = /** @type {HTMLElement} */ (e.target);
+                    const wrapper = /** @type {HTMLElement} */ (target.closest('.chat-message'));
                     if (wrapper) {
-                        handleMessageAction(e.target.dataset.action, parseInt(wrapper.dataset.index));
+                        handleMessageAction(target.dataset.action, parseInt(wrapper.dataset.index));
                     }
                 };
             });
@@ -709,43 +713,43 @@
         // EVENT BINDINGS
         // ─────────────────────────────────────────────────────────────────────
         // Event Bindings
-        timeSelect.onchange = () => {
+        /** @type {HTMLSelectElement} */ (timeSelect).onchange = () => {
             if (A.Chronos) {
                 const s = A.State.get();
-                A.Chronos.stagePendingChange(s, 'time', timeSelect.value);
+                A.Chronos.stagePendingChange(s, 'time', /** @type {HTMLSelectElement} */(timeSelect).value);
                 A.State.notify();
                 refreshControls(); // Update UI to show pending state
             }
         };
 
-        weatherSelect.onchange = () => {
+        /** @type {HTMLSelectElement} */ (weatherSelect).onchange = () => {
             if (A.Chronos) {
                 const s = A.State.get();
-                A.Chronos.stagePendingChange(s, 'weather', weatherSelect.value);
+                A.Chronos.stagePendingChange(s, 'weather', /** @type {HTMLSelectElement} */(weatherSelect).value);
                 A.State.notify();
                 refreshControls();
             }
         };
 
-        weatherIntensity.onchange = () => {
+        /** @type {HTMLSelectElement} */ (weatherIntensity).onchange = () => {
             if (A.Chronos) {
                 const s = A.State.get();
-                A.Chronos.stagePendingChange(s, 'intensity', weatherIntensity.value);
+                A.Chronos.stagePendingChange(s, 'intensity', /** @type {HTMLSelectElement} */(weatherIntensity).value);
                 A.State.notify();
                 refreshControls();
             }
         };
 
-        locationSelect.onchange = () => {
+        /** @type {HTMLSelectElement} */ (locationSelect).onchange = () => {
             if (A.Chronos) {
                 const s = A.State.get();
-                A.Chronos.stagePendingChange(s, 'location', locationSelect.value || null);
+                A.Chronos.stagePendingChange(s, 'location', /** @type {HTMLSelectElement} */(locationSelect).value || null);
                 A.State.notify();
                 refreshControls();
             }
         };
 
-        controlBar.querySelector('#btn-advance-time').onclick = () => {
+        /** @type {HTMLElement} */ (controlBar.querySelector('#btn-advance-time')).onclick = () => {
             if (A.Chronos) {
                 const s = A.State.get();
                 // Determine next slot
@@ -764,8 +768,8 @@
             }
         };
 
-        controlBar.querySelector('#btn-refresh').onclick = refreshAll;
-        mainArea.querySelector('#chronos-persona-btn').onclick = openPersonaModal;
+        /** @type {HTMLElement} */ (controlBar.querySelector('#btn-refresh')).onclick = refreshAll;
+        /** @type {HTMLElement} */ (mainArea.querySelector('#chronos-persona-btn')).onclick = openPersonaModal;
 
         function openPersonaModal() {
             const state = A.State.get();
@@ -804,10 +808,10 @@
             document.body.appendChild(overlay);
 
             // Event Handlers
-            modal.querySelector('#p-cancel').onclick = () => document.body.removeChild(overlay);
-            modal.querySelector('#p-save').onclick = () => {
-                const name = modal.querySelector('#persona-name').value.trim() || 'Player';
-                const desc = modal.querySelector('#persona-desc').value.trim();
+    /** @type {HTMLElement} */ (modal.querySelector('#p-cancel')).onclick = () => document.body.removeChild(overlay);
+    /** @type {HTMLElement} */ (modal.querySelector('#p-save')).onclick = () => {
+                const name = /** @type {HTMLInputElement} */ (modal.querySelector('#persona-name')).value.trim() || 'Player';
+                const desc = /** @type {HTMLTextAreaElement} */ (modal.querySelector('#persona-desc')).value.trim();
 
                 // Save to state
                 if (A.Chronos) A.Chronos.ensureState(state);
@@ -821,14 +825,14 @@
 
         // Chat sending - Chronos has its own history and LLM integration
         const sendMessage = async () => {
-            const txt = inputArea.value.trim();
+            const txt = /** @type {HTMLTextAreaElement} */ (inputArea).value.trim();
             if (!txt) return;
 
             const state = A.State.get();
             const chronos = A.Chronos ? A.Chronos.ensureState(state) : state.chronos || {};
             if (!chronos.history) chronos.history = [];
 
-            inputArea.value = '';
+            /** @type {HTMLTextAreaElement} */ (inputArea).value = '';
             sendBtn.disabled = true;
             sendBtn.textContent = 'Sending...';
 
@@ -982,9 +986,9 @@
             }
         };
 
-        sendBtn.onclick = sendMessage;
-        inputArea.onkeydown = e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        /** @type {HTMLButtonElement} */ (sendBtn).onclick = sendMessage;
+        /** @type {HTMLElement} */ (inputArea).onkeydown = (e) => {
+            if (/** @type {KeyboardEvent} */ (e).key === 'Enter' && !/** @type {KeyboardEvent} */ (e).shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }

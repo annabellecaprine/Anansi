@@ -429,7 +429,7 @@
                 btnBack.onclick = () => { currentView = 'list'; editingConfig = null; render(); };
 
                 // Save button
-                body.querySelector('#btn-save-config').onclick = () => {
+                /** @type {HTMLElement} */ (body.querySelector('#btn-save-config')).onclick = () => {
                     const nameInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-name'));
                     const modelInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-model'));
                     const keyInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-key'));

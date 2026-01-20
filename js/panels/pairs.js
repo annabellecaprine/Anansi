@@ -64,7 +64,7 @@
         const addBtn = listCol.querySelector('#btn-add-pair');
         const importBtn = listCol.querySelector('#btn-vault-import');
 
-        importBtn.onclick = () => {
+        /** @type {HTMLElement} */ (importBtn).onclick = () => {
             if (A.VaultUI) {
                 A.VaultUI.showBlockPickerDialog({
                     type: 'pairing-rule',
@@ -258,7 +258,7 @@
             editorCol.querySelector('#sel-a2').value = pair.actor2 || '';
 
             // Delete
-            editorCol.querySelector('#btn-del').onclick = () => {
+            /** @type {HTMLElement} */ (editorCol.querySelector('#btn-del')).onclick = () => {
                 if (confirm('Delete this relationship?')) {
                     delete state.nodes.pairs.items[currentId];
                     currentId = null;
@@ -310,16 +310,18 @@
                 });
 
                 // Bind Shift Inputs
-                shiftsContainer.querySelectorAll('.shift-tag').forEach(el => {
+                shiftsContainer.querySelectorAll('.shift-tag').forEach(elNode => {
+                    const el = /** @type {HTMLInputElement} */ (elNode);
                     el.onchange = (e) => {
-                        pair.shifts[el.dataset.idx].emotion = e.target.value;
+                        pair.shifts[parseInt(el.dataset.idx)].emotion = /** @type {HTMLInputElement} */ (e.target).value;
                         markMod();
                         A.State.notify();
                     };
                 });
-                shiftsContainer.querySelectorAll('.shift-content').forEach(el => {
+                shiftsContainer.querySelectorAll('.shift-content').forEach(elNode => {
+                    const el = /** @type {HTMLTextAreaElement} */ (elNode);
                     el.onchange = (e) => {
-                        pair.shifts[el.dataset.idx].content = e.target.value;
+                        pair.shifts[parseInt(el.dataset.idx)].content = /** @type {HTMLTextAreaElement} */ (e.target).value;
                         markMod();
                         A.State.notify();
                     };

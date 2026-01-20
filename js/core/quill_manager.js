@@ -7,6 +7,8 @@
 
 (function (A) {
     'use strict';
+    /** @type {any} */
+    const Anansi = A;
 
     const QuillManager = {
         instances: {},
@@ -32,13 +34,17 @@
          * Initialize a Quill editor on a container element
          * @param {string} containerId - The element ID to attach Quill to
          * @param {Object} options - Configuration options
-         * @param {string} options.placeholder - Placeholder text
-         * @param {Function} options.onChange - Callback when content changes
-         * @param {boolean} options.readOnly - Whether the editor is read-only
-         * @param {boolean} options.minimal - Use minimal toolbar
-         * @returns {Quill} The Quill instance
+         * @param {string} [options.placeholder] - Placeholder text
+         * @param {Function} [options.onChange] - Callback when content changes
+         * @param {boolean} [options.readOnly] - Whether the editor is read-only
+         * @param {boolean} [options.minimal] - Use minimal toolbar
+         * @param {boolean} [options.showTokenCounter] - Show token counter
+         * @param {string} [options.tokenLabel] - Label for token counter
+         * @returns {Object} The Quill instance
          */
         init(containerId, options = {}) {
+            /** @type {any} */
+            const opts = options;
             // Destroy existing instance if present
             if (this.instances[containerId]) {
                 this.destroy(containerId);
@@ -71,7 +77,7 @@
             this._applyThemeStyles(containerId);
 
             // Add token counter if enabled
-            if (options.showTokenCounter !== false && A.Utils && A.Utils.estimateTokens) {
+            if (options.showTokenCounter !== false && Anansi.Utils && Anansi.Utils.estimateTokens) {
                 this._addTokenCounter(containerId, quill, options.tokenLabel);
             }
 
@@ -109,7 +115,7 @@
 
             const updateTokenCount = () => {
                 const text = quill.getText().trim();
-                const count = A.Utils.estimateTokens(text);
+                const count = Anansi.Utils.estimateTokens(text);
                 badge.textContent = `${count} tkn`;
 
                 // Color coding
@@ -316,7 +322,7 @@
     };
 
     // Export to Anansi namespace
-    A.QuillManager = QuillManager;
+    Anansi.QuillManager = QuillManager;
 
     // Also export globally for direct access
     window.QuillManager = QuillManager;

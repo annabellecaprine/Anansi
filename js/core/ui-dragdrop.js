@@ -13,7 +13,7 @@
      * Make an element accept dropped images
      * @param {HTMLElement} element - The drop target
      * @param {Object} options - Configuration
-     * @param {Function} options.onDrop - Callback receiving File[] of dropped images
+     * @param {Function} [options.onDrop] - Callback receiving File[] of dropped images
      * @param {string} [options.accept='image/*'] - MIME type filter
      */
     A.UI.makeDraggable = function (element, options = {}) {

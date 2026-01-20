@@ -15,4 +15,8 @@ interface Window {
     _esprimaWarned: boolean;
     buildEntityDB: any;
     buildRelationshipDB: any;
+    LogicEngine: any;
+    QuillManager: any;
+    RPG: any;
+    renderLocationPanel: any;
 }
