@@ -308,4 +308,104 @@
         }
     };
 
+    /**
+     * Actor Select Dropdown Component
+     * Creates a styled <select> for choosing actors from the project.
+     * Handles filtering, sorting, and change callbacks.
+     * 
+     * @example
+     * new A.UI.Components.ActorSelect(container, {
+     *     value: 'actor_123',
+     *     placeholder: 'Select Actor...',
+     *     exclude: ['actor_456'], // IDs to exclude
+     *     onChange: (actorId, actor) => console.log('Selected:', actorId)
+     * });
+     */
+    A.UI.Components.ActorSelect = class ActorSelect {
+        /**
+         * @param {HTMLElement} container - Container element to render into
+         * @param {Object} options - Configuration options
+         * @param {string} [options.value] - Currently selected actor ID
+         * @param {string} [options.placeholder] - Placeholder text
+         * @param {string[]} [options.exclude] - Actor IDs to exclude from list
+         * @param {boolean} [options.required] - If true, no empty option
+         * @param {string} [options.className] - Additional CSS class
+         * @param {string} [options.id] - Element ID attribute
+         * @param {function(string, Object|null): void} [options.onChange] - Callback on selection change
+         */
+        constructor(container, options = {}) {
+            this.container = container;
+            this.options = options;
+            this.render();
+        }
+
+        render() {
+            const state = window.Anansi?.State?.get();
+            const actors = state?.nodes?.actors?.items || {};
+            const exclude = new Set(this.options.exclude || []);
+
+            // Filter and sort actors
+            const actorList = Object.values(actors)
+                .filter(a => !exclude.has(a.id))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            // Build select element
+            const select = document.createElement('select');
+            select.className = `input actor-select ${this.options.className || ''}`;
+            if (this.options.id) select.id = this.options.id;
+
+            // Placeholder option
+            if (!this.options.required) {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = this.options.placeholder || 'Select Actor...';
+                placeholder.disabled = true;
+                if (!this.options.value) placeholder.selected = true;
+                select.appendChild(placeholder);
+            }
+
+            // Actor options
+            actorList.forEach(actor => {
+                const option = document.createElement('option');
+                option.value = actor.id;
+                option.textContent = actor.name || 'Unnamed Actor';
+                if (this.options.value === actor.id) option.selected = true;
+                select.appendChild(option);
+            });
+
+            // Change handler
+            select.onchange = () => {
+                const selectedId = select.value;
+                const selectedActor = actors[selectedId] || null;
+                if (this.options.onChange) {
+                    this.options.onChange(selectedId, selectedActor);
+                }
+            };
+
+            // Render
+            this.container.innerHTML = '';
+            this.container.appendChild(select);
+            this.selectElement = select;
+        }
+
+        /** Get current value */
+        getValue() {
+            return this.selectElement?.value || '';
+        }
+
+        /** Set current value programmatically */
+        setValue(actorId) {
+            if (this.selectElement) {
+                this.selectElement.value = actorId;
+            }
+        }
+
+        /** Refresh the actor list (call after actors change) */
+        refresh() {
+            const currentValue = this.getValue();
+            this.options.value = currentValue;
+            this.render();
+        }
+    };
+
 })(window.Anansi);

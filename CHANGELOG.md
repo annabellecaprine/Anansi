@@ -2,6 +2,10 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.8 - 2026-01-19
+### Architecture
+- **Actor Select Component**: Created `A.UI.Components.ActorSelect` for reusable actor dropdown UI. Supports filtering, exclusions, and change callbacks.
+
 ## v1.11.7 - 2026-01-19
 ### Infrastructure
 - **Event Bus**: Created `A.Events` module (`js/core/events.js`) for application-wide publish/subscribe communication.
