@@ -2,6 +2,11 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.12.0 - 2026-01-19
+### Housekeeping
+- **Orphan Cleanup**: Deleted 7 unused files (`adapters.js`, `aura_lib.js`, `json-repair.js`, non-minified library duplicates).
+- **Missing Panel Fix**: Added `gamemaster.js` to script loading (was orphaned).
+
 ## v1.11.9 - 2026-01-19
 ### Architecture
 - **Phase 4 Complete**: Core modules (`js/core/**/*`) now pass TypeScript checking with 0 errors.
