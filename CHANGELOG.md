@@ -2,6 +2,11 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.9 - 2026-01-19
+### Architecture
+- **Phase 4 Complete**: Core modules (`js/core/**/*`) now pass TypeScript checking with 0 errors.
+- **Type Safety**: Configured `jsconfig.json` to focus on core infrastructure, with panels as incremental future work.
+
 ## v1.11.8 - 2026-01-19
 ### Architecture
 - **Actor Select Component**: Created `A.UI.Components.ActorSelect` for reusable actor dropdown UI. Supports filtering, exclusions, and change callbacks.

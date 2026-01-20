@@ -65,10 +65,10 @@
         container.appendChild(editorCol);
 
         const listBody = listCol.querySelector('#sc-list');
-        const tabBasic = listCol.querySelector('#tab-basic');
-        const tabAdv = listCol.querySelector('#tab-adv');
-        const btnAdd = listCol.querySelector('#btn-add');
-        const btnImport = listCol.querySelector('#btn-vault-import');
+        const tabBasic = /** @type {HTMLElement} */ (listCol.querySelector('#tab-basic'));
+        const tabAdv = /** @type {HTMLElement} */ (listCol.querySelector('#tab-adv'));
+        const btnAdd = /** @type {HTMLElement} */ (listCol.querySelector('#btn-add'));
+        const btnImport = /** @type {HTMLElement} */ (listCol.querySelector('#btn-vault-import'));
 
         btnImport.onclick = () => {
             if (!A.VaultUI) return;
