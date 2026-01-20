@@ -115,7 +115,7 @@
 
 
             // About Modal (Clicking Logo)
-            const logo = document.querySelector('.app-logo');
+            const logo = /** @type {HTMLElement} */ (document.querySelector('.app-logo'));
             if (logo) {
                 logo.style.cursor = 'pointer';
                 logo.title = 'About Anansi';
@@ -157,8 +157,9 @@
                 input.type = 'file';
                 input.accept = '.json,.anansi.json';
                 input.onchange = (e) => {
-                    if (e.target.files[0]) {
-                        A.IO.importFromFile(e.target.files[0]);
+                    const target = /** @type {HTMLInputElement} */ (e.target);
+                    if (target.files && target.files[0]) {
+                        A.IO.importFromFile(target.files[0]);
                         // Toast appears in IO.importFromFile on success
                     }
                 };
@@ -241,7 +242,7 @@
                 const cmdKey = e.metaKey || e.ctrlKey;
 
                 // Ignore if typing in an input field
-                const activeEl = document.activeElement;
+                const activeEl = /** @type {HTMLElement | null} */ (document.activeElement);
                 if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
                     return;
                 }
@@ -298,7 +299,8 @@
             const navSearchInput = document.getElementById('nav-search-input');
             if (navSearchInput) {
                 navSearchInput.addEventListener('input', (e) => {
-                    navSearchTerm = e.target.value.toLowerCase();
+                    const target = /** @type {HTMLInputElement} */ (e.target);
+                    navSearchTerm = target.value.toLowerCase();
                     this.refreshNav();
                 });
             }
@@ -419,7 +421,7 @@
                     const newState = wasCollapsed ? 'flex' : 'none';
                     list.style.display = newState;
 
-                    const chevron = header.querySelector('.nav-chevron');
+                    const chevron = /** @type {HTMLElement | null} */ (header.querySelector('.nav-chevron'));
                     if (chevron) chevron.style.transform = newState === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
 
                     // Save
@@ -530,7 +532,7 @@
                             const was = subList.style.display === 'none';
                             const newVal = was ? 'flex' : 'none';
                             subList.style.display = newVal;
-                            const sc = subHeader.querySelector('.sub-chev');
+                            const sc = /** @type {HTMLElement | null} */ (subHeader.querySelector('.sub-chev'));
                             if (sc) sc.style.transform = newVal === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
 
                             // Persist
@@ -696,7 +698,7 @@
             } else {
                 shell.classList.remove('lens-collapsed');
             }
-            localStorage.setItem('anansi_lens_collapsed', isCollapsed);
+            localStorage.setItem('anansi_lens_collapsed', String(isCollapsed));
         }
     };
 
@@ -706,7 +708,8 @@
         if (window.innerWidth < 768 && shell && shell.classList.contains('lens-open')) {
             const lens = document.querySelector('.web-lens');
             const lensBtn = document.getElementById('btn-toggle-lens');
-            if (lens && !lens.contains(e.target) && lensBtn && !lensBtn.contains(e.target)) {
+            const target = /** @type {Node} */ (e.target);
+            if (lens && !lens.contains(target) && lensBtn && !lensBtn.contains(target)) {
                 shell.classList.remove('lens-open');
             }
         }
@@ -746,4 +749,5 @@
     // - js/core/ui-components.js
     // - js/core/ui-api-config.js
 
+    // @ts-ignore - Anansi is a global defined in anansi.js
 })(window.Anansi);
