@@ -629,10 +629,10 @@
                             section.render(this.els.panelRoot, context);
                         } catch (renderErr) {
                             console.error(`[UI] Failed to render panel ${id}:`, renderErr);
-                            this.els.panelRoot.innerHTML = `<div class="empty-state error-state">
-                                <div style="color:var(--status-error); margin-bottom:8px;">Panel Crash</div>
-                                <div style="font-size:11px; font-family:monospace;">${renderErr.message}</div>
-                            </div>`;
+                            this.renderErrorState(this.els.panelRoot, renderErr, () => {
+                                // Retry callback: recursively call switchPanel to retry rendering
+                                this.switchPanel(id, context);
+                            });
                         }
                     } else {
                         this.els.panelRoot.innerHTML = `<div class="empty-state">Unable to load panel.</div>`;
@@ -699,6 +699,39 @@
                 shell.classList.remove('lens-collapsed');
             }
             localStorage.setItem('anansi_lens_collapsed', String(isCollapsed));
+        },
+
+        /**
+         * Render a standardized error state into a container.
+         * @param {HTMLElement} container - Target container
+         * @param {Error} error - The error object
+         * @param {(e: Event) => void} [retryCallback] - Optional callback for retry button
+         */
+        renderErrorState: function (container, error, retryCallback) {
+            container.innerHTML = `
+                <div class="empty-state error-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:32px; text-align:center;">
+                    <div style="font-size:48px; margin-bottom:16px;">💥</div>
+                    <div style="font-size:18px; font-weight:bold; color:var(--status-error); margin-bottom:8px;">Panel Crashed</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">The application encountered an unexpected error.</div>
+                    <div style="background:var(--bg-deep); padding:12px; border-radius:6px; font-family:monospace; font-size:11px; max-width:600px; overflow:auto; margin-bottom:24px; border:1px solid var(--border-subtle); text-align:left; width:100%;">
+                        <div style="color:var(--status-error); font-weight:bold; margin-bottom:4px;">${error.name || 'Error'}</div>
+                        <div>${error.message || 'Unknown error'}</div>
+                        ${error.stack ? `<div style="margin-top:8px; opacity:0.6; white-space:pre-wrap;">${error.stack.split('\n').slice(0, 3).join('\n')}...</div>` : ''}
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        ${retryCallback ? '<button id="err-retry-btn" class="btn btn-primary">🔄 Retry Panel</button>' : ''}
+                        <button id="err-reload-btn" class="btn btn-ghost">Reload App</button>
+                    </div>
+                </div>
+            `;
+
+            if (retryCallback) {
+                const retryBtn = container.querySelector('#err-retry-btn');
+                if (retryBtn) /** @type {HTMLElement} */ (retryBtn).onclick = retryCallback;
+            }
+
+            const reloadBtn = container.querySelector('#err-reload-btn');
+            if (reloadBtn) /** @type {HTMLElement} */ (reloadBtn).onclick = () => window.location.reload();
         }
     };
 

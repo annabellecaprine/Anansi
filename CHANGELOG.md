@@ -2,6 +2,11 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.11.6 - 2026-01-19
+### Infrastructure
+- **Error Boundaries**: Implemented robust error handling for Panel rendering. Crashed panels now display a "Panel Crashed" diagnostic screen with stack trace and a "Retry" button, preventing the entire application from freezing.
+- **Reliability**: `switchPanel` navigation is now wrapped in `try/catch` with automatic recovery options.
+
 ## v1.11.5 - 2026-01-19
 ### Type Safety (Panels)
 - **Panel Compliance**: Extended `checkJs` validation to `js/panels/`.
