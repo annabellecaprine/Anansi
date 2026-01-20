@@ -14,7 +14,8 @@
     actor: { label: 'Actor (Character)', icon: '🎭', desc: 'Character details and personality' },
     pair: { label: 'Relationship Pair', icon: '💫', desc: 'How two actors interact' },
     voice: { label: 'Voice Rail', icon: '🎙️', desc: 'Speech patterns and tone' },
-    event: { label: 'Logic Event', icon: '⚡', desc: 'Triggered actions and effects' }
+    event: { label: 'Logic Event', icon: '⚡', desc: 'Triggered actions and effects' },
+    advanced: { label: 'Advanced Workshop', icon: '🍪', desc: 'Deep optimization engine' }
   };
 
   const CATEGORIES = ['character', 'faction', 'item', 'theme', 'location', 'custom', 'uncategorized'];
@@ -87,7 +88,59 @@ Respond with JSON only:
 REQUEST: ${req}
 
 Respond with JSON only:
-{"label": "Event Name", "probability": 100, "condition": "keyword or situation that triggers this", "effect": "What happens when triggered - narrative or mechanical effect"}`
+{"label": "Event Name", "probability": 100, "condition": "keyword or situation that triggers this", "effect": "What happens when triggered - narrative or mechanical effect"}`,
+
+    advanced: (req, opts) => {
+      // Use the preset if available, otherwise fallback
+      const strategy = A.Presets?.ADVANCED || "You are the Advanced Optimization Engine. (Error: Preset not loaded)";
+
+      // Construct Character Data JSON from selected actor
+      let charDataJSON = '{"name":"","description":"","personality":"","scenario":"","first_messages":[],"tags":[]}';
+
+      if (opts.actor) {
+        const a = opts.actor;
+        const charData = {
+          name: a.name || "",
+          description: a.cardFields?.description || "",
+          personality: a.cardFields?.personality || "",
+          scenario: a.cardFields?.scenario || "",
+          first_messages: a.cardFields?.firstMessage ? [a.cardFields.firstMessage] : [],
+          tags: a.tags || [],
+          // Map associated lorebook entries
+          world_books: opts.associatedLore?.length ? [{
+            name: "Character Lore",
+            entries: opts.associatedLore.map(e => ({
+              id: e.id,
+              keys: e.keywords || [],
+              content: e.content || "",
+              comment: e.title || "Untitled Entry",
+              enabled: e.enabled !== false
+            }))
+          }] : [],
+          system_prompt: "",
+          creator_notes: ""
+        };
+        charDataJSON = JSON.stringify(charData, null, 2); // Pretty print for readability
+      }
+
+      // CRITICAL: Store the user message content separately so it can be used in history
+      // This ensures the character data and request get proper attention from the LLM
+      opts._advancedUserMessage = `=== CURRENT CHARACTER CARD STATUS ===
+${charDataJSON}
+
+=== OPTIMIZATION TARGET ===
+target_field: ${opts.targetField || 'any'}
+user_request: ${req}
+
+Apply the COOKII methodology to optimize this character based on my request. Remember the MANDATORY WORD COUNTS (400+ for personality, 300+ for description). Begin with your reasoning, then output the JSON.`;
+
+      // Return ONLY the strategy as system prompt (not the data)
+      // The data will be passed via history in the invoke handler
+      return strategy
+        .replace(/{{target_field}}/g, opts.targetField || 'any')
+        .replace(/{{user_request}}/g, req)
+        .replace(/{{character_data}}/g, '(See user message below)');
+    }
   };
 
   // --- Render Function ---
@@ -105,6 +158,7 @@ Respond with JSON only:
     let selectedPulse = [];
     let selectedEros = [];
     let selectedIntent = [];
+    let advancedTarget = 'any'; // Default for advanced to avoid conflicting with natural language requests
 
     container.innerHTML = `
       <div class="nabu-layout" style="
@@ -201,6 +255,26 @@ Respond with JSON only:
               <option value="prose">Natural Prose (Default)</option>
               <option value="list">List / W++ (Tags)</option>
               <option value="hybrid">Hybrid (W++ & Prose)</option>
+            </select>
+          </div>
+          
+          <!-- Advanced Target Section -->
+          <div id="advanced-section" style="
+            background: var(--bg-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            padding: var(--space-3);
+            display: none;
+          ">
+            <label style="font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 6px;">Target Field</label>
+            <select id="sel-advanced-target" class="input" style="width: 100%; font-size: 11px;">
+               <option value="character.name">Name</option>
+               <option value="character.description">Description (Body/Mind)</option>
+               <option value="character.personality">Personality (Deep)</option>
+               <option value="character.scenario">Scenario</option>
+               <option value="character.first_messages">First Message</option>
+               <option value="entries.comment">Lorebook Entry</option>
+               <option value="any">Comprehensive (Full Scan)</option>
             </select>
           </div>
           
@@ -326,6 +400,7 @@ Respond with JSON only:
     const actorSection = container.querySelector('#actor-section');
     const formatSection = container.querySelector('#format-section');
     const auraSection = container.querySelector('#aura-section');
+    const advancedSection = container.querySelector('#advanced-section');
     const requestInput = container.querySelector('#nabu-request');
 
     // Update UI based on rule type
@@ -335,9 +410,10 @@ Respond with JSON only:
       inputLabel.textContent = `Describe Your ${type.label}`;
 
       // Show/hide sections based on type
-      actorSection.style.display = ['lorebook', 'voice'].includes(selectedType) ? 'block' : 'none';
+      actorSection.style.display = ['lorebook', 'voice', 'advanced'].includes(selectedType) ? 'block' : 'none';
       formatSection.style.display = selectedType === 'actor' ? 'block' : 'none';
       auraSection.style.display = selectedType === 'lorebook' ? 'block' : 'none';
+      advancedSection.style.display = selectedType === 'advanced' ? 'block' : 'none';
 
       // Update placeholder
       const placeholders = {
@@ -345,7 +421,8 @@ Respond with JSON only:
         actor: 'A mysterious witch who lives in the forest, feared but secretly kind...',
         pair: 'Two rival mages who were once best friends but had a falling out...',
         voice: 'A gruff warrior who speaks in short, direct sentences...',
-        event: 'When the player mentions magic, reveal a hidden prophecy...'
+        event: 'When the player mentions magic, reveal a hidden prophecy...',
+        advanced: 'Optimize the character description to be more "Gothic Horror"...'
       };
       requestInput.placeholder = placeholders[selectedType] || 'Describe what you want...';
     };
@@ -382,6 +459,10 @@ Respond with JSON only:
       selectedFormat = e.target.value;
     };
 
+    container.querySelector('#sel-advanced-target').onchange = (e) => {
+      advancedTarget = e.target.value;
+    };
+
     // Invoke Button
     container.querySelector('#btn-invoke').onclick = async () => {
       const request = requestInput.value.trim();
@@ -396,16 +477,27 @@ Respond with JSON only:
 
       const selectedActor = selectedActorId ? actors.find(a => a.id === selectedActorId) : null;
 
+      // Get fresh state for associated lore
+      const currentState = A.State.get();
+      let associatedLore = [];
+      if (selectedActor && currentState.weaves?.lorebook?.entries) {
+        associatedLore = Object.values(currentState.weaves.lorebook.entries)
+          .filter(e => e.associatedActors && e.associatedActors.includes(selectedActor.id));
+      }
+
       // Build prompt for selected type
       const promptFn = PROMPTS[selectedType];
-      const systemPrompt = promptFn(request, {
+      const opts = {
         actor: selectedActor,
+        associatedLore: associatedLore,
         actors: actors,
         pulse: selectedPulse,
         eros: selectedEros,
         intent: selectedIntent,
-        format: selectedFormat
-      });
+        format: selectedFormat,
+        targetField: advancedTarget
+      };
+      const systemPrompt = promptFn(request, opts);
 
       // Show loading state
       invokeBtn.disabled = true;
@@ -422,13 +514,22 @@ Respond with JSON only:
       try {
         let attempts = 0;
         const maxAttempts = 2; // Initial + 1 retry
-        let history = [{ role: 'user', content: request }];
+
+        // CRITICAL: For Advanced Workshop, use the specially constructed user message
+        // containing character data and request (matching original strategy's multi-turn format)
+        const userMessage = selectedType === 'advanced' && opts._advancedUserMessage
+          ? opts._advancedUserMessage
+          : request;
+        let history = [{ role: 'user', content: userMessage }];
         let entry = null;
         let lastError = null;
 
         while (attempts <= maxAttempts) {
           try {
-            const response = await A.LLM.generate(systemPrompt, history);
+            // Request high context window for Advanced Workshop, standard for others
+            const maxTokens = selectedType === 'advanced' ? 8192 : 2048;
+
+            const response = await A.LLM.generate(systemPrompt, history, { maxTokens });
 
             // Use new Repair Utility
             if (A.JSONRepair) {
@@ -534,6 +635,49 @@ Respond with JSON only:
           <div style="margin-bottom: 12px;"><div class="prev-label">Probability</div><div style="font-size: 12px;">${entry.probability || 100}%</div></div>
           <div style="margin-bottom: 12px;"><div class="prev-label">Trigger Condition</div><div class="prev-content">${entry.condition || ''}</div></div>
           <div style="margin-bottom: 12px;"><div class="prev-label">Effect</div><div class="prev-content">${entry.effect || ''}</div></div>`;
+      } else if (selectedType === 'advanced') {
+        // Advanced returns a massive object with 'character', 'entries', 'deleted_entries'
+        let changes = [];
+
+        // 0. Show Reasoning/Analysis if present
+        if (entry.reasoning) {
+          changes.push(`
+            <div style="margin-bottom:12px; padding:10px; background:var(--bg-elevated); border-left:3px solid var(--accent-primary); border-radius:4px;">
+                <div style="font-size:10px; font-weight:bold; color:var(--accent-primary); text-transform:uppercase; margin-bottom:4px;">Analysis & Strategy</div>
+                <div style="font-size:12px; font-style:italic; line-height:1.5; color:var(--text-secondary);">${entry.reasoning}</div>
+            </div>`);
+        }
+
+        if (entry.character) {
+          changes.push(`<div style="margin-bottom:8px; font-weight:bold; color:var(--accent-primary);">Character Updates</div>`);
+          Object.entries(entry.character).forEach(([k, v]) => {
+            let val = Array.isArray(v) ? v[0] : v;
+            // Use details tag for long content to allow review
+            if (val.length > 60) {
+              changes.push(`
+                  <details style="margin-bottom:6px; margin-left:8px;">
+                    <summary style="font-size:11px; cursor:pointer; color:var(--text-primary);"><code>${k}</code> <span style="opacity:0.6">(click to review)</span></summary>
+                    <div style="font-size:11px; padding:6px; background:var(--bg-inset); border-radius:4px; margin-top:4px; white-space:pre-wrap;">${val}</div>
+                  </details>`);
+            } else {
+              changes.push(`<div style="font-size:11px; margin-left:8px; margin-bottom:4px;"><code>${k}</code>: ${val}</div>`);
+            }
+          });
+        }
+        if (entry.entries && entry.entries.length) {
+          changes.push(`<div style="margin-top:12px; margin-bottom:8px; font-weight:bold; color:var(--status-success);">New Entries (${entry.entries.length})</div>`);
+          entry.entries.forEach(e => {
+            changes.push(`
+              <details style="margin-bottom:6px; margin-left:8px;">
+                <summary style="font-size:11px; cursor:pointer; color:var(--status-success);">+ <strong>${e.comment || 'Untitled'}</strong></summary>
+                <div style="font-size:11px; padding:6px; background:var(--bg-inset); border-radius:4px; margin-top:4px; white-space:pre-wrap;">
+                  <div style="margin-bottom:4px; font-weight:bold; color:var(--text-muted);">${e.keys?.join(', ') || ''}</div>
+                  ${e.content || ''}
+                </div>
+              </details>`);
+          });
+        }
+        fieldsHtml = changes.join('');
       }
 
       previewDiv.innerHTML = `
@@ -558,7 +702,9 @@ Respond with JSON only:
           
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
             <button class="btn btn-ghost" id="btn-regenerate" style="font-size: 11px;">↻ Retry</button>
-            <button class="btn btn-primary" id="btn-inscribe" style="background: linear-gradient(135deg, #CD853F 0%, #8B6914 100%); border: none;">✓ Add to ${typeInfo.label}</button>
+            <button class="btn btn-primary" id="btn-inscribe" style="background: linear-gradient(135deg, #CD853F 0%, #8B6914 100%); border: none;">
+                ${selectedType === 'advanced' ? '✓ Apply Updates' : `✓ Add to ${typeInfo.label}`}
+            </button>
           </div>
         </div>
       `;
@@ -643,6 +789,45 @@ Respond with JSON only:
           probability: entry.probability || 100, condition: entry.condition || 'true', effect: entry.effect || ''
         };
         addedName = entry.label;
+      } else if (selectedType === 'advanced') {
+        // Complex Handling
+        // 1. Update Character
+        if (entry.character && actor) {
+          const cf = state.nodes.actors.items[actor.id].cardFields;
+          if (entry.character.first_messages && Array.isArray(entry.character.first_messages)) {
+            // If specifically optimizing index 0 (usually), we replace the main firstMessage
+            cf.firstMessage = entry.character.first_messages[0];
+          }
+          // Map other fields
+          ['name', 'description', 'personality', 'scenario'].forEach(k => {
+            if (entry.character[k]) cf[k] = entry.character[k];
+          });
+
+          if (entry.character.name) state.nodes.actors.items[actor.id].name = entry.character.name;
+        }
+
+        // 2. Add Entries
+        if (entry.entries && Array.isArray(entry.entries)) {
+          if (!state.weaves) state.weaves = {};
+          if (!state.weaves.lorebook) state.weaves.lorebook = { entries: {} };
+
+          entry.entries.forEach(e => {
+            const id = 'lore_' + crypto.randomUUID().split('-')[0];
+            // If comment matches existing, usually we'd replace, but for now we just add
+            // COOKII format to Anansi format
+            state.weaves.lorebook.entries[id] = {
+              id, uuid: crypto.randomUUID(),
+              title: e.comment || "Generated Entry",
+              keywords: e.keys || [],
+              content: e.content || "",
+              category: 'advanced',
+              priority: e.insertion_order || 50,
+              enabled: e.enabled !== false,
+              associatedActors: actor ? [actor.id] : []
+            };
+          });
+        }
+        addedName = "Optimization Applied";
       }
 
       A.State.notify();

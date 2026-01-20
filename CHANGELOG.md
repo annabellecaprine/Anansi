@@ -2,6 +2,18 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.12.1 - 2026-01-20
+### New Features
+- **Advanced Workshop**: New rule type in Temple of Nabu for comprehensive character optimization using the COOKII methodology.
+  - Supports field-level targeting (description, personality, scenario, first_messages) or full-card optimization.
+  - Injects current character data and associated Lorebook entries as context.
+  - Enforces strict field separation (physical vs psychological) and word count requirements.
+  - Displays AI reasoning/analysis before showing generated content.
+
+### Infrastructure
+- **LLM Token Limits**: Increased default `maxTokens` from 1024 to 4096. Advanced Workshop requests 8192 tokens for verbose output.
+- **Dynamic Token Override**: `A.LLM.generate()` now accepts `maxTokens` in config overrides for per-request control.
+
 ## v1.12.0 - 2026-01-19
 ### Housekeeping
 - **Orphan Cleanup**: Deleted 7 unused files (`adapters.js`, `aura_lib.js`, `json-repair.js`, non-minified library duplicates).

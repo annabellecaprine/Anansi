@@ -48,6 +48,11 @@
 
         // --- Providers ---
 
+        // Default max tokens if not specified
+        const maxTokens = config.maxTokens || 4096; // Increased default from 1024
+
+        // --- Providers ---
+
         if (provider === 'gemini') {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
@@ -62,7 +67,7 @@
                 contents: contents,
                 generationConfig: {
                     temperature: 0.9,
-                    maxOutputTokens: 1024
+                    maxOutputTokens: maxTokens
                 }
             };
 
@@ -117,7 +122,8 @@
                 body: JSON.stringify({
                     model: model,
                     messages: messages,
-                    temperature: 0.9
+                    temperature: 0.9,
+                    max_tokens: maxTokens
                 })
             });
 
@@ -154,7 +160,7 @@
                 },
                 body: JSON.stringify({
                     model: model,
-                    max_tokens: 1024,
+                    max_tokens: maxTokens,
                     system: system,
                     messages: messages,
                     temperature: 0.9
@@ -184,7 +190,7 @@
                 body: JSON.stringify({
                     prompt: fullPrompt,
                     max_context_length: 4096,
-                    max_length: 512,
+                    max_length: maxTokens > 2048 ? 2048 : maxTokens, // Cap Kobold usually
                     temperature: 0.9
                 })
             });
