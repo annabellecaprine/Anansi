@@ -186,15 +186,24 @@
 
                 // Bind generation settings
                 const saveGenSettings = () => {
+                    const tempInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-temp'));
+                    const maxInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-max-tokens'));
+                    const toppInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-top-p'));
+                    const topkInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-top-k'));
+                    const ctxInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-ctx'));
+                    const repInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-rep'));
+                    const freqInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-freq'));
+                    const presInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-pres'));
+
                     const settings = {
-                        temperature: parseFloat(body.querySelector('#gen-temp').value),
-                        maxTokens: parseInt(body.querySelector('#gen-max-tokens').value) || 0,
-                        topP: parseFloat(body.querySelector('#gen-top-p').value),
-                        topK: parseInt(body.querySelector('#gen-top-k').value) || 0,
-                        contextSize: parseInt(body.querySelector('#gen-ctx').value) || 16384,
-                        repetitionPenalty: parseFloat(body.querySelector('#gen-rep').value),
-                        frequencyPenalty: parseFloat(body.querySelector('#gen-freq').value),
-                        presencePenalty: parseFloat(body.querySelector('#gen-pres').value)
+                        temperature: parseFloat(tempInput.value),
+                        maxTokens: parseInt(maxInput.value) || 0,
+                        topP: parseFloat(toppInput.value),
+                        topK: parseInt(topkInput.value) || 0,
+                        contextSize: parseInt(ctxInput.value) || 16384,
+                        repetitionPenalty: parseFloat(repInput.value),
+                        frequencyPenalty: parseFloat(freqInput.value),
+                        presencePenalty: parseFloat(presInput.value)
                     };
                     localStorage.setItem('anansi_gen_settings', JSON.stringify(settings));
                 };
@@ -205,7 +214,8 @@
                     const valSpan = body.querySelector(valId);
                     if (slider && valSpan) {
                         slider.oninput = (e) => {
-                            valSpan.textContent = formatter(e.target.value);
+                            const target = /** @type {HTMLInputElement} */ (e.target);
+                            valSpan.textContent = formatter(target.value);
                             saveGenSettings();
                         };
                     }
@@ -247,8 +257,10 @@
                 modal.appendChild(body);
 
                 // Bind list events
-                body.querySelector('#btn-add-config').onclick = () => { editingConfig = null; currentView = 'add'; render(); };
-                body.querySelectorAll('.btn-activate').forEach(btn => {
+                const btnAdd = /** @type {HTMLButtonElement} */ (body.querySelector('#btn-add-config'));
+                btnAdd.onclick = () => { editingConfig = null; currentView = 'add'; render(); };
+                body.querySelectorAll('.btn-activate').forEach(el => {
+                    const btn = /** @type {HTMLButtonElement} */ (el);
                     btn.onclick = () => {
                         activeId = btn.dataset.id;
                         localStorage.setItem('anansi_active_config_id', activeId);
@@ -257,14 +269,16 @@
                         if (A.UI.Toast) A.UI.Toast.show('Configuration activated', 'success');
                     };
                 });
-                body.querySelectorAll('.btn-edit').forEach(btn => {
+                body.querySelectorAll('.btn-edit').forEach(el => {
+                    const btn = /** @type {HTMLButtonElement} */ (el);
                     btn.onclick = () => {
                         editingConfig = configs.find(c => c.id === btn.dataset.id);
                         currentView = 'add';
                         render();
                     };
                 });
-                body.querySelectorAll('.btn-delete').forEach(btn => {
+                body.querySelectorAll('.btn-delete').forEach(el => {
+                    const btn = /** @type {HTMLButtonElement} */ (el);
                     btn.onclick = () => {
                         if (confirm('Delete this configuration?')) {
                             configs = configs.filter(c => c.id !== btn.dataset.id);
@@ -276,7 +290,8 @@
                     };
                 });
                 // Copy button
-                body.querySelectorAll('.btn-copy').forEach(btn => {
+                body.querySelectorAll('.btn-copy').forEach(el => {
+                    const btn = /** @type {HTMLButtonElement} */ (el);
                     btn.onclick = () => {
                         const original = configs.find(c => c.id === btn.dataset.id);
                         if (original) {
@@ -289,7 +304,8 @@
                     };
                 });
                 // Test button
-                body.querySelectorAll('.btn-test').forEach(btn => {
+                body.querySelectorAll('.btn-test').forEach(el => {
+                    const btn = /** @type {HTMLButtonElement} */ (el);
                     btn.onclick = async () => {
                         const cfg = configs.find(c => c.id === btn.dataset.id);
                         if (!cfg) return;
@@ -387,14 +403,19 @@
 
                     // Update field visibility
                     const preset = PROVIDER_PRESETS[selectedProvider];
-                    body.querySelector('#url-group').style.display = selectedProvider === 'custom' ? 'block' : 'none';
-                    body.querySelector('#key-group').style.display = preset.needsKey ? 'block' : 'none';
+                    const urlGroup = /** @type {HTMLElement} */ (body.querySelector('#url-group'));
+                    const keyGroup = /** @type {HTMLElement} */ (body.querySelector('#key-group'));
+
+                    urlGroup.style.display = selectedProvider === 'custom' ? 'block' : 'none';
+                    keyGroup.style.display = preset.needsKey ? 'block' : 'none';
                     if (!isEdit) {
-                        body.querySelector('#cfg-model').placeholder = preset.defaultModel || 'Model ID';
+                        const modelInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-model'));
+                        modelInput.placeholder = preset.defaultModel || 'Model ID';
                     }
 
                     // Bind tab clicks
-                    tabsContainer.querySelectorAll('.provider-tab').forEach(tab => {
+                    tabsContainer.querySelectorAll('.provider-tab').forEach(el => {
+                        const tab = /** @type {HTMLButtonElement} */ (el);
                         tab.onclick = () => {
                             selectedProvider = tab.dataset.provider;
                             renderProviderTabs();
@@ -404,14 +425,20 @@
                 renderProviderTabs();
 
                 // Back button
-                body.querySelector('#btn-back').onclick = () => { currentView = 'list'; editingConfig = null; render(); };
+                const btnBack = /** @type {HTMLButtonElement} */ (body.querySelector('#btn-back'));
+                btnBack.onclick = () => { currentView = 'list'; editingConfig = null; render(); };
 
                 // Save button
                 body.querySelector('#btn-save-config').onclick = () => {
-                    const name = body.querySelector('#cfg-name').value.trim();
-                    const model = body.querySelector('#cfg-model').value.trim() || PROVIDER_PRESETS[selectedProvider].defaultModel;
-                    const apiKey = body.querySelector('#cfg-key').value.trim();
-                    const baseUrl = body.querySelector('#cfg-url').value.trim() || PROVIDER_PRESETS[selectedProvider].baseUrl;
+                    const nameInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-name'));
+                    const modelInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-model'));
+                    const keyInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-key'));
+                    const urlInput = /** @type {HTMLInputElement} */ (body.querySelector('#cfg-url'));
+
+                    const name = nameInput.value.trim();
+                    const model = modelInput.value.trim() || PROVIDER_PRESETS[selectedProvider].defaultModel;
+                    const apiKey = keyInput.value.trim();
+                    const baseUrl = urlInput.value.trim() || PROVIDER_PRESETS[selectedProvider].baseUrl;
 
                     if (!name) { alert('Please enter a configuration name.'); return; }
 
@@ -436,7 +463,8 @@
             }
 
             // Close button
-            modal.querySelector('#modal-close').onclick = () => overlay.remove();
+            const btnClose = /** @type {HTMLButtonElement} */ (modal.querySelector('#modal-close'));
+            btnClose.onclick = () => overlay.remove();
         };
 
         render();

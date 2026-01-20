@@ -79,13 +79,14 @@
       document.body.appendChild(dialog);
 
       // New Block button handler
-      dialog.querySelector('#btn-new-block').onclick = async () => {
+      const btnNewBlock = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-new-block'));
+      btnNewBlock.onclick = async () => {
         const blockName = prompt('Enter a name for the new Rule Block:');
         if (!blockName || !blockName.trim()) return;
 
         try {
           const newBlock = await A.VaultDB.createBlock(null, blockName.trim());
-          const select = dialog.querySelector('#pub-block');
+          const select = /** @type {HTMLSelectElement} */ (dialog.querySelector('#pub-block'));
           const opt = document.createElement('option');
           opt.value = newBlock.id;
           opt.textContent = newBlock.name;
@@ -98,12 +99,18 @@
         }
       };
 
-      dialog.querySelector('#btn-cancel').onclick = () => dialog.remove();
+      const btnCancel = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-cancel'));
+      btnCancel.onclick = () => dialog.remove();
 
-      dialog.querySelector('#btn-pub-confirm').onclick = async () => {
-        const name = dialog.querySelector('#pub-name').value.trim() || 'Untitled';
-        const blockId = dialog.querySelector('#pub-block').value || null;
-        const tagsInput = dialog.querySelector('#pub-tags').value;
+      const btnConfirm = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-pub-confirm'));
+      btnConfirm.onclick = async () => {
+        const nameInput = /** @type {HTMLInputElement} */ (dialog.querySelector('#pub-name'));
+        const blockSelect = /** @type {HTMLSelectElement} */ (dialog.querySelector('#pub-block'));
+        const tagsInputEl = /** @type {HTMLInputElement} */ (dialog.querySelector('#pub-tags'));
+
+        const name = nameInput.value.trim() || 'Untitled';
+        const blockId = blockSelect.value || null;
+        const tagsInput = tagsInputEl.value;
         const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
 
         // Auto-tags
@@ -121,7 +128,7 @@
           if (blocks[blockId]) blockName = blocks[blockId].name;
         }
 
-        const btn = dialog.querySelector('#btn-pub-confirm');
+        const btn = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-pub-confirm'));
         btn.disabled = true;
         btn.textContent = 'Publishing...';
 
@@ -198,7 +205,15 @@
       document.body.appendChild(dialog);
 
       const listEl = dialog.querySelector('#picker-list');
-      const groupSelect = dialog.querySelector('#picker-group-filter');
+      // Already defined in replacement chunk below but we need groupSelect here too if not careful
+      // Wait, groupSelect is defined in original code at 201. I should check logic.
+      // Re-defining groupSelect here properly.
+      // Actually, groupSelect is used in the closure of renderPickerList which is defined next.
+      // I should cast it here.
+      // But searchInput handling is below.
+      // Let's just fix the declaration site.
+
+      const groupSelect = /** @type {HTMLSelectElement} */ (dialog.querySelector('#picker-group-filter'));
       let allItems = [];
       let groups = new Set();
 
@@ -287,11 +302,19 @@
         listEl.innerHTML = `<div style="color:var(--status-error);">Error loading vault: ${err.message}</div>`;
       });
 
-      const searchInput = dialog.querySelector('#picker-search');
-      searchInput.oninput = (e) => renderPickerList(e.target.value, groupSelect.value);
-      groupSelect.onchange = (e) => renderPickerList(searchInput.value, e.target.value);
+      const searchInput = /** @type {HTMLInputElement} */ (dialog.querySelector('#picker-search'));
+      searchInput.oninput = (e) => {
+        const target = /** @type {HTMLInputElement} */ (e.target);
+        renderPickerList(target.value, groupSelect.value);
+      };
 
-      dialog.querySelector('#btn-close').onclick = () => dialog.remove();
+      groupSelect.onchange = (e) => {
+        const target = /** @type {HTMLSelectElement} */ (e.target);
+        renderPickerList(searchInput.value, target.value);
+      };
+
+      const btnClose = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-close'));
+      btnClose.onclick = () => dialog.remove();
     },
 
     /**
@@ -351,17 +374,21 @@
 
       document.body.appendChild(dialog);
 
-      dialog.querySelector('#btn-overwrite').onclick = () => {
+      const btnOverwrite = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-overwrite'));
+      const btnClone = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-clone'));
+      const btnCancel = /** @type {HTMLButtonElement} */ (dialog.querySelector('#btn-cancel'));
+
+      btnOverwrite.onclick = () => {
         dialog.remove();
         if (onOverwrite) onOverwrite();
       };
 
-      dialog.querySelector('#btn-clone').onclick = () => {
+      btnClone.onclick = () => {
         dialog.remove();
         if (onClone) onClone();
       };
 
-      dialog.querySelector('#btn-cancel').onclick = () => {
+      btnCancel.onclick = () => {
         dialog.remove();
       };
     }

@@ -12,7 +12,7 @@
         "paths": {}
     },
     "include": [
-        "js/core/**/*.js"
+        "js/core/**/*"
     ],
     "exclude": [
         "node_modules",

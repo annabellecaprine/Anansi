@@ -68,7 +68,8 @@
                 if (config.onClose) config.onClose();
             };
 
-            modal.querySelector('#modal-close-x').onclick = close;
+            const closeBtn = /** @type {HTMLButtonElement} */ (modal.querySelector('#modal-close-x'));
+            if (closeBtn) closeBtn.onclick = close;
             overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
             overlay.appendChild(modal);

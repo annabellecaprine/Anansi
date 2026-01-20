@@ -62,18 +62,21 @@
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
 
                 request.onerror = (e) => {
-                    console.error('[VaultDB] Failed to open database:', e.target.error);
-                    reject(e.target.error || e);
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    console.error('[VaultDB] Failed to open database:', req.error);
+                    reject(req.error || e);
                 };
 
                 request.onsuccess = (e) => {
-                    db = e.target.result;
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    db = req.result;
                     console.log('[VaultDB] Database opened successfully');
                     resolve(db);
                 };
 
                 request.onupgradeneeded = (e) => {
-                    const database = e.target.result;
+                    const req = /** @type {IDBOpenDBRequest} */ (e.target);
+                    const database = req.result;
 
                     // Create items store with indexes
                     if (!database.objectStoreNames.contains(ITEMS_STORE)) {
@@ -231,7 +234,7 @@
                         cursor.continue();
                     } else {
                         // Sort by updatedAt descending
-                        items.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                        items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
                         resolve(items);
                     }
                 };

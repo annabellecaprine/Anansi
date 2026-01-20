@@ -159,6 +159,7 @@
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
+                    if (typeof e.target.result !== 'string') return;
                     const data = JSON.parse(e.target.result);
 
                     // For legacy import, replace current project

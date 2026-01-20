@@ -21,6 +21,11 @@ All notable changes to Anansi will be documented in this file.
 - **JSDoc Documentation**: Added comprehensive JSDoc to core APIs (`state.js`, `anansi.js`, `ui.js`) including type definitions for `ProjectMeta`, `Actor`, `AnansiState`, `PanelConfig`
 - **Inline Event Handler Removal**: Created new `A.UI.createEmptyStateElement()` function with proper DOM event listeners; deprecated `getEmptyStateHTML()`. Migrated 7 panels (actors, voices, events, lorebook, scoring, microcues, scripts) to use the new pattern
 
+### Type Safety
+- **Core**: Enabled `checkJs` for all `js/core` files to type-check vanilla JavaScript.
+- **Global Types**: Created `types.d.ts` to define global variables (`Anansi`, `esprima`, `Quill`).
+- **Fixes**: Resolved over 50 type errors in `ui.js`, `ui-api-config.js`, `vault-db.js`, and `aura_transformers.js` (mostly DOM element casting and logic fixes).
+
 ### Architecture Improvements (Phase 2)
 - **File Splitting**: Extracted shared modules to reduce large file sizes:
   - `lorebook.js`: 1641 → 1285 lines (22% reduction) → new `lorebook-shared.js`

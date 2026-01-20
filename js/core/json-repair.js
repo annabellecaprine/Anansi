@@ -71,8 +71,8 @@
         } catch (err) {
             // Throw error with the cleaned text for debugging
             const error = new Error(`JSON Parse Failed: ${err.message}`);
-            error.originalText = text;
-            error.cleanedText = cleanText;
+            /** @type {any} */ (error).originalText = text;
+            /** @type {any} */ (error).cleanedText = cleanText;
             throw error;
         }
     };

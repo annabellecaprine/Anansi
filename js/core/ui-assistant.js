@@ -150,13 +150,14 @@
         document.body.appendChild(backdrop);
 
         // Elements
-        const closeBtn = modal.querySelector('#btn-assist-close');
-        const goBtn = modal.querySelector('#btn-assist-go');
-        const applyBtn = modal.querySelector('#btn-assist-apply');
-        const guidanceInp = modal.querySelector('#inp-assist-guidance');
-        const previewArea = modal.querySelector('#preview-area');
-        const previewInp = modal.querySelector('#inp-assist-preview');
-        const loading = modal.querySelector('#assist-loading');
+        // Elements
+        const closeBtn = /** @type {HTMLButtonElement} */ (modal.querySelector('#btn-assist-close'));
+        const goBtn = /** @type {HTMLButtonElement} */ (modal.querySelector('#btn-assist-go'));
+        const applyBtn = /** @type {HTMLButtonElement} */ (modal.querySelector('#btn-assist-apply'));
+        const guidanceInp = /** @type {HTMLInputElement} */ (modal.querySelector('#inp-assist-guidance'));
+        const previewArea = /** @type {HTMLElement} */ (modal.querySelector('#preview-area'));
+        const previewInp = /** @type {HTMLTextAreaElement} */ (modal.querySelector('#inp-assist-preview'));
+        const loading = /** @type {HTMLElement} */ (modal.querySelector('#assist-loading'));
 
         // Logic
         const close = () => backdrop.remove();
