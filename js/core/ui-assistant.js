@@ -182,7 +182,8 @@
                     content: `${prompt}\n\n[Current Content]:\n${currentText || "(Empty)"}`
                 }];
 
-                const result = await A.LLM.generate(systemPrompt, history);
+                const maxTokens = A.UI?.getMaxTokensFor?.('magicWand') || 4096;
+                const result = await A.LLM.generate(systemPrompt, history, { maxTokens });
 
                 // Show result
                 previewInp.value = result;

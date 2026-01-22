@@ -356,10 +356,11 @@
 
                 const summaryPrompt = 'You are a summarization assistant. Summarize the following conversation into a concise paragraph capturing the key topics, decisions, and ideas discussed. Keep it under 200 words.';
 
+                const maxTokens = A.UI?.getMaxTokensFor?.('writersBlock') || 4096;
                 const summary = await A.LLM.generate(summaryPrompt, [{
                     role: 'user',
                     content: messagesText
-                }]);
+                }], { maxTokens });
 
                 wb.contextSummary = summary;
                 A.State.notify();
@@ -628,7 +629,8 @@
                     }
                 }
 
-                const response = await A.LLM.generate(systemPrompt, historyToSend);
+                const maxTokens = A.UI?.getMaxTokensFor?.('writersBlock') || 4096;
+                const response = await A.LLM.generate(systemPrompt, historyToSend, { maxTokens });
 
                 const aiMsg = {
                     id: 'msg_' + crypto.randomUUID().split('-')[0],

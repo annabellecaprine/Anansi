@@ -671,11 +671,13 @@
                 refreshAll();
 
                 try {
+                    const maxTokens = A.UI?.getMaxTokensFor?.('chronos') || 4096;
                     const response = await A.LLM.generate(
                         systemPrompt,
                         chronos.history.slice(0, -1), // Exclude the temp thinking message
                         {
-                            stops: ['\nUser:', '\nSystem:']
+                            stops: ['\nUser:', '\nSystem:'],
+                            maxTokens
                         }
                     );
 
@@ -949,10 +951,11 @@
                     }
                 }
 
+                const chronosMaxTokens = A.UI?.getMaxTokensFor?.('chronos') || 4096;
                 const responseText = await A.LLM.generate(
                     systemPrompt,
                     apiHistory,
-                    llmConfig || {}
+                    { ...llmConfig, maxTokens: chronosMaxTokens }
                 );
 
                 // Push AI response to Chronos history

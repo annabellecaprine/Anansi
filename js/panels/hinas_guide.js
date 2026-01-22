@@ -1003,7 +1003,8 @@ You will receive a list of locations. Return a JSON object with the following st
         const locationList = template.locations.map(l => `${l.key} (${l.name}): ${l.type}`).join('\n');
         const userPrompt = `Enrich these locations:\n${locationList}`;
 
-        const response = await A.LLM.generate(systemPrompt, [{ role: 'user', content: userPrompt }]);
+        const maxTokens = A.UI?.getMaxTokensFor?.('hina') || 4096;
+        const response = await A.LLM.generate(systemPrompt, [{ role: 'user', content: userPrompt }], { maxTokens });
 
         // Parse JSON
         let data;

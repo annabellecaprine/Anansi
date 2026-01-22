@@ -48,8 +48,9 @@
 
         // --- Providers ---
 
-        // Default max tokens if not specified
-        const maxTokens = config.maxTokens || 4096; // Increased default from 1024
+        // Default max tokens: use config override, or user's global setting, or fallback to 4096
+        const genSettings = A.UI?.getGenerationSettings?.() || { globalMaxTokens: 4096 };
+        const maxTokens = config.maxTokens || genSettings.globalMaxTokens || 4096;
 
         // --- Providers ---
 

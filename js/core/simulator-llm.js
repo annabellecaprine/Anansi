@@ -235,6 +235,10 @@
     async function callLLM(provider, model, key, system, history) {
         console.log(`[LLM] Calling ${provider} (${model})...`);
 
+        // Get user-configured token limits (respects global default vs per-tool override)
+        const maxTokens = A.UI?.getMaxTokensFor?.('simulator') || 4096;
+        const genSettings = A.UI?.getGenerationSettings?.() || { contextSize: 4096 };
+
         if (provider === 'gemini') {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
@@ -248,7 +252,7 @@
                 system_instruction: { parts: [{ text: system }] },
                 generationConfig: {
                     temperature: 0.9,
-                    maxOutputTokens: 1024
+                    maxOutputTokens: maxTokens
                 }
             };
 
@@ -283,7 +287,8 @@
                 body: JSON.stringify({
                     model: model,
                     messages: messages,
-                    temperature: 0.9
+                    temperature: 0.9,
+                    max_tokens: maxTokens
                 })
             });
 
@@ -313,7 +318,8 @@
                 body: JSON.stringify({
                     model: model,
                     messages: messages,
-                    temperature: 0.9
+                    temperature: 0.9,
+                    max_tokens: maxTokens
                 })
             });
 
@@ -346,7 +352,8 @@
                 body: JSON.stringify({
                     model: model,
                     messages: messages,
-                    temperature: 0.9
+                    temperature: 0.9,
+                    max_tokens: maxTokens
                 })
             });
 
@@ -373,8 +380,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: fullPrompt,
-                    max_context_length: 4096,
-                    max_length: 512,
+                    max_context_length: genSettings.contextSize || 4096,
+                    max_length: Math.min(maxTokens, 2048), // Kobold has practical limits
                     temperature: 0.9
                 })
             });

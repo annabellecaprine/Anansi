@@ -1357,9 +1357,11 @@ CRITICAL: Respond ONLY with valid JSON:
           systemPrompt = buildSystemPrompt(answers);
         }
 
+        const maxTokens = A.UI?.getMaxTokensFor?.('parlor') || 4096;
         const response = await A.LLM.generate(
           systemPrompt,
-          [{ role: 'user', content: "Please weave the character(s) now." }]
+          [{ role: 'user', content: "Please weave the character(s) now." }],
+          { maxTokens }
         );
 
         setSparkle(false);

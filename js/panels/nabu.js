@@ -526,8 +526,10 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
 
         while (attempts <= maxAttempts) {
           try {
-            // Request high context window for Advanced Workshop, standard for others
-            const maxTokens = selectedType === 'advanced' ? 8192 : 2048;
+            // Get user-configured token limits (respects global default vs per-tool override)
+            const maxTokens = selectedType === 'advanced'
+              ? A.UI?.getMaxTokensFor?.('nabuAdvanced') || 8192
+              : A.UI?.getMaxTokensFor?.('nabu') || 2048;
 
             const response = await A.LLM.generate(systemPrompt, history, { maxTokens });
 

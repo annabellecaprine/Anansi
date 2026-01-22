@@ -2,9 +2,20 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.12.2 - 2026-01-21
+### New Features
+- **Token Limits Configuration**: New "Token Limits by Context" section in LLM Configuration panel.
+  - **Global Default**: Single slider (512 to 128K) applies to all tools unless overridden.
+  - **Per-Tool Overrides**: Checkbox + slider for each tool (Simulator, Nabu, Advanced Workshop, Magic Wand, Writer's Block, Hina's Guide, Chronos Chat, Spider's Parlor).
+  - Added `A.UI.getMaxTokensFor(tool)` helper for consistent token limit retrieval.
+
+### Infrastructure
+- All LLM-using tools now respect user-configured token limits instead of hardcoded values.
+- Supports high-context models like DeepSeek (128K+).
+
 ## v1.12.1 - 2026-01-20
 ### New Features
-- **Advanced Workshop**: New rule type in Temple of Nabu for comprehensive character optimization using the COOKII methodology.
+- **Advanced Workshop**: New rule type in Temple of Nabu for comprehensive character optimization methodology.
   - Supports field-level targeting (description, personality, scenario, first_messages) or full-card optimization.
   - Injects current character data and associated Lorebook entries as context.
   - Enforces strict field separation (physical vs psychological) and word count requirements.
