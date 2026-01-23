@@ -2,6 +2,21 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.13.0 - 2026-01-23
+### World Weaver (Major Feature)
+- **New Panel**: "World Weaver" - An AI-powered guided setup and brainstorming tool for collaborative world-building.
+- **Structured Ideation**: Break down world creation into logical steps: Core Experience, World Rules, Setting/Situation, Main Character, Story Arc, Mechanics, and Guardrails.
+- **Smart Generation**: Generates comprehensive world lore, character cards, and scenario details from a single genre/rating/summary input.
+- **Scratchpad Memory**: Persistent per-category notes that both the user and AI can edit. AI "learns" from the user and records key decisions into the scratchpad.
+- **Visual Progress**: Real-time progress indicators using high-fidelity SVG visualizations for each category's development.
+- **Character Synthesis**: Automatically generates and imports multi-field character data (Description, Personality, Scenario, First Message, Greeting).
+- **Lorebook Integration**: Generates and imports structured Lorebook entries for consistent world rules and setting elements.
+
+### Architecture & Infrastructure
+- **Modular Panel Design**: Refactored `world-weaver.js` into a multi-module architecture (`ui.js`, `llm.js`, `generation.js`, `templates.js`) for better maintainability.
+- **Robust JSON Parsing**: Implemented aggressive LLM output repair and sanitization (stripping `<think>` blocks, fixing unquoted keys) for reliable AI tools.
+- **UI Resilience**: Fixed several UI rendering crashes and improved DOM stability during long AI generation tasks.
+
 ## v1.12.2 - 2026-01-21
 ### New Features
 - **Token Limits Configuration**: New "Token Limits by Context" section in LLM Configuration panel.
