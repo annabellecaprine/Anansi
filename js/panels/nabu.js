@@ -534,14 +534,7 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
             const response = await A.LLM.generate(systemPrompt, history, { maxTokens });
 
             // Use new Repair Utility
-            if (A.JSONRepair) {
-              entry = A.JSONRepair.repairAndParse(response);
-            } else {
-              // Fallback if utility missing (shouldn't happen if loaded)
-              const jsonMatch = response.match(/\{[\s\S]*\}/);
-              if (!jsonMatch) throw new Error('No parseable JSON found');
-              entry = JSON.parse(jsonMatch[0]);
-            }
+            entry = A.JSONRepair.repairAndParse(response);
 
             // If we get here, it parsed!
             break;

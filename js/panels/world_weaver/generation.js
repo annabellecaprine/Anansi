@@ -43,19 +43,31 @@ Return ONLY valid JSON:
 === CONTEXT ===
 ${contextSummary}
 `;
-                    const charResponse = await A.LLM.generate(charPrompt, [], { maxTokens: 2048, temperature: 0.7 });
-                    // CLEAN RESPONSE (Strip <think>)
-                    let cleanText = charResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                    if (cleanText.includes('<think>')) cleanText = cleanText.split('<think>')[0].trim();
-
                     let charData;
-                    try {
-                        const match = cleanText.match(/\{[\s\S]*\}/);
-                        if (match) charData = JSON.parse(match[0]);
-                        else throw new Error("No JSON");
-                    } catch (e) {
-                        if (A.JSONRepair) charData = JSON.parse(A.JSONRepair.repair(cleanText));
-                        else throw e;
+                    let charAttempts = 0;
+                    const maxCharAttempts = 2;
+                    let charHistory = [];
+
+                    while (charAttempts <= maxCharAttempts) {
+                        try {
+                            const charResponse = await A.LLM.generate(charPrompt, charHistory, { maxTokens: 2048, temperature: 0.7 });
+                            charData = A.JSONRepair.repairAndParse(charResponse);
+                            break; // Success
+                        } catch (e) {
+                            console.warn(`[WorldWeaver] Character Gen Attempt ${charAttempts + 1} failed:`, e);
+                            if (charAttempts < maxCharAttempts) {
+                                charAttempts++;
+                                charHistory.push({ role: 'model', content: e.originalText || "(Invalid JSON)" });
+                                charHistory.push({
+                                    role: 'user',
+                                    content: `SYSTEM: The previous response was invalid JSON. Error: ${e.message}. Please fix the format and respond with ONLY the valid JSON object.`
+                                });
+                            } else {
+                                console.error('Character generation failed after retries:', e);
+                                if (A.UI?.Toast?.show) A.UI.Toast.show('Failed to generate character after retries', 'error');
+                                return; // Hard fail
+                            }
+                        }
                     }
                     showReviewModal(charData, 'character', session);
                 } catch (err) {
@@ -86,20 +98,31 @@ ${contextSummary}
  === CONTEXT ===
  ${contextSummary}
  `;
-                    const worldResponse = await A.LLM.generate(worldPrompt, [], { maxTokens: 4096, temperature: 0.7 });
-
-                    // CLEAN RESPONSE (Strip <think>)
-                    let cleanTextW = worldResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                    if (cleanTextW.includes('<think>')) cleanTextW = cleanTextW.split('<think>')[0].trim();
-
                     let worldData;
-                    try {
-                        const match = cleanTextW.match(/\{[\s\S]*\}/);
-                        if (match) worldData = JSON.parse(match[0]);
-                        else throw new Error("No JSON");
-                    } catch (e) {
-                        if (A.JSONRepair) worldData = JSON.parse(A.JSONRepair.repair(cleanTextW));
-                        else throw e;
+                    let worldAttempts = 0;
+                    const maxWorldAttempts = 2;
+                    let worldHistory = [];
+
+                    while (worldAttempts <= maxWorldAttempts) {
+                        try {
+                            const worldResponse = await A.LLM.generate(worldPrompt, worldHistory, { maxTokens: 4096, temperature: 0.7 });
+                            worldData = A.JSONRepair.repairAndParse(worldResponse);
+                            break; // Success
+                        } catch (e) {
+                            console.warn(`[WorldWeaver] World Gen Attempt ${worldAttempts + 1} failed:`, e);
+                            if (worldAttempts < maxWorldAttempts) {
+                                worldAttempts++;
+                                worldHistory.push({ role: 'model', content: e.originalText || "(Invalid JSON)" });
+                                worldHistory.push({
+                                    role: 'user',
+                                    content: `SYSTEM: The previous response was invalid JSON. Error: ${e.message}. Please fix the format and respond with ONLY the valid JSON object.`
+                                });
+                            } else {
+                                console.error('World generation failed after retries:', e);
+                                if (A.UI?.Toast?.show) A.UI.Toast.show('Failed to generate world lore after retries', 'error');
+                                return; // Hard fail
+                            }
+                        }
                     }
                     showReviewModal(worldData, 'world', session);
                 } catch (err) {

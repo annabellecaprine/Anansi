@@ -175,60 +175,37 @@ Please evaluate and generate questions.`;
 
         try {
             const maxTokens = A.UI?.getMaxTokensFor?.('worldWeaver') || session.settings.tokenBudget || 4096;
-            const history = [{ role: 'user', content: userMessage }];
-            const responseText = await A.LLM.generate(
-                systemPrompt,
-                history,
-                { maxTokens: maxTokens, temperature: 0.7 }
-            );
-
-            if (!responseText) throw new Error('Empty LLM response');
-
             let parsed;
-            try {
-                // 1. Strip <think> blocks (Chain of Thought)
-                let cleanText = responseText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            let attempts = 0;
+            const maxAttempts = 2; // Initial + 1 retry
 
-                // If the response was truncated inside a think block, we might have a dangling <think>
-                if (cleanText.includes('<think>')) {
-                    cleanText = cleanText.split('<think>')[0].trim();
-                }
+            while (attempts <= maxAttempts) {
+                try {
+                    const responseText = await A.LLM.generate(
+                        systemPrompt,
+                        history,
+                        { maxTokens: maxTokens, temperature: 0.7 }
+                    );
 
-                if (!cleanText) {
-                    throw new Error('LLM response contained only reasoning (truncated). Try reducing context or increasing token limit.');
-                }
+                    if (!responseText) throw new Error('Empty LLM response');
 
-                // 2. Try standard parse on the cleaned text
-                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    parsed = JSON.parse(jsonMatch[0]);
-                } else {
-                    // Start of object not found
-                    throw new Error('No JSON structure found after processing.');
-                }
-            } catch (parseErr) {
-                // Fallback 1: Use A.JSONRepair if available
-                if (A.JSONRepair) {
-                    try {
-                        parsed = JSON.parse(A.JSONRepair.repair(responseText));
-                    } catch (e) { /* Repair failed, continue to Fallback 2 */ }
-                }
+                    parsed = A.JSONRepair.repairAndParse(responseText);
+                    // If we get here, it parsed!
+                    break;
 
-                // Fallback 2: Local aggressive repair for unquoted keys (common LLM error)
-                if (!parsed) {
-                    try {
-                        // 1. Extract JSON block again
-                        let looseJson = responseText.match(/\{[\s\S]*\}/)?.[0] || responseText;
-                        // 2. Quote unquoted keys (simple regex, handles most cases)
-                        looseJson = looseJson.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-                        // 3. Remove trailing commas
-                        looseJson = looseJson.replace(/,(\s*[}\]])/g, '$1');
-
-                        parsed = JSON.parse(looseJson);
-                    } catch (e2) {
-                        console.error('[WorldWeaver] RAW LLM RESPONSE (Parse Failed):', responseText);
-                        console.error('[WorldWeaver] Parse Error:', parseErr);
-                        throw parseErr; // Throw original error if all attempts fail
+                } catch (parseErr) {
+                    console.warn(`[WorldWeaver] Attempt ${attempts + 1} failed:`, parseErr);
+                    if (attempts < maxAttempts) {
+                        attempts++;
+                        // Push error context to history for retry
+                        history.push({ role: 'model', content: parseErr.originalText || "(Invalid JSON)" });
+                        history.push({
+                            role: 'user',
+                            content: `SYSTEM: The previous response was invalid JSON. Error: ${parseErr.message}. Please fix the format and respond with ONLY the valid JSON object according to the schema.`
+                        });
+                    } else {
+                        console.error('[WorldWeaver] RAW LLM RESPONSE (Final Failure):', parseErr.originalText);
+                        throw new Error("I had trouble parsing that. Please try again or rephrase your last idea.");
                     }
                 }
             }
