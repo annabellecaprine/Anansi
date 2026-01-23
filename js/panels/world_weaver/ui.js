@@ -526,7 +526,7 @@
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;';
 
         modal.innerHTML = `
-                < div style = "background:var(--bg-surface); padding:24px; border-radius:12px; width:400px; max-width:90vw;" >
+            <div style="background:var(--bg-surface); padding:24px; border-radius:12px; width:400px; max-width:90vw;">
                 <h3 style="margin-top:0;">Generate Output</h3>
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <button class="gen-opt" data-type="character" style="padding:16px; text-align:left; cursor:pointer; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px;">
@@ -543,8 +543,8 @@
                     </button>
                 </div>
                 <button id="modal-close" style="margin-top:16px; width:100%; padding:12px; background:transparent; border:1px solid var(--border-subtle); color:var(--text-primary); cursor:pointer;">Cancel</button>
-            </div >
-                `;
+            </div>
+        `;
         document.body.appendChild(modal);
 
         modal.querySelectorAll('.gen-opt').forEach(btn => {
@@ -580,12 +580,12 @@
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:10001; display:flex; align-items:center; justify-content:center;';
         modal.innerHTML = `
-                < div style = "width:800px; height:80vh; background:var(--bg-surface); padding:24px; border-radius:12px; display:flex; flex-direction:column;" >
+            <div style="width:800px; height:80vh; background:var(--bg-surface); padding:24px; border-radius:12px; display:flex; flex-direction:column;">
                 <h3>Active Context</h3>
                 <textarea style="flex:1; background:var(--bg-base); color:var(--text-primary); font-family:monospace; padding:16px; border:none; resize:none;" readonly>${context}</textarea>
                 <button onclick="this.parentElement.parentElement.remove()" style="margin-top:16px; padding:12px;">Close</button>
-            </div >
-                `;
+            </div>
+        `;
         document.body.appendChild(modal);
     }
 
