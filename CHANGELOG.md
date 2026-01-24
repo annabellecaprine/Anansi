@@ -2,7 +2,25 @@
 
 All notable changes to Anansi will be documented in this file.
 
-## v1.15.0 - 2026-01-24
+## v1.16.0 - 2026-01-24
+### World Weaver Architecture (Phase 12)
+- **Sequential Pipeline ("Active Listening")**: Refactored the core LLM logic to run in two distinct serial stages:
+  1.  **Secretary Mode (Extraction)**: Reads user input and current notes, identifying new facts and rewriting category notes to be concise and deduplicated.
+  2.  **Director Mode (Interview)**: Reads the *updated* notes and generates a context-aware response, solving the "Amnesia" and "Logic Loop" issues.
+  
+- **Director Mode (Auto-Focus)**:
+  - **Constraint Logic**: The system now strictly prohibits the AI from asking "anything else?" if the current category is incomplete. It must ask a specific rubric-based question ("Gap Analysis").
+  - **Auto-Rotation**: If the current category is >80% confident, the Director automatically switches focus to the next incomplete category to ensure 100% world coverage.
+  - **Completion State**: If >70% confident and no questions remain, the system explicitly prompts the user to "Generate Output".
+  
+- **Quality of Life**:
+  - **"N/A" Handling**: Explicitly handles "No" or "Skip" responses by marking categories as 100% complete (Green) instead of leaving them empty.
+  - **Deduplication**: The Secretary now actively merges similar bullet points (e.g. "Freya is trusting" + "Freya depends on user" -> "Freya's trusting nature creates dependency").
+  - **Persona Guardrails**: Strict rules preventing the AI from creating/defining the {User}'s internal thoughts or actions.
+  - **Generation Context Fix**: Resolved a critical issue where the final character generation ignored the Scratchpad Notes, causing it to hallucinate details. It now explicitly consumes the full notes history.
+  - **Generation Targeting**: Fixed an issue where the generator would mistakenly create a profile for the User Persona ("Elliot Harper") instead of the main NPC. It now explicitly targets the primary non-user character (e.g. Freya).
+
+
 ### World Weaver Multi-Cast (Phase 8)
 - **Multi-Cast Management**: Full support for ensemble storytelling.
   - **Styles**: Toggle between "Protagonist" (Single) and "Ensemble" (Group) focus.

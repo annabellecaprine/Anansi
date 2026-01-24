@@ -22,8 +22,14 @@
         if (!T) return '';
 
         return Object.entries(session.categories)
-            .filter(([_, cat]) => cat.summary)
-            .map(([key, cat]) => `## ${T.CATEGORIES[key]?.label || key}\n${cat.summary}`)
+            .filter(([_, cat]) => cat.summary || cat.notes)
+            .map(([key, cat]) => {
+                const label = T.CATEGORIES[key]?.label || key;
+                let text = `## ${label}\n`;
+                if (cat.summary) text += `Summary: ${cat.summary}\n`;
+                if (cat.notes) text += `Notes:\n${cat.notes}`;
+                return text;
+            })
             .join('\n\n');
     }
 
@@ -39,7 +45,14 @@
         // Add recent chat history for specifics (last 20 messages)
         const history = session.chatHistory.slice(-20).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
-        const prompt = `Unify the world context and chat history into a focused dossier for a character named "${targetName}".
+        let targetInstruction = `for a character named "${targetName}"`;
+        if (targetName === 'Protagonist') {
+            targetInstruction = `for the **Primary Character** (NOT the {User}). 
+            Look for the main named character described in the notes (e.g. Freya, The Alien, etc). 
+            The goal is to generate the character card for the entity the User will interact with.`;
+        }
+
+        const prompt = `Unify the world context and chat history into a focused dossier ${targetInstruction}.
         
 WORLD CONTEXT:
 ${fullContext}
@@ -47,10 +60,11 @@ ${fullContext}
 RECENT CHAT:
 ${history}
 
-Task: Extract every known fact, trait, relationship, and scenario detail about "${targetName}".
-If details are missing, infer them logically from the world context (e.g. if they are a "Knight", infer they have armor/duty).
+Task: Extract every known fact, trait, relationship, and scenario detail about the target.
+If details are missing, infer them logically.
 
-Return a concise summary (max 400 words) that will serve as the "Truth" for generating this character's profile. Do not include meta-text.`;
+Return a concise summary (max 400 words) that will serve as the "Truth" for generating this character's profile.
+IMPORTANT: Do NOT generate a profile for "{User}" or "The Player". Generate the Main NPC.`;
 
         try {
             const dossier = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.6 });

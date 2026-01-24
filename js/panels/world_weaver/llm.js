@@ -18,6 +18,25 @@
         // Initialize turn count
         session.turnCount = (session.turnCount || 0) + 1;
 
+        // --- STEP 0: DIRECTOR MODE (Auto-Focus) ---
+        // If current focus is "done" (high confidence), force a switch to keep momentum.
+        if (session.currentFocus && session.categories[session.currentFocus]) {
+            const currentConf = session.categories[session.currentFocus].confidence || 0;
+            if (currentConf > 80) {
+                // Find next incomplete category
+                const sequence = Object.keys(CATEGORIES);
+                const nextFocus = sequence.find(k => {
+                    const c = session.categories[k];
+                    return (c.confidence || 0) < 80; // Find anything that isn't finished
+                });
+
+                if (nextFocus && nextFocus !== session.currentFocus) {
+                    console.log(`[WorldWeaver] Director Mode: Switching Focus from ${session.currentFocus} (${currentConf}%) to ${nextFocus}`);
+                    session.currentFocus = nextFocus;
+                }
+            }
+        }
+
         // --- STEP 1: ACTIVE LISTENING (Extraction) ---
         // Notify UI of "Updating Notes" state
         // We assume the caller (index.js) can handle status updates if we yield or callback?
@@ -105,6 +124,7 @@
 
         // Dynamic System Prompt Construction
         const isAdult = session.contentRating === 'adult';
+        const isProtagonistMode = session.storyFocus === 'protagonist';
         // const isNSFW = session.contentRating === 'nsfw' || isAdult; 
 
         // Guardrails: Conversational Approach
@@ -115,6 +135,55 @@
             ? "You are an experienced, open-minded Genre Editor. The user has opted into Adult content, so you are comfortable discussing mature themes, dark topics, and erotica professionally and creatively. You do not shy away from details."
             : "You are an experienced Genre Editor and collaborative World-Builder.";
 
+        // Mode-specific rules for Protagonist vs Ensemble
+        const storyFocusRules = isProtagonistMode
+            ? `
+=== STORY FOCUS: PROTAGONIST MODE ===
+This is a SINGLE CHARACTER focus session. You are helping build ONE main character card.
+
+**CRITICAL DISTINCTION - {User} vs Protagonist:**
+- **{User}** = The PLAYER. The human who will chat with the finished character. You do NOT define {User}.
+- **Protagonist** = The CHARACTER CARD being built. This is the NPC/bot the player will interact with.
+- You are building the PROTAGONIST (the character card), NOT defining {User}.
+- Example: If building "Freya the vampire", FREYA is the protagonist. {User} is whoever plays with her later.
+
+**PROTAGONIST MODE RULES:**
+1. **SINGLE CHARACTER FOCUS**: All character development centers on ONE protagonist being built (the NPC).
+   - Do NOT track multiple cast members. Ignore the 'identifiedCast' output field.
+   - The "Cast" category should only contain notes about THIS protagonist (the character card).
+2. **ANTI-BLEED GUARDRAIL**: When the user mentions OTHER people (e.g., "The protagonist's boss wears a toupee"), 
+   those traits belong to THOSE other people, NOT the protagonist.
+   - Record info about other characters under "Setting" or "World Rules" as relationship/world context.
+   - Example: "Freya's rival, Victor, is cunning" → Note under Setting: "World includes Victor (Freya's cunning rival)"
+   - Do NOT assign Victor's traits to Freya.
+3. **DEEP FOCUS**: Ask detailed questions about the protagonist's (the NPC's) personality, backstory, motivations, and appearance.
+   - Other NPCs are backdrop. Don't spend questions exploring them unless the user explicitly asks.
+   - NEVER ask about {User}'s traits - {User} is undefined until gameplay.
+`
+            : `
+=== STORY FOCUS: ENSEMBLE MODE ===
+This is an ENSEMBLE CAST session. You are helping build a GROUP of significant character cards.
+
+**CRITICAL DISTINCTION - {User} vs Cast:**
+- **{User}** = The PLAYER. The human who will chat with the finished characters. You do NOT define {User}.
+- **Cast** = The CHARACTER CARDS being built. These are NPCs/bots the player will interact with.
+- NEVER include {User} as a cast member. {User} is the player, not a character.
+
+**ENSEMBLE MODE RULES:**
+1. **TRACK SIGNIFICANT CHARACTERS**: Add characters to 'identifiedCast' who have:
+   - Repeated mentions (appear in multiple messages)
+   - Direct plot involvement (conflict, relationship, story role)
+   - Named AND characterized (not just "the shopkeeper")
+   - NEVER add {User} - they are the player, not a character
+2. **SIGNIFICANCE FILTERING**: 
+   - Mark as "major": Core cast members central to the story
+   - Mark as "minor": Recurring but secondary roles
+   - Do NOT add characters mentioned only in passing (e.g., "someone's boss" mentioned once)
+3. **ENSEMBLE DEPTH**: All "major" cast members deserve exploration.
+   - Ask about relationships BETWEEN cast members.
+   - Develop distinct arcs/motivations for each major character.
+`;
+
         const systemPrompt = `${personality}
 Your goal is to be a true creative partner. Do not just strictly "interview" the user.
 Engage in a back-and-forth dialogue. Restate your understanding often to show you are listening.
@@ -123,8 +192,9 @@ Build upon their ideas ("Yes, and...").
 === SESSION CONTEXT ===
 Genre: ${template.label}
 Content Rating: ${ratingInfo.label} (${ratingInfo.description})
+Story Focus: ${isProtagonistMode ? 'PROTAGONIST (Single Character)' : 'ENSEMBLE (Multiple Characters)'}
 CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
-
+${storyFocusRules}
 === YOUR BEHAVIORAL RULES ===
 1. **RESTATE CONTEXT**: When the user introduces new major elements (a character, a faction, a tone), explicitly summarize it back to them in your own words to confirm alignment. "So, you're picturing a gritty, neon-soaked underworld where..."
 2. **USE THE SCRATCHPAD**: You have a "World Notes" scratchpad. USE IT.
@@ -137,9 +207,13 @@ CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
 5. **RESPECT PLAYER AGENCY**: You are the Game Master/Editor, NOT the Player.
    - NEVER describe the User's internal thoughts, feelings, or actions.
    - Stop your response at the point where the User needs to react.
-6. **STRUCTURED INQUIRY**: Do NOT ask your follow-up questions in the main text.
    - Use the 'response' field for reaction, analysis, and setting the scene.
    - Put your driving questions/suggestions into the 'questions' array. This ensures they appear as interactive UI elements.
+7. **THE {USER} VARIABLE - THIS IS NOT THE PROTAGONIST**:
+   - {User} = The PLAYER who will use the finished character card. NOT a character you are building.
+   - The PROTAGONIST/CAST you are building = The NPC(s)/bot(s) the player ({User}) will interact with.
+   - Do NOT ask questions about {User}'s traits, appearance, or backstory - they are undefined.
+   - Do NOT confuse {User} with the character being built. They are opposite roles.
 
 === SMART ANALYSIS RULES ===
 1. **IMPORTED ACTOR PRIORITY**: If an "IMPORTED ACTOR PROFILE" is present, treat that character as the anchor. All world-building should revolve around them.
@@ -161,9 +235,12 @@ CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
 - Location/Era defined
 - Initial situation established
 
-**Main Character (15%)** - COMPLETE when:
-- Defined via IMPORTED ACTOR PROFILE
-- OR Name/Appearance/Archetypes defined
+**${isProtagonistMode ? 'Protagonist' : 'Cast'} (15%)** - COMPLETE when:
+${isProtagonistMode
+                ? `- The single main character has Name/Appearance/Archetypes defined
+- OR Defined via IMPORTED ACTOR PROFILE`
+                : `- Major ensemble members identified
+- Relationships between cast members established`}
 
 **Story Arc (15%)** - COMPLETE when:
 - Conflict/Tension defined
@@ -171,6 +248,10 @@ CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
 
 **Mechanics (10%)** - COMPLETE when:
 - Tracking systems (Stats, Trust, Corruption, etc.)
+
+=== SCORING RULES ===
+1. **"N/A" MEANS 100%**: If the user says "No magic", "No mechanics", or "Skip this", mark confidence as **100**. It is "Complete by Omission". Do not leave it at 0.
+2. **CLOSING THE GAP**: If Confidence is < 80% for the CURRENT FOCUS, you **MUST** ask a question from the Rubric. Do not say "Anything else?". Ask specifically: "How do we handle [Missing Element]?"
 
 === OUTPUT FORMAT ===
 Return a SINGLE JSON object. Do not include any text outside the JSON.
@@ -185,9 +266,11 @@ Return a SINGLE JSON object. Do not include any text outside the JSON.
     },
     // ... other categories (worldRules, setting, cast, storyArc, mechanics, guardrails)
   },
-  "identifiedCast": [
+  ${isProtagonistMode
+                ? '// Note: identifiedCast is NOT used in Protagonist mode'
+                : `"identifiedCast": [
       { "name": "Name", "role": "Role/Archetype", "significance": "major/minor" } 
-  ],
+  ],`}
   "overallProgress": 0-100,
   "highestPriority": "categoryKey",
   "deepMiningPoint": "The most interesting unexplored tension or opportunity",
@@ -294,15 +377,16 @@ Please evaluate and generate questions.`;
 
                         // Status Update Logic (Based on the potentially preserved confidence)
                         const finalConf = session.categories[sessionKey].confidence;
-                        if (finalConf > 80) session.categories[sessionKey].status = 'completed';
+                        if (finalConf > 70) session.categories[sessionKey].status = 'completed';
                         else if (finalConf > 20) session.categories[sessionKey].status = 'in_progress';
                         else session.categories[sessionKey].status = 'empty';
                     }
                 });
             }
 
-            // Extract Identified Cast
-            if (parsed.identifiedCast && Array.isArray(parsed.identifiedCast)) {
+            // Extract Identified Cast (Ensemble Mode Only)
+            // In Protagonist mode, we don't track multiple cast members
+            if (session.storyFocus !== 'protagonist' && parsed.identifiedCast && Array.isArray(parsed.identifiedCast)) {
                 if (!session.cast) session.cast = [];
 
                 parsed.identifiedCast.forEach(c => {
@@ -319,7 +403,51 @@ Please evaluate and generate questions.`;
                 });
             }
 
-            session.overallProgress = parsed.overallProgress || 0;
+            // High Water Mark for Overall Progress
+            session.overallProgress = Math.max(session.overallProgress || 0, parsed.overallProgress || 0);
+
+            // --- PREVENT QUESTION LOOPS ---
+            if (parsed.questions && parsed.questions.length > 0) {
+                // Get last 3 assistant messages to check for repetition
+                const recentAssistant = session.chatHistory.filter(m => m.role === 'assistant').slice(-3);
+                const recentQTexts = new Set();
+
+                recentAssistant.forEach(m => {
+                    if (m.questions) m.questions.forEach(q => recentQTexts.add(q.text.toLowerCase()));
+                    if (m.question) recentQTexts.add(m.question.toLowerCase());
+                });
+
+                // Filter out duplicates
+                parsed.questions = parsed.questions.filter(q => {
+                    if (recentQTexts.has(q.text.toLowerCase())) {
+                        console.warn('[WorldWeaver] Dropped duplicate question:', q.text);
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            // Fallback if all questions were filtered (Silent AI Fix)
+            if (!parsed.questions || parsed.questions.length === 0) {
+                const currentConf = session.categories[session.currentFocus]?.confidence || 0;
+                if (currentConf > 70) {
+                    // Everything seems done (or this category is done and no auto-switch happened)
+                    parsed.questions = [{
+                        text: "It looks like we've covered this topic. Ready to generate your world?",
+                        category: session.currentFocus,
+                        suggestion: "Click 'Generate Output' in the sidebar to finish.",
+                        importance: "polish"
+                    }];
+                } else {
+                    const currentLabel = CATEGORIES[session.currentFocus]?.label || 'this topic';
+                    parsed.questions = [{
+                        text: `Is there anything else you'd like to establish about ${currentLabel}?`,
+                        category: session.currentFocus,
+                        suggestion: "You can add more details or move on.",
+                        importance: "helpful"
+                    }];
+                }
+            }
 
             // Auto-switch focus if current is complete
             if (parsed.highestPriority && CATEGORIES[parsed.highestPriority]) {
@@ -380,9 +508,28 @@ Please evaluate and generate questions.`;
             }
         });
 
-        // 3. Prompt for Extraction
-        const prompt = `You are a meticulous Data Entry Clerk.
-Your job is to read the USER'S last message and update the World Notes.
+        // 3. Determine mode-specific extraction rules
+        const isProtagonistMode = session.storyFocus === 'protagonist';
+
+        const modeRules = isProtagonistMode
+            ? `
+MODE: PROTAGONIST (Single Character Focus)
+- Focus ONLY on facts about THE main protagonist being built.
+- When other characters are mentioned (e.g., "Bob's boss wears a toupee"), 
+  DO NOT merge their traits into the protagonist.
+- File other characters' traits under [SETTING] as world/relationship context.
+  Example: "Bob's boss Captain Murphy - demanding, wears toupee" → goes to [SETTING]
+- The [CAST] category should ONLY contain protagonist details.`
+            : `
+MODE: ENSEMBLE (Multiple Characters)
+- Track facts about ALL significant characters.
+- The [CAST] category should list details for each major ensemble member.
+- Minor/passing characters (mentioned once) can go to [SETTING] as background.`;
+
+        // 4. Prompt for Extraction
+        const prompt = `You are a Senior Editor organizing a World Bible.
+Your job is to read the USER'S last message and REWRITE the World Notes to be concise and non-repetitive.
+${modeRules}
 
 EXISTING NOTES:
 ${noteContent || '(No notes yet)'}
@@ -391,11 +538,22 @@ USER MESSAGE:
 "${lastUserMsg.content}"
 
 TASK:
-1. Identify any NEW facts in the User Message.
-2. Merge them into the Existing Notes.
-3. Remove duplicates.
-4. Keep the [CATEGORY] structure.
-5. If the User Message has no new facts (just chatter), return the EXISTING NOTES exactly as they are.
+1. Identify new facts in the User Message.
+2. MERGE them into the Existing Notes.
+3. CONSOLIDATE duplicates. (e.g. If specific "Trust" and generalized "Dependence" both exist, combine them into one strong bullet).
+4. REWRITE vague entries to be specific.
+5. Sort into the correct [CATEGORY]. If missing, ADD IT.
+   
+VALID CATEGORIES:
+- [COREEXPERIENCE] (Goals, Tone, Themes)
+- [WORLDRULES] (Physics, Magic, Technology)
+- [SETTING] (Locations, Era, Situation${isProtagonistMode ? ', OTHER characters as world context' : ''})
+- [CAST] (${isProtagonistMode ? 'Protagonist details ONLY' : 'All significant characters'})
+- [STORYARC] (Plots, Conflicts)
+- [MECHANICS] (Stats, Systems)
+- [GUARDRAILS] (Safety, Limits, Boundaries)
+
+6. Return the FULL set of notes (Old + New, cleaned up).
 
 Return ONLY the full updated notes text (Categories + Bullets).`;
 
