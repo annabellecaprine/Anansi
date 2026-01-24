@@ -1,6 +1,6 @@
 {
   "name": "anansi",
-  "version": "1.13.0",
+  "version": "1.15.0",
   "description": "> *The spider of stories. All stories belong to Anansi — and he weaves them into a web that reaches everywhere.*",
   "main": "index.js",
   "directories": {

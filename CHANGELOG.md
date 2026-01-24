@@ -2,6 +2,35 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.15.0 - 2026-01-24
+### World Weaver Multi-Cast (Phase 8)
+- **Multi-Cast Management**: Full support for ensemble storytelling.
+  - **Styles**: Toggle between "Protagonist" (Single) and "Ensemble" (Group) focus.
+  - **Cast List**: Sidebar management for identified actors.
+  - **Batch Generation**: Auto-extract potential cast members from context and generate them sequentially.
+  
+- **Multi-Step Pipeline (Enhanced)**:
+  - **Resume Logic**: Auto-detects interrupted generations and allows resuming from the last successful step (Identity, Appearance, Card, Quirks, Notes, Cues).
+  - **Retry Handling**: Built-in error recovery for individual steps.
+  
+- **Quality of Life**:
+  - **Session Deletion**: Added ability to delete sessions from the start screen.
+  - **Layout Fixes**: Improved scrolling and centering on the setup screen.
+  - **Developer Tools**: Hidden test suite (`Ctrl+Shift+T`) for validating generation pipelines.
+
+## v1.14.0 - 2026-01-23
+### Multi-Step Character Generator (Phase 7)
+- **6-Step Pipeline**: Implemented a comprehensive prompt chain: Identity, Appearance, Card Fields, Quirks, Notes, and Cues.
+- **Appendage Awareness**: Automatically detects features like "wings" or "tail" from user prompts (e.g., "Imp with wings") and generates specific behavioral cues for them. context-aware descriptions.
+- **Full Cues Generation**: Refactored to generate **ALL** system cues (9 Pulse, 8 Eros, 8 Intent) using 3 sequential LLM calls to avoid token limits and truncated output.
+- **Context Injection**: Prompts now override genre defaults (e.g. allowing fantasy appendages in 'Modern' settings if requested).
+
+### Architecture & Stability
+- **LLM Robustness**: Updated `JSONRepair` to strip `<thinking>`, `<thought>`, and `<thoughts>` tags, fixing crashes with reasoning models.
+- **Error Handling**: Fixed `ReferenceError: subjective` and `history.push` crashes in generation logic.
+- **UI Rendering**: Fixed malformed HTML strings that caused "code text" to appear on screen during generation.
+- **Prompt Engineering**: Improved instruction quality to enforce varied sentence structure and proper name usage.
+
 ## v1.13.0 - 2026-01-23
 ### World Weaver (Major Feature)
 - **New Panel**: "World Weaver" - An AI-powered guided setup and brainstorming tool for collaborative world-building.

@@ -153,8 +153,11 @@ Return a SINGLE JSON object. Do not include any text outside the JSON.
         "summary": "...", 
         "concept_updates": "Text to APPEND to the scratchpad. Capture facts, rules, and decisions here." 
     },
-    // ... other categories (worldRules, setting, mainCharacter, storyArc, mechanics, guardrails)
+    // ... other categories (worldRules, setting, cast, storyArc, mechanics, guardrails)
   },
+  "identifiedCast": [
+      { "name": "Name", "role": "Role/Archetype", "significance": "major/minor" } 
+  ],
   "overallProgress": 0-100,
   "highestPriority": "categoryKey",
   "deepMiningPoint": "The most interesting unexplored tension or opportunity",
@@ -259,6 +262,24 @@ Please evaluate and generate questions.`;
                         if (finalConf > 80) session.categories[sessionKey].status = 'completed';
                         else if (finalConf > 20) session.categories[sessionKey].status = 'in_progress';
                         else session.categories[sessionKey].status = 'empty';
+                    }
+                });
+            }
+
+            // Extract Identified Cast
+            if (parsed.identifiedCast && Array.isArray(parsed.identifiedCast)) {
+                if (!session.cast) session.cast = [];
+
+                parsed.identifiedCast.forEach(c => {
+                    // Dedup by name
+                    const exists = session.cast.find(ex => ex.name.toLowerCase() === c.name.toLowerCase());
+                    if (!exists) {
+                        session.cast.push({
+                            name: c.name,
+                            role: c.role || 'Unknown',
+                            significance: c.significance || 'minor',
+                            addedAt: new Date().toISOString()
+                        });
                     }
                 });
             }

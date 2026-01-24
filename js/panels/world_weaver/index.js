@@ -14,6 +14,8 @@
     A.registerPanel('world_weaver', {
         label: 'World Weaver',
         icon: '🕸️',
+        category: 'Sacred Tools',
+        order: 2,
         render: A.WorldWeaver.UI.render
     });
 

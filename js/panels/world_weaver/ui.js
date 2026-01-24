@@ -17,7 +17,7 @@
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
     }
 
-    function createNewSession(name, genre, contentRating, importedActor = null) {
+    function createNewSession(name, genre, contentRating, storyFocus, importedActor = null) {
         // Dependencies
         const T = A.WorldWeaver.Templates;
         if (!T) return console.error("Templates not loaded");
@@ -31,12 +31,14 @@
             updatedAt: new Date().toISOString(),
             genre: genre,
             contentRating: contentRating || 'sfw',
+            storyFocus: storyFocus || 'protagonist',
             importedActor: importedActor,
+            cast: [], // Registry of identified characters
             categories: {
                 coreExperience: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 worldRules: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 setting: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
-                mainCharacter: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
+                cast: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] }, // Renamed from mainCharacter
                 storyArc: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 mechanics: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 guardrails: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] }
@@ -50,7 +52,7 @@
             settings: {
                 questionsPerRound: 3,
                 tokenBudget: 4096,
-                customBoundaries: '' // New Field
+                customBoundaries: ''
             }
         };
     }
@@ -83,11 +85,12 @@
         const setup = document.createElement('div');
         setup.className = 'ww-setup';
         setup.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:24px; background:linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-elevated) 100%); overflow-y:auto;">
-                <div style="text-align:center; margin-bottom:32px;">
-                    <div style="font-size:28px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">🕸️ World Weaver</div>
-                    <div style="font-size:14px; color:var(--text-muted);">Guided world-building for immersive storytelling</div>
-                </div>
+            <div style="height:100%; overflow-y:auto; background:linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-elevated) 100%);">
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; padding:24px;">
+                    <div style="text-align:center; margin-bottom:32px;">
+                        <div style="font-size:28px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">🕸️ World Weaver</div>
+                        <div style="font-size:14px; color:var(--text-muted);">Guided world-building for immersive storytelling</div>
+                    </div>
                 
                 <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:24px; width:100%; max-width:500px; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
                     <div style="margin-bottom:20px;">
@@ -101,6 +104,14 @@
                     </div>
                     
                     <div style="margin-bottom:20px;">
+                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Story Focus</label>
+                        <div style="display:flex; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; padding:4px;">
+                            <button id="ww-focus-protagonist" class="focus-opt" style="flex:1; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; background:var(--accent); color:white;">Protagonist</button>
+                            <button id="ww-focus-ensemble" class="focus-opt" style="flex:1; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; background:transparent; color:var(--text-muted);">Ensemble (Cast)</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:20px;">
                         <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Content Rating</label>
                         <div id="ww-rating-options" style="display:flex; gap:8px;"></div>
                     </div>
@@ -112,13 +123,12 @@
                         </div>
                     </div>
 
-
-                    
                     <button id="ww-start-btn" style="width:100%; padding:14px; background:var(--accent); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">✨ Begin World Weaving</button>
                 </div>
                 
                 <div id="ww-sessions-section" style="margin-top:24px; width:100%; max-width:500px;"></div>
             </div>
+        </div>
         `;
 
         container.appendChild(setup);
@@ -128,10 +138,35 @@
             state.worldWeaver.setupState = {
                 genre: 'freeform',
                 rating: 'sfw',
+                storyFocus: 'protagonist',
                 actor: null
             };
         }
         const setupState = state.worldWeaver.setupState;
+
+        // Focus Toggle Logic
+        const updateFocusUI = () => {
+            const isProtag = setupState.storyFocus === 'protagonist';
+            const btnP = setup.querySelector('#ww-focus-protagonist');
+            const btnE = setup.querySelector('#ww-focus-ensemble');
+
+            btnP.style.background = isProtag ? 'var(--accent)' : 'transparent';
+            btnP.style.color = isProtag ? 'white' : 'var(--text-muted)';
+
+            btnE.style.background = !isProtag ? 'var(--accent)' : 'transparent';
+            btnE.style.color = !isProtag ? 'white' : 'var(--text-muted)';
+        };
+
+        setup.querySelector('#ww-focus-protagonist').onclick = () => {
+            setupState.storyFocus = 'protagonist';
+            updateFocusUI();
+        };
+        setup.querySelector('#ww-focus-ensemble').onclick = () => {
+            setupState.storyFocus = 'ensemble';
+            updateFocusUI();
+        };
+        // Initial state
+        updateFocusUI();
 
         // Genres
         const genreGrid = setup.querySelector('#ww-genre-grid');
@@ -166,7 +201,7 @@
         // Start
         setup.querySelector('#ww-start-btn').onclick = () => {
             const name = setup.querySelector('#ww-session-name').value.trim();
-            const session = createNewSession(name, setupState.genre, setupState.rating, setupState.actor);
+            const session = createNewSession(name, setupState.genre, setupState.rating, setupState.storyFocus, setupState.actor);
             const allSessions = loadSessions();
             allSessions[session.id] = session;
             saveSessions(allSessions);
@@ -186,20 +221,56 @@
             setup.querySelector('#ww-sessions-section').innerHTML = `<div style="font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Resume Session</div>`;
             sessionsList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).forEach(s => {
                 const row = document.createElement('div');
-                row.style.cssText = "padding:12px; background:var(--bg-surface); border:1px solid var(--border-subtle); margin-bottom:8px; border-radius:8px; cursor:pointer;";
-                row.textContent = s.name;
+                row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--bg-surface); border:1px solid var(--border-subtle); margin-bottom:8px; border-radius:8px; cursor:pointer;";
+
+                row.innerHTML = `<span style="flex:1; font-weight:500; color:var(--text-primary);">${s.name}</span>`;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.style.cssText = "padding:8px; background:transparent; border:none; cursor:pointer; font-size:14px; opacity:0.6; transition:opacity 0.2s;";
+                deleteBtn.onmouseover = () => deleteBtn.style.opacity = '1';
+                deleteBtn.onmouseout = () => deleteBtn.style.opacity = '0.6';
+
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete session "${s.name}"? This cannot be undone.`)) {
+                        const currentSessions = loadSessions();
+                        delete currentSessions[s.id];
+                        saveSessions(currentSessions);
+
+                        // If deleted active session, clear current ID
+                        if (state.worldWeaver.currentSessionId === s.id) {
+                            state.worldWeaver.currentSessionId = null;
+                        }
+
+                        render(container); // Re-render to update list
+                    }
+                };
+
                 row.onclick = () => {
                     state.worldWeaver.currentSessionId = s.id;
                     state.worldWeaver.showSetup = false;
                     A.State.notify();
                     render(container);
                 };
+
+                row.prepend(document.createElement('span')); // Spacer or just rely on flex
+                row.querySelector('span').onclick = row.onclick; // Ensure text click works
+
+                // Re-assemble
+                row.innerHTML = '';
+                const title = document.createElement('span');
+                title.style.cssText = "flex:1; font-weight:500; color:var(--text-primary);";
+                title.textContent = s.name;
+
+                row.appendChild(title);
+                row.appendChild(deleteBtn);
+
                 setup.querySelector('#ww-sessions-section').appendChild(row);
             });
         }
 
-        // Actor Import Logic (MVP)
-        // Ensure visual state update if actor was selected previously
+        // Actor Import Logic
         if (setupState.actor) {
             setup.querySelector('#ww-actor-import').innerHTML = `✅ ${setupState.actor.name}`;
         }
@@ -248,7 +319,7 @@
         };
     }
 
-    function showCategoryDetails(session, key, sessions) {
+    function showCategoryDetails(session, key, sessions, container) {
         const T = A.WorldWeaver.Templates;
         const conf = T.CATEGORIES[key];
         const data = session.categories[key];
@@ -257,23 +328,60 @@
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;';
 
+        // Prepare Inner Content (Cast List vs. Notes)
+        let mainContent = '';
+
+        if (key === 'cast') {
+            const castListHtml = (session.cast || []).map(c => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-base); margin-bottom:6px; border-radius:6px; font-size:12px; border:1px solid var(--border-subtle);">
+                    <div>
+                        <span style="font-weight:600; color:var(--text-primary);">${c.name}</span>
+                        <span style="color:var(--text-muted); margin-left:6px;">(${c.role})</span>
+                    </div>
+                    <span style="font-size:10px; color:var(--accent); text-transform:uppercase;">${c.significance}</span>
+                </div>
+            `).join('');
+
+            mainContent = `
+                <div style="margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border-subtle);">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; letter-spacing:0.5px;">IDENTIFIED CAST</div>
+                    <div style="max-height:150px; overflow-y:auto; margin-bottom:8px;">
+                        ${castListHtml || '<div style="font-style:italic; color:var(--text-muted); font-size:12px;">No cast members yet. (Chat to find them)</div>'}
+                    </div>
+                    <button id="ww-add-cast-btn" style="width:100%; padding:8px; background:var(--bg-elevated); border:1px dashed var(--border-subtle); border-radius:6px; color:var(--text-secondary); font-size:11px; cursor:pointer;">+ Add Character Manually</button>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; flex:1;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; letter-spacing:0.5px;">NOTES</div>
+                     <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+                        The AI uses this space to track facts, rules, and decisions. You can edit this directly to correct or guide it.
+                    </div>
+                    <textarea id="cat-notes" style="flex:1; padding:12px; background:var(--bg-base); border:1px solid var(--border-subtle); border-radius:8px; resize:none; font-family:monospace; line-height:1.5; color:var(--text-primary); white-space: pre-wrap;">${data.notes || ''}</textarea>
+                </div>
+            `;
+        } else {
+            mainContent = `
+                <div style="display:flex; flex-direction:column; flex:1;">
+                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+                        The AI uses this space to track facts, rules, and decisions. You can edit this directly to correct or guide it.
+                    </div>
+                    <textarea id="cat-notes" style="flex:1; padding:12px; background:var(--bg-base); border:1px solid var(--border-subtle); border-radius:8px; resize:none; font-family:monospace; line-height:1.5; color:var(--text-primary); white-space: pre-wrap;">${data.notes || ''}</textarea>
+                </div>
+            `;
+        }
+
         modal.innerHTML = `
             <div style="background:var(--bg-surface); padding:24px; border-radius:12px; width:600px; max-width:90vw; height:80vh; display:flex; flex-direction:column;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                     <div style="font-size:24px;">${conf.icon}</div>
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:18px;">${conf.label} - Notes</div>
+                        <div style="font-weight:700; font-size:18px;">${conf.label} - ${key === 'cast' ? 'Management' : 'Notes'}</div>
                         <div style="font-size:12px; color:var(--text-secondary);">Confidence: ${data.confidence || 0}%</div>
                     </div>
                     <button id="close-notes" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:20px;">×</button>
                 </div>
                 
-                <div style="flex:1; display:flex; flex-direction:column; gap:8px; min-height:0;">
-                    <div style="font-size:12px; color:var(--text-muted);">
-                        The AI uses this space to track facts, rules, and decisions. You can edit this directly to correct or guide it.
-                    </div>
-                    <textarea id="cat-notes" style="flex:1; padding:12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; resize:none; font-family:monospace; line-height:1.5; color:var(--text-primary); white-space: pre-wrap;">${data.notes || ''}</textarea>
-                </div>
+                ${mainContent}
                 
                 <div style="margin-top:16px; display:flex; justify-content:flex-end;">
                      <button id="save-notes" style="padding:10px 20px; background:var(--accent); color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Save & Close</button>
@@ -284,15 +392,53 @@
         document.body.appendChild(modal);
 
         const textarea = modal.querySelector('#cat-notes');
+        const addBtn = modal.querySelector('#ww-add-cast-btn');
 
-        // Auto-focus and cursor at end
-        textarea.focus();
-        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        // Auto-focus and cursor at end (if notes exist)
+        if (textarea) {
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+
+        // Add Button Logic
+        if (addBtn) {
+            addBtn.onclick = () => {
+                const name = prompt("Character Name:");
+                if (name) {
+                    if (!session.cast) session.cast = [];
+                    session.cast.push({ name, role: 'Manual Entry', significance: 'minor' });
+                    saveSessions(sessions);
+                    modal.remove();
+                    showCategoryDetails(session, key, sessions, container);
+                    // Also trigger background update of sidebar if possible or wait for save/close
+                }
+            };
+        }
 
         const saveAndClose = () => {
-            session.categories[key].notes = textarea.value;
+            if (textarea) {
+                session.categories[key].notes = textarea.value;
+            }
             saveSessions(sessions);
             modal.remove();
+
+            // Re-render container to show latest state if needed (mainly for graph colors/stats)
+            if (container) {
+                // A bit heavy to re-render whole sidebar but safe
+                // Finding sidebar again inside container logic is handled by renderSidebar caller usually
+                // But here we can call render(container) if we have the ROOT container
+                // We passed in the ROOT container hopefully.
+                // Actually renderSidebar is passed a sidebar element usually? 
+                // In renderSidebar below, we pass 'container' (root).
+
+                // If container is the root, we call render(container).
+                // Check if container has 'ww-interface' class or is the parent.
+                // render() expects the parent of ww-interface usually.
+
+                // Let's just rely on automatic update next time or re-call renderSidebar
+                // Safest: A.WorldWeaver.UI.render(container)
+                A.WorldWeaver.UI.render(container);
+            }
         };
 
         modal.querySelector('#close-notes').onclick = () => modal.remove();
@@ -321,6 +467,9 @@
 
     function renderSidebar(sidebar, session, sessions, state) {
         const T = A.WorldWeaver.Templates;
+        // Derive container (root) from sidebar
+        const container = sidebar.closest('.ww-interface').parentNode;
+
         const currentGenre = T.GENRE_TEMPLATES.find(t => t.id === session.genre);
 
         sidebar.innerHTML = `
@@ -385,31 +534,33 @@
                 <span style="flex:1; font-size:13px; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${conf.label}</span>
                 ${pieChart}
             `;
+
             row.onclick = () => {
                 session.currentFocus = key;
                 saveSessions(sessions);
-                // Update UI visualization without full re-render
+
+                // Update Row Styles
                 const allRows = catList.children;
-                for (let i = 0; i < allRows.length; i++) {
-                    allRows[i].style.background = 'transparent';
-                    allRows[i].querySelector('span:nth-child(2)').style.color = 'var(--text-secondary)';
+                for (let item of allRows) {
+                    item.style.background = 'transparent';
+                    if (item.querySelector('span:nth-child(2)')) item.querySelector('span:nth-child(2)').style.color = 'var(--text-secondary)';
                 }
                 row.style.background = 'var(--bg-elevated)';
                 row.querySelector('span:nth-child(2)').style.color = 'var(--text-primary)';
 
-                showCategoryDetails(session, key, sessions);
+                // Open Pop-out Modal
+                showCategoryDetails(session, key, sessions, container);
             };
+
             catList.appendChild(row);
         });
-
-
 
         // Event Listeners
         sidebar.querySelector('#ww-back').onclick = () => {
             state.worldWeaver.currentSessionId = null;
             state.worldWeaver.showSetup = true;
             A.State.notify();
-            render(sidebar.parentNode.parentNode);
+            render(container);
         };
 
         sidebar.querySelector('#ww-generate').onclick = () => {
@@ -552,7 +703,7 @@
                 const type = btn.dataset.type;
                 // Use multi-step pipeline for character generation
                 if (type === 'character') {
-                    A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions);
+                    showMultiCastSelection(session, sessions);
                 } else {
                     // Legacy single-step for world/export
                     A.WorldWeaver.Generation.handleGeneration(session, sessions, type);
@@ -561,6 +712,69 @@
             };
         });
         modal.querySelector('#modal-close').onclick = () => modal.remove();
+    }
+
+    function showMultiCastSelection(session, sessions) {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10002;';
+
+        const cast = session.cast || [];
+        const isEnsemble = session.storyFocus === 'ensemble';
+
+        const castListHtml = cast.map((c, i) => `
+            <label style="display:flex; align-items:center; padding:12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; margin-bottom:8px;">
+                <input type="checkbox" value="${c.name}" checked style="width:18px; height:18px; margin-right:12px;">
+                <div style="flex:1;">
+                    <div style="font-weight:600;">${c.name}</div>
+                    <div style="font-size:12px; color:var(--text-muted);">${c.role} (${c.significance})</div>
+                </div>
+            </label>
+        `).join('');
+
+        modal.innerHTML = `
+            <div style="background:var(--bg-surface); padding:24px; border-radius:12px; width:450px; max-width:90vw;">
+                <h3 style="margin-top:0;">Select Characters</h3>
+                <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+                    Select which characters to generate profiles for.
+                </div>
+                
+                <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                    <label style="display:flex; align-items:center; padding:12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; margin-bottom:8px; border-left:4px solid var(--accent);">
+                        <input type="checkbox" value="Protagonist" ${!isEnsemble ? 'checked' : ''} style="width:18px; height:18px; margin-right:12px;">
+                        <div style="flex:1;">
+                            <div style="font-weight:600;">The Protagonist / Main Character</div>
+                            <div style="font-size:12px; color:var(--text-muted);">Defined by 'Main Character' prompts</div>
+                        </div>
+                    </label>
+                    <div style="height:1px; background:var(--border-subtle); margin:12px 0;"></div>
+                    ${castListHtml || '<div style="font-style:italic; color:var(--text-muted); padding:12px;">No other characters identified yet.</div>'}
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:12px;">
+                    <button id="sel-close" style="padding:10px; background:transparent; border:1px solid var(--border-subtle); border-radius:6px; cursor:pointer; color:var(--text-secondary);">Cancel</button>
+                    <button id="sel-go" style="padding:10px 20px; background:var(--accent); border:none; border-radius:6px; cursor:pointer; color:white; font-weight:600;">Generate Selected</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#sel-close').onclick = () => modal.remove();
+        modal.querySelector('#sel-go').onclick = () => {
+            // Gather selected
+            const selected = [];
+            modal.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                if (cb.value === 'Protagonist') {
+                    selected.push("Protagonist");
+                } else {
+                    selected.push(cb.value);
+                }
+            });
+
+            if (selected.length === 0) return alert("Please select at least one character.");
+
+            modal.remove();
+            A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, selected);
+        };
     }
 
     function showContextModal(session) {

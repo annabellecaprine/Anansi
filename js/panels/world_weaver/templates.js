@@ -72,7 +72,7 @@
         coreExperience: { label: 'Core Experience', weight: 20, icon: '🎯' },
         worldRules: { label: 'World Rules', weight: 20, icon: '⚙️' },
         setting: { label: 'Setting/Situation', weight: 15, icon: '🏔️' },
-        mainCharacter: { label: 'Main Character', weight: 15, icon: '👤' },
+        cast: { label: 'Cast & Characters', weight: 15, icon: '👥' },
         storyArc: { label: 'Story Arc', weight: 15, icon: '📖' },
         mechanics: { label: 'Mechanics', weight: 10, icon: '🎲' },
         guardrails: { label: 'Guardrails', weight: 5, icon: '🚧' }

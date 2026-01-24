@@ -864,6 +864,7 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
     label: 'Temple of Nabu',
     subtitle: 'AI Rule Generator',
     category: 'Sacred Tools',
+    order: 1,
     render: render
   });
 

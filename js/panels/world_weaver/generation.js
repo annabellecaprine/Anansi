@@ -28,6 +28,40 @@
     }
 
     /**
+     * Step 0: Focus Context (Create Dossier)
+     * Distills world context into a specific character dossier
+     * @param {Object} session - World Weaver session
+     * @param {string} targetName - Name of character to focus on
+     * @returns {string} - Focused context string
+     */
+    async function summarizeContextFor(session, targetName) {
+        const fullContext = buildContextSummary(session);
+        // Add recent chat history for specifics (last 20 messages)
+        const history = session.chatHistory.slice(-20).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+        const prompt = `Unify the world context and chat history into a focused dossier for a character named "${targetName}".
+        
+WORLD CONTEXT:
+${fullContext}
+
+RECENT CHAT:
+${history}
+
+Task: Extract every known fact, trait, relationship, and scenario detail about "${targetName}".
+If details are missing, infer them logically from the world context (e.g. if they are a "Knight", infer they have armor/duty).
+
+Return a concise summary (max 400 words) that will serve as the "Truth" for generating this character's profile. Do not include meta-text.`;
+
+        try {
+            const dossier = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.6 });
+            return `FOCUSED DOSSIER FOR ${targetName.toUpperCase()}:\n${dossier}\n\n(Derived from World Context)`;
+        } catch (e) {
+            console.warn("Focus Context failed, falling back to full context:", e);
+            return fullContext;
+        }
+    }
+
+    /**
      * Step 1: Generate character identity
      * @returns {Object} - { name, gender, pronouns, aliases, tags }
      */
@@ -349,7 +383,7 @@ Return ONLY this JSON keys for ${cat.id}:
      * Show progress modal for multi-step generation
      * @returns {Object} - Modal controller with methods
      */
-    function showProgressModal() {
+    function showProgressModal(retryCallback = null) {
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;';
 
@@ -452,9 +486,12 @@ Return ONLY this JSON keys for ${cat.id}:
 `;
 
                 modal.querySelector('#retry-step').onclick = () => {
-                    // TODO: Implement retry from specific step
-                    if (A.UI?.Toast?.show) A.UI.Toast.show('Retry functionality coming soon', 'info');
                     modal.remove();
+                    if (retryCallback && typeof retryCallback === 'function') {
+                        retryCallback(retryStep, partialData);
+                    } else {
+                        if (A.UI?.Toast?.show) A.UI.Toast.show('Retry not available', 'warning');
+                    }
                 };
 
                 modal.querySelector('#use-partial').onclick = () => {
@@ -508,13 +545,79 @@ Return ONLY this JSON:
     }
 
     /**
-     * Multi-step character generation orchestrator
+     * Show resume prompt when partial character exists
+     * @returns {Promise<{action: 'resume'|'fresh'|'cancel', partialData?: Object, resumeStep?: number}>}
      */
-    async function generateCharacterMultiStep(session, sessions) {
-        const character = {
-            id: `actor_${Date.now()}_${Math.random().toString(36).substr(2, 6)} `
+    function showResumePrompt(partialData) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;';
+
+            // Determine which step we're on based on what data exists
+            let resumeStep = 0;
+            if (partialData.name) resumeStep = 1; // Identity done
+            if (partialData.appearance) resumeStep = 2; // Appearance done
+            if (partialData.cardFields) resumeStep = 3; // Card done
+            if (partialData.quirks) resumeStep = 4; // Quirks done
+            if (partialData.notes) resumeStep = 5; // Notes done
+
+            const stepNames = ['Identity', 'Appearance', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
+            const completedSteps = stepNames.slice(0, resumeStep).join(', ') || 'None';
+
+            modal.innerHTML = `
+                <div style="background:var(--bg-surface); padding:28px; border-radius:12px; width:420px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+                        <span style="font-size:28px;">💾</span>
+                        <h3 style="margin:0; color:var(--text-primary); font-size:18px;">Resume Previous Generation?</h3>
+                    </div>
+                    
+                    <div style="background:var(--bg-elevated); padding:16px; border-radius:8px; margin-bottom:20px;">
+                        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">Found partial character:</div>
+                        <div style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">${partialData.name || 'Unnamed Character'}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Completed: ${completedSteps}</div>
+                        <div style="font-size:11px; color:var(--accent-primary); margin-top:4px;">Will resume at: Step ${resumeStep + 1} (${stepNames[resumeStep] || 'Complete'})</div>
+                    </div>
+                    
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button id="resume-cancel" class="btn btn-ghost" style="padding:8px 16px;">Cancel</button>
+                        <button id="resume-fresh" class="btn btn-secondary" style="padding:8px 16px;">🔄 Start Fresh</button>
+                        <button id="resume-continue" class="btn btn-primary" style="padding:8px 16px; background:var(--accent); color:white;">▶️ Resume</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('#resume-cancel').onclick = () => {
+                modal.remove();
+                resolve({ action: 'cancel' });
+            };
+
+            modal.querySelector('#resume-fresh').onclick = () => {
+                modal.remove();
+                sessionStorage.removeItem('ww_partial_character');
+                resolve({ action: 'fresh' });
+            };
+
+            modal.querySelector('#resume-continue').onclick = () => {
+                modal.remove();
+                resolve({ action: 'resume', partialData, resumeStep });
+            };
+        });
+    }
+
+    /**
+     * Run the 6-step pipeline for a single character
+     * @param {Object} session - Current world weaver session
+     * @param {string} contextSummary - Focused context for generation
+     * @param {Function} progressCallback - Called on each step (stepIdx, totalSteps, stepName) => boolean
+     * @param {number} startFromStep - Step index to resume from (default: 0)
+     * @param {Object} existingCharacter - Partial character to resume (default: new character)
+     */
+    async function runGenerationPipeline(session, contextSummary, progressCallback, startFromStep = 0, existingCharacter = null) {
+        const character = existingCharacter || {
+            id: `actor_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
         };
-        const contextSummary = buildContextSummary(session);
 
         const steps = [
             { name: 'Identity', fn: generateIdentity },
@@ -525,42 +628,156 @@ Return ONLY this JSON:
             { name: 'Cues', fn: generateCues }
         ];
 
-        const progressModal = showProgressModal();
+        for (let i = startFromStep; i < steps.length; i++) {
+            if (progressCallback && progressCallback(i, steps.length, steps[i].name) === false) return null;
 
-        try {
-            for (let i = 0; i < steps.length; i++) {
-                // Check for cancellation
-                if (progressModal.isCancelled()) {
-                    console.log('[WorldWeaver] Generation cancelled by user');
-                    return;
+            const step = steps[i];
+            const result = await step.fn(session, character, contextSummary);
+            Object.assign(character, result);
+
+            // Save partial state
+            sessionStorage.setItem('ww_partial_character', JSON.stringify(character));
+        }
+
+        return character;
+    }
+
+    /**
+     * Multi-step character generation orchestrator (Supports Batch)
+     */
+    async function generateCharacterMultiStep(session, sessions, targetList = []) {
+        const targets = targetList.length > 0 ? targetList : ["Protagonist"];
+        const isBatch = targets.length > 1;
+
+        // Check for partial character (resume detection) - only for single generation
+        let resumeState = null;
+        if (!isBatch) {
+            const partialRaw = sessionStorage.getItem('ww_partial_character');
+            if (partialRaw) {
+                try {
+                    const partialData = JSON.parse(partialRaw);
+                    const resumeChoice = await showResumePrompt(partialData);
+
+                    if (resumeChoice.action === 'cancel') {
+                        return; // User cancelled
+                    } else if (resumeChoice.action === 'resume') {
+                        resumeState = {
+                            character: resumeChoice.partialData,
+                            startStep: resumeChoice.resumeStep
+                        };
+                    }
+                    // 'fresh' action clears storage and continues with resumeState = null
+                } catch (e) {
+                    console.warn('[WorldWeaver] Could not parse partial character, starting fresh:', e);
+                    sessionStorage.removeItem('ww_partial_character');
+                }
+            }
+        }
+
+        // Track state for retry
+        let currentTargetIdx = 0;
+        let currentStep = resumeState?.startStep || 0;
+        let currentFocusedContext = null;
+
+        // Retry callback - called when user clicks "Retry Step X"
+        const retryCallback = async (failedStep, partialData) => {
+            console.log(`[WorldWeaver] Retrying from step ${failedStep} with partial:`, partialData);
+            // Recursively call with resume state
+            const retryResumeState = {
+                character: partialData,
+                startStep: failedStep
+            };
+            await runWithResumeState(retryResumeState);
+        };
+
+        // Main generation logic (extracted for reuse in retry)
+        async function runWithResumeState(rState) {
+            const progressModal = showProgressModal(retryCallback);
+            const results = [];
+            const startStep = rState?.startStep || 0;
+            const existingChar = rState?.character || null;
+
+            try {
+                for (let tIdx = currentTargetIdx; tIdx < targets.length; tIdx++) {
+                    currentTargetIdx = tIdx;
+                    const targetName = targets[tIdx].name || targets[tIdx];
+
+                    // Step 0: Focus Context (skip if resuming with context already cached)
+                    if (!currentFocusedContext || tIdx > 0 || !rState) {
+                        progressModal.updateStatus(0, isBatch ? `[${tIdx + 1}/${targets.length}] Analyzing ${targetName}...` : 'Analyzing context...');
+                        currentFocusedContext = await summarizeContextFor(session, targetName);
+                    }
+
+                    // Only use resume state for the first character in this run
+                    const useExistingChar = (tIdx === 0 && existingChar) ? existingChar : null;
+                    const useStartStep = (tIdx === 0 && rState) ? startStep : 0;
+
+                    const char = await runGenerationPipeline(
+                        session,
+                        currentFocusedContext,
+                        (stepIdx, totalSteps, stepName) => {
+                            if (progressModal.isCancelled()) return false;
+                            currentStep = stepIdx; // Track for error reporting
+
+                            const label = isBatch
+                                ? `[${tIdx + 1}/${targets.length}] ${targetName}: ${stepName}`
+                                : stepName;
+
+                            progressModal.updateStatus(stepIdx, label);
+                            return true;
+                        },
+                        useStartStep,
+                        useExistingChar
+                    );
+
+                    if (!char) { // Cancelled
+                        progressModal.close();
+                        return;
+                    }
+
+                    results.push(char);
                 }
 
-                const step = steps[i];
-                progressModal.updateStatus(i, step.name);
-                console.log(`[WorldWeaver] Step ${i + 1}/6: ${step.name}`);
+                sessionStorage.removeItem('ww_partial_character');
+                progressModal.close();
 
-                const result = await step.fn(session, character, contextSummary);
-                Object.assign(character, result);
+                // Handling Results
+                if (results.length === 1 && !isBatch) {
+                    showReviewModal(results[0], 'character', session);
+                } else {
+                    // Batch: Auto-import all results
+                    let importedCount = 0;
+                    results.forEach(char => {
+                        try {
+                            importGeneratedContent(char, 'character', session, A);
+                            importedCount++;
+                        } catch (e) {
+                            console.error(`Failed to import ${char.name}:`, e);
+                        }
+                    });
 
-                // Save partial state for recovery
-                sessionStorage.setItem('ww_partial_character', JSON.stringify(character));
+                    if (A.UI?.Toast?.show) {
+                        A.UI.Toast.show(`Batch Complete: Imported ${importedCount} characters!`, 'success');
+                    } else {
+                        alert(`Batch Generation Complete! Imported ${importedCount} characters into the Gallery.`);
+                    }
+                }
+
+            } catch (err) {
+                console.error('[WorldWeaver] Multi-step generation failed:', err);
+                // Get partial data from sessionStorage for retry
+                let partialData = null;
+                try {
+                    const raw = sessionStorage.getItem('ww_partial_character');
+                    partialData = raw ? JSON.parse(raw) : null;
+                } catch (e) { /* ignore */ }
+
+                progressModal.showError(err.message, { retryStep: currentStep, partialData });
             }
-
-            sessionStorage.removeItem('ww_partial_character');
-            progressModal.close();
-            showReviewModal(character, 'character', session);
-
-        } catch (err) {
-            console.error('[WorldWeaver] Multi-step generation failed:', err);
-            const lastStep = steps.findIndex((s, idx) => {
-                const key = s.name.toLowerCase().replace(' ', '');
-                return !character[key];
-            });
-            progressModal.showError(err.message, {
-                retryStep: lastStep >= 0 ? lastStep : steps.length - 1,
-                partialData: character
-            });
         }
+
+        // Start generation (with optional resume state)
+        await runWithResumeState(resumeState);
     }
 
     // ===================================================================
@@ -1013,7 +1230,16 @@ ${contextSummary}
     // Expose
     A.WorldWeaver.Generation = {
         handleGeneration,
-        generateCharacterMultiStep
+        generateCharacterMultiStep,
+        // Individual step functions (for testing)
+        generateIdentity,
+        generateAppearance,
+        generateCardFields,
+        generateQuirks,
+        generateNotes,
+        generateCues,
+        // Utility
+        importGeneratedContent
     };
 
 })(window.Anansi);
