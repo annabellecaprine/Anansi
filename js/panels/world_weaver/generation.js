@@ -518,8 +518,8 @@ Return ONLY this JSON keys for ${cat.id}:
 
                 const actionsEl = modal.querySelector('#progress-actions');
                 actionsEl.innerHTML = `
-    < button id = "retry-step" class="btn btn-secondary" style = "padding:8px 16px;" >🔄 Retry Step ${retryStep + 1}</button >
-        <button id="use-partial" class="btn btn-ghost" style="padding:8px 16px;">Use Partial Data</button>
+    <button id="retry-step" class="btn btn-secondary" style="padding:8px 16px;">🔄 Retry Step ${retryStep + 1}</button>
+    <button id="use-partial" class="btn btn-ghost" style="padding:8px 16px;">Use Partial Data</button>
 `;
 
                 modal.querySelector('#retry-step').onclick = () => {

@@ -17,6 +17,7 @@ All notable changes to Anansi will be documented in this file.
 
 - **System Fixes**:
   - FIX: **Tour.js Race Condition**: Fixed an issue (Firefox/Mobile) where the help tour highlight would appear off-screen due to layout race conditions. Added async positioning and scroll tracking for robust grounding.
+  - FIX: **World Weaver HTML Injection**: Resolved a bug where the "Retry Step" button was improperly rendered as raw text code `&lt; button` due to a malformed HTML tag in the error handler.
 
 ## v1.16.0 - 2026-01-24
 ### World Weaver Architecture (Phase 12)
@@ -36,7 +37,7 @@ All notable changes to Anansi will be documented in this file.
   - **Generation Context Fix**: Resolved a critical issue where the final character generation ignored the Scratchpad Notes, causing it to hallucinate details. It now explicitly consumes the full notes history.
   - **Generation Targeting**: Fixed an issue where the generator would mistakenly create a profile for the User Persona ("Elliot Harper") instead of the main NPC. It now explicitly targets the primary non-user character (e.g. Freya).
 
-
+v1.15.0 - 2026-01-24
 ### World Weaver Multi-Cast (Phase 8)
 - **Multi-Cast Management**: Full support for ensemble storytelling.
   - **Styles**: Toggle between "Protagonist" (Single) and "Ensemble" (Group) focus.
