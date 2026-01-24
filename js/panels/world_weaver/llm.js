@@ -15,6 +15,18 @@
         const CONTENT_RATINGS = T.CONTENT_RATINGS;
         const CATEGORIES = T.CATEGORIES;
 
+        // Initialize turn count
+        session.turnCount = (session.turnCount || 0) + 1;
+
+        // --- PAUSE & REFINE LOGIC (Every 5 turns) ---
+        if (session.turnCount > 1 && session.turnCount % 5 === 0) {
+            // Notify UI of "Thinking/Refining" state (Optimistic UI handles this via textContent update ideally, 
+            // but we can just do it blocking here).
+
+            await refineAllNotes(session);
+            // We continue to normal generation after refinement
+        }
+
         const template = GENRE_TEMPLATES.find(t => t.id === session.genre) || GENRE_TEMPLATES[5];
         const ratingInfo = CONTENT_RATINGS.find(r => r.id === session.contentRating) || CONTENT_RATINGS[0];
 
@@ -53,8 +65,11 @@
             contextParts.push(actorContext);
         }
 
-        // 3. Add chat history
-        session.chatHistory.forEach(msg => {
+        // 3. Add chat history (Sliding Window: Last 20 messages)
+        // We rely on the Scratchpad for older context.
+        const recentHistory = session.chatHistory.slice(-20);
+
+        recentHistory.forEach(msg => {
             if (msg.role === 'user') {
                 contextParts.push(`USER: ${msg.content}`);
             } else if (msg.role === 'assistant') {
@@ -338,6 +353,70 @@ Please evaluate and generate questions.`;
         } catch (err) {
             console.error('[WorldWeaver] Evaluation failed:', err);
             throw err;
+        }
+    }
+
+    async function refineAllNotes(session) {
+        console.log('[WorldWeaver] Triggering Scratchpad Refinement...');
+
+        // Collect all notes
+        let noteContent = '';
+        const categoriesWithNotes = [];
+
+        Object.entries(session.categories).forEach(([key, data]) => {
+            if (data.notes && data.notes.trim()) {
+                noteContent += `\n[${key.toUpperCase()}]:\n${data.notes}\n`;
+                categoriesWithNotes.push(key);
+            }
+        });
+
+        if (!noteContent.trim()) return; // Nothing to refine
+
+        const prompt = `You are a meticulous Editor organizing a writer's messy notes.
+The following are raw notes from a world-building session. They contain duplicate repetitions, scattered thoughts, and phrasing inconsistencies.
+
+YOUR TASK:
+1. Consolidate specific facts. (e.g. merge "He likes cats" and "He loves felines")
+2. Remove EXACT duplicates or near-duplicates.
+3. Keep the content organized by Category headers [CATEGORY].
+4. Maintain the bullet-point format.
+5. Do NOT remove unique details. Only clean up redundancy.
+
+RAW NOTES:
+${noteContent}
+
+Return the CLEANED notes in the exact same format (Category Headers + Bullets).`;
+
+        try {
+            const refinedText = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.3 });
+
+            // Parse back into categories (Simple heuristic parsing)
+            // We assume the LLM respects the [HEADER] format.
+            const sections = refinedText.split(/\[([A-Z]+)\]:/i);
+            // sections[0] is preamble (empty), [1] is key, [2] is content, [3] is key...
+
+            for (let i = 1; i < sections.length; i += 2) {
+                const keyName = sections[i].toLowerCase(); // e.g. "COREEXPERIENCE"
+                const content = sections[i + 1].trim();
+
+                // Find matching session key
+                const sessionKey = Object.keys(session.categories).find(k => k.toLowerCase() === keyName);
+                if (sessionKey) {
+                    session.categories[sessionKey].notes = content;
+                }
+            }
+
+            // Add a meta-message to history so user knows
+            session.chatHistory.push({
+                role: 'assistant',
+                content: "*(I took a moment to organize the world notes and remove duplicates.)*",
+                timestamp: Date.now(),
+                isMeta: true
+            });
+
+        } catch (e) {
+            console.warn('[WorldWeaver] Refinement failed:', e);
+            // Fail silently, keep old notes
         }
     }
 
