@@ -8,6 +8,566 @@
 
     A.WorldWeaver = A.WorldWeaver || {};
 
+    // ===================================================================
+    // MULTI-STEP CHARACTER GENERATION (Phase 7)
+    // ===================================================================
+
+    /**
+     * Build context summary from session categories
+     * @param {Object} session - World Weaver session
+     * @returns {string} - Formatted context summary
+     */
+    function buildContextSummary(session) {
+        const T = A.WorldWeaver.Templates;
+        if (!T) return '';
+
+        return Object.entries(session.categories)
+            .filter(([_, cat]) => cat.summary)
+            .map(([key, cat]) => `## ${T.CATEGORIES[key]?.label || key}\n${cat.summary}`)
+            .join('\n\n');
+    }
+
+    /**
+     * Step 1: Generate character identity
+     * @returns {Object} - { name, gender, pronouns, aliases, tags }
+     */
+    async function generateIdentity(session, character, contextSummary) {
+        const T = A.WorldWeaver.Templates;
+        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
+
+        const prompt = `You are a character designer for a ${genre.label} story.
+Generate ONLY the identity fields for this character.
+
+${contextSummary ? `Context:\n${contextSummary}` : 'No context provided yet - create a compelling character.'}
+
+Return ONLY this JSON:
+{
+  "name": "Full Name",
+  "gender": "Male|Female|Neutral",
+  "pronouns": "he/him|she/her|they/them",
+  "aliases": ["Nickname1", "Title"],
+  "tags": ["AURA_TAG1", "AURA_TAG2", "AURA_TAG3"]
+}
+
+AURA tags should reflect personality archetypes (e.g., NOBLE, SARCASTIC, WOUNDED, TACTICAL, CHEERFUL, MYSTERIOUS).`;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.7 });
+                return A.JSONRepair.repairAndParse(response);
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Identity generation failed: ${e.message}`);
+            }
+        }
+    }
+
+    /**
+     * Step 2: Generate character appearance
+     * @returns {Object} - { appearance: { hair, eyes, build, description, appendages } }
+     */
+    async function generateAppearance(session, character, contextSummary) {
+        const T = A.WorldWeaver.Templates;
+        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
+        const isFantasy = ['fantasy', 'scifi'].includes(session.genre);
+
+        // Get pronouns for consistent pronoun usage
+        const pronouns = character.pronouns || 'they/them';
+        const pronounParts = pronouns.split('/');
+        const subjective = pronounParts[0] || 'they'; // he/she/they
+        const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
+
+        const prompt = `You are designing the appearance for ${character.name}, a ${character.gender || 'character'} in a ${genre.label} story.
+Character uses ${pronouns} pronouns.
+Character tags: ${(character.tags || []).join(', ')}
+
+${contextSummary ? `Context:\n${contextSummary}` : ''}
+
+Generate ONLY appearance details. Use ${subjective}/${possessive} pronouns consistently in the description.
+
+Return ONLY this JSON:
+{
+  "hair": "Hair style and color",
+  "eyes": "Eye color and notable features",
+  "build": "Body type and physique",
+  "description": "2-3 sentences describing overall appearance, scars, distinguishing features (use ${subjective}/${possessive} pronouns)",
+  "appendages": { "ears": { "present": false }, "tail": { "present": false }, "wings": { "present": false }, "horns": { "present": false } }
+}
+
+For fantasy/sci-fi/supernatural characters (including hybrids, imps, demons, etc), set relevant appendages to present:true and ADD a "style" description (e.g. "pointed", "leathery").
+For realistic human characters, keep all appendages present:false.`;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return { appearance: result };
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Appearance generation failed: ${e.message}`);
+            }
+        }
+    }
+
+    /**
+     * Step 3: Generate character card fields
+     * @returns {Object} - { cardFields: { personality, description, scenario, firstMessage, mes_example } }
+     */
+    async function generateCardFields(session, character, contextSummary) {
+        const appearance = character.appearance || {};
+        const appearanceDesc = `${appearance.build || 'average build'}, ${appearance.hair || 'hair'}, ${appearance.eyes || 'eyes'} `;
+
+        // Get pronouns for consistent usage
+        const pronouns = character.pronouns || 'they/them';
+        const pronounParts = pronouns.split('/');
+        const subjective = pronounParts[0] || 'they';
+        const objective = pronounParts.length > 1 ? (subjective === 'he' ? 'him' : subjective === 'she' ? 'her' : 'them') : 'them';
+        const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
+
+        const prompt = `You are writing a character card for ${character.name}.
+            Identity: ${character.gender || 'Neutral'} (${pronouns})
+        Appearance: ${appearanceDesc}
+        Tags: ${(character.tags || []).join(', ')}
+
+${contextSummary ? `World Context:\n${contextSummary}` : ''}
+
+        IMPORTANT: Use ${subjective} /${objective}/${possessive} pronouns CONSISTENTLY throughout all fields.
+
+Generate the character card fields.
+
+Return ONLY this JSON:
+        {
+            "personality": "2-3 paragraphs describing personality, demeanor, quirks, and behavior patterns (use ${subjective}/${possessive} pronouns)",
+                "description": "Full character description including background, motivations, and current situation (use ${subjective}/${possessive} pronouns)",
+                    "scenario": "The setting and context for interactions with this character",
+                        "firstMessage": "An opening line or action from ${character.name} to start a conversation",
+                            "mes_example": "<START>\\n{{char}}: Example line from ${character.name}\\n{{user}}: Example response\\n{{char}}: Another line"
+        } `;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return { cardFields: result };
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Card fields generation failed: ${e.message} `);
+            }
+        }
+    }
+
+    /**
+     * Step 4: Generate character quirks
+     * @returns {Object} - { quirks: { activationChance, physical, mental, emotional } }
+     */
+    async function generateQuirks(session, character, contextSummary) {
+        // Get pronouns for template instructions
+        const pronouns = character.pronouns || 'they/them';
+        const pronounParts = pronouns.split('/');
+        const subjective = pronounParts[0] || 'they';
+        const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
+
+        const prompt = `Generate behavioral quirks for ${character.name}(${character.gender || 'character'}, ${pronouns}).
+            Tags: ${(character.tags || []).join(', ')}
+
+Quirks are small, character - defining mannerisms triggered by AURA emotional tags.
+
+IMPORTANT TEMPLATE USAGE:
+        - {{ name }
+    } will be replaced with "${character.name}"
+    - {{ pos }
+} will be replaced with "${possessive}"(possessive pronoun)
+- Use third person(${subjective} / ${possessive}) when describing actions
+
+Examples:
+- Physical: "{{name}}'s hand moves to {{pos}} weapon" → "${character.name}'s hand moves to ${possessive} weapon"
+    - Mental: "{{name}} mentally catalogues exits" → "${character.name} mentally catalogues exits"
+        - Emotional: "{{pos}} voice softens" → "${possessive} voice softens"
+
+Return ONLY this JSON:
+{
+    "activationChance": 20,
+        "physical": [
+            { "text": "{{name}} does something physical", "tags": ["TAG1"] }
+        ],
+            "mental": [
+                { "text": "{{name}} thinks or realizes something", "tags": ["TAG2"] }
+            ],
+                "emotional": [
+                    { "text": "{{name}}'s emotion shows subtly", "tags": ["TAG3"] }
+                ]
+}
+
+Generate 1 - 2 quirks per category.Each quirk MUST have 1 - 2 tags from this EXACT list(NO other tags allowed):
+JOY, SADNESS, ANGER, FEAR, DISGUST, SURPRISE, TRUST, ANTICIPATION, LOVE, AWE, CONTEMPT, OPTIMISM, QUESTION, COMMAND, STATEMENT, GREETING, FAREWELL, ROMANCE, TENSION, CONFLICT, NARRATIVE, DISCLOSURE
+
+Do NOT use: DANGER, HAPPY, SCARED, or any other tags not in the above list.`;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 1536, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return { quirks: result };
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Quirks generation failed: ${e.message} `);
+            }
+        }
+    }
+
+    /**
+     * Step 5: Generate internal notes
+     * @returns {Object} - { notes: string }
+     */
+    async function generateNotes(session, character, contextSummary) {
+        const prompt = `Summarize ${character.name} in 2 - 3 sentences for internal notes.
+Focus on: role in the story, key conflicts, and relationship dynamics.
+
+Character summary:
+- Name: ${character.name}
+- Tags: ${(character.tags || []).join(', ')}
+- Personality: ${character.cardFields?.personality?.substring(0, 200) || 'Not yet defined'}
+
+Return ONLY this JSON:
+{
+    "content": "Internal notes here."
+} `;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 512, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return { notes: result.content };
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Notes generation failed: ${e.message} `);
+            }
+        }
+    }
+
+    /**
+     * Step 6: Generate cues (PULSE, EROS, INTENT)
+     * @returns {Object} - Updated traits with pulseCues, erosCues, intentCues
+     */
+    async function generateCues(session, character, contextSummary) {
+        const appearance = character.appearance || {};
+        const appendages = appearance.appendages || {};
+
+        // Determine which appendages are present
+        const presentAppendages = [];
+        ['ears', 'tail', 'wings', 'horns'].forEach(part => {
+            if (appendages[part]?.present) {
+                presentAppendages.push(part);
+            }
+        });
+
+        const hasAppendages = presentAppendages.length > 0;
+        const pronouns = character.pronouns || 'they/them';
+        const pronounParts = pronouns.split('/');
+        const subjective = pronounParts[0] || 'they';
+        const possessive = pronounParts.length > 1 ? (pronounParts[0] === 'he' ? 'his' : pronounParts[0] === 'she' ? 'her' : 'their') : 'their';
+
+        const appendageFields = hasAppendages ? presentAppendages.map(p => `"${p}": ""`).join(', ') : '';
+
+        const categories = [
+            { id: 'pulseCues', name: 'PULSE (Emotional)', items: 'joy, sadness, anger, fear, romance, neutral, confusion, positive, negative', example: '"joy": { "basic": "..." }' },
+            { id: 'erosCues', name: 'EROS (Intimacy)', items: 'platonic, tension, romance, physical, passion, explicit, conflict, aftercare', example: '"platonic": { "basic": "..." }' },
+            { id: 'intentCues', name: 'INTENT (Actions)', items: 'question, disclosure, command, promise, conflict, smalltalk, meta, narrative', example: '"question": { "basic": "..." }' }
+        ];
+
+        const generatedTraits = {
+            pulseCues: {},
+            erosCues: {},
+            intentCues: {}
+        };
+
+        // Helper to generate one category
+        const generateCategory = async (cat) => {
+            const prompt = `Generate ${cat.name} cues for ${character.name} (${character.gender || 'character'}, ${pronouns}).
+            
+Context:
+- Personality: ${character.cardFields?.personality?.substring(0, 150) || 'Not defined'}
+${hasAppendages ? `- Has: ${presentAppendages.join(', ')}` : ''}
+
+Items to generate: ${cat.items}
+
+Format:
+- "basic": General behavior. Use "${character.name}" frequently instead of just pronouns. Write complete sentences.
+${hasAppendages ? presentAppendages.map(p => `- "${p}": How ${possessive} ${p} react (e.g., "${character.name}'s ${p} twitch")`).join('\n') : ''}
+
+Return ONLY this JSON keys for ${cat.id}:
+{
+  "${cat.id}": {
+     ${cat.example}
+     ... (generate all items: ${cat.items})
+  }
+}`;
+
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return result[cat.id] || {};
+            } catch (e) {
+                console.error(`Failed to generate ${cat.name}:`, e);
+                return {};
+            }
+        };
+
+        // Execute distinct calls (Sequential to avoid rate limits)
+        for (const cat of categories) {
+            generatedTraits[cat.id] = await generateCategory(cat);
+        }
+
+        return {
+            pulseCues: generatedTraits.pulseCues,
+            erosCues: generatedTraits.erosCues,
+            intentCues: generatedTraits.intentCues
+        };
+    }
+
+    /**
+     * Show progress modal for multi-step generation
+     * @returns {Object} - Modal controller with methods
+     */
+    function showProgressModal() {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;';
+
+        modal.innerHTML = `
+            <div style="background:var(--bg-surface); padding:32px; border-radius:12px; width:450px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                    <span style="font-size:28px;">🕸️</span>
+                    <h3 style="margin:0; color:var(--text-primary); font-size:18px;">Generating Character</h3>
+                </div>
+                
+                <div id="progress-steps" style="margin:20px 0; display:flex; flex-direction:column; gap:12px;"></div>
+                
+                <div id="progress-status" style="color:var(--text-muted); font-size:13px; margin-top:16px; padding:12px; background:var(--bg-elevated); border-radius:6px; min-height:20px;"></div>
+                
+                <div id="progress-error" style="display:none; margin-top:16px; padding:12px; background:var(--status-error-bg, rgba(239,68,68,0.1)); border:1px solid var(--status-error); border-radius:6px; color:var(--status-error);"></div>
+                
+                <div id="progress-actions" style="margin-top:20px; display:flex; gap:8px; justify-content:flex-end;">
+                    <button id="progress-cancel" class="btn btn-ghost" style="padding:8px 16px;">Cancel</button>
+                </div>
+            </div>
+    `;
+
+        document.body.appendChild(modal);
+
+        const steps = ['Identity', 'Appearance', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
+        const stepsEl = modal.querySelector('#progress-steps');
+
+        stepsEl.innerHTML = steps.map((s, i) => `
+            <div class="step-item" data-idx="${i}" style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--bg-elevated); border-radius:6px; border:1px solid var(--border-subtle); transition:all 0.3s ease;">
+                <span class="step-icon" style="font-size:20px; flex-shrink:0;">⏳</span>
+                <span style="flex:1; font-size:14px; color:var(--text-secondary);">${s}</span>
+                <span class="step-status" style="font-size:11px; color:var(--text-muted); opacity:0;"></span>
+            </div>
+    `).join('');
+
+        let cancelled = false;
+
+        modal.querySelector('#progress-cancel').onclick = () => {
+            if (confirm('Cancel character generation? Progress will be lost.')) {
+                cancelled = true;
+                sessionStorage.removeItem('ww_partial_character');
+                modal.remove();
+            }
+        };
+
+        return {
+            updateStatus: (stepIdx, stepName) => {
+                modal.querySelectorAll('.step-item').forEach((el, i) => {
+                    const icon = el.querySelector('.step-icon');
+                    const status = el.querySelector('.step-status');
+
+                    if (i < stepIdx) {
+                        // Completed steps
+                        icon.textContent = '✓';
+                        el.style.borderColor = 'var(--accent-primary)';
+                        el.style.background = 'var(--bg-surface)';
+                        status.textContent = 'Complete';
+                        status.style.opacity = '1';
+                        status.style.color = 'var(--accent-primary)';
+                    } else if (i === stepIdx) {
+                        // Current step
+                        icon.textContent = '⟳';
+                        el.style.borderColor = 'var(--accent-primary)';
+                        el.style.background = 'var(--accent-soft, var(--bg-surface))';
+                        el.style.boxShadow = '0 0 0 2px rgba(99,102,241,0.1)';
+                        status.textContent = 'Working...';
+                        status.style.opacity = '1';
+                        status.style.color = 'var(--accent-primary)';
+                    } else {
+                        // Pending steps
+                        icon.textContent = '⏳';
+                        el.style.borderColor = 'var(--border-subtle)';
+                        el.style.background = 'var(--bg-elevated)';
+                        el.style.boxShadow = 'none';
+                        status.textContent = '';
+                        status.style.opacity = '0';
+                    }
+                });
+
+                modal.querySelector('#progress-status').innerHTML = `<strong>Step ${stepIdx + 1}/6:</strong> ${stepName}...`;
+            },
+
+            showError: (message, { retryStep, partialData }) => {
+                const errorEl = modal.querySelector('#progress-error');
+                errorEl.style.display = 'block';
+                errorEl.innerHTML = `
+                    <div style="display:flex; align-items:start; gap:8px;">
+                        <span style="font-size:18px;">❌</span>
+                        <div style="flex:1;">
+                            <div style="font-weight:600; margin-bottom:4px;">Generation Failed</div>
+                            <div style="font-size:12px; opacity:0.9;">${message}</div>
+                        </div>
+                    </div>
+    `;
+
+                const actionsEl = modal.querySelector('#progress-actions');
+                actionsEl.innerHTML = `
+    < button id = "retry-step" class="btn btn-secondary" style = "padding:8px 16px;" >🔄 Retry Step ${retryStep + 1}</button >
+        <button id="use-partial" class="btn btn-ghost" style="padding:8px 16px;">Use Partial Data</button>
+`;
+
+                modal.querySelector('#retry-step').onclick = () => {
+                    // TODO: Implement retry from specific step
+                    if (A.UI?.Toast?.show) A.UI.Toast.show('Retry functionality coming soon', 'info');
+                    modal.remove();
+                };
+
+                modal.querySelector('#use-partial').onclick = () => {
+                    modal.remove();
+                    // Show review modal with partial data
+                    showReviewModal(partialData, 'character', null);
+                    sessionStorage.removeItem('ww_partial_character');
+                };
+            },
+
+            close: () => {
+                modal.remove();
+            },
+
+            isCancelled: () => cancelled
+        };
+    }
+
+    /**
+     * Step 5: Generate internal notes
+     * @returns {Object} - { notes: string }
+     */
+    async function generateNotes(session, character, contextSummary) {
+        const prompt = `Summarize ${character.name} in 2 - 3 sentences for internal notes.
+Focus on: role in the story, key conflicts, and relationship dynamics.
+
+Character summary:
+- Name: ${character.name}
+- Tags: ${(character.tags || []).join(', ')}
+- Personality: ${character.cardFields?.personality?.substring(0, 200) || 'Not yet defined'}
+
+Return ONLY this JSON:
+{
+    "content": "Internal notes here."
+} `;
+
+        let attempts = 0;
+        while (attempts <= 2) {
+            try {
+                const response = await A.LLM.generate(prompt, [], { maxTokens: 512, temperature: 0.7 });
+                const result = A.JSONRepair.repairAndParse(response);
+                return { notes: result.content };
+            } catch (e) {
+                if (attempts < 2) {
+                    attempts++;
+                    continue;
+                }
+                throw new Error(`Notes generation failed: ${e.message} `);
+            }
+        }
+    }
+
+    /**
+     * Multi-step character generation orchestrator
+     */
+    async function generateCharacterMultiStep(session, sessions) {
+        const character = {
+            id: `actor_${Date.now()}_${Math.random().toString(36).substr(2, 6)} `
+        };
+        const contextSummary = buildContextSummary(session);
+
+        const steps = [
+            { name: 'Identity', fn: generateIdentity },
+            { name: 'Appearance', fn: generateAppearance },
+            { name: 'Card Fields', fn: generateCardFields },
+            { name: 'Quirks', fn: generateQuirks },
+            { name: 'Notes', fn: generateNotes },
+            { name: 'Cues', fn: generateCues }
+        ];
+
+        const progressModal = showProgressModal();
+
+        try {
+            for (let i = 0; i < steps.length; i++) {
+                // Check for cancellation
+                if (progressModal.isCancelled()) {
+                    console.log('[WorldWeaver] Generation cancelled by user');
+                    return;
+                }
+
+                const step = steps[i];
+                progressModal.updateStatus(i, step.name);
+                console.log(`[WorldWeaver] Step ${i + 1}/6: ${step.name}`);
+
+                const result = await step.fn(session, character, contextSummary);
+                Object.assign(character, result);
+
+                // Save partial state for recovery
+                sessionStorage.setItem('ww_partial_character', JSON.stringify(character));
+            }
+
+            sessionStorage.removeItem('ww_partial_character');
+            progressModal.close();
+            showReviewModal(character, 'character', session);
+
+        } catch (err) {
+            console.error('[WorldWeaver] Multi-step generation failed:', err);
+            const lastStep = steps.findIndex((s, idx) => {
+                const key = s.name.toLowerCase().replace(' ', '');
+                return !character[key];
+            });
+            progressModal.showError(err.message, {
+                retryStep: lastStep >= 0 ? lastStep : steps.length - 1,
+                partialData: character
+            });
+        }
+    }
+
+    // ===================================================================
+    // LEGACY SINGLE-STEP GENERATION
+    // ===================================================================
+
+
     async function handleGeneration(session, sessions, type) {
         // Dependencies
         const T = A.WorldWeaver.Templates;
@@ -240,51 +800,81 @@ ${contextSummary}
     }
 
     function renderCharacterPreview(data) {
+        // Access nested fields properly
+        const cardFields = data.cardFields || {};
+        const appearance = data.appearance || {};
+        const quirks = data.quirks || {};
+
         return `
             <div style="display: flex; gap: 24px;">
                 <div style="flex: 0 0 200px; display: flex; flex-direction: column; gap: 12px;">
                     <div style="width: 100%; aspect-ratio: 2/3; background: var(--bg-dark); border: 2px dashed var(--border-subtle); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
                         No Avatar
                     </div>
+                    ${data.tags ? `
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            ${data.tags.map(t => `
+                                <span style="background: var(--accent-primary); color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase;">${t}</span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
                     <div>
                         <div style="font-size: 12px; color: var(--accent); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Name</div>
-                        <div contenteditable="true" data-field="name" style="font-size: 24px; font-weight: 700; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 4px;">${data.name}</div>
+                        <div contenteditable="true" data-field="name" style="font-size: 24px; font-weight: 700; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 4px;">${data.name || 'Unnamed'}</div>
                     </div>
                     
-                    <div>
-                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Description</div>
-                        <div contenteditable="true" data-field="description" style="color: var(--text-secondary); line-height: 1.5; border: 1px transparent solid; padding: 4px; border-radius: 4px;">${data.description}</div>
+                    ${data.gender || data.pronouns ? `
+                    <div style="display: flex; gap: 16px;">
+                        ${data.gender ? `<div style="font-size: 12px;"><span style="color: var(--text-muted);">Gender:</span> ${data.gender}</div>` : ''}
+                        ${data.pronouns ? `<div style="font-size: 12px;"><span style="color: var(--text-muted);">Pronouns:</span> ${data.pronouns}</div>` : ''}
                     </div>
-
+                    ` : ''}
+                    
+                    ${appearance.hair || appearance.eyes || appearance.build ? `
                     <div>
-                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Traits</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                            ${(data.traits || []).map(t => `
-                                <span style="background: var(--bg-base); padding: 4px 12px; border-radius: 12px; font-size: 12px; border: 1px solid var(--border-subtle);">${t}</span>
-                            `).join('')}
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Appearance</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${[appearance.hair, appearance.eyes, appearance.build].filter(Boolean).join(' • ')}
                         </div>
                     </div>
+                    ` : ''}
+                    
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Personality</div>
+                        <div contenteditable="true" data-field="personality" style="color: var(--text-secondary); line-height: 1.5; border: 1px transparent solid; padding: 4px; border-radius: 4px;">${cardFields.personality || 'Not provided'}</div>
+                    </div>
 
                     <div>
-                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Summary</div>
-                        <div contenteditable="true" data-field="summary" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); white-space: pre-wrap; line-height: 1.6;">${data.summary}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Description</div>
+                        <div contenteditable="true" data-field="description" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); white-space: pre-wrap; line-height: 1.6;">${cardFields.description || 'Not provided'}</div>
                     </div>
                     
                     <div>
                         <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Scenario (Context & Rules)</div>
-                        <div contenteditable="true" data-field="scenario" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 12px;">${data.scenario || ''}</div>
+                        <div contenteditable="true" data-field="scenario" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 12px;">${cardFields.scenario || 'Not provided'}</div>
                     </div>
 
                     <div>
                         <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">First Message (Opening)</div>
-                        <div contenteditable="true" data-field="first_message" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); font-style: italic;">${data.first_message || ''}</div>
+                        <div contenteditable="true" data-field="firstMessage" style="background: var(--bg-base); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle); font-style: italic;">${cardFields.firstMessage || 'Not provided'}</div>
                     </div>
+                    
+                    ${quirks && (quirks.physical?.length || quirks.mental?.length || quirks.emotional?.length) ? `
+                    <div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Quirks</div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                            ${quirks.physical?.map(q => `<div>💪 ${q.text} <span style="color: var(--text-muted); font-size: 10px;">(${q.tags.join(', ')})</span></div>`).join('') || ''}
+                            ${quirks.mental?.map(q => `<div>🧠 ${q.text} <span style="color: var(--text-muted); font-size: 10px;">(${q.tags.join(', ')})</span></div>`).join('') || ''}
+                            ${quirks.emotional?.map(q => `<div>❤️ ${q.text} <span style="color: var(--text-muted); font-size: 10px;">(${q.tags.join(', ')})</span></div>`).join('') || ''}
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <div>
                         <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Notes</div>
-                        <div contenteditable="true" data-field="notes" style="font-style: italic; color: var(--text-muted);">${data.notes}</div>
+                        <div contenteditable="true" data-field="notes" style="font-style: italic; color: var(--text-muted);">${data.notes || 'No notes'}</div>
                     </div>
                 </div>
             </div>
@@ -319,23 +909,57 @@ ${contextSummary}
             const actorId = `char_${Date.now()}`;
             const finalId = data.id || actorId;
 
+            // Extract nested fields properly
+            const cardFields = data.cardFields || {};
+            const appearance = data.appearance || {};
+            const quirks = data.quirks || { activationChance: 20, physical: [], mental: [], emotional: [] };
+
             const newActor = {
                 id: finalId,
                 name: data.name || 'Unnamed',
-                description: data.description || '',
-                summary: data.summary || '',
-                traits: data.traits || [],
+
+                // Identity fields
+                gender: data.gender || 'N',
+                pronouns: data.pronouns || 'they/them',
+                aliases: data.aliases || [],
+                tags: data.tags || ['Generated', 'WorldWeaver'],
+
+                // Card fields (nested in cardFields object)
+                cardFields: {
+                    personality: cardFields.personality || '',
+                    description: cardFields.description || '',
+                    scenario: cardFields.scenario || '',
+                    firstMessage: cardFields.firstMessage || '',
+                    mes_example: cardFields.mes_example || ''
+                },
+
+                // Appearance (nested in traits.appearance)
+                traits: {
+                    appearance: {
+                        hair: appearance.hair || '',
+                        eyes: appearance.eyes || '',
+                        build: appearance.build || '',
+                        description: appearance.description || '',
+                        appendages: appearance.appendages || {}
+                    },
+                    pulseCues: data.pulseCues || {},
+                    erosCues: data.erosCues || {},
+                    intentCues: data.intentCues || {}
+                },
+
+                // Quirks system
+                quirks: {
+                    activationChance: quirks.activationChance || 20,
+                    physical: quirks.physical || [],
+                    mental: quirks.mental || [],
+                    emotional: quirks.emotional || []
+                },
+
+                // Metadata
                 notes: data.notes || '',
-                gender: data.gender || 'unknown',
+                gallery: { primary: null, showNsfw: false, images: [] },
                 type: 'character',
-                system_prompt: '',
-                post_history_instructions: '',
-                creator_notes: `Generated by World Weaver from session: ${session.name}`,
-                tags: ['Generated', 'WorldWeaver'],
-                alternate_greetings: [],
-                avatar: '',
-                scenario: data.scenario || '',
-                first_message: data.first_message || ''
+                creator_notes: `Generated by World Weaver from session: ${session?.name || 'Unknown'}`
             };
 
             if (!state.nodes.actors) state.nodes.actors = { items: {} };
@@ -388,7 +1012,8 @@ ${contextSummary}
 
     // Expose
     A.WorldWeaver.Generation = {
-        handleGeneration
+        handleGeneration,
+        generateCharacterMultiStep
     };
 
 })(window.Anansi);

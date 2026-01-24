@@ -178,6 +178,7 @@ Please evaluate and generate questions.`;
             let parsed;
             let attempts = 0;
             const maxAttempts = 2; // Initial + 1 retry
+            let history = [{ role: 'user', content: userMessage }];
 
             while (attempts <= maxAttempts) {
                 try {

@@ -18,9 +18,14 @@
             if (!str) return str;
             let repaired = str;
 
-            // 1. Strip <think> blocks (Chain of Thought)
-            repaired = repaired.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-            if (repaired.includes('<think>')) repaired = repaired.split('<think>')[0].trim();
+            // 1. Strip <think> blocks (Chain of Thought) - Handles think, thinking, thought, thoughts
+            repaired = repaired.replace(/<(?:think|thinking|thought|thoughts)>[\s\S]*?<\/(?:think|thinking|thought|thoughts)>/gi, '').trim();
+
+            // Handle unclosed tags (truncating efficiently)
+            const openTagMatch = repaired.match(/<(?:think|thinking|thought|thoughts)>/i);
+            if (openTagMatch) {
+                repaired = repaired.substring(0, openTagMatch.index).trim();
+            }
 
             // 2. Extract JSON block (handles markdown code blocks or first/last braces)
             const jsonMatch = repaired.match(/```(?:json)?\s*([\s\S]*?)```/) || repaired.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);

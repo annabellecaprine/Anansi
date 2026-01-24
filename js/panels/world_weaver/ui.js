@@ -549,8 +549,14 @@
 
         modal.querySelectorAll('.gen-opt').forEach(btn => {
             btn.onclick = () => {
-                // Call Generation Module
-                A.WorldWeaver.Generation.handleGeneration(session, sessions, btn.dataset.type);
+                const type = btn.dataset.type;
+                // Use multi-step pipeline for character generation
+                if (type === 'character') {
+                    A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions);
+                } else {
+                    // Legacy single-step for world/export
+                    A.WorldWeaver.Generation.handleGeneration(session, sessions, type);
+                }
                 modal.remove();
             };
         });
