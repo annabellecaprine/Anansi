@@ -57,8 +57,16 @@
         session.chatHistory.forEach(msg => {
             if (msg.role === 'user') {
                 contextParts.push(`USER: ${msg.content}`);
-            } else if (msg.role === 'assistant' && msg.content) {
-                contextParts.push(`ESTABLISHED: ${msg.content}`);
+            } else if (msg.role === 'assistant') {
+                let text = `ESTABLISHED: ${msg.content}`;
+                // Include questions so the AI knows what it asked
+                if (msg.questionsList && msg.questionsList.length > 0) {
+                    const qText = msg.questionsList.map(q => q.text).join(' | ');
+                    text += `\n(Asked: ${qText})`;
+                } else if (msg.question) {
+                    text += `\n(Asked: ${msg.question})`;
+                }
+                contextParts.push(text);
             }
         });
 
