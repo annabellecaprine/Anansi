@@ -60,8 +60,8 @@
             } else if (msg.role === 'assistant') {
                 let text = `ESTABLISHED: ${msg.content}`;
                 // Include questions so the AI knows what it asked
-                if (msg.questionsList && msg.questionsList.length > 0) {
-                    const qText = msg.questionsList.map(q => q.text).join(' | ');
+                if (msg.questions && msg.questions.length > 0) {
+                    const qText = msg.questions.map(q => q.text).join(' | ');
                     text += `\n(Asked: ${qText})`;
                 } else if (msg.question) {
                     text += `\n(Asked: ${msg.question})`;
@@ -313,7 +313,7 @@ Please evaluate and generate questions.`;
                 question: parsed.questions?.[0]?.text || null,
                 // Internal metadata
                 analysis: parsed.analysis,
-                questionsList: parsed.questions,
+                questions: parsed.questions,
                 deepMiningPoint: parsed.deepMiningPoint
             });
 
