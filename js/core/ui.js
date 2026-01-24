@@ -76,6 +76,7 @@
                 btnBuild: document.getElementById('btn-build'),
                 btnTheme: document.getElementById('btn-theme'),
                 btnSave: document.getElementById('btn-save'),
+                btnApiConfig: document.getElementById('btn-api-config'),
 
                 // Displays
                 displayName: document.getElementById('display-project-name'),
@@ -171,6 +172,11 @@
             };
 
             this.els.btnTheme.onclick = () => UI.toggleTheme();
+            if (this.els.btnApiConfig) {
+                this.els.btnApiConfig.onclick = () => {
+                    if (A.UI.showApiKeyManager) A.UI.showApiKeyManager();
+                };
+            }
             this.els.btnSave.onclick = () => {
                 A.IO.save(A.State.get());
                 if (A.UI.Toast) A.UI.Toast.show('Project saved!', 'success');

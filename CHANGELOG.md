@@ -19,6 +19,9 @@ All notable changes to Anansi will be documented in this file.
   - FIX: **Tour.js Race Condition**: Fixed an issue (Firefox/Mobile) where the help tour highlight would appear off-screen due to layout race conditions. Added async positioning and scroll tracking for robust grounding.
   - FIX: **World Weaver HTML Injection**: Resolved a bug where the "Retry Step" button was improperly rendered as raw text code `&lt; button` due to a malformed HTML tag in the error handler.
 
+- **UI Improvements**:
+  - **API Config Shortcut**: Added a permanent "key" icon to the top toolbar for quick access to API settings from any panel.
+
 ## v1.16.0 - 2026-01-24
 ### World Weaver Architecture (Phase 12)
 - **Sequential Pipeline ("Active Listening")**: Refactored the core LLM logic to run in two distinct serial stages:
