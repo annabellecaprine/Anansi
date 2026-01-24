@@ -300,22 +300,25 @@ Please evaluate and generate questions.`;
                 role: 'assistant',
                 content: finalResponse,
                 timestamp: Date.now(),
-                question: parsed.questions?.[0]?.text || null
+                question: parsed.questions?.[0]?.text || null,
+                // Internal metadata
+                analysis: parsed.analysis,
+                questionsList: parsed.questions,
+                deepMiningPoint: parsed.deepMiningPoint
             });
-            const assistantMsg = {
-                role: 'assistant',
-                content: parsed.analysis,
-                questions: parsed.questions,
-                deepMiningPoint: parsed.deepMiningPoint,
-                timestamp: Date.now()
-            };
-            session.chatHistory.push(assistantMsg);
 
             // Save
-            const SESSIONS_KEY = 'anansi_world_weaver_sessions';
-            const allSessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '{}');
-            allSessions[session.id] = session;
-            localStorage.setItem(SESSIONS_KEY, JSON.stringify(allSessions));
+            if (A.WorldWeaver.UI && A.WorldWeaver.UI.saveSessions) {
+                const allSessions = A.WorldWeaver.UI.loadSessions();
+                allSessions[session.id] = session;
+                A.WorldWeaver.UI.saveSessions(allSessions);
+            } else {
+                // Fallback if UI not loaded
+                const SESSIONS_KEY = 'anansi_world_weaver_sessions';
+                const allSessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '{}');
+                allSessions[session.id] = session;
+                localStorage.setItem(SESSIONS_KEY, JSON.stringify(allSessions));
+            }
 
             return parsed;
 

@@ -811,7 +811,9 @@
 
     // Expose
     A.WorldWeaver.UI = {
-        render
+        render,
+        loadSessions,
+        saveSessions
     };
 
 })(window.Anansi);
