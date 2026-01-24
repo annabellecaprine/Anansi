@@ -8,7 +8,7 @@
 
     A.WorldWeaver = A.WorldWeaver || {};
 
-    async function evaluateAndRespond(session, sessions) {
+    async function evaluateAndRespond(session, sessions, onStatusUpdate) {
         // Dependencies
         const T = A.WorldWeaver.Templates;
         const GENRE_TEMPLATES = T.GENRE_TEMPLATES;
@@ -18,14 +18,18 @@
         // Initialize turn count
         session.turnCount = (session.turnCount || 0) + 1;
 
-        // --- PAUSE & REFINE LOGIC (Every 5 turns) ---
-        if (session.turnCount > 1 && session.turnCount % 5 === 0) {
-            // Notify UI of "Thinking/Refining" state (Optimistic UI handles this via textContent update ideally, 
-            // but we can just do it blocking here).
+        // --- STEP 1: ACTIVE LISTENING (Extraction) ---
+        // Notify UI of "Updating Notes" state
+        // We assume the caller (index.js) can handle status updates if we yield or callback?
+        // Since this is async, we can't easily push UI updates mid-stream without a callback.
+        // But we can just run it. The UI "Thinking" state covers it.
+        // TODO: Ideally we'd emit an event here.
+        if (onStatusUpdate) onStatusUpdate("📝 Updating Notes...");
 
-            await refineAllNotes(session);
-            // We continue to normal generation after refinement
-        }
+        await extractFacts(session, sessions);
+
+        // --- STEP 2: INTERVIEW (Response) ---
+        if (onStatusUpdate) onStatusUpdate("🤔 Thinking...");
 
         const template = GENRE_TEMPLATES.find(t => t.id === session.genre) || GENRE_TEMPLATES[5];
         const ratingInfo = CONTENT_RATINGS.find(r => r.id === session.contentRating) || CONTENT_RATINGS[0];
@@ -125,7 +129,8 @@ CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
 1. **RESTATE CONTEXT**: When the user introduces new major elements (a character, a faction, a tone), explicitly summarize it back to them in your own words to confirm alignment. "So, you're picturing a gritty, neon-soaked underworld where..."
 2. **USE THE SCRATCHPAD**: You have a "World Notes" scratchpad. USE IT.
    - If the user establishes a fact (e.g. "Magic needs blood"), WRITE IT DOWN in the \`concept_updates\`.
-   - Don't just rely on your short-term memory. If it's in the notes, it's true.
+   - CRITICAL: You have a limited memory window. If you do not save a user's answer to the scratchpad, YOU WILL FORGET IT.
+   - Prioritize capturing facts over conversational fluff.
 3. **COLLABORATIVE SAFETY**: If the user's request touches on complex or potentially extreme themes (darkness, trauma, taboos) and no boundaries are set, PAUSE and have a "meta-conversation".
    - Ask: "This is getting into darker territory. Are there any specific lines or veils you want to establish for this story?"
    - Do this naturally, like an editor checking in with a writer.
@@ -263,7 +268,9 @@ Please evaluate and generate questions.`;
 
                         const oldConf = session.categories[sessionKey].confidence || 0;
 
-                        if (newConf >= oldConf || newConf > 30) {
+                        // Strict High Water Mark Logic
+                        // Only update if new confidence is higher. Never regress.
+                        if (newConf > oldConf) {
                             session.categories[sessionKey].confidence = newConf;
                             // Only update summary if provided and non-empty
                             if (data.summary) session.categories[sessionKey].summary = data.summary;
@@ -356,13 +363,16 @@ Please evaluate and generate questions.`;
         }
     }
 
-    async function refineAllNotes(session) {
-        console.log('[WorldWeaver] Triggering Scratchpad Refinement...');
+    async function extractFacts(session, sessions) {
+        console.log('[WorldWeaver] Active Listening: Extracting facts...');
 
-        // Collect all notes
+        // 1. Get recent user message
+        const lastUserMsg = session.chatHistory.filter(m => m.role === 'user').pop();
+        if (!lastUserMsg) return; // Nothing to extract from
+
+        // 2. Collect current notes
         let noteContent = '';
         const categoriesWithNotes = [];
-
         Object.entries(session.categories).forEach(([key, data]) => {
             if (data.notes && data.notes.trim()) {
                 noteContent += `\n[${key.toUpperCase()}]:\n${data.notes}\n`;
@@ -370,33 +380,35 @@ Please evaluate and generate questions.`;
             }
         });
 
-        if (!noteContent.trim()) return; // Nothing to refine
+        // 3. Prompt for Extraction
+        const prompt = `You are a meticulous Data Entry Clerk.
+Your job is to read the USER'S last message and update the World Notes.
 
-        const prompt = `You are a meticulous Editor organizing a writer's messy notes.
-The following are raw notes from a world-building session. They contain duplicate repetitions, scattered thoughts, and phrasing inconsistencies.
+EXISTING NOTES:
+${noteContent || '(No notes yet)'}
 
-YOUR TASK:
-1. Consolidate specific facts. (e.g. merge "He likes cats" and "He loves felines")
-2. Remove EXACT duplicates or near-duplicates.
-3. Keep the content organized by Category headers [CATEGORY].
-4. Maintain the bullet-point format.
-5. Do NOT remove unique details. Only clean up redundancy.
+USER MESSAGE:
+"${lastUserMsg.content}"
 
-RAW NOTES:
-${noteContent}
+TASK:
+1. Identify any NEW facts in the User Message.
+2. Merge them into the Existing Notes.
+3. Remove duplicates.
+4. Keep the [CATEGORY] structure.
+5. If the User Message has no new facts (just chatter), return the EXISTING NOTES exactly as they are.
 
-Return the CLEANED notes in the exact same format (Category Headers + Bullets).`;
+Return ONLY the full updated notes text (Categories + Bullets).`;
 
         try {
-            const refinedText = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.3 });
+            // Use lower temp for extraction accuracy
+            const updatedNotes = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.1 });
 
-            // Parse back into categories (Simple heuristic parsing)
-            // We assume the LLM respects the [HEADER] format.
-            const sections = refinedText.split(/\[([A-Z]+)\]:/i);
-            // sections[0] is preamble (empty), [1] is key, [2] is content, [3] is key...
+            // Parse back into categories
+            if (!updatedNotes || !updatedNotes.includes('[')) return; // Formatting fail check
 
+            const sections = updatedNotes.split(/\[([A-Z]+)\]:/i);
             for (let i = 1; i < sections.length; i += 2) {
-                const keyName = sections[i].toLowerCase(); // e.g. "COREEXPERIENCE"
+                const keyName = sections[i].toLowerCase();
                 const content = sections[i + 1].trim();
 
                 // Find matching session key
@@ -405,18 +417,10 @@ Return the CLEANED notes in the exact same format (Category Headers + Bullets).`
                     session.categories[sessionKey].notes = content;
                 }
             }
-
-            // Add a meta-message to history so user knows
-            session.chatHistory.push({
-                role: 'assistant',
-                content: "*(I took a moment to organize the world notes and remove duplicates.)*",
-                timestamp: Date.now(),
-                isMeta: true
-            });
+            console.log('[WorldWeaver] Notes updated via Active Listening.');
 
         } catch (e) {
-            console.warn('[WorldWeaver] Refinement failed:', e);
-            // Fail silently, keep old notes
+            console.warn('[WorldWeaver] Extraction failed:', e);
         }
     }
 

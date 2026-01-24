@@ -637,9 +637,11 @@
             chatList.scrollTop = chatList.scrollHeight;
 
             let dots = 1;
+            let currentStatus = 'Thinking';
+
             const thinkInterval = setInterval(() => {
                 dots = (dots % 3) + 1;
-                thinkingEl.textContent = 'Thinking' + '.'.repeat(dots);
+                thinkingEl.textContent = currentStatus + '.'.repeat(dots);
             }, 500);
 
             input.value = '';
@@ -649,7 +651,10 @@
 
             try {
                 // Call LLM Module
-                await A.WorldWeaver.LLM.evaluateAndRespond(session, sessions);
+                await A.WorldWeaver.LLM.evaluateAndRespond(session, sessions, (status) => {
+                    currentStatus = status.replace(/\.+$/, ''); // Remove trailing dots if passed
+                    thinkingEl.textContent = currentStatus + '...';
+                });
                 clearInterval(thinkInterval);
                 renderChat(container, session, sessions);
 
@@ -723,7 +728,7 @@
 
         const castListHtml = cast.map((c, i) => `
             <label style="display:flex; align-items:center; padding:12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; margin-bottom:8px;">
-                <input type="checkbox" value="${c.name}" checked style="width:18px; height:18px; margin-right:12px;">
+                <input type="checkbox" value="${c.name}" ${isEnsemble ? 'checked' : ''} style="width:18px; height:18px; margin-right:12px;">
                 <div style="flex:1;">
                     <div style="font-weight:600;">${c.name}</div>
                     <div style="font-size:12px; color:var(--text-muted);">${c.role} (${c.significance})</div>
@@ -739,6 +744,8 @@
                 </div>
                 
                 <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                    ${/* Only show generic Protagonist if no one is identified as MC yet */ ''}
+                    ${!cast.some(c => c.role.toLowerCase().includes('main') || c.role.toLowerCase().includes('protagonist')) ? `
                     <label style="display:flex; align-items:center; padding:12px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; margin-bottom:8px; border-left:4px solid var(--accent);">
                         <input type="checkbox" value="Protagonist" ${!isEnsemble ? 'checked' : ''} style="width:18px; height:18px; margin-right:12px;">
                         <div style="flex:1;">
@@ -747,6 +754,7 @@
                         </div>
                     </label>
                     <div style="height:1px; background:var(--border-subtle); margin:12px 0;"></div>
+                    ` : ''}
                     ${castListHtml || '<div style="font-style:italic; color:var(--text-muted); padding:12px;">No other characters identified yet.</div>'}
                 </div>
 

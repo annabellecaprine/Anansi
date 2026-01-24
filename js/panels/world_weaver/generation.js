@@ -65,12 +65,16 @@ Return a concise summary (max 400 words) that will serve as the "Truth" for gene
      * Step 1: Generate character identity
      * @returns {Object} - { name, gender, pronouns, aliases, tags }
      */
-    async function generateIdentity(session, character, contextSummary) {
+    async function generateIdentity(session, character, contextSummary, role = 'main') {
         const T = A.WorldWeaver.Templates;
         const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
 
+        const instruction = role === 'supporting'
+            ? "Generate a brief SUPPORTING CHARACTER (NPC) identity. Keep details simple."
+            : "Generate a detailed MAIN CHARACTER identity.";
+
         const prompt = `You are a character designer for a ${genre.label} story.
-Generate ONLY the identity fields for this character.
+${instruction}
 
 ${contextSummary ? `Context:\n${contextSummary}` : 'No context provided yet - create a compelling character.'}
 
@@ -104,7 +108,7 @@ AURA tags should reflect personality archetypes (e.g., NOBLE, SARCASTIC, WOUNDED
      * Step 2: Generate character appearance
      * @returns {Object} - { appearance: { hair, eyes, build, description, appendages } }
      */
-    async function generateAppearance(session, character, contextSummary) {
+    async function generateAppearance(session, character, contextSummary, role = 'main') {
         const T = A.WorldWeaver.Templates;
         const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
         const isFantasy = ['fantasy', 'scifi'].includes(session.genre);
@@ -115,7 +119,11 @@ AURA tags should reflect personality archetypes (e.g., NOBLE, SARCASTIC, WOUNDED
         const subjective = pronounParts[0] || 'they'; // he/she/they
         const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
 
-        const prompt = `You are designing the appearance for ${character.name}, a ${character.gender || 'character'} in a ${genre.label} story.
+        const instruction = role === 'supporting'
+            ? "Generate a quick visual sketch. Focus on 1-2 distinguishing features."
+            : `You are designing the appearance for ${character.name}, a ${character.gender || 'character'} in a ${genre.label} story.`;
+
+        const prompt = `${instruction}
 Character uses ${pronouns} pronouns.
 Character tags: ${(character.tags || []).join(', ')}
 
@@ -155,7 +163,7 @@ For realistic human characters, keep all appendages present:false.`;
      * Step 3: Generate character card fields
      * @returns {Object} - { cardFields: { personality, description, scenario, firstMessage, mes_example } }
      */
-    async function generateCardFields(session, character, contextSummary) {
+    async function generateCardFields(session, character, contextSummary, role = 'main') {
         const appearance = character.appearance || {};
         const appearanceDesc = `${appearance.build || 'average build'}, ${appearance.hair || 'hair'}, ${appearance.eyes || 'eyes'} `;
 
@@ -166,7 +174,11 @@ For realistic human characters, keep all appendages present:false.`;
         const objective = pronounParts.length > 1 ? (subjective === 'he' ? 'him' : subjective === 'she' ? 'her' : 'them') : 'them';
         const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
 
-        const prompt = `You are writing a character card for ${character.name}.
+        const instruction = role === 'supporting'
+            ? "Write a concise bio (1 paragraph) and a simple motivation."
+            : `You are writing a detailed character card for ${character.name}.`;
+
+        const prompt = `${instruction}
             Identity: ${character.gender || 'Neutral'} (${pronouns})
         Appearance: ${appearanceDesc}
         Tags: ${(character.tags || []).join(', ')}
@@ -206,12 +218,16 @@ Return ONLY this JSON:
      * Step 4: Generate character quirks
      * @returns {Object} - { quirks: { activationChance, physical, mental, emotional } }
      */
-    async function generateQuirks(session, character, contextSummary) {
+    async function generateQuirks(session, character, contextSummary, role = 'main') {
         // Get pronouns for template instructions
         const pronouns = character.pronouns || 'they/them';
         const pronounParts = pronouns.split('/');
         const subjective = pronounParts[0] || 'they';
         const possessive = pronounParts.length > 1 ? (subjective === 'he' ? 'his' : subjective === 'she' ? 'her' : 'their') : 'their';
+
+        const countInstruction = role === 'supporting'
+            ? "Generate 1 quirk per category."
+            : "Generate 1-2 quirks per category.";
 
         const prompt = `Generate behavioral quirks for ${character.name}(${character.gender || 'character'}, ${pronouns}).
             Tags: ${(character.tags || []).join(', ')}
@@ -219,10 +235,8 @@ Return ONLY this JSON:
 Quirks are small, character - defining mannerisms triggered by AURA emotional tags.
 
 IMPORTANT TEMPLATE USAGE:
-        - {{ name }
-    } will be replaced with "${character.name}"
-    - {{ pos }
-} will be replaced with "${possessive}"(possessive pronoun)
+        - {{ name }} will be replaced with "${character.name}"
+    - {{ pos }} will be replaced with "${possessive}"(possessive pronoun)
 - Use third person(${subjective} / ${possessive}) when describing actions
 
 Examples:
@@ -244,7 +258,7 @@ Return ONLY this JSON:
                 ]
 }
 
-Generate 1 - 2 quirks per category.Each quirk MUST have 1 - 2 tags from this EXACT list(NO other tags allowed):
+${countInstruction} Each quirk MUST have 1 - 2 tags from this EXACT list(NO other tags allowed):
 JOY, SADNESS, ANGER, FEAR, DISGUST, SURPRISE, TRUST, ANTICIPATION, LOVE, AWE, CONTEMPT, OPTIMISM, QUESTION, COMMAND, STATEMENT, GREETING, FAREWELL, ROMANCE, TENSION, CONFLICT, NARRATIVE, DISCLOSURE
 
 Do NOT use: DANGER, HAPPY, SCARED, or any other tags not in the above list.`;
@@ -303,7 +317,16 @@ Return ONLY this JSON:
      * Step 6: Generate cues (PULSE, EROS, INTENT)
      * @returns {Object} - Updated traits with pulseCues, erosCues, intentCues
      */
-    async function generateCues(session, character, contextSummary) {
+    async function generateCues(session, character, contextSummary, role = 'main') {
+        // Optimization: Skip Cue generation for supporting characters to save tokens/time
+        if (role === 'supporting') {
+            console.log('[WorldWeaver] Skipping Cues for Supporting Character');
+            return {
+                pulseCues: {},
+                erosCues: {},
+                intentCues: {}
+            };
+        }
         const appearance = character.appearance || {};
         const appendages = appearance.appendages || {};
 
@@ -614,7 +637,7 @@ Return ONLY this JSON:
      * @param {number} startFromStep - Step index to resume from (default: 0)
      * @param {Object} existingCharacter - Partial character to resume (default: new character)
      */
-    async function runGenerationPipeline(session, contextSummary, progressCallback, startFromStep = 0, existingCharacter = null) {
+    async function runGenerationPipeline(session, contextSummary, progressCallback, startFromStep = 0, existingCharacter = null, role = 'main') {
         const character = existingCharacter || {
             id: `actor_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
         };
@@ -632,7 +655,7 @@ Return ONLY this JSON:
             if (progressCallback && progressCallback(i, steps.length, steps[i].name) === false) return null;
 
             const step = steps[i];
-            const result = await step.fn(session, character, contextSummary);
+            const result = await step.fn(session, character, contextSummary, role);
             Object.assign(character, result);
 
             // Save partial state
@@ -712,6 +735,13 @@ Return ONLY this JSON:
                     const useExistingChar = (tIdx === 0 && existingChar) ? existingChar : null;
                     const useStartStep = (tIdx === 0 && rState) ? startStep : 0;
 
+                    // Determine Role
+                    const targetObj = targets[tIdx];
+                    const isProtagonist = targetName === "Protagonist" ||
+                        (targetObj.role && (targetObj.role.toLowerCase().includes('main') || targetObj.role.toLowerCase().includes('protagonist')));
+
+                    const role = (session.storyFocus === 'ensemble' || isProtagonist) ? 'main' : 'supporting';
+
                     const char = await runGenerationPipeline(
                         session,
                         currentFocusedContext,
@@ -727,7 +757,8 @@ Return ONLY this JSON:
                             return true;
                         },
                         useStartStep,
-                        useExistingChar
+                        useExistingChar,
+                        role
                     );
 
                     if (!char) { // Cancelled
