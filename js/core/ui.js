@@ -22,6 +22,10 @@
     /** @type {number} Maximum panels to keep in history */
     const MAX_HISTORY = 5;
 
+    // Pagination State
+    let navPage = 0;
+    const NAV_PAGE_SIZE = 3;
+
     // Define Category Order (Updated structure)
     const categoryOrder = ['Loom', 'Seeds', 'Weave', 'Magic', 'Sacred Tools', 'Deep', 'Forbidden Secrets', 'RPG Experiment'];
 
@@ -374,7 +378,53 @@
             });
 
             // Render Categories in Order
-            categoryOrder.forEach(cat => {
+            const totalPages = Math.ceil(categoryOrder.length / NAV_PAGE_SIZE);
+
+            // Render Pagination Header (Only if not searching)
+            if (!navSearchTerm) {
+                const pageControl = document.createElement('div');
+                pageControl.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:4px 8px; background:var(--bg-elevated); border-bottom:1px solid var(--border-subtle); margin-bottom:2px; position:sticky; top:0; z-index:10;";
+
+                const btnPrev = document.createElement('button');
+                btnPrev.textContent = "◀";
+                btnPrev.style.cssText = "background:transparent; border:none; color:var(--text-secondary); cursor:pointer; padding:4px 8px; font-size:10px;";
+                btnPrev.disabled = navPage === 0;
+                btnPrev.style.opacity = navPage === 0 ? "0.3" : "1";
+                btnPrev.onclick = () => {
+                    if (navPage > 0) {
+                        navPage--;
+                        this.refreshNav();
+                    }
+                };
+
+                const label = document.createElement('span');
+                label.style.cssText = "font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase;";
+                label.textContent = `Page ${navPage + 1} / ${totalPages}`;
+
+                const btnNext = document.createElement('button');
+                btnNext.textContent = "▶";
+                btnNext.style.cssText = "background:transparent; border:none; color:var(--text-secondary); cursor:pointer; padding:4px 8px; font-size:10px;";
+                btnNext.disabled = navPage >= totalPages - 1;
+                btnNext.style.opacity = navPage >= totalPages - 1 ? "0.3" : "1";
+                btnNext.onclick = () => {
+                    if (navPage < totalPages - 1) {
+                        navPage++;
+                        this.refreshNav();
+                    }
+                };
+
+                pageControl.appendChild(btnPrev);
+                pageControl.appendChild(label);
+                pageControl.appendChild(btnNext);
+                container.appendChild(pageControl);
+            }
+
+            // Determine visible categories
+            const visibleCategories = navSearchTerm
+                ? categoryOrder
+                : categoryOrder.slice(navPage * NAV_PAGE_SIZE, (navPage + 1) * NAV_PAGE_SIZE);
+
+            visibleCategories.forEach(cat => {
                 const groupItems = groups[cat];
                 if (!groupItems || groupItems.length === 0) return;
 
@@ -591,6 +641,22 @@
                 }
 
                 activePanelId = id;
+
+                // Auto-Pagination: Ensure the new panel is visible
+                if (!navSearchTerm) {
+                    const sections = A.getNavSections();
+                    const target = sections.find(s => s.id === id);
+                    if (target && target.category) {
+                        const catIndex = categoryOrder.indexOf(target.category);
+                        if (catIndex !== -1) {
+                            const neededPage = Math.floor(catIndex / NAV_PAGE_SIZE);
+                            if (neededPage !== navPage) {
+                                navPage = neededPage;
+                            }
+                        }
+                    }
+                }
+
                 this.refreshNav(); // Update active state
 
                 // Mobile: Auto-close nav drawer on panel switch
