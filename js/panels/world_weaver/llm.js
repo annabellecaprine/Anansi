@@ -404,7 +404,31 @@ Please evaluate and generate questions.`;
             }
 
             // High Water Mark for Overall Progress
-            session.overallProgress = Math.max(session.overallProgress || 0, parsed.overallProgress || 0);
+            // We calculate this deterministically based on category confidence (weighted)
+            // rather than trusting the LLM's 'overallProgress' which can be hallucinated.
+            const calculateProgress = (s) => {
+                const weights = s.storyFocus === 'protagonist'
+                    ? { coreExperience: 0.15, worldRules: 0.15, setting: 0.15, cast: 0.30, storyArc: 0.15, mechanics: 0.10, guardrails: 0 }
+                    : { coreExperience: 0.20, worldRules: 0.20, setting: 0.15, cast: 0.15, storyArc: 0.15, mechanics: 0.10, guardrails: 0.05 };
+
+                let total = 0;
+                let maxPossible = 0;
+
+                Object.entries(weights).forEach(([key, weight]) => {
+                    if (weight > 0) {
+                        const conf = s.categories[key]?.confidence || 0;
+                        total += (conf * weight);
+                        maxPossible += (100 * weight);
+                    }
+                });
+
+                return Math.round(total); // 0-100
+            };
+
+            const computedProgress = calculateProgress(session);
+            // We take the higher of the computed progress OR what was there before (no regression)
+            // But we ignore the LLM's parsed.overallProgress entirely now as it's less accurate.
+            session.overallProgress = Math.max(session.overallProgress || 0, computedProgress);
 
             // --- PREVENT QUESTION LOOPS ---
             if (parsed.questions && parsed.questions.length > 0) {

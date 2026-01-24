@@ -38,7 +38,16 @@
                 coreExperience: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 worldRules: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 setting: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
-                cast: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] }, // Renamed from mainCharacter
+                cast: {
+                    status: (importedActor && storyFocus === 'protagonist') ? 'in_progress' : 'empty',
+                    confidence: (importedActor && storyFocus === 'protagonist') ? 50 : 0,
+                    summary: (importedActor && storyFocus === 'protagonist') ? `Protagonist: ${importedActor.name}` : '',
+                    facts: [],
+                    gaps: [],
+                    notes: (importedActor && storyFocus === 'protagonist')
+                        ? `IMPORTED PROTAGONIST: ${importedActor.name}\n${importedActor.description || importedActor.summary || '(No description provided)'}`
+                        : ''
+                }, // Renamed from mainCharacter
                 storyArc: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 mechanics: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 guardrails: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] }
@@ -73,61 +82,74 @@
         const currentSession = state.worldWeaver.currentSessionId ? sessions[state.worldWeaver.currentSessionId] : null;
 
         if (state.worldWeaver.showSetup || !currentSession) {
-            renderSetupScreen(container, sessions, state);
+            renderSetup(container, sessions);
         } else {
             renderMainInterface(container, currentSession, sessions, state);
         }
     }
 
-    function renderSetupScreen(container, sessions, state) {
+    function renderSetup(container, sessions) {
+        // Clear previous
+        container.innerHTML = '';
         const T = A.WorldWeaver.Templates;
+        const state = A.State.get();
 
         const setup = document.createElement('div');
-        setup.className = 'ww-setup';
+        // Mobile Layout Fix: Remove 'justify-content:center' to prevent top cutoff.
+        // Use 'margin:auto' on inner child to safely center when space permits.
+        setup.style.cssText = 'position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:20px;';
+
         setup.innerHTML = `
-            <div style="height:100%; overflow-y:auto; background:linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-elevated) 100%);">
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100%; padding:24px;">
-                    <div style="text-align:center; margin-bottom:32px;">
-                        <div style="font-size:28px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">🕸️ World Weaver</div>
-                        <div style="font-size:14px; color:var(--text-muted);">Guided world-building for immersive storytelling</div>
-                    </div>
-                
-                <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:24px; width:100%; max-width:500px; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Session Name</label>
-                        <input type="text" id="ww-session-name" placeholder="My Adventure World" style="width:100%; padding:12px; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; color:var(--text-primary);">
-                    </div>
-                    
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Genre Template</label>
-                        <div id="ww-genre-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;"></div>
-                    </div>
-                    
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Story Focus</label>
-                        <div style="display:flex; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; padding:4px;">
-                            <button id="ww-focus-protagonist" class="focus-opt" style="flex:1; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; background:var(--accent); color:white;">Protagonist</button>
-                            <button id="ww-focus-ensemble" class="focus-opt" style="flex:1; padding:8px; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; background:transparent; color:var(--text-muted);">Ensemble (Cast)</button>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Content Rating</label>
-                        <div id="ww-rating-options" style="display:flex; gap:8px;"></div>
-                    </div>
-
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Import Actor (Optional)</label>
-                        <div id="ww-actor-import" style="padding:12px; background:var(--bg-panel); border:2px dashed var(--border-subtle); border-radius:8px; text-align:center; cursor:pointer;">
-                            <span>📥 Click to select an Actor</span>
-                        </div>
-                    </div>
-
-                    <button id="ww-start-btn" style="width:100%; padding:14px; background:var(--accent); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">✨ Begin World Weaving</button>
+        <div style="margin:auto; width:100%; max-width:500px; display:flex; flex-direction:column; align-items:center;">
+            <div style="text-align:center; margin-bottom:32px;">
+                <div style="font-size:48px; margin-bottom:12px;">🕸️</div>
+                <div style="font-size:28px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">World Weaver</div>
+                <div style="font-size:14px; color:var(--text-muted);">Guided world-building for immersive storytelling</div>
+            </div>
+            
+            <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:24px; width:100%; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Session Name</label>
+                    <input type="text" id="ww-session-name" placeholder="My Adventure World" style="width:100%; padding:12px; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; color:var(--text-primary);">
                 </div>
                 
-                <div id="ww-sessions-section" style="margin-top:24px; width:100%; max-width:500px;"></div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Genre Template</label>
+                    <div id="ww-genre-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;"></div>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Story Focus</label>
+                    <div style="display:flex; gap:12px;">
+                        <button id="ww-focus-protagonist" class="focus-opt" style="flex:1; padding:12px; border:2px solid transparent; border-radius:8px; cursor:pointer; text-align:left; transition:all 0.2s;">
+                            <div style="font-size:20px; margin-bottom:4px;">🎭</div>
+                            <div style="font-weight:600; font-size:13px;">Protagonist</div>
+                            <div style="font-size:11px; opacity:0.7;">Single Character Focus</div>
+                        </button>
+                        <button id="ww-focus-ensemble" class="focus-opt" style="flex:1; padding:12px; border:2px solid transparent; border-radius:8px; cursor:pointer; text-align:left; transition:all 0.2s;">
+                            <div style="font-size:20px; margin-bottom:4px;">👥</div>
+                            <div style="font-weight:600; font-size:13px;">Ensemble</div>
+                            <div style="font-size:11px; opacity:0.7;">Multi-Cast Party</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Content Rating</label>
+                    <div id="ww-rating-options" style="display:flex; gap:8px;"></div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; text-transform:uppercase;">Import Actor (Optional)</label>
+                    <div id="ww-actor-import" style="padding:12px; background:var(--bg-panel); border:2px dashed var(--border-subtle); border-radius:8px; text-align:center; cursor:pointer;">
+                        <span>📥 Click to select an Actor</span>
+                    </div>
+                </div>
+
+                <button id="ww-start-btn" style="width:100%; padding:14px; background:var(--accent); border:none; border-radius:8px; color:white; font-weight:600; cursor:pointer;">✨ Begin World Weaving</button>
             </div>
+            
+            <div id="ww-sessions-section" style="margin-top:24px; width:100%; max-width:500px;"></div>
         </div>
         `;
 
@@ -144,17 +166,29 @@
         }
         const setupState = state.worldWeaver.setupState;
 
-        // Focus Toggle Logic
+        // Focus Toggle Logic (Box Highlight Style)
         const updateFocusUI = () => {
             const isProtag = setupState.storyFocus === 'protagonist';
             const btnP = setup.querySelector('#ww-focus-protagonist');
             const btnE = setup.querySelector('#ww-focus-ensemble');
 
-            btnP.style.background = isProtag ? 'var(--accent)' : 'transparent';
-            btnP.style.color = isProtag ? 'white' : 'var(--text-muted)';
+            // Apply styles based on selection
+            const applyStyle = (btn, active) => {
+                if (active) {
+                    btn.style.borderColor = 'var(--accent)';
+                    btn.style.background = 'var(--bg-elevated)';
+                    // btn.style.boxShadow = '0 0 0 1px var(--accent)'; // Optional glow
+                    btn.style.color = 'var(--text-primary)';
+                } else {
+                    btn.style.borderColor = 'var(--border-subtle)';
+                    btn.style.background = 'var(--bg-panel)';
+                    btn.style.boxShadow = 'none';
+                    btn.style.color = 'var(--text-muted)';
+                }
+            };
 
-            btnE.style.background = !isProtag ? 'var(--accent)' : 'transparent';
-            btnE.style.color = !isProtag ? 'white' : 'var(--text-muted)';
+            applyStyle(btnP, isProtag);
+            applyStyle(btnE, !isProtag);
         };
 
         setup.querySelector('#ww-focus-protagonist').onclick = () => {
@@ -330,8 +364,15 @@
 
         // Prepare Inner Content (Cast List vs. Notes)
         let mainContent = '';
+        const isProtagonistMode = session.storyFocus === 'protagonist';
 
-        if (key === 'cast') {
+        // Mode-aware label
+        const displayLabel = (key === 'cast')
+            ? (isProtagonistMode ? 'Protagonist' : 'Cast & Characters')
+            : conf.label;
+
+        // In Protagonist mode, don't show cast list - just notes
+        if (key === 'cast' && !isProtagonistMode) {
             const castListHtml = (session.cast || []).map(c => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-base); margin-bottom:6px; border-radius:6px; font-size:12px; border:1px solid var(--border-subtle);">
                     <div>
@@ -360,10 +401,17 @@
                 </div>
             `;
         } else {
+            // Protagonist mode OR non-cast categories: Just show notes
+            const noteLabel = (key === 'cast' && isProtagonistMode) ? 'PROTAGONIST NOTES' : 'NOTES';
+            const noteDesc = (key === 'cast' && isProtagonistMode)
+                ? 'Details about the protagonist being built. The AI captures traits, backstory, and personality here.'
+                : 'The AI uses this space to track facts, rules, and decisions. You can edit this directly to correct or guide it.';
+
             mainContent = `
                 <div style="display:flex; flex-direction:column; flex:1;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; letter-spacing:0.5px;">${noteLabel}</div>
                     <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
-                        The AI uses this space to track facts, rules, and decisions. You can edit this directly to correct or guide it.
+                        ${noteDesc}
                     </div>
                     <textarea id="cat-notes" style="flex:1; padding:12px; background:var(--bg-base); border:1px solid var(--border-subtle); border-radius:8px; resize:none; font-family:monospace; line-height:1.5; color:var(--text-primary); white-space: pre-wrap;">${data.notes || ''}</textarea>
                 </div>
@@ -375,7 +423,7 @@
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                     <div style="font-size:24px;">${conf.icon}</div>
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:18px;">${conf.label} - ${key === 'cast' ? 'Management' : 'Notes'}</div>
+                        <div style="font-weight:700; font-size:18px;">${displayLabel} - ${(key === 'cast' && !isProtagonistMode) ? 'Management' : 'Notes'}</div>
                         <div style="font-size:12px; color:var(--text-secondary);">Confidence: ${data.confidence || 0}%</div>
                     </div>
                     <button id="close-notes" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:20px;">×</button>
@@ -471,6 +519,34 @@
         const container = sidebar.closest('.ww-interface').parentNode;
 
         const currentGenre = T.GENRE_TEMPLATES.find(t => t.id === session.genre);
+        const isProtagonistMode = session.storyFocus === 'protagonist';
+
+        // Determine protagonist name for Protagonist mode
+        let protagonistName = null;
+        if (isProtagonistMode) {
+            if (session.importedActor?.name) {
+                protagonistName = session.importedActor.name;
+            } else if (session.cast?.length > 0) {
+                // Find first cast member with protagonist/main role, or just first
+                const mainChar = session.cast.find(c =>
+                    c.role?.toLowerCase().includes('main') ||
+                    c.role?.toLowerCase().includes('protagonist')
+                ) || session.cast[0];
+                protagonistName = mainChar?.name;
+            }
+        }
+
+        // Protagonist indicator HTML
+        const protagonistIndicator = isProtagonistMode && protagonistName
+            ? `<div style="margin-top:8px; padding:8px 12px; background:var(--bg-elevated); border-radius:6px; display:flex; align-items:center; gap:8px;">
+                   <span style="font-size:16px;">🎭</span>
+                   <span style="font-size:13px; color:var(--text-primary); font-weight:500;">${protagonistName}</span>
+               </div>`
+            : isProtagonistMode
+                ? `<div style="margin-top:8px; padding:8px 12px; background:var(--bg-elevated); border-radius:6px; font-size:12px; color:var(--text-muted); font-style:italic;">
+                       🎭 Protagonist not yet named
+                   </div>`
+                : '';
 
         sidebar.innerHTML = `
             <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
@@ -478,7 +554,9 @@
                 <div style="font-size:12px; color:var(--text-muted);">
                     ${currentGenre?.icon} 
                     ${session.contentRating.toUpperCase()}
+                    · ${isProtagonistMode ? 'Protagonist' : 'Ensemble'}
                 </div>
+                ${protagonistIndicator}
             </div>
 
             <div style="flex:1; overflow-y:auto; padding:16px;">
@@ -502,7 +580,7 @@
             </div>
         `;
 
-        // Category List
+        // Category List with mode-aware labels
         const catList = sidebar.querySelector('#ww-categories-list');
         Object.entries(T.CATEGORIES).forEach(([key, conf]) => {
             const catState = session.categories[key];
@@ -515,6 +593,12 @@
             let color = '#4f46e5'; // Indigo/Blue accent
             if (confidence >= 100) color = '#10b981'; // Emerald Green
             if (confidence === 0) color = 'rgba(128,128,128,0.2)';
+
+            // Mode-aware label for Cast category
+            let displayLabel = conf.label;
+            if (key === 'cast') {
+                displayLabel = isProtagonistMode ? 'Protagonist' : 'Cast & Characters';
+            }
 
             const row = document.createElement('div');
             row.style.cssText = `display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; margin-bottom:2px; ${session.currentFocus === key ? 'background:var(--bg-elevated);' : ''}`;
@@ -531,7 +615,7 @@
 
             row.innerHTML = `
                 <span style="display:flex; align-items:center; justify-content:center; width:20px;">${conf.icon}</span>
-                <span style="flex:1; font-size:13px; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${conf.label}</span>
+                <span style="flex:1; font-size:13px; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${displayLabel}</span>
                 ${pieChart}
             `;
 
@@ -678,16 +762,24 @@
     }
 
     function showGenerationOptions(session, sessions) {
+        const isProtagonistMode = session.storyFocus === 'protagonist';
+
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;';
+
+        // Protagonist mode: Different label for character option
+        const charLabel = isProtagonistMode ? '🎭 Generate Protagonist' : '👤 Character Card';
+        const charDesc = isProtagonistMode
+            ? 'Create a full Actor profile for the protagonist'
+            : 'Select which characters to generate';
 
         modal.innerHTML = `
             <div style="background:var(--bg-surface); padding:24px; border-radius:12px; width:400px; max-width:90vw;">
                 <h3 style="margin-top:0;">Generate Output</h3>
                 <div style="display:flex; flex-direction:column; gap:12px;">
                     <button class="gen-opt" data-type="character" style="padding:16px; text-align:left; cursor:pointer; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px;">
-                        <div>👤 Character Card</div>
-                        <div style="font-size:12px; color:var(--text-muted);">Create a full Actor profile</div>
+                        <div>${charLabel}</div>
+                        <div style="font-size:12px; color:var(--text-muted);">${charDesc}</div>
                     </button>
                     <button class="gen-opt" data-type="world" style="padding:16px; text-align:left; cursor:pointer; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px;">
                         <div>🌍 World Lorebook</div>
@@ -706,14 +798,21 @@
         modal.querySelectorAll('.gen-opt').forEach(btn => {
             btn.onclick = () => {
                 const type = btn.dataset.type;
-                // Use multi-step pipeline for character generation
                 if (type === 'character') {
-                    showMultiCastSelection(session, sessions);
+                    if (isProtagonistMode) {
+                        // Protagonist mode: Skip selection, directly generate
+                        modal.remove();
+                        A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, ['Protagonist']);
+                    } else {
+                        // Ensemble mode: Show cast selection
+                        modal.remove();
+                        showMultiCastSelection(session, sessions);
+                    }
                 } else {
                     // Legacy single-step for world/export
                     A.WorldWeaver.Generation.handleGeneration(session, sessions, type);
+                    modal.remove();
                 }
-                modal.remove();
             };
         });
         modal.querySelector('#modal-close').onclick = () => modal.remove();

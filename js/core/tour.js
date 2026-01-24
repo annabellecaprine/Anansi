@@ -42,6 +42,7 @@
             // Add global key listener for Escape
             document.addEventListener('keydown', this.handleKey);
             window.addEventListener('resize', this.handleResize);
+            window.addEventListener('scroll', this.handleScroll, { capture: true });
         },
 
         end: function () {
@@ -51,6 +52,7 @@
             this.removeOverlay();
             document.removeEventListener('keydown', this.handleKey);
             window.removeEventListener('resize', this.handleResize);
+            window.removeEventListener('scroll', this.handleScroll, { capture: true });
         },
 
         // --- Rendering ---
@@ -144,26 +146,30 @@
             // Scroll into view (use auto to ensure rect is calculated correctly immediately)
             target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
-            // Wait a tick for scroll? directly calculating usually works if "smooth" isn't mandatory for calculation
-            // For robustness, we calculate immediately.
-            const rect = target.getBoundingClientRect();
+            // WAIT for scroll to finish layout
+            // We use setTimeout + rAF to ensure browser has repainted
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    const rect = target.getBoundingClientRect();
 
-            // Highlight Box
-            // Add some padding
-            const pad = 4;
-            this.els.highlight.style.width = (rect.width + pad * 2) + 'px';
-            this.els.highlight.style.height = (rect.height + pad * 2) + 'px';
-            this.els.highlight.style.top = (rect.top - pad) + 'px';
-            this.els.highlight.style.left = (rect.left - pad) + 'px';
-            this.els.highlight.style.opacity = '1';
+                    // Highlight Box
+                    // Add some padding
+                    const pad = 4;
+                    this.els.highlight.style.width = (rect.width + pad * 2) + 'px';
+                    this.els.highlight.style.height = (rect.height + pad * 2) + 'px';
+                    this.els.highlight.style.top = (rect.top - pad) + 'px';
+                    this.els.highlight.style.left = (rect.left - pad) + 'px';
+                    this.els.highlight.style.opacity = '1';
 
-            // Popup placement logic
+                    // Popup placement logic (Recalculate logic here or delegate)
+                    this.positionPopup(rect);
+                });
+            }, 10);
+        },
+
+        positionPopup: function (rect) {
             const popupRect = this.els.popup.getBoundingClientRect();
             const margin = 12;
-
-            // Preferred: Right, inside Viewport?
-            // Simple heuristic to avoid complex libraries:
-            // Default to Right if space, else Bottom, else Top, else Left.
 
             const viewW = window.innerWidth;
             const viewH = window.innerHeight;
@@ -235,12 +241,27 @@
 
         handleResize: function () {
             if (Tour.active) Tour.renderStep(); // Recalculate positions
+        },
+
+        handleScroll: function () {
+            if (Tour.active) {
+                // Throttle? For now, raw call is fine as renderStep is cheap (mostly DOM reads)
+                // or we could use rAF here too.
+                requestAnimationFrame(() => {
+                    if (Tour.active && Tour.currentConfig) {
+                        // We just need to reposition, not re-render text
+                        // But renderStep calls positionOverlay, so it's simplest to reuse
+                        Tour.renderStep();
+                    }
+                });
+            }
         }
     };
 
     // Bind handleKey/Resize context
     Tour.handleKey = Tour.handleKey.bind(Tour);
     Tour.handleResize = Tour.handleResize.bind(Tour);
+    Tour.handleScroll = Tour.handleScroll.bind(Tour);
 
     A.UI.Tour = Tour;
 

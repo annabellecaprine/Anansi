@@ -2,6 +2,22 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.16.1 - 2026-01-24
+### World Weaver UI & Layout Fixes
+- **Protagonist Mode Polish**:
+  - NEW: **Protagonist Indicator** in sidebar (shows `🎭 [Name]`) for immediate context.
+  - NEW: **Auto-Anchor** now pre-fills the Protagonist notes instantly when importing an actor.
+  - NEW: **1-Click Generation** skips the intermediary selection modal in Protagonist mode.
+  - NEW: **Weighted Progress** now values the Protagonist category at 30% (vs 15%) for more satisfying progression.
+  - UX: Renamed "Cast" checkbox/category to "Protagonist" when in single-character mode.
+
+- **Mobile Layout & Styling**:
+  - FIX: Resolved critical mobile layout bug where top content was cut off (Switch to `margin: auto` safe centering).
+  - UI: Redesigned **Story Focus** toggle into distinct, highlighted "Cards" for better clarity and touch targets.
+
+- **System Fixes**:
+  - FIX: **Tour.js Race Condition**: Fixed an issue (Firefox/Mobile) where the help tour highlight would appear off-screen due to layout race conditions. Added async positioning and scroll tracking for robust grounding.
+
 ## v1.16.0 - 2026-01-24
 ### World Weaver Architecture (Phase 12)
 - **Sequential Pipeline ("Active Listening")**: Refactored the core LLM logic to run in two distinct serial stages:
