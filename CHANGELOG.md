@@ -21,6 +21,7 @@ All notable changes to Anansi will be documented in this file.
 
 - **UI Improvements**:
   - **API Config Shortcut**: Added a permanent "key" icon to the top toolbar for quick access to API settings from any panel.
+  - **OpenRouter Support**: Added OpenRouter as a dedicated provider option in the API Configuration menu, with pre-filled Base URL and recommended fast default models.
 
 ## v1.16.0 - 2026-01-24
 ### World Weaver Architecture (Phase 12)
