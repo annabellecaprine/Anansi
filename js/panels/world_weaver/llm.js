@@ -260,11 +260,14 @@ Please evaluate and generate questions.`;
                             // Initialize if missing
                             if (!session.categories[sessionKey].notes) session.categories[sessionKey].notes = '';
 
-                            // Append with separator
-                            if (session.categories[sessionKey].notes.length > 0) {
-                                session.categories[sessionKey].notes += '\n\n';
+                            // Deduplicate: exact string match
+                            if (!session.categories[sessionKey].notes.includes(newNote)) {
+                                // Append with separator
+                                if (session.categories[sessionKey].notes.length > 0) {
+                                    session.categories[sessionKey].notes += '\n\n';
+                                }
+                                session.categories[sessionKey].notes += `• ${newNote}`;
                             }
-                            session.categories[sessionKey].notes += `• ${newNote}`;
                         }
 
                         // Status Update Logic (Based on the potentially preserved confidence)
