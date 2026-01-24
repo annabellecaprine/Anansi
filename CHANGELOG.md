@@ -18,6 +18,7 @@ All notable changes to Anansi will be documented in this file.
 - **System Fixes**:
   - FIX: **Tour.js Race Condition**: Fixed an issue (Firefox/Mobile) where the help tour highlight would appear off-screen due to layout race conditions. Added async positioning and scroll tracking for robust grounding.
   - FIX: **World Weaver HTML Injection**: Resolved a bug where the "Retry Step" button was improperly rendered as raw text code `&lt; button` due to a malformed HTML tag in the error handler.
+  - FIX: **iOS API Entry**: Disabled "Smart Punctuation" and auto-correct on API Key input fields to prevent iOS from corrupting keys with curly quotes.
 
 - **UI Improvements**:
   - **API Config Shortcut**: Added a permanent "key" icon to the top toolbar for quick access to API settings from any panel.

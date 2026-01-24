@@ -554,19 +554,19 @@
 
                     <div class="form-group" style="margin-bottom:12px;">
                         <label class="label" style="font-size:11px;">Configuration Name</label>
-                        <input id="cfg-name" class="input" value="${cfg.name}" placeholder="My OpenAI Key">
+                        <input id="cfg-name" class="input" value="${cfg.name}" placeholder="My OpenAI Key" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                     </div>
                     <div class="form-group" style="margin-bottom:12px;">
                         <label class="label" style="font-size:11px;">Model</label>
-                        <input id="cfg-model" class="input" value="${cfg.model}" placeholder="e.g., gpt-4o-mini">
+                        <input id="cfg-model" class="input" value="${cfg.model}" placeholder="e.g., gpt-4o-mini" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                     </div>
                     <div class="form-group" id="url-group" style="margin-bottom:12px;display:none;">
                         <label class="label" style="font-size:11px;">Base URL</label>
-                        <input id="cfg-url" class="input" value="${cfg.baseUrl}" placeholder="https://api.example.com/v1">
+                        <input id="cfg-url" class="input" value="${cfg.baseUrl}" placeholder="https://api.example.com/v1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                     </div>
                     <div class="form-group" id="key-group" style="margin-bottom:12px;">
                         <label class="label" style="font-size:11px;">API Key</label>
-                        <input id="cfg-key" class="input" type="password" value="${cfg.apiKey}" placeholder="sk-...">
+                        <input id="cfg-key" class="input" type="password" value="${cfg.apiKey}" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                     </div>
 
                     <button id="btn-save-config" class="btn btn-primary" style="width:100%;margin-top:8px;">${isEdit ? 'Save Changes' : 'Add Configuration'}</button>
