@@ -117,30 +117,62 @@
                 headers['X-Title'] = 'Anansi';
             }
 
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    model: model,
-                    messages: messages,
-                    temperature: 0.9,
-                    max_tokens: maxTokens
-                })
-            });
+            // Retry Loop for Context Limit Handling
+            let currentMaxTokens = maxTokens;
+            let attempts = 0;
+            const MAX_RETRIES = 1;
 
-            if (!resp.ok) {
-                const err = await resp.json();
-                throw new Error(err.error?.message || resp.statusText);
-            }
+            while (attempts <= MAX_RETRIES) {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        temperature: 0.9,
+                        max_tokens: currentMaxTokens
+                    })
+                });
 
-            const data = await resp.json();
-            let content = data.choices?.[0]?.message?.content || "";
-            // DeepSeek / Reasoning Extraction
-            const reasoning = data.choices?.[0]?.message?.reasoning_content;
-            if (reasoning) {
-                content = `<think>${reasoning}</think>\n${content}`;
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    const errMsg = err.error?.message || resp.statusText;
+
+                    // Check for Context Limit Error
+                    // Format: "This endpoint's maximum context length is N tokens. However, you requested about M tokens (I in the messages, O in the completion). ..."
+                    // Regex to extract N (allowed) and I (input)
+                    const contextMatch = errMsg.match(/maximum context length is (\d+) tokens.*requested about (\d+) tokens.*\((\d+) in the messages/);
+
+                    if (contextMatch && attempts < MAX_RETRIES) {
+                        const allowed = parseInt(contextMatch[1]);
+                        const input = parseInt(contextMatch[3]);
+
+                        // Calculate safe output limit: Allowed - Input - Buffer
+                        const buffer = 200; // Safety margin
+                        const newLimit = allowed - input - buffer;
+
+                        if (newLimit > 0) {
+                            console.warn(`[LLM] Context limit exceeded. Auto-scaling max_tokens from ${currentMaxTokens} to ${newLimit}.`);
+                            currentMaxTokens = newLimit;
+                            attempts++;
+                            continue; // Retry
+                        } else {
+                            console.error('[LLM] Input is too long for this model even with 0 output tokens.');
+                        }
+                    }
+
+                    throw new Error(errMsg);
+                }
+
+                const data = await resp.json();
+                let content = data.choices?.[0]?.message?.content || "";
+                // DeepSeek / Reasoning Extraction
+                const reasoning = data.choices?.[0]?.message?.reasoning_content;
+                if (reasoning) {
+                    content = `<think>${reasoning}</think>\n${content}`;
+                }
+                return content || "(No response)";
             }
-            return content || "(No response)";
         }
 
         if (provider === 'anthropic') {

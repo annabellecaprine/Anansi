@@ -92,7 +92,8 @@
                     // Context-specific token limits
                     simulatorMaxTokens: 4096,
                     nabuMaxTokens: 2048,
-                    nabuAdvancedMaxTokens: 8192
+                    nabuAdvancedMaxTokens: 8192,
+                    worldWeaverMaxTokens: 4096
                 };
                 const genSettings = { ...defaultGenSettings, ...JSON.parse(localStorage.getItem('anansi_gen_settings') || '{}') };
 
@@ -274,6 +275,16 @@
                                         </div>
                                         <input type="range" id="gen-parlor-tok" min="512" max="65536" step="512" value="${genSettings.parlorMaxTokens || 4096}" style="width:100%;" ${genSettings.overrideParlor ? '' : 'disabled'}>
                                     </div>
+
+                                    <!-- World Weaver -->
+                                    <div class="form-group token-override-row">
+                                        <div style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" id="override-weaver" ${genSettings.overrideWorldWeaver ? 'checked' : ''} style="margin:0;">
+                                            <label class="label" style="font-size:10px;margin:0;flex:1;">World Weaver</label>
+                                            <span id="weaver-tok-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.worldWeaverMaxTokens || 4096}</span>
+                                        </div>
+                                        <input type="range" id="gen-weaver-tok" min="512" max="32768" step="512" value="${genSettings.worldWeaverMaxTokens || 4096}" style="width:100%;" ${genSettings.overrideWorldWeaver ? '' : 'disabled'}>
+                                    </div>
                                 </div>
                             </details>
                             
@@ -312,6 +323,7 @@
                     const hinaTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-hina-tok'));
                     const chronosTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-chronos-tok'));
                     const parlorTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-parlor-tok'));
+                    const weaverTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-weaver-tok'));
 
                     // Override checkboxes
                     const overrideSim = /** @type {HTMLInputElement} */ (body.querySelector('#override-sim'));
@@ -322,6 +334,7 @@
                     const overrideHina = /** @type {HTMLInputElement} */ (body.querySelector('#override-hina'));
                     const overrideChronos = /** @type {HTMLInputElement} */ (body.querySelector('#override-chronos'));
                     const overrideParlor = /** @type {HTMLInputElement} */ (body.querySelector('#override-parlor'));
+                    const overrideWeaver = /** @type {HTMLInputElement} */ (body.querySelector('#override-weaver'));
 
                     const settings = {
                         temperature: parseFloat(tempInput.value),
@@ -343,6 +356,7 @@
                         overrideHina: overrideHina?.checked || false,
                         overrideChronos: overrideChronos?.checked || false,
                         overrideParlor: overrideParlor?.checked || false,
+                        overrideWorldWeaver: overrideWeaver?.checked || false,
                         // Per-tool values
                         simulatorMaxTokens: parseInt(simTokInput?.value) || 4096,
                         nabuMaxTokens: parseInt(nabuTokInput?.value) || 2048,
@@ -351,7 +365,8 @@
                         writersBlockMaxTokens: parseInt(writerTokInput?.value) || 4096,
                         hinaMaxTokens: parseInt(hinaTokInput?.value) || 4096,
                         chronosMaxTokens: parseInt(chronosTokInput?.value) || 4096,
-                        parlorMaxTokens: parseInt(parlorTokInput?.value) || 4096
+                        parlorMaxTokens: parseInt(parlorTokInput?.value) || 4096,
+                        worldWeaverMaxTokens: parseInt(weaverTokInput?.value) || 4096
                     };
                     localStorage.setItem('anansi_gen_settings', JSON.stringify(settings));
                 };
@@ -401,6 +416,7 @@
                 bindSlider('#gen-hina-tok', '#hina-tok-val', formatK);
                 bindSlider('#gen-chronos-tok', '#chronos-tok-val', formatK);
                 bindSlider('#gen-parlor-tok', '#parlor-tok-val', formatK);
+                bindSlider('#gen-weaver-tok', '#weaver-tok-val', formatK);
 
                 // Override checkbox bindings
                 bindOverrideCheckbox('#override-sim', '#gen-sim-tok');
@@ -411,6 +427,7 @@
                 bindOverrideCheckbox('#override-hina', '#gen-hina-tok');
                 bindOverrideCheckbox('#override-chronos', '#gen-chronos-tok');
                 bindOverrideCheckbox('#override-parlor', '#gen-parlor-tok');
+                bindOverrideCheckbox('#override-weaver', '#gen-weaver-tok');
 
 
                 const list = body.querySelector('#configs-list');
@@ -682,11 +699,11 @@
             // Override flags
             overrideSimulator: false, overrideNabu: false, overrideNabuAdvanced: false,
             overrideMagicWand: false, overrideWritersBlock: false, overrideHina: false,
-            overrideChronos: false, overrideParlor: false,
+            overrideChronos: false, overrideParlor: false, overrideWorldWeaver: true,
             // Per-tool defaults (used when override is enabled)
             simulatorMaxTokens: 4096, nabuMaxTokens: 2048, nabuAdvancedMaxTokens: 8192,
             magicWandMaxTokens: 4096, writersBlockMaxTokens: 4096, hinaMaxTokens: 4096,
-            chronosMaxTokens: 4096, parlorMaxTokens: 4096
+            chronosMaxTokens: 4096, parlorMaxTokens: 4096, worldWeaverMaxTokens: 4096
         };
         return { ...defaults, ...JSON.parse(localStorage.getItem('anansi_gen_settings') || '{}') };
     };
@@ -707,7 +724,8 @@
             writersBlock: { override: 'overrideWritersBlock', value: 'writersBlockMaxTokens' },
             hina: { override: 'overrideHina', value: 'hinaMaxTokens' },
             chronos: { override: 'overrideChronos', value: 'chronosMaxTokens' },
-            parlor: { override: 'overrideParlor', value: 'parlorMaxTokens' }
+            parlor: { override: 'overrideParlor', value: 'parlorMaxTokens' },
+            worldWeaver: { override: 'overrideWorldWeaver', value: 'worldWeaverMaxTokens' }
         };
         const config = toolMap[tool];
         if (config && s[config.override]) {

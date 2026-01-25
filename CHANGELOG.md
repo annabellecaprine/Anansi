@@ -2,6 +2,14 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.17.0 - 2026-01-25
+### World Weaver Writing Style (Phase 13)
+- **Collaborative Style Definition**: Added a new **"Writing Style"** category to the World Weaver interview process.
+  - **Explicit Preferences**: The AI now actively asks for and respects user preferences for **POV** (First/Third), **Tense** (Past/Present), and **Tone**.
+  - **Active Listening**: The extraction engine specifically listens for style keywords and persists them to the session notes.
+  - **Smart Generation**: The Character Generator prioritizes these explicit user settings over generic defaults, ensuring the final character card matches the desired roleplay voice.
+  - **Automatic Migration**: Existing sessions are automatically upgraded to include the new category, preserving backward compatibility.
+
 ## v1.16.1 - 2026-01-24
 ### World Weaver UI & Layout Fixes
 - **Protagonist Mode Polish**:

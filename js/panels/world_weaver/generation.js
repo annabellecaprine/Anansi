@@ -174,12 +174,72 @@ For realistic human characters, keep all appendages present:false.`;
     }
 
     /**
-     * Step 3: Generate character card fields
+     * Step 3: Generate writing style preferences (POV, Tense, Tone)
+     * @returns {Object} - { writingStyle: { pov, tense, length, tone, instructions } }
+     */
+    async function generateWritingStyle(session, character, contextSummary, role = 'main') {
+        const T = A.WorldWeaver.Templates;
+        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
+
+        // Get user preferences if they exist
+        const userPrefs = session.categories?.writingStyle?.summary ||
+            session.categories?.writingStyle?.notes ||
+            "No specific preference provided.";
+
+        const prompt = `You are a Creative Director defining the roleplay style for a character.
+Character: ${character.name}
+Genre: ${genre.label}
+
+USER PREFERENCES (Use these if present):
+"${userPrefs}"
+
+Context: Use the gathered facts and personality to decide the immersive writing style.
+
+DECISION POINTS:
+1. POV: First Person ("I look") or Third Person ("${character.name} looks")? 
+   - FOLLOW USER PREFERENCE if stated. Default to First Person for bots unless requested otherwise.
+2. TENSE: Present ("She walks") or Past ("She walked")?
+   - FOLLOW USER PREFERENCE if stated. Present is standard for roleplay.
+3. LENGTH: Short (Chatty/SMS), Medium (Paragraph), or Long (Literate/Novel)?
+4. TONE: Keywords (e.g., Gritty, Flowery, Clinical, Casual, Archaic).
+
+Return ONLY this JSON:
+{
+  "pov": "First Person|Third Person",
+  "tense": "Present|Past",
+  "length": "Short|Medium|Long",
+  "tone": "Descriptive keywords...",
+  "instructions": "1-2 sentences of specific instructions for the writer."
+}`;
+
+        try {
+            const response = await A.LLM.generate(prompt, [], { maxTokens: 512, temperature: 0.7 });
+            const result = A.JSONRepair.repairAndParse(response);
+            return { writingStyle: result };
+        } catch (e) {
+            console.warn("Style generation failed, using defaults:", e);
+            return {
+                writingStyle: {
+                    pov: "First Person",
+                    tense: "Present",
+                    length: "Medium",
+                    tone: "Engaging",
+                    instructions: "Write naturally."
+                }
+            };
+        }
+    }
+
+
+
+    /**
+     * Step 4: Generate character card fields (Augmented with Writing Style)
      * @returns {Object} - { cardFields: { personality, description, scenario, firstMessage, mes_example } }
      */
     async function generateCardFields(session, character, contextSummary, role = 'main') {
         const appearance = character.appearance || {};
         const appearanceDesc = `${appearance.build || 'average build'}, ${appearance.hair || 'hair'}, ${appearance.eyes || 'eyes'} `;
+        const style = character.writingStyle || { pov: "First Person", tense: "Present", length: "Medium", tone: "Standard" };
 
         // Get pronouns for consistent usage
         const pronouns = character.pronouns || 'they/them';
@@ -197,19 +257,28 @@ For realistic human characters, keep all appendages present:false.`;
         Appearance: ${appearanceDesc}
         Tags: ${(character.tags || []).join(', ')}
 
+        WRITING STYLE GUIDELINES (CRITICAL):
+        - POV: ${style.pov}
+        - Tense: ${style.tense}
+        - Length: ${style.length}
+        - Tone: ${style.tone}
+        - Instructions: ${style.instructions || ''}
+
 ${contextSummary ? `World Context:\n${contextSummary}` : ''}
 
         IMPORTANT: Use ${subjective} /${objective}/${possessive} pronouns CONSISTENTLY throughout all fields.
+        Applying the requested POV/TENSE specifically to the 'firstMessage' and 'mes_example'. 
+        (Bio/Description can remain impartial Third Person if appropriate, but First Message MUST match the roleplay style).
 
 Generate the character card fields.
 
 Return ONLY this JSON:
         {
-            "personality": "2-3 paragraphs describing personality, demeanor, quirks, and behavior patterns (use ${subjective}/${possessive} pronouns)",
-                "description": "Full character description including background, motivations, and current situation (use ${subjective}/${possessive} pronouns)",
-                    "scenario": "The setting and context for interactions with this character",
-                        "firstMessage": "An opening line or action from ${character.name} to start a conversation",
-                            "mes_example": "<START>\\n{{char}}: Example line from ${character.name}\\n{{user}}: Example response\\n{{char}}: Another line"
+            "personality": "2-3 paragraphs describing personality, demeanor, quirks, and behavior patterns",
+            "description": "Full character description including background, motivations, and current situation",
+            "scenario": "The setting and context for interactions with this character",
+            "firstMessage": "An opening message from ${character.name} to the User. MUST follow the POV '${style.pov}', Tense '${style.tense}', and Length '${style.length}'. Make it engaging and set the scene.",
+            "mes_example": "<START>\\n{{char}}: Example line from ${character.name}\\n{{user}}: Example response\\n{{char}}: Another line (Ensure this matches the POV/Tense/Voice)"
         } `;
 
         let attempts = 0;
@@ -229,7 +298,7 @@ Return ONLY this JSON:
     }
 
     /**
-     * Step 4: Generate character quirks
+     * Step 5: Generate character quirks
      * @returns {Object} - { quirks: { activationChance, physical, mental, emotional } }
      */
     async function generateQuirks(session, character, contextSummary, role = 'main') {
@@ -328,7 +397,7 @@ Return ONLY this JSON:
     }
 
     /**
-     * Step 6: Generate cues (PULSE, EROS, INTENT)
+     * Step 7: Generate cues (PULSE, EROS, INTENT)
      * @returns {Object} - Updated traits with pulseCues, erosCues, intentCues
      */
     async function generateCues(session, character, contextSummary, role = 'main') {
@@ -445,7 +514,7 @@ Return ONLY this JSON keys for ${cat.id}:
 
         document.body.appendChild(modal);
 
-        const steps = ['Identity', 'Appearance', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
+        const steps = ['Identity', 'Appearance', 'Writing Style', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
         const stepsEl = modal.querySelector('#progress-steps');
 
         stepsEl.innerHTML = steps.map((s, i) => `
@@ -500,7 +569,7 @@ Return ONLY this JSON keys for ${cat.id}:
                     }
                 });
 
-                modal.querySelector('#progress-status').innerHTML = `<strong>Step ${stepIdx + 1}/6:</strong> ${stepName}...`;
+                modal.querySelector('#progress-status').innerHTML = `<strong>Step ${stepIdx + 1}/7:</strong> ${stepName}...`;
             },
 
             showError: (message, { retryStep, partialData }) => {
@@ -594,11 +663,12 @@ Return ONLY this JSON:
             let resumeStep = 0;
             if (partialData.name) resumeStep = 1; // Identity done
             if (partialData.appearance) resumeStep = 2; // Appearance done
-            if (partialData.cardFields) resumeStep = 3; // Card done
-            if (partialData.quirks) resumeStep = 4; // Quirks done
-            if (partialData.notes) resumeStep = 5; // Notes done
+            if (partialData.writingStyle) resumeStep = 3; // Style done
+            if (partialData.cardFields) resumeStep = 4; // Card done
+            if (partialData.quirks) resumeStep = 5; // Quirks done
+            if (partialData.notes) resumeStep = 6; // Notes done
 
-            const stepNames = ['Identity', 'Appearance', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
+            const stepNames = ['Identity', 'Appearance', 'Writing Style', 'Card Fields', 'Quirks', 'Notes', 'Cues'];
             const completedSteps = stepNames.slice(0, resumeStep).join(', ') || 'None';
 
             modal.innerHTML = `
@@ -659,6 +729,7 @@ Return ONLY this JSON:
         const steps = [
             { name: 'Identity', fn: generateIdentity },
             { name: 'Appearance', fn: generateAppearance },
+            { name: 'Writing Style', fn: generateWritingStyle },
             { name: 'Card Fields', fn: generateCardFields },
             { name: 'Quirks', fn: generateQuirks },
             { name: 'Notes', fn: generateNotes },

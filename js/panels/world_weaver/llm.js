@@ -246,6 +246,11 @@ ${isProtagonistMode
 - Conflict/Tension defined
 - OR The "loop"/encounter structure is clear
 
+**Writing Style (10%)** - COMPLETE when:
+- POV (First vs Third) is defined
+- Verb Tense (Past vs Present) is defined
+- Tone/Voice is established
+
 **Mechanics (10%)** - COMPLETE when:
 - Tracking systems (Stats, Trust, Corruption, etc.)
 
@@ -574,6 +579,7 @@ VALID CATEGORIES:
 - [SETTING] (Locations, Era, Situation${isProtagonistMode ? ', OTHER characters as world context' : ''})
 - [CAST] (${isProtagonistMode ? 'Protagonist details ONLY' : 'All significant characters'})
 - [STORYARC] (Plots, Conflicts)
+- [WRITINGSTYLE] (POV, Tense, Tone, Voice)
 - [MECHANICS] (Stats, Systems)
 - [GUARDRAILS] (Safety, Limits, Boundaries)
 

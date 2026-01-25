@@ -11,7 +11,22 @@
     // Helper to save sessions
     const SESSIONS_KEY = 'anansi_world_weaver_sessions';
     function loadSessions() {
-        try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '{}'); } catch { return {}; }
+        try {
+            const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '{}');
+            // Migration/Backfill: Ensure all template categories exist
+            const T = A.WorldWeaver.Templates;
+            if (T && T.CATEGORIES) {
+                Object.values(sessions).forEach(session => {
+                    if (!session.categories) session.categories = {};
+                    Object.keys(T.CATEGORIES).forEach(catKey => {
+                        if (!session.categories[catKey]) {
+                            session.categories[catKey] = { status: 'empty', confidence: 0, summary: '', notes: '', facts: [], gaps: [] };
+                        }
+                    });
+                });
+            }
+            return sessions;
+        } catch { return {}; }
     }
     function saveSessions(sessions) {
         localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
@@ -49,6 +64,7 @@
                         : ''
                 }, // Renamed from mainCharacter
                 storyArc: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
+                writingStyle: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 mechanics: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] },
                 guardrails: { status: 'empty', confidence: 0, summary: '', facts: [], gaps: [] }
             },
@@ -356,7 +372,7 @@
     function showCategoryDetails(session, key, sessions, container) {
         const T = A.WorldWeaver.Templates;
         const conf = T.CATEGORIES[key];
-        const data = session.categories[key];
+        const data = session.categories[key] || { confidence: 0, summary: '', notes: '', status: 'empty' };
 
         // Create Modal
         const modal = document.createElement('div');
@@ -583,7 +599,7 @@
         // Category List with mode-aware labels
         const catList = sidebar.querySelector('#ww-categories-list');
         Object.entries(T.CATEGORIES).forEach(([key, conf]) => {
-            const catState = session.categories[key];
+            const catState = session.categories[key] || { confidence: 0, summary: '', notes: '' };
             const confidence = Number(catState.confidence || 0);
             const radius = 6;
             const circumference = 2 * Math.PI * radius;

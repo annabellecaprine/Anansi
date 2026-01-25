@@ -74,6 +74,7 @@
         setting: { label: 'Setting/Situation', weight: 15, icon: '🏔️' },
         cast: { label: 'Cast & Characters', weight: 15, icon: '👥' },
         storyArc: { label: 'Story Arc', weight: 15, icon: '📖' },
+        writingStyle: { label: 'Writing Style', weight: 10, icon: '✍️' },
         mechanics: { label: 'Mechanics', weight: 10, icon: '🎲' },
         guardrails: { label: 'Guardrails', weight: 5, icon: '🚧' }
     };
