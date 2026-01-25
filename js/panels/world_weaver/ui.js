@@ -95,7 +95,8 @@
             ],
             overallProgress: 0,
             currentFocus: null,
-            settings: { customBoundaries: '' }
+            settings: { customBoundaries: '' },
+            mode: 'build' // 'build' | 'brainstorm'
         };
     }
 
@@ -247,6 +248,9 @@
     }
 
     function renderSidebar(sidebar, session, sessions, state, container) {
+        // Ensure session.mode is initialized
+        if (!session.mode) session.mode = 'build';
+
         const T = A.WorldWeaver.Templates;
         const currentGenre = T.WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype);
         const isProtagonistMode = session.storyFocus === 'protagonist';
@@ -327,6 +331,10 @@
 
             <div style="flex:1; overflow-y:auto; padding:8px;">
                  <div id="ww-categories-list"></div>
+                 
+                 <div id="ww-entity-suggestions" style="margin-top:16px; padding:0 8px;">
+                    <!-- Detected Entities will appear here -->
+                 </div>
             </div>
 
             <div style="padding:16px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
@@ -394,6 +402,11 @@
         };
         sidebar.querySelector('#ww-generate').onclick = () => showGenerationOptions(session, sessions);
         sidebar.querySelector('#ww-view-context').onclick = () => showContextModal(session);
+
+        // Render existing suggestions if any
+        if (session.entitySuggestions && session.entitySuggestions.length > 0) {
+            renderEntitySuggestions(sidebar.querySelector('#ww-entity-suggestions'), session, sessions);
+        }
     }
 
     function showCategoryDetails(session, key, sessions, container, state) {
@@ -446,13 +459,71 @@
                 #ww-chat-messages ul { margin-left: 20px; }
             </style>
             <div style="padding:16px; background:var(--bg-elevated); border-top:1px solid var(--border-subtle);">
+                <!-- Header: Mode Switch -->
+                <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:8px; gap:12px;">
+                     <div style="font-size:12px; color:var(--text-muted); font-weight:600; letter-spacing:0.5px; text-transform:uppercase;">Mode:</div>
+                     <div id="ww-mode-switch" style="display:flex; background:var(--bg-base); padding:2px; border-radius:20px; border:1px solid var(--border-subtle); cursor:pointer; position:relative;">
+                        <div id="ww-mode-highlight" style="position:absolute; top:2px; left:2px; width:calc(50% - 2px); height:calc(100% - 4px); background:var(--accent); border-radius:18px; transition:all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                        
+                        <div class="ww-mode-opt" data-mode="build" style="position:relative; z-index:1; padding:4px 0; width:80px; text-align:center; font-size:11px; font-weight:700; color:white; transition:color 0.3s; user-select: none;">Build</div>
+                        <div class="ww-mode-opt" data-mode="brainstorm" style="position:relative; z-index:1; padding:4px 0; width:80px; text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); transition:color 0.3s; user-select: none;">Brainstorm</div>
+                     </div>
+                </div>
+
                 <div style="display:flex; gap:8px;">
-                    <textarea id="ww-chat-input" placeholder="Type your answer..." style="flex:1; min-height:44px; padding:12px; border-radius:8px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-primary); resize:none;"></textarea>
-                    <button id="ww-send-btn" style="padding:0 20px; background:var(--accent); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Send</button>
+                    <textarea id="ww-chat-input" placeholder="${session.mode === 'brainstorm' ? 'Ask me anything to spark ideas...' : 'Type your answer...'}" style="flex:1; min-height:44px; padding:12px; border-radius:8px; border:1px solid ${session.mode === 'brainstorm' ? 'var(--accent)' : 'var(--border-subtle)'}; box-shadow:${session.mode === 'brainstorm' ? '0 0 0 1px var(--accent)' : 'none'}; background:var(--bg-surface); color:var(--text-primary); resize:none; transition: all 0.3s ease;"></textarea>
+                    <button id="ww-send-btn" style="padding:0 20px; background:${session.mode === 'brainstorm' ? '#d946ef' : 'var(--accent)'}; color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition: background 0.3s;">
+                        ${session.mode === 'brainstorm' ? 'Spark ✨' : 'Send'}
+                    </button>
                 </div>
             </div>
         `;
         const chatList = container.querySelector('#ww-chat-messages');
+
+        // Mode Switch Logic
+        const modeSwitch = container.querySelector('#ww-mode-switch');
+        const highlight = container.querySelector('#ww-mode-highlight');
+        const opts = container.querySelectorAll('.ww-mode-opt');
+        const input = container.querySelector('#ww-chat-input');
+        const sendBtn = container.querySelector('#ww-send-btn');
+
+        const updateModeUI = (mode) => {
+            session.mode = mode;
+            // Save immediately
+            saveSessions(sessions);
+
+            if (mode === 'build') {
+                highlight.style.left = '2px';
+                highlight.style.background = 'var(--accent)';
+                opts[0].style.color = 'white';
+                opts[1].style.color = 'var(--text-muted)';
+                input.placeholder = 'Type your answer...';
+                input.style.borderColor = 'var(--border-subtle)';
+                input.style.boxShadow = 'none';
+                sendBtn.style.background = 'var(--accent)';
+                sendBtn.textContent = 'Send';
+            } else {
+                highlight.style.left = '50%';
+                highlight.style.background = '#d946ef'; // Magenta for brainstorming
+                opts[0].style.color = 'var(--text-muted)';
+                opts[1].style.color = 'white';
+                input.placeholder = 'Ask me anything to spark ideas...';
+                input.style.borderColor = '#d946ef';
+                input.style.boxShadow = '0 0 0 1px #d946ef';
+                sendBtn.style.background = '#d946ef';
+                sendBtn.textContent = 'Spark ✨';
+            }
+        };
+
+        // Initialize UI State
+        if (session.mode === 'brainstorm') {
+            updateModeUI('brainstorm');
+        }
+
+        modeSwitch.onclick = () => {
+            const newMode = session.mode === 'build' ? 'brainstorm' : 'build';
+            updateModeUI(newMode);
+        };
 
         session.chatHistory.forEach(msg => {
             const el = document.createElement('div');
@@ -487,6 +558,58 @@
                 // 3. Question (Crucial: Was missing before!)
                 if (msg.question) {
                     finalHtml += `<div style="font-weight:600; font-size:1.05em; margin-top:4px; color:var(--text-primary);">${msg.question}</div>`;
+                }
+
+                // 4. Suggestion Chips
+                // If the LLM provided a 'suggestion', render it as a clickable chip.
+                if (msg.questions && msg.questions.length > 0) {
+                    msg.questions.forEach(q => {
+                        if (q.suggestion) {
+                            const chipId = `sugg-${Math.random().toString(36).substr(2, 9)}`;
+                            finalHtml += `
+                                <div class="ww-suggestion-chip" id="${chipId}" style="
+                                    margin-top: 8px; 
+                                    display: inline-flex; 
+                                    align-items: center; 
+                                    gap: 6px; 
+                                    padding: 6px 12px; 
+                                    background: var(--bg-surface); 
+                                    border: 1px solid var(--accent); 
+                                    border-radius: 16px; 
+                                    font-size: 12px; 
+                                    color: var(--text-primary); 
+                                    cursor: pointer; 
+                                    transition: all 0.2s;
+                                    opacity: 0.9;">
+                                    <span style="color:var(--accent);">✨</span>
+                                    <span>${q.suggestion}</span>
+                                </div>
+                             `;
+
+                            // Defer click handler attachment until after append
+                            setTimeout(() => {
+                                const chip = document.getElementById(chipId);
+                                if (chip) {
+                                    chip.onmouseover = () => { chip.style.background = 'var(--bg-elevated)'; chip.style.transform = 'translateY(-1px)'; };
+                                    chip.onmouseout = () => { chip.style.background = 'var(--bg-surface)'; chip.style.transform = 'none'; };
+                                    chip.onclick = () => {
+                                        const input = container.querySelector('#ww-chat-input');
+                                        if (input) {
+                                            input.value = q.suggestion;
+                                            input.focus();
+                                            // Optional: Highlight effect
+                                            chip.style.background = 'var(--accent)';
+                                            chip.style.color = 'white';
+                                            setTimeout(() => {
+                                                chip.style.background = 'var(--bg-surface)';
+                                                chip.style.color = 'var(--text-primary)';
+                                            }, 200);
+                                        }
+                                    };
+                                }
+                            }, 0);
+                        }
+                    });
                 }
             }
 
@@ -567,6 +690,29 @@
                 <h3 style="margin-top: 0;">🕸️ Generate World Output</h3>
                 <p style="color: var(--text-muted); margin-bottom: 24px;">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
 
+                <!-- SETTINGS UI -->
+                <div style="margin-bottom:24px; padding:16px; background:var(--bg-elevated); border-radius:8px; border:1px solid var(--border-subtle);">
+                     <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Generation Settings</div>
+                     
+                     <!-- Dossier Detail Slider -->
+                     <label style="display:block; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="font-size:13px; font-weight:600;">Information Density</span>
+                            <span id="label-dossier" style="font-size:11px; color:var(--accent);">High (Comprehensive)</span>
+                        </div>
+                        <input type="range" id="set-dossier" min="0" max="1" step="1" value="1" style="width:100%; cursor:pointer;">
+                     </label>
+
+                     <!-- Card Verbosity Slider -->
+                     <label style="display:block;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="font-size:13px; font-weight:600;">Writing Verbosity</span>
+                            <span id="label-verbosity" style="font-size:11px; color:var(--accent);">Standard (Chat Optimized)</span>
+                        </div>
+                        <input type="range" id="set-verbosity" min="0" max="1" step="1" value="0" style="width:100%; cursor:pointer;">
+                     </label>
+                </div>
+
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <button class="ww-gen-option" data-type="character" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
                         <span style="font-size: 24px;">👤</span>
@@ -605,24 +751,44 @@
         `;
         document.body.appendChild(modal);
 
+        // Slider Logic
+        const sliderDossier = modal.querySelector('#set-dossier');
+        const sliderVerbosity = modal.querySelector('#set-verbosity');
+        const labelDossier = modal.querySelector('#label-dossier');
+        const labelVerbosity = modal.querySelector('#label-verbosity');
+
+        sliderDossier.oninput = () => {
+            labelDossier.textContent = sliderDossier.value === '1' ? 'High (Comprehensive)' : 'Low (Efficient)';
+        };
+        sliderVerbosity.oninput = () => {
+            labelVerbosity.textContent = sliderVerbosity.value === '1' ? 'Literate (Novel Style)' : 'Standard (Chat Optimized)';
+        };
+
+        const getSettings = () => ({
+            dossierDetail: sliderDossier.value === '1' ? 'high' : 'low',
+            cardVerbosity: sliderVerbosity.value === '1' ? 'literate' : 'standard'
+        });
+
         modal.querySelectorAll('.ww-gen-option').forEach(btn => {
             btn.onmouseover = () => { btn.style.borderColor = 'var(--accent)'; btn.style.transform = 'translateY(-2px)'; };
             btn.onmouseout = () => { btn.style.borderColor = 'var(--border-subtle)'; btn.style.transform = 'none'; };
             btn.onclick = () => {
                 const type = btn.dataset.type;
+                const settings = getSettings();
                 modal.remove();
+
                 if (type === 'multicast') {
-                    showMultiCastSelection(session, sessions);
+                    showMultiCastSelection(session, sessions, settings);
                 } else if (type === 'character') {
-                    // Use multi-step generation
+                    // Use multi-step generation with settings
                     if (A.WorldWeaver.Generation?.generateCharacterMultiStep) {
-                        A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions);
+                        A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, ["Protagonist"], settings);
                     } else if (A.WorldWeaver.Generation?.handleGeneration) {
-                        A.WorldWeaver.Generation.handleGeneration(session, sessions, 'character');
+                        A.WorldWeaver.Generation.handleGeneration(session, sessions, 'character', settings);
                     }
                 } else {
                     if (A.WorldWeaver.Generation?.handleGeneration) {
-                        A.WorldWeaver.Generation.handleGeneration(session, sessions, type);
+                        A.WorldWeaver.Generation.handleGeneration(session, sessions, type, settings);
                     }
                 }
             };
@@ -632,7 +798,7 @@
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     }
 
-    function showMultiCastSelection(session, sessions) {
+    function showMultiCastSelection(session, sessions, settings) {
         const cast = session.cast || [];
         if (cast.length === 0) {
             alert('No cast members identified yet. Continue the interview to build your ensemble.');
@@ -686,7 +852,7 @@
 
             modal.remove();
             if (A.WorldWeaver.Generation?.generateCharacterMultiStep) {
-                A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, selected);
+                A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, selected, settings);
             }
         };
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
@@ -763,6 +929,110 @@ ${notesContext || '(No notes yet)'}`;
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     }
 
+    function showEntitySuggestions(entities) {
+        // 1. Get Active Session
+        const state = A.State.get();
+        const sessionId = state.worldWeaver?.currentSessionId;
+        if (!sessionId) return;
+
+        const sessions = loadSessions();
+        const session = sessions[sessionId];
+        if (!session) return;
+
+        // 2. Add to session (Dedup against current suggestions AND current context)
+        if (!session.entitySuggestions) session.entitySuggestions = [];
+        let added = false;
+
+        entities.forEach(ent => {
+            const name = ent.name;
+            // Check if already suggested
+            if (session.entitySuggestions.find(e => e.name === name)) return;
+
+            // Check if already in Cast (rough check)
+            if (session.cast && session.cast.find(c => c.name.includes(name))) return;
+
+            // Add
+            session.entitySuggestions.push(ent);
+            added = true;
+        });
+
+        if (added) {
+            saveSessions(sessions);
+            // 3. Trigger Sidebar Update (Targeting the specific container)
+            const sidebar = document.querySelector('.ww-sidebar');
+            const container = sidebar?.querySelector('#ww-entity-suggestions');
+            if (container) {
+                renderEntitySuggestions(container, session, sessions);
+                // Flash attention
+                container.style.animation = 'none';
+                void container.offsetWidth;
+                container.style.animation = 'ww-pulse 1s ease';
+            }
+        }
+    }
+
+    function renderEntitySuggestions(container, session, sessions) {
+        if (!container) return;
+        container.innerHTML = '';
+        if (!session.entitySuggestions || session.entitySuggestions.length === 0) return;
+
+        const header = document.createElement('div');
+        header.style.cssText = "font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; padding-left:4px;";
+        header.textContent = "Detected Entities";
+        container.appendChild(header);
+
+        session.entitySuggestions.forEach((ent, idx) => {
+            const el = document.createElement('div');
+            el.style.cssText = "background:var(--bg-elevated); padding:8px; border-radius:6px; margin-bottom:4px; border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:4px; font-size:12px;";
+            el.innerHTML = `
+                <div style="font-weight:600; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+                    <span>${ent.name}</span>
+                    <span style="font-size:10px; padding:2px 4px; background:rgba(255,255,255,0.1); border-radius:4px;">${ent.type}</span>
+                </div>
+                <div style="color:var(--text-secondary); font-size:11px; line-height:1.2;">
+                    ${ent.context || 'Mentioned in chat'}
+                </div>
+                <div style="display:flex; gap:6px; margin-top:4px;">
+                    <button class="es-btn-add" style="flex:1; padding:4px; cursor:pointer; background:var(--accent); color:white; border:none; border-radius:4px; font-size:10px;">Add</button>
+                    <button class="es-btn-dismiss" style="padding:4px 8px; cursor:pointer; background:transparent; border:1px solid var(--border-subtle); color:var(--text-muted); border-radius:4px; font-size:10px;">✕</button>
+                </div>
+             `;
+
+            // Add Logic
+            el.querySelector('.es-btn-add').onclick = () => {
+                // Add to appropriate category notes
+                const catMap = {
+                    'Person': 'cast',
+                    'Faction': 'setting',
+                    'Place': 'setting',
+                    'Object': 'setting'
+                };
+                const targetCat = catMap[ent.type] || 'worldRules';
+
+                // Append to Notes
+                if (!session.categories[targetCat].notes) session.categories[targetCat].notes = '';
+                session.categories[targetCat].notes += `\n• ${ent.name} (${ent.type}): ${ent.context}`;
+
+                // Remove from suggestions
+                session.entitySuggestions.splice(idx, 1);
+                saveSessions(sessions);
+                renderEntitySuggestions(container, session, sessions);
+
+                // Toast
+                if (A.UI?.Toast?.show) A.UI.Toast.show(`Added ${ent.name} to ${targetCat}`, 'success');
+            };
+
+            // Dismiss Logic
+            el.querySelector('.es-btn-dismiss').onclick = () => {
+                session.entitySuggestions.splice(idx, 1);
+                saveSessions(sessions);
+                renderEntitySuggestions(container, session, sessions);
+            };
+
+            container.appendChild(el);
+        });
+    }
+
     // Main Public API (Attached cleanly)
     A.WorldWeaver.render = render;
 
@@ -795,7 +1065,8 @@ ${notesContext || '(No notes yet)'}`;
         render,
         loadSessions,
         saveSessions,
-        pulseCategories
+        pulseCategories,
+        showEntitySuggestions
     };
 
 })(window.Anansi);

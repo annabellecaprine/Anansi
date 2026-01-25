@@ -2,6 +2,17 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.18.0 - 2026-01-25
+### World Weaver 2.0 (Generation Overhaul)
+- **Features**:
+  - **Brainstorm Mode**: A new creative sandbox mode. Toggle "Build" vs "Brainstorm" in the sidebar. Features a "Spark" button for creative twists and freeform "Yes, and..." co-authoring.
+  - **Living Lore**: The Secretary now actively scans chat for new proper nouns (Entities) and offers "Suggestion Chips" to instantly add them to the correct category.
+  - **Generation Overhaul**: Completely rewrote the character generation pipeline to solve "thin personality" issues.
+    - **Structured Dossier**: Replaced the 400-word summary with a limitless "Structured Profile" (Identity, Psychology, Physicality, History, Dynamics).
+    - **Field Separation**: Strict prompt engineering prevents description/personality bleed.
+    - **Verbosity Sliders**: New UI controls for "Information Density" and "Writing Style" (Standard vs Literate).
+  - **Structured Export**: The "Download World Bible" button now produces a clean, formatted Markdown file based on the Structured Dossier, rather than a raw note dump.
+
 ## v1.17.2 - 2026-01-25
 ### World Weaver V2 Polish
 - **Core Functionality**:

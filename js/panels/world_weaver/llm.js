@@ -21,7 +21,10 @@
 
         // --- STEP 0: DIRECTOR MODE (Auto-Focus) ---
         // If current focus is "done" (high confidence), force a switch to keep momentum.
-        if (session.currentFocus && session.categories[session.currentFocus]) {
+        // SKIP THIS IF IN BRAINSTORM MODE
+        const isBrainstorm = session.mode === 'brainstorm';
+
+        if (!isBrainstorm && session.currentFocus && session.categories[session.currentFocus]) {
             const currentConf = session.categories[session.currentFocus].confidence || 0;
             if (currentConf > 80) {
                 // Find next incomplete category
@@ -133,9 +136,11 @@
         // We do NOT inject a hard block here unless defined in settings (which we removed).
         // Instead, the persona instructions handle the negotiation.
 
-        const personality = isAdult
-            ? "You are an experienced, open-minded Genre Editor. The user has opted into Adult content, so you are comfortable discussing mature themes, dark topics, and erotica professionally and creatively. You do not shy away from details."
-            : "You are an experienced Genre Editor and collaborative World-Builder.";
+        const personality = isBrainstorm
+            ? "You are a wild, creative co-author using the 'Yes, And...' technique. Throw spaghetti at the wall. Offer distinct, contrasting options. Don't worry about 'completing' the form—worry about making the idea cool. If the user is stuck, offer 3 very different, concrete paths."
+            : isAdult
+                ? "You are an experienced, open-minded Genre Editor. The user has opted into Adult content, so you are comfortable discussing mature themes, dark topics, and erotica professionally and creatively. You do not shy away from details."
+                : "You are an experienced Genre Editor and collaborative World-Builder.";
 
         // Mode-specific rules for Protagonist vs Ensemble
         const storyFocusRules = isProtagonistMode
@@ -193,7 +198,8 @@ This is an ENSEMBLE CAST session. You are helping build a GROUP of significant c
         // AUTO-PIVOT LOGIC (Strict Implementation)
         // If current focus is "Done" (>80%) and there are neglected topics (<30%), SWITCH NOW.
         // This ensures the prompt context is relevant to the NEW topic, not the old one.
-        {
+        // SKIP IN BRAINSTORM MODE
+        if (!isBrainstorm) {
             const currentConf = session.categories[session.currentFocus]?.confidence || 0;
             if (currentConf > 80) {
                 // Use definition order to find first neglected
@@ -247,8 +253,9 @@ ${neglectedContext}
 === SMART ANALYSIS RULES ===
 1. **IMPORTED ACTOR PRIORITY**: If an "IMPORTED ACTOR PROFILE" is present, treat that character as the anchor.
 2. **IMMEDIATE SCENARIO**: If the user sets a scene, jump right in.
-3. **ADULT CONTENT**: "No limits" is a valid boundary if the user says so.
-4. **PIVOT TO NEGLECTED**: If Current Focus is done (>80%), stop drilling down. Switch to a Neglected Topic.
+        // 3. ADULT CONTENT: "No limits" is a valid boundary if the user says so.
+        // 4. PIVOT TO NEGLECTED: If Current Focus is done (>80%), stop drilling down. Switch to a Neglected Topic.
+        ${isBrainstorm ? '5. BRAINSTORM MODE: Do NOT pivot automatically. Dig deeper. Offer 3 distinct options if the user seems unsure.' : ''}
 
 === COMPLETENESS CHECKLIST (${currentCatConfig?.label}) ===
 To score confidence for the CURRENT FOCUS, check these specific sub-facets:
@@ -512,8 +519,8 @@ Please evaluate and generate questions.`;
                 }
             }
 
-            // Auto-switch focus if current is complete
-            if (parsed.highestPriority && CATEGORIES[parsed.highestPriority]) {
+            // Auto-switch focus if current is complete (DISABLE IN BRAINSTORM)
+            if (!isBrainstorm && parsed.highestPriority && CATEGORIES[parsed.highestPriority]) {
                 const currentConf = session.categories[session.currentFocus]?.confidence || 0;
                 if (currentConf > 70) {
                     session.currentFocus = parsed.highestPriority;
@@ -596,6 +603,9 @@ OUTPUT FORMAT (JSON ONLY):
   },
   "corrections": [
       { "category": "categoryKey", "original_fragment": "waitress", "new_content": "welder" }
+  ],
+  "potential_entities": [
+      { "name": "Name of Entity", "type": "Person/Place/Faction/Object", "context": "Brief context" }
   ]
 }`;
 
@@ -649,6 +659,16 @@ OUTPUT FORMAT (JSON ONLY):
                 // Notify UI to pulse
                 if (A.WorldWeaver.UI && A.WorldWeaver.UI.pulseCategories) {
                     A.WorldWeaver.UI.pulseCategories(Array.from(updatedKeys));
+                }
+            }
+
+            // Suggest Entities (Living Lore Linking)
+            if (delta.potential_entities && Array.isArray(delta.potential_entities) && delta.potential_entities.length > 0) {
+                console.log('[WorldWeaver] Potential Entities Detected:', delta.potential_entities);
+                // We need to pass these to the UI.
+                // Ideally via a callback, but A.WorldWeaver.UI is globally available.
+                if (A.WorldWeaver.UI && A.WorldWeaver.UI.showEntitySuggestions) {
+                    A.WorldWeaver.UI.showEntitySuggestions(delta.potential_entities);
                 }
             }
 

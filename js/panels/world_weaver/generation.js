@@ -57,7 +57,15 @@
      * @param {string} targetName - Name of character to focus on
      * @returns {string} - Focused context string
      */
-    async function summarizeContextFor(session, targetName) {
+    /**
+     * Step 0: Focus Context (Create Dossier)
+     * Distills world context into a specific character dossier
+     * @param {Object} session - World Weaver session
+     * @param {string} targetName - Name of character to focus on
+     * @param {Object} settings - Generation settings (verbosity, etc)
+     * @returns {string} - Focused context string
+     */
+    async function summarizeContextFor(session, targetName, settings = {}) {
         const fullContext = buildContextSummary(session);
         // Add recent chat history for specifics (last 20 messages)
         const history = session.chatHistory.slice(-20).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
@@ -69,7 +77,7 @@
             The goal is to generate the character card for the entity the User will interact with.`;
         }
 
-        const prompt = `Unify the world context and chat history into a focused dossier ${targetInstruction}.
+        const prompt = `Unify the world context and chat history into a STRUCTURED DOSSIER ${targetInstruction}.
         
 WORLD CONTEXT:
 ${fullContext}
@@ -77,16 +85,33 @@ ${fullContext}
 RECENT CHAT:
 ${history}
 
-Task: Extract every known fact, trait, relationship, and scenario detail about the target.
-If details are missing, infer them logically based on the Genre constraints.
-CRITICAL: Explicitly check for these details:
-- Identity & Role
-- Appearance (Hair, Eyes, Body)
-- Personality & Quirks
-- Key Relationships
+Task: Analyze the context and extract a comprehensive profile.
+Format your response as a Structured Analysis with the following headers:
 
-Return a concise summary (max 400 words) that will serve as the "Truth" for generating this character's profile.
-IMPORTANT: Do NOT generate a profile for "{User}" or "The Player". Generate the Main NPC.`;
+I. CORE IDENTITY
+- Name, Role, Archetype, Key Demographics.
+
+II. PSYCHOLOGY & VOICE
+- Deep motivations, hidden fears, vices, virtues.
+- Speaking style, catchphrases, or mannerisms (quoted if possible).
+- Internal monologue style.
+
+III. PHYSICALITY
+- Distinctive features, gait, clothing style, inventory/weapons.
+- Do NOT just list hair/eyes; give us the "vibe" (e.g. "Looms like a mountain," "Moves like a cat").
+
+IV. HISTORY & CONTEXT
+- Key backstory events, origin, and how they fit into the world plot.
+- Current scenario placement (Where are they *right now*?).
+
+V. DYNAMICS
+- Relationships with the User/Protagonist and other key factions.
+- Conflicts and goals.
+
+VERBOSITY INSTRUCTION: ${settings.dossierDetail === 'high' ? 'Be EXTREMELY detailed. Include specific quotes, sensory details, and full psychological breakdowns. Do not abbreviate.' : 'Be precise and efficient. Capture the essence without fluff.'}
+
+IMPORTANT: Do NOT summarize endlessly. Be specific. Use as many tokens as needed to capture the "soul" of the character.
+Do NOT generate a profile for "{User}" or "The Player". Generate the Main NPC.`;
 
         try {
             const dossier = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.6 });
@@ -264,7 +289,7 @@ Return ONLY this JSON:
      * Step 4: Generate character card fields (Augmented with Writing Style)
      * @returns {Object} - { cardFields: { personality, description, scenario, firstMessage, mes_example } }
      */
-    async function generateCardFields(session, character, contextSummary, role = 'main') {
+    async function generateCardFields(session, character, contextSummary, role = 'main', settings = {}) {
         const appearance = character.appearance || {};
         const appearanceDesc = `${appearance.build || 'average build'}, ${appearance.hair || 'hair'}, ${appearance.eyes || 'eyes'} `;
         const style = character.writingStyle || { pov: "First Person", tense: "Present", length: "Medium", tone: "Standard" };
@@ -280,7 +305,12 @@ Return ONLY this JSON:
             ? "Write a concise bio (1 paragraph) and a simple motivation."
             : `You are writing a detailed character card for ${character.name}.`;
 
+        const verbosityPrompt = settings.cardVerbosity === 'literate'
+            ? "VERBOSITY: HIGH. Write like a novelist. Use rich sensory details, complex psychological layering, and show-dont-tell. Do not fear length."
+            : "VERBOSITY: STANDARD. detailed but efficient. Optimized for chat context.";
+
         const prompt = `${instruction}
+            ${verbosityPrompt}
             Identity: ${character.gender || 'Neutral'} (${pronouns})
         Appearance: ${appearanceDesc}
         Tags: ${(character.tags || []).join(', ')}
@@ -292,20 +322,22 @@ Return ONLY this JSON:
         - Tone: ${style.tone}
         - Instructions: ${style.instructions || ''}
 
-${contextSummary ? `World Context:\n${contextSummary}` : ''}
+${contextSummary ? `World Context (Structured Dossier):\n${contextSummary}` : ''}
 
         IMPORTANT: Use ${subjective} /${objective}/${possessive} pronouns CONSISTENTLY throughout all fields.
-        Applying the requested POV/TENSE specifically to the 'firstMessage' and 'mes_example'. 
-        (Bio/Description can remain impartial Third Person if appropriate, but First Message MUST match the roleplay style).
+        
+        INSTRUCTIONS FOR FIELDS:
+        1. PERSONALITY: Use the "PSYCHOLOGY" section of the Dossier. Focus on internal depth, beliefs, and mental landscape. Do NOT just list physical traits here.
+        2. DESCRIPTION: Use the "PHYSICALITY" section. Describe them narratively (visuals, smell, presence). Do NOT list mental traits here.
+        3. SCENARIO: Use the "HISTORY/CONTEXT" section. Place them in the IMMEDIATE scene implied by the user's last input.
+        4. FIRST MESSAGE: Must be an engaging roleplay opener matching the Request POV/Tense.
 
-Generate the character card fields.
-
-Return ONLY this JSON:
+        Return ONLY this JSON:
         {
-            "personality": "2-3 paragraphs describing personality, demeanor, quirks, and behavior patterns",
-            "description": "Full character description including background, motivations, and current situation",
-            "scenario": "The setting and context for interactions with this character",
-            "firstMessage": "An opening message from ${character.name} to the User. MUST follow the POV '${style.pov}', Tense '${style.tense}', and Length '${style.length}'. Make it engaging and set the scene.",
+            "personality": "Detailed psychological profile (internal depth)",
+            "description": "Narrative visual description (external observation)",
+            "scenario": "Current situation/setting",
+            "firstMessage": "Opening roleplay message",
             "mes_example": "<START>\\n{{char}}: Example line from ${character.name}\\n{{user}}: Example response\\n{{char}}: Another line (Ensure this matches the POV/Tense/Voice)"
         } `;
 
@@ -749,7 +781,15 @@ Return ONLY this JSON:
      * @param {number} startFromStep - Step index to resume from (default: 0)
      * @param {Object} existingCharacter - Partial character to resume (default: new character)
      */
-    async function runGenerationPipeline(session, contextSummary, progressCallback, startFromStep = 0, existingCharacter = null, role = 'main') {
+    /**
+     * Run the 6-step pipeline for a single character
+     * @param {Object} session - Current world weaver session
+     * @param {string} contextSummary - Focused context for generation
+     * @param {Function} progressCallback - Called on each step (stepIdx, totalSteps, stepName) => boolean
+     * @param {number} startFromStep - Step index to resume from (default: 0)
+     * @param {Object} existingCharacter - Partial character to resume (default: new character)
+     */
+    async function runGenerationPipeline(session, contextSummary, progressCallback, startFromStep = 0, existingCharacter = null, role = 'main', settings = {}) {
         const character = existingCharacter || {
             id: `actor_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
         };
@@ -768,7 +808,7 @@ Return ONLY this JSON:
             if (progressCallback && progressCallback(i, steps.length, steps[i].name) === false) return null;
 
             const step = steps[i];
-            const result = await step.fn(session, character, contextSummary, role);
+            const result = await step.fn(session, character, contextSummary, role, settings);
             Object.assign(character, result);
 
             // Save partial state
@@ -781,7 +821,7 @@ Return ONLY this JSON:
     /**
      * Multi-step character generation orchestrator (Supports Batch)
      */
-    async function generateCharacterMultiStep(session, sessions, targetList = []) {
+    async function generateCharacterMultiStep(session, sessions, targetList = [], settings = {}) {
         const targets = targetList.length > 0 ? targetList : ["Protagonist"];
         const isBatch = targets.length > 1;
 
@@ -841,7 +881,8 @@ Return ONLY this JSON:
                     // Step 0: Focus Context (skip if resuming with context already cached)
                     if (!currentFocusedContext || tIdx > 0 || !rState) {
                         progressModal.updateStatus(0, isBatch ? `[${tIdx + 1}/${targets.length}] Analyzing ${targetName}...` : 'Analyzing context...');
-                        currentFocusedContext = await summarizeContextFor(session, targetName);
+                        // PASS SETTINGS
+                        currentFocusedContext = await summarizeContextFor(session, targetName, settings);
                     }
 
                     // Only use resume state for the first character in this run
@@ -871,7 +912,8 @@ Return ONLY this JSON:
                         },
                         useStartStep,
                         useExistingChar,
-                        role
+                        role,
+                        settings
                     );
 
                     if (!char) { // Cancelled
@@ -1060,6 +1102,17 @@ ${contextSummary}
                 const storyMode = T.STORY_MODES.find(t => t.id === session.storyMode);
                 const rating = T.CONTENT_RATINGS.find(r => r.id === session.contentRating);
 
+                if (A.UI?.Toast?.show) A.UI.Toast.show('Generating Structured Bible...', 'info');
+
+                // Generate Structured Summary for the Bible
+                // We use the same 'summarizeContextFor' logic but target 'The Entire World'.
+                let bibleContent;
+                try {
+                    bibleContent = await summarizeContextFor(session, "The Entire World Setting", { dossierDetail: 'high' });
+                } catch (e) {
+                    bibleContent = buildContextSummary(session); // Fallback
+                }
+
                 // Build rich content
                 let md = `# ${session.name}\n\n`;
                 md += `**World:** ${worldArch?.label || 'Custom'} (${worldArch?.icon || '🌐'})\n`;
@@ -1069,7 +1122,13 @@ ${contextSummary}
                 md += `**Created:** ${new Date(session.createdAt).toLocaleDateString()}\n\n`;
 
                 md += `---\n\n`;
-                md += `## 📜 The World Bible\n\n`;
+
+                md += `## 📜 Structured World Bible\n\n`;
+                // md += `> *Generated from World Weaver Session*\n\n`;
+
+                md += bibleContent;
+
+                md += `\n\n---\n\n## 📝 Raw Notes Source\n\n`;
 
                 // Iterate categories in order
                 Object.entries(A.WorldWeaver.Templates.CATEGORIES).forEach(([key, template]) => {
