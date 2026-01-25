@@ -243,14 +243,61 @@
         const content = container.querySelector('.ww-content');
 
         renderSidebar(sidebar, session, sessions, state, container);
-        renderChat(content, session, sessions);
+        renderChat(content, session, sessions, state);
     }
 
     function renderSidebar(sidebar, session, sessions, state, container) {
         const T = A.WorldWeaver.Templates;
-        // Fix: Use correct V2 property names
         const currentGenre = T.WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype);
         const isProtagonistMode = session.storyFocus === 'protagonist';
+
+        // Inject Styles for Animations & Progress
+        if (!document.getElementById('ww-ui-styles')) {
+            const style = document.createElement('style');
+            style.id = 'ww-ui-styles';
+            style.textContent = `
+                @keyframes ww-pulse {
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); border-color: var(--accent); }
+                    50% { transform: scale(1.03); box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.4); border-color: var(--accent); }
+                    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); border-color: transparent; }
+                }
+                .ww-category-row {
+                    padding: 10px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    margin-bottom: 6px;
+                    border: 1px solid transparent;
+                    transition: all 0.2s ease;
+                    background: transparent;
+                }
+                .ww-category-row:hover {
+                    background: var(--bg-elevated);
+                }
+                .ww-category-row.active {
+                    background: var(--bg-elevated);
+                    border-color: var(--border-subtle);
+                }
+                .ww-pulse {
+                    animation: ww-pulse 1.2s ease-out;
+                    z-index: 10;
+                    position: relative;
+                }
+                .ww-progress-bg {
+                    height: 4px;
+                    width: 100%;
+                    background: var(--bg-base);
+                    border-radius: 2px;
+                    margin-top: 8px;
+                    overflow: hidden;
+                }
+                .ww-progress-fill {
+                    height: 100%;
+                    border-radius: 2px;
+                    transition: width 0.5s ease, background-color 0.5s ease;
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         let protagonistName = null;
         if (isProtagonistMode) {
@@ -270,7 +317,7 @@
             : isProtagonistMode ? `<div style="margin-top:8px; padding:8px 12px; background:var(--bg-elevated); border-radius:6px; font-size:12px; color:var(--text-muted); font-style:italic;">🎭 Protagonist not yet named</div>` : '';
 
         sidebar.innerHTML = `
-            <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
+            <div style="padding:12px; border-bottom:1px solid var(--border-subtle);">
                 <div style="font-weight:700; font-size:16px; margin-bottom:4px;">${session.name}</div>
                 <div style="font-size:12px; color:var(--text-muted);">
                     ${currentGenre?.icon || '🕸️'} ${session.contentRating.toUpperCase()} · ${isProtagonistMode ? 'Protagonist' : 'Ensemble'}
@@ -278,7 +325,7 @@
                 ${protagonistIndicator}
             </div>
 
-            <div style="flex:1; overflow-y:auto; padding:16px;">
+            <div style="flex:1; overflow-y:auto; padding:8px;">
                  <div id="ww-categories-list"></div>
             </div>
 
@@ -294,22 +341,46 @@
             const catState = session.categories[key] || { confidence: 0 };
             const confidence = Number(catState.confidence || 0);
 
-            let color = '#4f46e5';
-            if (confidence >= 100) color = '#10b981';
-            if (confidence === 0) color = 'rgba(128,128,128,0.2)';
+            // Color Logic (Gray -> Yellow -> Blue -> Green)
+            let color = 'var(--text-muted)'; // 0%
+            if (confidence > 0) color = 'var(--warning)'; // 1-49%
+            if (confidence >= 50) color = 'var(--accent)'; // 50-79%
+            if (confidence >= 80) color = 'var(--success)'; // 80-100%
 
             let displayLabel = conf.label;
             if (key === 'cast') displayLabel = isProtagonistMode ? 'Protagonist' : 'Cast & Characters';
 
             const row = document.createElement('div');
-            row.style.cssText = `display:flex; align-items:center; gap:8px; padding:8px; border-radius:6px; cursor:pointer; margin-bottom:2px; ${session.currentFocus === key ? 'background:var(--bg-elevated);' : ''}`;
-            row.innerHTML = `<span style="width:20px;">${conf.icon}</span><span style="flex:1; font-size:13px; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${displayLabel}</span>`;
+            row.className = `ww-category-row ${session.currentFocus === key ? 'active' : ''}`;
+            // Tight styling to remove scrollbar
+            row.style.cssText = "margin-bottom:4px; padding:6px 8px; border-radius:6px; cursor:pointer; position:relative;";
+            row.dataset.key = key; // For pulse targeting
+
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">${conf.icon}</span>
+                    <span style="flex:1; font-size:13px; font-weight:500; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${displayLabel}</span>
+                    <span style="font-size:11px; font-weight:600; color:${color};">${confidence}%</span>
+                </div>
+                <div class="ww-progress-bg">
+                    <div class="ww-progress-fill" style="width:${confidence}%; background-color:${color};"></div>
+                </div>
+            `;
+
             row.onclick = () => {
+                const targetContainer = container.closest('.ww-interface') ? container.closest('.ww-interface').parentNode : container;
+
+                // If Thinking: specific safe behavior (View/Edit but no Focus Switch/Re-render)
+                if (state.worldWeaver?.isThinking) {
+                    showCategoryDetails(session, key, sessions, targetContainer, state);
+                    return;
+                }
+
                 session.currentFocus = key;
                 saveSessions(sessions);
-                showCategoryDetails(session, key, sessions, container.closest('.ww-interface') ? container.closest('.ww-interface').parentNode : container);
+                showCategoryDetails(session, key, sessions, targetContainer, state);
                 // Simple re-render of sidebar
-                renderSidebar(sidebar, session, sessions, state);
+                renderSidebar(sidebar, session, sessions, state, container);
             };
             catList.appendChild(row);
         });
@@ -325,7 +396,7 @@
         sidebar.querySelector('#ww-view-context').onclick = () => showContextModal(session);
     }
 
-    function showCategoryDetails(session, key, sessions, container) {
+    function showCategoryDetails(session, key, sessions, container, state) {
         const T = A.WorldWeaver.Templates;
         const conf = T.CATEGORIES[key];
         const data = session.categories[key] || { notes: '' };
@@ -348,12 +419,22 @@
             session.categories[key].notes = modal.querySelector('#cat-notes').value;
             saveSessions(sessions);
             modal.remove();
-            if (container) render(container);
+
+            // If thinking, avoid destructively re-rendering the whole interface
+            if (state && state.worldWeaver && state.worldWeaver.isThinking) {
+                // Just refresh sidebar if possible, but safe to do nothing as session is Ref
+                // Maybe pulse?
+                if (A.UI?.Toast?.show) A.UI.Toast.show('Notes saved.', 'success');
+            } else {
+                if (container) render(container);
+            }
         };
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     }
 
-    function renderChat(container, session, sessions) {
+    function renderChat(container, session, sessions, state) {
+        const T = A.WorldWeaver.Templates;
+
         container.innerHTML = `
             <div id="ww-chat-messages" style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:16px;"></div>
             <div id="ww-chat-status" style="padding:0 24px; font-size:12px; color:var(--text-muted); font-style:italic; height:20px;"></div>
@@ -376,34 +457,89 @@
         session.chatHistory.forEach(msg => {
             const el = document.createElement('div');
             el.style.cssText = `max-width:80%; padding:12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; ${msg.role === 'user' ? 'align-self:flex-end; background:var(--accent); color:white;' : 'align-self:flex-start; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border-subtle);'}`;
-            // Use ChatFormatter if available, otherwise raw text
-            el.innerHTML = A.ChatFormatter ? A.ChatFormatter.format(msg.content) : msg.content;
+
+            let finalHtml = '';
+
+            // 1. Analysis / Content
+            if (msg.content) {
+                finalHtml += `<div>${A.ChatFormatter ? A.ChatFormatter.format(msg.content) : msg.content}</div>`;
+            }
+
+            // Assistant-specific formatting (Badge + Question)
+            if (msg.role === 'assistant') {
+                let questionCat = msg.questions?.[0]?.category || msg.category;
+
+                // NORMALIZE KEY (Fix for missing badges)
+                // LLM might return "Story Arc" instead of "storyArc"
+                if (questionCat && !T.CATEGORIES[questionCat]) {
+                    const normalized = questionCat.toLowerCase().replace(/[^a-z]/g, '');
+                    const found = Object.keys(T.CATEGORIES).find(k => k.toLowerCase() === normalized);
+                    if (found) questionCat = found;
+                }
+
+                // 2. Badge (Separator)
+                if (questionCat && T.CATEGORIES[questionCat]) {
+                    const conf = T.CATEGORIES[questionCat];
+                    const badgeHtml = `<div style="margin: 12px 0 6px 0; display:inline-flex; align-items:center; gap:6px; padding:4px 8px; background:rgba(255,255,255,0.05); border-radius:4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; border:1px solid rgba(255,255,255,0.1); color:var(--text-secondary);"><span>${conf.icon}</span> <span>${conf.label}</span></div>`;
+                    finalHtml += badgeHtml;
+                }
+
+                // 3. Question (Crucial: Was missing before!)
+                if (msg.question) {
+                    finalHtml += `<div style="font-weight:600; font-size:1.05em; margin-top:4px; color:var(--text-primary);">${msg.question}</div>`;
+                }
+            }
+
+            el.innerHTML = finalHtml || msg.content;
             chatList.appendChild(el);
         });
         chatList.scrollTop = chatList.scrollHeight;
 
         const send = async () => {
+            if (state.worldWeaver?.isThinking) return;
+
             const input = container.querySelector('#ww-chat-input');
             const text = input.value.trim();
             if (!text) return;
 
+            // Set Thinking State
+            if (state.worldWeaver) state.worldWeaver.isThinking = true;
+
             session.chatHistory.push({ role: 'user', content: text });
             saveSessions(sessions);
-            renderChat(container, session, sessions);
+            // Re-render chat (which will now show Thinking state if we wanted, or just updates history)
+            // But we must PASS state
+            renderChat(container, session, sessions, state);
+
+            // Disable input
+            if (input) input.disabled = true;
+            const btn = container.querySelector('#ww-send-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
             try {
                 const statusEl = container.querySelector('#ww-chat-status');
                 await A.WorldWeaver.LLM.evaluateAndRespond(session, sessions, (status) => {
                     if (statusEl) statusEl.textContent = status;
                 });
-                renderChat(container, session, sessions);
-                // Trigger sidebar refresh via full render if needed, or better, keep sidebar static
             } catch (e) {
                 console.error(e);
                 if (container.querySelector('#ww-chat-status')) {
                     container.querySelector('#ww-chat-status').textContent = "Error: " + e.message;
                 }
                 alert("Thinking failed: " + e.message);
+            } finally {
+                // Clear Thinking State
+                if (state.worldWeaver) state.worldWeaver.isThinking = false;
+
+                // Final Render
+                renderChat(container, session, sessions, state);
+
+                // Refresh Sidebar (to update Progress Bars/Pulses)
+                // We need to find the sidebar element. It's a sibling of container's parent.
+                // container is .ww-content. Parent is .ww-interface. Sibling is .ww-sidebar.
+                const sidebar = container.closest('.ww-interface')?.querySelector('.ww-sidebar');
+                // Pass container (which is .ww-content) so closest logic works for Sidebar clicks
+                if (sidebar) renderSidebar(sidebar, session, sessions, state, container);
             }
         };
 
@@ -413,21 +549,253 @@
         };
     }
 
+
+
+
     function showGenerationOptions(session, sessions) {
-        // (Simplified for brevity, restoring minimal viable)
-        alert("Generation Options (Restored Context)");
+        const isProtagonistMode = session.storyFocus === 'protagonist';
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
+            z-index: 9999; backdrop-filter: blur(4px);
+        `;
+
+        modal.innerHTML = `
+            <div style="max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                <h3 style="margin-top: 0;">🕸️ Generate World Output</h3>
+                <p style="color: var(--text-muted); margin-bottom: 24px;">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="ww-gen-option" data-type="character" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                        <span style="font-size: 24px;">👤</span>
+                        <div>
+                            <strong>${isProtagonistMode ? 'Generate Character Card' : 'Generate Main Character'}</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Multi-step AI-powered character generation</div>
+                        </div>
+                    </button>
+                    ${!isProtagonistMode ? `
+                    <button class="ww-gen-option" data-type="multicast" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                        <span style="font-size: 24px;">👥</span>
+                        <div>
+                            <strong>Generate Ensemble Cast</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Generate cards for multiple characters</div>
+                        </div>
+                    </button>
+                    ` : ''}
+                    <button class="ww-gen-option" data-type="world" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                        <span style="font-size: 24px;">🌍</span>
+                        <div>
+                            <strong>Generate World Lorebook</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Create comprehensive lore entries</div>
+                        </div>
+                    </button>
+                    <button class="ww-gen-option" data-type="export" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                        <span style="font-size: 24px;">📄</span>
+                        <div>
+                            <strong>Export World Bible</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">Download as markdown document</div>
+                        </div>
+                    </button>
+                </div>
+
+                <button id="gen-modal-cancel" style="margin-top: 24px; width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelectorAll('.ww-gen-option').forEach(btn => {
+            btn.onmouseover = () => { btn.style.borderColor = 'var(--accent)'; btn.style.transform = 'translateY(-2px)'; };
+            btn.onmouseout = () => { btn.style.borderColor = 'var(--border-subtle)'; btn.style.transform = 'none'; };
+            btn.onclick = () => {
+                const type = btn.dataset.type;
+                modal.remove();
+                if (type === 'multicast') {
+                    showMultiCastSelection(session, sessions);
+                } else if (type === 'character') {
+                    // Use multi-step generation
+                    if (A.WorldWeaver.Generation?.generateCharacterMultiStep) {
+                        A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions);
+                    } else if (A.WorldWeaver.Generation?.handleGeneration) {
+                        A.WorldWeaver.Generation.handleGeneration(session, sessions, 'character');
+                    }
+                } else {
+                    if (A.WorldWeaver.Generation?.handleGeneration) {
+                        A.WorldWeaver.Generation.handleGeneration(session, sessions, type);
+                    }
+                }
+            };
+        });
+
+        modal.querySelector('#gen-modal-cancel').onclick = () => modal.remove();
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     }
-    function showMultiCastSelection(session, sessions) { }
-    function showContextModal(session) { }
+
+    function showMultiCastSelection(session, sessions) {
+        const cast = session.cast || [];
+        if (cast.length === 0) {
+            alert('No cast members identified yet. Continue the interview to build your ensemble.');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
+            z-index: 9999; backdrop-filter: blur(4px);
+        `;
+
+        modal.innerHTML = `
+            <div style="max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                <h3 style="margin-top: 0;">👥 Select Characters to Generate</h3>
+                <p style="color: var(--text-muted); margin-bottom: 16px;">Choose which cast members to generate cards for:</p>
+
+                <div id="cast-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
+                    ${cast.map((c, i) => `
+                        <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-elevated); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" class="cast-check" data-idx="${i}" ${c.significance === 'major' ? 'checked' : ''}>
+                            <div style="flex:1;">
+                                <div style="font-weight: 600; color: var(--text-primary);">${c.name}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.role || 'Unknown Role'} · ${c.significance || 'minor'}</div>
+                            </div>
+                        </label>
+                    `).join('')}
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                    <button id="cast-cancel" style="flex:1; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
+                    <button id="cast-generate" style="flex:1; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Generate Selected</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cast-cancel').onclick = () => modal.remove();
+        modal.querySelector('#cast-generate').onclick = () => {
+            const selected = [];
+            modal.querySelectorAll('.cast-check:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.idx);
+                if (cast[idx]) selected.push(cast[idx].name);
+            });
+
+            if (selected.length === 0) {
+                alert('Please select at least one character.');
+                return;
+            }
+
+            modal.remove();
+            if (A.WorldWeaver.Generation?.generateCharacterMultiStep) {
+                A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, selected);
+            }
+        };
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    }
+
+    function showContextModal(session) {
+        const T = A.WorldWeaver.Templates;
+        const world = T.WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype);
+        const mode = T.STORY_MODES.find(t => t.id === session.storyMode);
+
+        // Build actor context
+        let actorContext = "None imported";
+        if (session.importedActor) {
+            const a = session.importedActor;
+            actorContext = `IMPORTED ACTOR PROFILE:\n`;
+            actorContext += `Name: ${a.name}\n`;
+            if (a.gender) actorContext += `Gender: ${a.gender}\n`;
+            if (a.pronouns) actorContext += `Pronouns: ${a.pronouns}\n`;
+            if (a.description) actorContext += `Description: ${a.description}\n`;
+            if (a.summary) actorContext += `Summary: ${a.summary}\n`;
+            if (a.notes) actorContext += `Notes: ${a.notes}\n`;
+        }
+
+        // Build notes context
+        let notesContext = "";
+        Object.entries(session.categories).forEach(([key, data]) => {
+            const label = T.CATEGORIES[key]?.label || key;
+            if (data.notes && data.notes.trim()) {
+                notesContext += `## ${label}\n${data.notes}\n\n`;
+            } else if (data.summary) {
+                notesContext += `## ${label}\n${data.summary}\n\n`;
+            }
+        });
+
+        // Build tags context
+        let tagsContext = "";
+        if (session.flavorTags && typeof session.flavorTags === 'string' && session.flavorTags.trim().length > 0) {
+            tagsContext = "=== CUSTOM TAGS ===\n" + session.flavorTags + "\n\n";
+        }
+
+        const fullContext = `=== SESSION INFO ===
+World: ${world?.label || session.worldArchetype}
+Mode: ${mode?.label || session.storyMode}
+Focus: ${session.storyFocus}
+Rating: ${session.contentRating}
+
+${tagsContext}=== ACTOR DATA ===
+${actorContext}
+
+=== WORLD NOTES ===
+${notesContext || '(No notes yet)'}`;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
+            z-index: 10001; backdrop-filter: blur(4px);
+        `;
+
+        modal.innerHTML = `
+            <div style="width: 800px; max-width: 90vw; height: 80vh; background: var(--bg-surface); display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden;">
+                <div style="padding: 16px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between;">
+                    <h3 style="margin:0">🧠 Active LLM Context</h3>
+                    <button class="btn-close" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 20px;">✕</button>
+                </div>
+                <div style="flex: 1; padding: 0; overflow: hidden;">
+                    <textarea style="width: 100%; height: 100%; background: var(--bg-base); color: var(--text-primary); border: none; padding: 16px; font-family: monospace; font-size: 13px; resize: none; white-space: pre-wrap;" readonly>${fullContext}</textarea>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        modal.querySelector('.btn-close').onclick = () => modal.remove();
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    }
 
     // Main Public API (Attached cleanly)
     A.WorldWeaver.render = render;
+
+    function pulseCategories(keys) {
+        const list = document.getElementById('ww-categories-list');
+        if (!list || !keys || keys.length === 0) return;
+
+        console.log('[WorldWeaver] Pulsing categories:', keys);
+
+        keys.forEach(key => {
+            // Find row by dataset
+            const row = list.querySelector(`.ww-category-row[data-key="${key}"]`);
+            if (row) {
+                // Remove class to reset animation if already playing
+                row.classList.remove('ww-pulse');
+
+                // Force reflow
+                void row.offsetWidth;
+
+                // Add class
+                row.classList.add('ww-pulse');
+            }
+        });
+    }
+
+
 
     // Expose Utility
     A.WorldWeaver.UI = {
         render,
         loadSessions,
-        saveSessions
+        saveSessions,
+        pulseCategories
     };
 
 })(window.Anansi);

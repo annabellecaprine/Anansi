@@ -190,11 +190,39 @@ This is an ENSEMBLE CAST session. You are helping build a GROUP of significant c
    - Develop distinct arcs/motivations for each major character.
 `;
 
+        // AUTO-PIVOT LOGIC (Strict Implementation)
+        // If current focus is "Done" (>80%) and there are neglected topics (<30%), SWITCH NOW.
+        // This ensures the prompt context is relevant to the NEW topic, not the old one.
+        {
+            const currentConf = session.categories[session.currentFocus]?.confidence || 0;
+            if (currentConf > 80) {
+                // Use definition order to find first neglected
+                const allKeys = Object.keys(CATEGORIES);
+                const nextNeglected = allKeys.find(k => (session.categories[k]?.confidence || 0) < 30);
+
+                if (nextNeglected && nextNeglected !== session.currentFocus) {
+                    console.log(`[WorldWeaver] Auto-Pivoting from ${session.currentFocus} (${currentConf}%) to ${nextNeglected}`);
+                    session.currentFocus = nextNeglected;
+                    // Note: We don't save here, but the session object is mutated for the duration of this turn.
+                    // The save happens at the end of evaluateAndRespond.
+                }
+            }
+        }
+
         // Calculate Sub-Facet Checklist for Current Focus
         const currentCatConfig = CATEGORIES[session.currentFocus];
         const subFacetList = currentCatConfig?.subFacets
             ? currentCatConfig.subFacets.map(sf => `- [ ] ${sf}`).join('\n')
             : '- [ ] General Completeness';
+
+        // Identify Neglected Categories (<30%)
+        const neglected = Object.keys(CATEGORIES).filter(k => {
+            const conf = session.categories[k]?.confidence || 0;
+            return conf < 30;
+        });
+        const neglectedContext = neglected.length > 0
+            ? `\n=== NEGLECTED TOPICS (URGENT) ===\nThe following categories have low confidence (<30%): ${neglected.map(k => CATEGORIES[k].label).join(', ')}.\nPRIORITY RULE: If the CURRENT FOCUS is mostly complete (>80%) OR the user asks "what else?", you MUST set 'highestPriority' to one of these neglected topics.`
+            : '';
 
         const systemPrompt = `${personality}
 Your goal is to be a true creative partner. Do not just strictly "interview" the user.
@@ -207,17 +235,20 @@ Content Rating: ${ratingInfo.label} (${ratingInfo.description})
 Story Focus: ${isProtagonistMode ? 'PROTAGONIST (Single Character)' : 'ENSEMBLE (Multiple Characters)'}
 CURRENT FOCUS: ${currentCatConfig?.label || 'General'}
 ${storyFocusRules}
+${neglectedContext}
 
 === YOUR BEHAVIORAL RULES ===
 1. **RESTATE CONTEXT**: When the user introduces explicit new ideas, confirm them.
 2. **COLLABORATIVE SAFETY**: If themes get dark without established boundaries, check in naturally.
 3. **RESPECT PLAYER AGENCY**: You are the GM/Editor. Do not enact the User's character actions.
 4. **THE {USER} VARIABLE**: {User} is the PLAYER, not the character. Do not ask about {User}.
+5. **STAY ON TARGET**: Your follow-up question MUST help fill the 'Sub-Facets' for the CURRENT FOCUS. Do not drift to other topics.
 
 === SMART ANALYSIS RULES ===
 1. **IMPORTED ACTOR PRIORITY**: If an "IMPORTED ACTOR PROFILE" is present, treat that character as the anchor.
 2. **IMMEDIATE SCENARIO**: If the user sets a scene, jump right in.
 3. **ADULT CONTENT**: "No limits" is a valid boundary if the user says so.
+4. **PIVOT TO NEGLECTED**: If Current Focus is done (>80%), stop drilling down. Switch to a Neglected Topic.
 
 === COMPLETENESS CHECKLIST (${currentCatConfig?.label}) ===
 To score confidence for the CURRENT FOCUS, check these specific sub-facets:
@@ -231,7 +262,7 @@ ${subFacetList}
 === OUTPUT FORMAT ===
 Return a SINGLE JSON object. No markdown. No preambles. No prose outside the JSON.
 {
-  "response": "Your full conversational reply. INCLUDE your follow-up question(s) naturally at the end. Make it feel like a real dialogue - acknowledge, build on their ideas, then ask what you need to know next.",
+  "response": "Your conversational reply/recap of what you understood. Do NOT include the specific follow-up question(s) here. Those go in the 'questions' array.",
   "analysis": "Brief 1-2 sentence summary of current state.",
   "categories": {
     "coreExperience": { 
@@ -240,11 +271,9 @@ Return a SINGLE JSON object. No markdown. No preambles. No prose outside the JSO
     },
     // ... all other categories MUST be included with at least confidence/summary
   },
-  ${isProtagonistMode
-                ? '// Note: identifiedCast is NOT used in Protagonist mode'
-                : `"identifiedCast": [
+  "identifiedCast": [
       { "name": "Name", "role": "Role/Archetype", "significance": "major/minor" } 
-  ],`}
+  ],
   "highestPriority": "categoryKey (The text topic you want to tackle next)",
   "deepMiningPoint": "The most interesting unexplored tension or opportunity",
   "questions": [
@@ -327,6 +356,14 @@ Please evaluate and generate questions.`;
                         // Strict High Water Mark Logic
                         // Only update if new confidence is higher. Never regress.
                         if (newConf > oldConf) {
+                            // CLAMP: If no notes AND no summary exist, cap confidence to prevent "Hallucinated Completion"
+                            const hasNotes = session.categories[sessionKey].notes && session.categories[sessionKey].notes.trim().length > 0;
+                            const hasSummary = session.categories[sessionKey].summary && session.categories[sessionKey].summary.trim().length > 0;
+
+                            if (!hasNotes && !hasSummary) {
+                                if (newConf > 25) newConf = 25;
+                            }
+
                             session.categories[sessionKey].confidence = newConf;
                             // Only update summary if provided and non-empty
                             if (data.summary) session.categories[sessionKey].summary = data.summary;
@@ -348,9 +385,8 @@ Please evaluate and generate questions.`;
                 });
             }
 
-            // Extract Identified Cast (Ensemble Mode Only)
-            // In Protagonist mode, we don't track multiple cast members
-            if (session.storyFocus !== 'protagonist' && parsed.identifiedCast && Array.isArray(parsed.identifiedCast)) {
+            // Extract Identified Cast (Ensemble OR Protagonist)
+            if (parsed.identifiedCast && Array.isArray(parsed.identifiedCast)) {
                 if (!session.cast) session.cast = [];
 
                 parsed.identifiedCast.forEach(c => {
@@ -418,14 +454,53 @@ Please evaluate and generate questions.`;
             // Fallback if all questions were filtered (Silent AI Fix)
             if (!parsed.questions || parsed.questions.length === 0) {
                 const currentConf = session.categories[session.currentFocus]?.confidence || 0;
+
                 if (currentConf > 70) {
-                    // Everything seems done (or this category is done and no auto-switch happened)
-                    parsed.questions = [{
-                        text: "It looks like we've covered this topic. Ready to generate your world?",
-                        category: session.currentFocus,
-                        suggestion: "Click 'Generate Output' in the sidebar to finish.",
-                        importance: "polish"
-                    }];
+                    // Current topic is done. Check if ANY other topics are neglected.
+                    // Use definition order to find next step
+                    const allKeys = Object.keys(CATEGORIES);
+                    const nextIncomplete = allKeys.find(k => {
+                        if (k === session.currentFocus) return false;
+                        const conf = session.categories[k]?.confidence || 0;
+                        return conf < 30; // Find neglected topics (<30%)
+                    });
+
+                    if (nextIncomplete) {
+                        // Auto-switch to next topic
+                        session.currentFocus = nextIncomplete;
+                        const nextLabel = CATEGORIES[nextIncomplete]?.label || nextIncomplete;
+                        parsed.questions = [{
+                            text: `Let's move on to **${nextLabel}**. Is there anything specific you want to establish here, or should we leave it standard?`,
+                            category: nextIncomplete,
+                            suggestion: "You can provide details or type 'skip'.",
+                            importance: "helpful"
+                        }];
+                    } else {
+                        // "Truly Done" - but give a chance for deep dives on weakest links
+                        // Find lowest confidence categories (that are not 100%)
+                        const sorted = Object.entries(session.categories)
+                            .sort(([, a], [, b]) => (a.confidence || 0) - (b.confidence || 0));
+
+                        // Find the first one that isn't functionally complete (e.g. < 98)
+                        const weakest = sorted.find(([, data]) => (data.confidence || 0) < 98);
+
+                        if (weakest) {
+                            const label = CATEGORIES[weakest[0]]?.label || weakest[0];
+                            parsed.questions = [{
+                                text: `We have a solid foundation, but **${label}** seems a bit light compared to the rest. Would you like to explore that deeper, or are you ready to generate?`,
+                                category: weakest[0],
+                                suggestion: "Type 'Deep dive' or 'Generate'.",
+                                importance: "helpful"
+                            }];
+                        } else {
+                            parsed.questions = [{
+                                text: "It looks like we've hit 100% across the board! Is there anything distinct you want to add, or shall we generate your world?",
+                                category: session.currentFocus,
+                                suggestion: "Click 'Generate Output' in the sidebar to finish.",
+                                importance: "polish"
+                            }];
+                        }
+                    }
                 } else {
                     const currentLabel = CATEGORIES[session.currentFocus]?.label || 'this topic';
                     parsed.questions = [{
@@ -531,6 +606,7 @@ OUTPUT FORMAT (JSON ONLY):
             if (!delta) return;
 
             let updatesMade = false;
+            const updatedKeys = new Set();
 
             // Apply Additions
             if (delta.additions) {
@@ -538,14 +614,17 @@ OUTPUT FORMAT (JSON ONLY):
                     // Normalize key
                     const sessionKey = Object.keys(session.categories).find(k => k.toLowerCase() === key.toLowerCase());
                     if (sessionKey && Array.isArray(newFacts)) {
+                        let catUpdated = false;
                         newFacts.forEach(fact => {
                             if (!session.categories[sessionKey].notes) session.categories[sessionKey].notes = '';
                             // Dedup (Simple string check)
                             if (!session.categories[sessionKey].notes.includes(fact)) {
                                 session.categories[sessionKey].notes += `\n• ${fact}`;
+                                catUpdated = true;
                                 updatesMade = true;
                             }
                         });
+                        if (catUpdated) updatedKeys.add(sessionKey);
                     }
                 });
             }
@@ -559,13 +638,18 @@ OUTPUT FORMAT (JSON ONLY):
                         if (session.categories[sessionKey].notes.includes(mod.original_fragment)) {
                             session.categories[sessionKey].notes = session.categories[sessionKey].notes.replace(mod.original_fragment, mod.new_content);
                             updatesMade = true;
+                            updatedKeys.add(sessionKey);
                         }
                     }
                 });
             }
 
             if (updatesMade) {
-                console.log('[WorldWeaver] Notes updated via Delta Memory.');
+                console.log('[WorldWeaver] Notes updated via Delta Memory:', Array.from(updatedKeys));
+                // Notify UI to pulse
+                if (A.WorldWeaver.UI && A.WorldWeaver.UI.pulseCategories) {
+                    A.WorldWeaver.UI.pulseCategories(Array.from(updatedKeys));
+                }
             }
 
         } catch (e) {

@@ -17,6 +17,11 @@
      * @param {Object} session - World Weaver session
      * @returns {string} - Formatted context summary
      */
+    /**
+     * Build context summary from session categories
+     * @param {Object} session - World Weaver session
+     * @returns {string} - Formatted context summary
+     */
     function buildContextSummary(session) {
         const T = A.WorldWeaver.Templates;
         if (!T) return '';
@@ -24,9 +29,21 @@
         return Object.entries(session.categories)
             .filter(([_, cat]) => cat.summary || cat.notes)
             .map(([key, cat]) => {
-                const label = T.CATEGORIES[key]?.label || key;
+                const conf = T.CATEGORIES[key];
+                const label = conf?.label || key;
                 let text = `## ${label}\n`;
                 if (cat.summary) text += `Summary: ${cat.summary}\n`;
+
+                // Add Sub-Facet Checklist if available
+                if (conf?.subFacets && conf.subFacets.length > 0) {
+                    text += `\n**Facets Covered:**\n`;
+                    // Simple heuristic: If notes contain the facet name, mark it present
+                    conf.subFacets.forEach(facet => {
+                        const hasMention = (cat.notes || '').toLowerCase().includes(facet.toLowerCase());
+                        // text += `- ${facet}: ${hasMention ? '(Addressed)' : '(Open/Undefined)'}\n`;
+                    });
+                }
+
                 if (cat.notes) text += `Notes:\n${cat.notes}`;
                 return text;
             })
@@ -61,7 +78,12 @@ RECENT CHAT:
 ${history}
 
 Task: Extract every known fact, trait, relationship, and scenario detail about the target.
-If details are missing, infer them logically.
+If details are missing, infer them logically based on the Genre constraints.
+CRITICAL: Explicitly check for these details:
+- Identity & Role
+- Appearance (Hair, Eyes, Body)
+- Personality & Quirks
+- Key Relationships
 
 Return a concise summary (max 400 words) that will serve as the "Truth" for generating this character's profile.
 IMPORTANT: Do NOT generate a profile for "{User}" or "The Player". Generate the Main NPC.`;
@@ -915,11 +937,8 @@ Return ONLY this JSON:
 
         if (A.UI?.Toast?.show) A.UI.Toast.show(`Generating ${type}...`, 'info');
 
-        // Build context
-        const contextSummary = Object.entries(session.categories)
-            .filter(([_, cat]) => cat.summary)
-            .map(([key, cat]) => `## ${T.CATEGORIES[key]?.label || key}\n${cat.summary}`)
-            .join('\n\n');
+        // Use shared context builder for full fidelity (Notes + Sub-facets)
+        const contextSummary = buildContextSummary(session);
 
         switch (type) {
             case 'character':
@@ -979,24 +998,30 @@ ${contextSummary}
                 if (A.UI?.Toast?.show) A.UI.Toast.show('Generating World Lorebook...', 'info');
                 try {
                     const worldPrompt = `
- You are an expert world builder.
- Based on the following world context, generate key LOREBOOK ENTRIES.
- Focus on the most important rules, locations, factions, and mechanics.
- Return ONLY valid JSON:
- {
-     "entries": [
-         {
-             "title": "Entry Title",
-             "keys": ["key1", "key2"],
-             "content": "Detailed description of this aspect of the world.",
-             "category": "World | Location | Faction | Mechanic | Rule | History"
-         }
-     ]
- }
- 
- === CONTEXT ===
- ${contextSummary}
- `;
+You are an expert world builder.
+Based on the following world context, generate key LOREBOOK ENTRIES.
+Your goal is to crystallize the **Facets Covered** in the context into concrete lore entries.
+
+Task:
+1. Review the Context.
+2. For each defined category/facet (e.g. Magic, Geography, Factions), create a specific entry.
+3. Ensure high fidelity to the user's notes.
+
+Return ONLY valid JSON:
+{
+    "entries": [
+        {
+            "title": "Entry Title (e.g. 'The Magic System')",
+            "keys": ["magic", "mana", "spell"],
+            "content": "Detailed description...",
+            "category": "World | Location | Faction | Mechanic | Rule | History"
+        }
+    ]
+}
+
+=== CONTEXT ===
+${contextSummary}
+`;
                     let worldData;
                     let worldAttempts = 0;
                     const maxWorldAttempts = 2;

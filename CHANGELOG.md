@@ -2,6 +2,20 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.17.2 - 2026-01-25
+### World Weaver V2 Polish
+- **Core Functionality**:
+  - FIX: **Premature Completion**: Implemented strict auto-pivot logic and confidence clamping. The AI now actively switches to neglected topics (like Mechanics) instead of declaring the session complete when empty fields remain.
+  - FIX: **Sidebar Crash**: Resolved a `ReferenceError` that caused the Sidebar Category and Back buttons to crash the UI after a chat update.
+  - FIX: **Lorebook Generation**: Restored the missing "Generate World Lorebook" option to the output menu.
+  - FIX: **Custom Tags**: Context modal now correctly displays the custom flavor tags from the setup wizard.
+  - FIX: **Protagonist Naming**: System now correctly extracts and displays the protagonist's name in single-character mode.
+
+- **UI Polish**:
+  - CHANGE: **Sidebar Compact Mode**: Aggressively tightened sidebar row spacing (margin/padding) to eliminate unnecessary scrollbars on standard screens.
+  - CHANGE: **Badge Visibility**: Fixed an issue where the category badge (e.g., `[📖 Story Arc]`) was missing from chat messages due to case-sensitivity mismatches.
+  - CHANGE: **Interaction Safety**: Implemented a "Smart Lock" on the sidebar. Clicking categories while the AI is thinking now opens the Details modal (read-only) instead of interrupting the generation stream.
+
 ## v1.17.1 - 2026-01-25
 ### World Weaver Stabilization & Refactor
 - **Critical Fixes**:
