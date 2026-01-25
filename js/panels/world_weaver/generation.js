@@ -81,13 +81,16 @@ IMPORTANT: Do NOT generate a profile for "{User}" or "The Player". Generate the 
      */
     async function generateIdentity(session, character, contextSummary, role = 'main') {
         const T = A.WorldWeaver.Templates;
-        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
+        // Legacy/Migration: Construct "Genre" from World + Mode
+        const world = T.WORLD_ARCHETYPES.find(g => g.id === session.worldArchetype) || T.WORLD_ARCHETYPES[0];
+        const mode = T.STORY_MODES.find(g => g.id === session.storyMode) || T.STORY_MODES[0];
+        const genreLabel = `${world.label} (${mode.label})`;
 
         const instruction = role === 'supporting'
             ? "Generate a brief SUPPORTING CHARACTER (NPC) identity. Keep details simple."
             : "Generate a detailed MAIN CHARACTER identity.";
 
-        const prompt = `You are a character designer for a ${genre.label} story.
+        const prompt = `You are a character designer for a ${genreLabel} story.
 ${instruction}
 
 ${contextSummary ? `Context:\n${contextSummary}` : 'No context provided yet - create a compelling character.'}
@@ -124,8 +127,9 @@ AURA tags should reflect personality archetypes (e.g., NOBLE, SARCASTIC, WOUNDED
      */
     async function generateAppearance(session, character, contextSummary, role = 'main') {
         const T = A.WorldWeaver.Templates;
-        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
-        const isFantasy = ['fantasy', 'scifi'].includes(session.genre);
+        const world = T.WORLD_ARCHETYPES.find(g => g.id === session.worldArchetype) || T.WORLD_ARCHETYPES[0];
+        const genreLabel = world.label;
+        const isFantasy = ['fantasy', 'scifi'].includes(session.worldArchetype);
 
         // Get pronouns for consistent pronoun usage
         const pronouns = character.pronouns || 'they/them';
@@ -135,7 +139,7 @@ AURA tags should reflect personality archetypes (e.g., NOBLE, SARCASTIC, WOUNDED
 
         const instruction = role === 'supporting'
             ? "Generate a quick visual sketch. Focus on 1-2 distinguishing features."
-            : `You are designing the appearance for ${character.name}, a ${character.gender || 'character'} in a ${genre.label} story.`;
+            : `You are designing the appearance for ${character.name}, a ${character.gender || 'character'} in a ${genreLabel} story.`;
 
         const prompt = `${instruction}
 Character uses ${pronouns} pronouns.
@@ -179,7 +183,9 @@ For realistic human characters, keep all appendages present:false.`;
      */
     async function generateWritingStyle(session, character, contextSummary, role = 'main') {
         const T = A.WorldWeaver.Templates;
-        const genre = T.GENRE_TEMPLATES.find(g => g.id === session.genre) || T.GENRE_TEMPLATES[5];
+        const world = T.WORLD_ARCHETYPES.find(g => g.id === session.worldArchetype) || T.WORLD_ARCHETYPES[0];
+        const mode = T.STORY_MODES.find(g => g.id === session.storyMode) || T.STORY_MODES[0];
+        const genreLabel = `${world.label} / ${mode.label}`;
 
         // Get user preferences if they exist
         const userPrefs = session.categories?.writingStyle?.summary ||
@@ -188,7 +194,7 @@ For realistic human characters, keep all appendages present:false.`;
 
         const prompt = `You are a Creative Director defining the roleplay style for a character.
 Character: ${character.name}
-Genre: ${genre.label}
+Genre/Tone: ${genreLabel}
 
 USER PREFERENCES (Use these if present):
 "${userPrefs}"
@@ -1025,30 +1031,57 @@ ${contextSummary}
                 break;
 
             case 'export':
-                const markdown = `# ${session.name}
- 
- **Genre:** ${T.GENRE_TEMPLATES.find(t => t.id === session.genre)?.label || 'Free Form'}
- **Content Rating:** ${T.CONTENT_RATINGS.find(r => r.id === session.contentRating)?.label || 'SFW'}
- **Created:** ${new Date(session.createdAt).toLocaleDateString()}
- 
- ---
- 
- ${contextSummary}
- 
- ---
- 
- ## Chat History
- 
- ${session.chatHistory.map(m => m.role === 'user' ? `**You:** ${m.content}` : `**AI:** ${m.question || m.content}`).join('\n\n')}
- `;
-                const blob = new Blob([markdown], { type: 'text/markdown' });
+                const worldArch = T.WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype);
+                const storyMode = T.STORY_MODES.find(t => t.id === session.storyMode);
+                const rating = T.CONTENT_RATINGS.find(r => r.id === session.contentRating);
+
+                // Build rich content
+                let md = `# ${session.name}\n\n`;
+                md += `**World:** ${worldArch?.label || 'Custom'} (${worldArch?.icon || '🌐'})\n`;
+                md += `**Mode:** ${storyMode?.label || 'Standard'} (${storyMode?.icon || '📖'})\n`;
+                md += `**Rating:** ${rating?.label || 'SFW'} (${session.contentRating})\n`;
+                md += `**Focus:** ${session.storyFocus === 'protagonist' ? 'Single Protagonist' : 'Ensemble Cast'}\n`;
+                md += `**Created:** ${new Date(session.createdAt).toLocaleDateString()}\n\n`;
+
+                md += `---\n\n`;
+                md += `## 📜 The World Bible\n\n`;
+
+                // Iterate categories in order
+                Object.entries(A.WorldWeaver.Templates.CATEGORIES).forEach(([key, template]) => {
+                    const data = session.categories[key];
+                    if (data && (data.summary || data.notes)) {
+                        md += `### ${template.icon} ${template.label}\n`;
+                        if (data.summary) md += `*${data.summary}*\n\n`;
+                        if (data.notes) {
+                            // bulletize if not already
+                            const cleanNotes = data.notes.split('\n').filter(l => l.trim()).map(l => l.trim().startsWith('•') || l.trim().startsWith('-') ? l : `• ${l}`).join('\n');
+                            md += `${cleanNotes}\n\n`;
+                        }
+                    }
+                });
+
+                md += `---\n\n`;
+                md += `## 💬 Session Transcript\n\n`;
+                md += session.chatHistory.map(m => {
+                    if (m.role === 'user') return `**User:** ${m.content}`;
+                    if (m.role === 'assistant') {
+                        let text = `**Director:** ${m.content}`;
+                        if (m.questions && m.questions.length > 0) {
+                            text += `\n> *Questions: ${m.questions.map(q => q.text).join(' | ')}*`;
+                        }
+                        return text;
+                    }
+                    return '';
+                }).join('\n\n');
+
+                const blob = new Blob([md], { type: 'text/markdown' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${session.name.replace(/[^a-z0-9]/gi, '_')}_world.md`;
+                a.download = `${session.name.replace(/[^a-z0-9]/gi, '_')}_Bible.md`;
                 a.click();
                 URL.revokeObjectURL(url);
-                if (A.UI?.Toast?.show) A.UI.Toast.show('World document exported!', 'success');
+                if (A.UI?.Toast?.show) A.UI.Toast.show('World Bible exported!', 'success');
                 break;
         }
     }

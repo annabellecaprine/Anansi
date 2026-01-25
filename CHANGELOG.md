@@ -2,6 +2,25 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.17.1 - 2026-01-25
+### World Weaver Stabilization & Refactor
+- **Critical Fixes**:
+  - FIX: **Session Persistence**: Resolved crash loop where reloading the page sent users back to Step 1. Active session now persists via localStorage.
+  - FIX: **Chat Crash (seeds)**: Fixed TypeError in LLM module caused by legacy property name (`preSeeds` → `seeds`).
+  - FIX: **Variable Mismatch**: Corrected references from old data model (`GENRE_TEMPLATES`/`genre`) to new V2 naming (`WORLD_ARCHETYPES`/`worldArchetype`).
+  - FIX: **Container Reference**: Fixed `ReferenceError: container is not defined` in sidebar click handlers.
+
+- **UI Improvements**:
+  - NEW: **Session Deletion**: Added trash icon to "Continue Session" list for removing invalid/corrupted sessions.
+  - NEW: **Thinking Indicator**: Restored status line showing "📝 Updating Notes..." and "🤔 Thinking..." during LLM operations.
+  - NEW: **Markdown Formatting**: Chat messages now render bold, italics, and code formatting with high-contrast styling.
+  - NEW: **Invalid Date Fix**: Sessions with missing timestamps now show "Just now" instead of "Invalid Date".
+
+- **Interview Flow**:
+  - CHANGE: **Dialogue Questions**: AI now includes follow-up questions naturally in the response text (removed separate Question Chips).
+  - CHANGE: **Balanced Coverage**: Protagonist Mode now requires establishing world context (setting, rules) before deep-diving into character details.
+  - CHANGE: **Strict JSON**: Hardened LLM prompt to prevent prose outside the JSON response.
+
 ## v1.17.0 - 2026-01-25
 ### World Weaver Writing Style (Phase 13)
 - **Collaborative Style Definition**: Added a new **"Writing Style"** category to the World Weaver interview process.

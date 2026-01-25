@@ -11,7 +11,8 @@
     async function evaluateAndRespond(session, sessions, onStatusUpdate) {
         // Dependencies
         const T = A.WorldWeaver.Templates;
-        const GENRE_TEMPLATES = T.GENRE_TEMPLATES;
+        // Fix: Use correct V2 property names
+        const WORLD_ARCHETYPES = T.WORLD_ARCHETYPES;
         const CONTENT_RATINGS = T.CONTENT_RATINGS;
         const CATEGORIES = T.CATEGORIES;
 
@@ -50,15 +51,16 @@
         // --- STEP 2: INTERVIEW (Response) ---
         if (onStatusUpdate) onStatusUpdate("🤔 Thinking...");
 
-        const template = GENRE_TEMPLATES.find(t => t.id === session.genre) || GENRE_TEMPLATES[5];
+        // Fix: Use WORLD_ARCHETYPES and worldArchetype
+        const template = WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype) || WORLD_ARCHETYPES[0];
         const ratingInfo = CONTENT_RATINGS.find(r => r.id === session.contentRating) || CONTENT_RATINGS[0];
 
         // Build context
         const contextParts = [];
 
         // 1. Add pre-seeds
-        if (Object.keys(template.preSeeds).length > 0) {
-            contextParts.push('PRE-SEEDED CONTEXT:\n' + Object.entries(template.preSeeds).map(([k, v]) => `- ${CATEGORIES[k]?.label || k}: ${v}`).join('\n'));
+        if (template.seeds && Object.keys(template.seeds).length > 0) {
+            contextParts.push('PRE-SEEDED CONTEXT:\n' + Object.entries(template.seeds).map(([k, v]) => `- ${CATEGORIES[k]?.label || k}: ${v}`).join('\n'));
         }
 
         // 2. Add imported actor if present (Priority Context)
@@ -148,15 +150,19 @@ This is a SINGLE CHARACTER focus session. You are helping build ONE main charact
 - Example: If building "Freya the vampire", FREYA is the protagonist. {User} is whoever plays with her later.
 
 **PROTAGONIST MODE RULES:**
-1. **SINGLE CHARACTER FOCUS**: All character development centers on ONE protagonist being built (the NPC).
+1. **BALANCED INTERVIEW FIRST**: Before deep-diving into the protagonist, establish the WORLD context:
+   - First pass: Cover coreExperience, worldRules, and setting basics (genre, tone, magic system, location, etc.)
+   - Second pass: Then focus on the protagonist's details within that established world
+   - Ask about the world BEFORE asking detailed character questions
+2. **SINGLE CHARACTER FOCUS**: All character development centers on ONE protagonist being built (the NPC).
    - Do NOT track multiple cast members. Ignore the 'identifiedCast' output field.
    - The "Cast" category should only contain notes about THIS protagonist (the character card).
-2. **ANTI-BLEED GUARDRAIL**: When the user mentions OTHER people (e.g., "The protagonist's boss wears a toupee"), 
+3. **ANTI-BLEED GUARDRAIL**: When the user mentions OTHER people (e.g., "The protagonist's boss wears a toupee"), 
    those traits belong to THOSE other people, NOT the protagonist.
    - Record info about other characters under "Setting" or "World Rules" as relationship/world context.
    - Example: "Freya's rival, Victor, is cunning" → Note under Setting: "World includes Victor (Freya's cunning rival)"
    - Do NOT assign Victor's traits to Freya.
-3. **DEEP FOCUS**: Ask detailed questions about the protagonist's (the NPC's) personality, backstory, motivations, and appearance.
+4. **DEEP FOCUS (After world is established)**: Ask detailed questions about the protagonist's (the NPC's) personality, backstory, motivations, and appearance.
    - Other NPCs are backdrop. Don't spend questions exploring them unless the user explicitly asks.
    - NEVER ask about {User}'s traits - {User} is undefined until gameplay.
 `
@@ -184,6 +190,12 @@ This is an ENSEMBLE CAST session. You are helping build a GROUP of significant c
    - Develop distinct arcs/motivations for each major character.
 `;
 
+        // Calculate Sub-Facet Checklist for Current Focus
+        const currentCatConfig = CATEGORIES[session.currentFocus];
+        const subFacetList = currentCatConfig?.subFacets
+            ? currentCatConfig.subFacets.map(sf => `- [ ] ${sf}`).join('\n')
+            : '- [ ] General Completeness';
+
         const systemPrompt = `${personality}
 Your goal is to be a true creative partner. Do not just strictly "interview" the user.
 Engage in a back-and-forth dialogue. Restate your understanding often to show you are listening.
@@ -193,91 +205,47 @@ Build upon their ideas ("Yes, and...").
 Genre: ${template.label}
 Content Rating: ${ratingInfo.label} (${ratingInfo.description})
 Story Focus: ${isProtagonistMode ? 'PROTAGONIST (Single Character)' : 'ENSEMBLE (Multiple Characters)'}
-CURRENT FOCUS: ${CATEGORIES[session.currentFocus]?.label || 'General'}
+CURRENT FOCUS: ${currentCatConfig?.label || 'General'}
 ${storyFocusRules}
+
 === YOUR BEHAVIORAL RULES ===
-1. **RESTATE CONTEXT**: When the user introduces new major elements (a character, a faction, a tone), explicitly summarize it back to them in your own words to confirm alignment. "So, you're picturing a gritty, neon-soaked underworld where..."
-2. **USE THE SCRATCHPAD**: You have a "World Notes" scratchpad. USE IT.
-   - If the user establishes a fact (e.g. "Magic needs blood"), WRITE IT DOWN in the \`concept_updates\`.
-   - CRITICAL: You have a limited memory window. If you do not save a user's answer to the scratchpad, YOU WILL FORGET IT.
-   - Prioritize capturing facts over conversational fluff.
-3. **COLLABORATIVE SAFETY**: If the user's request touches on complex or potentially extreme themes (darkness, trauma, taboos) and no boundaries are set, PAUSE and have a "meta-conversation".
-   - Ask: "This is getting into darker territory. Are there any specific lines or veils you want to establish for this story?"
-   - Do this naturally, like an editor checking in with a writer.
-5. **RESPECT PLAYER AGENCY**: You are the Game Master/Editor, NOT the Player.
-   - NEVER describe the User's internal thoughts, feelings, or actions.
-   - Stop your response at the point where the User needs to react.
-   - Use the 'response' field for reaction, analysis, and setting the scene.
-   - Put your driving questions/suggestions into the 'questions' array. This ensures they appear as interactive UI elements.
-7. **THE {USER} VARIABLE - THIS IS NOT THE PROTAGONIST**:
-   - {User} = The PLAYER who will use the finished character card. NOT a character you are building.
-   - The PROTAGONIST/CAST you are building = The NPC(s)/bot(s) the player ({User}) will interact with.
-   - Do NOT ask questions about {User}'s traits, appearance, or backstory - they are undefined.
-   - Do NOT confuse {User} with the character being built. They are opposite roles.
+1. **RESTATE CONTEXT**: When the user introduces explicit new ideas, confirm them.
+2. **COLLABORATIVE SAFETY**: If themes get dark without established boundaries, check in naturally.
+3. **RESPECT PLAYER AGENCY**: You are the GM/Editor. Do not enact the User's character actions.
+4. **THE {USER} VARIABLE**: {User} is the PLAYER, not the character. Do not ask about {User}.
 
 === SMART ANALYSIS RULES ===
-1. **IMPORTED ACTOR PRIORITY**: If an "IMPORTED ACTOR PROFILE" is present, treat that character as the anchor. All world-building should revolve around them.
-2. **IMMEDIATE SCENARIO**: If the user sets a scene, jump right in. Don't ask for high-level "goals" if the goal is obviously "survive this encounter".
+1. **IMPORTED ACTOR PRIORITY**: If an "IMPORTED ACTOR PROFILE" is present, treat that character as the anchor.
+2. **IMMEDIATE SCENARIO**: If the user sets a scene, jump right in.
 3. **ADULT CONTENT**: "No limits" is a valid boundary if the user says so.
-4. **MAINTAIN STATE**: If a category was previously "Complete", do not mark it as "Empty" unless you have a specific reason to downgrade it. Look at the whole context.
 
-=== CATEGORY RUBRICS ===
+=== COMPLETENESS CHECKLIST (${currentCatConfig?.label}) ===
+To score confidence for the CURRENT FOCUS, check these specific sub-facets:
+${subFacetList}
 
-**Core Experience (20%)** - COMPLETE when:
-- Primary goal is clear (Story vs. Game vs. Erotica) OR a Scenario is active
-- Tone is established
-
-**World Rules (20%)** - COMPLETE when:
-- Physics/magic/tech basics defined
-- (For NSFW) Anatomy/Biology rules defined if relevant
-
-**Setting/Situation (15%)** - COMPLETE when:
-- Location/Era defined
-- Initial situation established
-
-**${isProtagonistMode ? 'Protagonist' : 'Cast'} (15%)** - COMPLETE when:
-${isProtagonistMode
-                ? `- The single main character has Name/Appearance/Archetypes defined
-- OR Defined via IMPORTED ACTOR PROFILE`
-                : `- Major ensemble members identified
-- Relationships between cast members established`}
-
-**Story Arc (15%)** - COMPLETE when:
-- Conflict/Tension defined
-- OR The "loop"/encounter structure is clear
-
-**Writing Style (10%)** - COMPLETE when:
-- POV (First vs Third) is defined
-- Verb Tense (Past vs Present) is defined
-- Tone/Voice is established
-
-**Mechanics (10%)** - COMPLETE when:
-- Tracking systems (Stats, Trust, Corruption, etc.)
-
-=== SCORING RULES ===
-1. **"N/A" MEANS 100%**: If the user says "No magic", "No mechanics", or "Skip this", mark confidence as **100**. It is "Complete by Omission". Do not leave it at 0.
-2. **CLOSING THE GAP**: If Confidence is < 80% for the CURRENT FOCUS, you **MUST** ask a question from the Rubric. Do not say "Anything else?". Ask specifically: "How do we handle [Missing Element]?"
+**SCORING RULES**:
+1. **"N/A" MEANS 100%**: If the user says "No magic" or "Skip this", mark as Complete (100%).
+2. **CLOSING THE GAP**: If you haven't covered a Sub-Facet in the list above, ask about it.
+3. **CONFIDENCE SCORE**: Estimate % of sub-facets covered. (e.g. 2/4 = 50%).
 
 === OUTPUT FORMAT ===
-Return a SINGLE JSON object. Do not include any text outside the JSON.
+Return a SINGLE JSON object. No markdown. No preambles. No prose outside the JSON.
 {
-  "response": "Your conversational reaction and scene setting ONLY. Do NOT include follow-up questions here.",
-  "analysis": "Brief 1-2 sentence summary of current state (for internal use).",
+  "response": "Your full conversational reply. INCLUDE your follow-up question(s) naturally at the end. Make it feel like a real dialogue - acknowledge, build on their ideas, then ask what you need to know next.",
+  "analysis": "Brief 1-2 sentence summary of current state.",
   "categories": {
     "coreExperience": { 
         "confidence": 0-100, 
-        "summary": "...", 
-        "concept_updates": "Text to APPEND to the scratchpad. Capture facts, rules, and decisions here." 
+        "summary": "1-line status summary"
     },
-    // ... other categories (worldRules, setting, cast, storyArc, mechanics, guardrails)
+    // ... all other categories MUST be included with at least confidence/summary
   },
   ${isProtagonistMode
                 ? '// Note: identifiedCast is NOT used in Protagonist mode'
                 : `"identifiedCast": [
       { "name": "Name", "role": "Role/Archetype", "significance": "major/minor" } 
   ],`}
-  "overallProgress": 0-100,
-  "highestPriority": "categoryKey",
+  "highestPriority": "categoryKey (The text topic you want to tackle next)",
   "deepMiningPoint": "The most interesting unexplored tension or opportunity",
   "questions": [
     {
@@ -364,21 +332,12 @@ Please evaluate and generate questions.`;
                             if (data.summary) session.categories[sessionKey].summary = data.summary;
                         }
 
-                        // Update Scratchpad Notes
+                        /*
+                        // Note: concept_updates removed in favor of dedicated extractFacts delta logic.
                         if (data.concept_updates && data.concept_updates.trim()) {
-                            const newNote = data.concept_updates.trim();
-                            // Initialize if missing
-                            if (!session.categories[sessionKey].notes) session.categories[sessionKey].notes = '';
-
-                            // Deduplicate: exact string match
-                            if (!session.categories[sessionKey].notes.includes(newNote)) {
-                                // Append with separator
-                                if (session.categories[sessionKey].notes.length > 0) {
-                                    session.categories[sessionKey].notes += '\n\n';
-                                }
-                                session.categories[sessionKey].notes += `• ${newNote}`;
-                            }
+                             // ...
                         }
+                        */
 
                         // Status Update Logic (Based on the potentially preserved confidence)
                         const finalConf = session.categories[sessionKey].confidence;
@@ -521,91 +480,93 @@ Please evaluate and generate questions.`;
     }
 
     async function extractFacts(session, sessions) {
-        console.log('[WorldWeaver] Active Listening: Extracting facts...');
-
         // 1. Get recent user message
         const lastUserMsg = session.chatHistory.filter(m => m.role === 'user').pop();
         if (!lastUserMsg) return; // Nothing to extract from
 
-        // 2. Collect current notes
-        let noteContent = '';
-        const categoriesWithNotes = [];
+        // 2. Prepare Context (Current Notes)
+        // We provide this so the AI knows what is ALREADY established (to avoid duplication)
+        let noteContext = '';
         Object.entries(session.categories).forEach(([key, data]) => {
             if (data.notes && data.notes.trim()) {
-                noteContent += `\n[${key.toUpperCase()}]:\n${data.notes}\n`;
-                categoriesWithNotes.push(key);
+                noteContext += `[${key}]: ${data.notes.replace(/\n/g, '; ')}\n`;
             }
         });
 
-        // 3. Determine mode-specific extraction rules
         const isProtagonistMode = session.storyFocus === 'protagonist';
 
-        const modeRules = isProtagonistMode
-            ? `
-MODE: PROTAGONIST (Single Character Focus)
-- Focus ONLY on facts about THE main protagonist being built.
-- When other characters are mentioned (e.g., "Bob's boss wears a toupee"), 
-  DO NOT merge their traits into the protagonist.
-- File other characters' traits under [SETTING] as world/relationship context.
-  Example: "Bob's boss Captain Murphy - demanding, wears toupee" → goes to [SETTING]
-- The [CAST] category should ONLY contain protagonist details.`
-            : `
-MODE: ENSEMBLE (Multiple Characters)
-- Track facts about ALL significant characters.
-- The [CAST] category should list details for each major ensemble member.
-- Minor/passing characters (mentioned once) can go to [SETTING] as background.`;
+        // 3. Delta Prompt
+        const prompt = `You are the World Weaver Secretary.
+Your job is to read the USER'S last message and update the World Bible "Notes" by ADDING new facts.
+DO NOT rewrite the whole bible. Only output changes.
 
-        // 4. Prompt for Extraction
-        const prompt = `You are a Senior Editor organizing a World Bible.
-Your job is to read the USER'S last message and REWRITE the World Notes to be concise and non-repetitive.
-${modeRules}
+CONTEXT (What we already know):
+${noteContext || '(None)'}
 
-EXISTING NOTES:
-${noteContent || '(No notes yet)'}
-
-USER MESSAGE:
+USER MESSAGE (New info):
 "${lastUserMsg.content}"
 
 TASK:
-1. Identify new facts in the User Message.
-2. MERGE them into the Existing Notes.
-3. CONSOLIDATE duplicates. (e.g. If specific "Trust" and generalized "Dependence" both exist, combine them into one strong bullet).
-4. REWRITE vague entries to be specific.
-5. Sort into the correct [CATEGORY]. If missing, ADD IT.
-   
-VALID CATEGORIES:
-- [COREEXPERIENCE] (Goals, Tone, Themes)
-- [WORLDRULES] (Physics, Magic, Technology)
-- [SETTING] (Locations, Era, Situation${isProtagonistMode ? ', OTHER characters as world context' : ''})
-- [CAST] (${isProtagonistMode ? 'Protagonist details ONLY' : 'All significant characters'})
-- [STORYARC] (Plots, Conflicts)
-- [WRITINGSTYLE] (POV, Tense, Tone, Voice)
-- [MECHANICS] (Stats, Systems)
-- [GUARDRAILS] (Safety, Limits, Boundaries)
+1. Extract NEW facts from the User Message.
+2. Ignore facts that are already in CONTEXT.
+3. Categorize each new fact.
+4. If the user explicitly CORRECTS a fact (e.g. "No, she is a welder not a waitress"), output a modification.
 
-6. Return the FULL set of notes (Old + New, cleaned up).
+VALID CATEGORIES: coreExperience, worldRules, setting, cast, storyArc, writingStyle, mechanics, guardrails.
 
-Return ONLY the full updated notes text (Categories + Bullets).`;
+OUTPUT FORMAT (JSON ONLY):
+{
+  "additions": {
+      "categoryKey": ["Fact 1", "Fact 2"]
+  },
+  "corrections": [
+      { "category": "categoryKey", "original_fragment": "waitress", "new_content": "welder" }
+  ]
+}`;
 
         try {
-            // Use lower temp for extraction accuracy
-            const updatedNotes = await A.LLM.generate(prompt, [], { maxTokens: 2048, temperature: 0.1 });
+            const responseText = await A.LLM.generate(prompt, [], { maxTokens: 1024, temperature: 0.1 });
+            const delta = A.JSONRepair.repairAndParse(responseText);
 
-            // Parse back into categories
-            if (!updatedNotes || !updatedNotes.includes('[')) return; // Formatting fail check
+            if (!delta) return;
 
-            const sections = updatedNotes.split(/\[([A-Z]+)\]:/i);
-            for (let i = 1; i < sections.length; i += 2) {
-                const keyName = sections[i].toLowerCase();
-                const content = sections[i + 1].trim();
+            let updatesMade = false;
 
-                // Find matching session key
-                const sessionKey = Object.keys(session.categories).find(k => k.toLowerCase() === keyName);
-                if (sessionKey) {
-                    session.categories[sessionKey].notes = content;
-                }
+            // Apply Additions
+            if (delta.additions) {
+                Object.entries(delta.additions).forEach(([key, newFacts]) => {
+                    // Normalize key
+                    const sessionKey = Object.keys(session.categories).find(k => k.toLowerCase() === key.toLowerCase());
+                    if (sessionKey && Array.isArray(newFacts)) {
+                        newFacts.forEach(fact => {
+                            if (!session.categories[sessionKey].notes) session.categories[sessionKey].notes = '';
+                            // Dedup (Simple string check)
+                            if (!session.categories[sessionKey].notes.includes(fact)) {
+                                session.categories[sessionKey].notes += `\n• ${fact}`;
+                                updatesMade = true;
+                            }
+                        });
+                    }
+                });
             }
-            console.log('[WorldWeaver] Notes updated via Active Listening.');
+
+            // Apply Corrections (Simple search/replace)
+            if (delta.corrections && Array.isArray(delta.corrections)) {
+                delta.corrections.forEach(mod => {
+                    const sessionKey = Object.keys(session.categories).find(k => k.toLowerCase() === mod.category.toLowerCase());
+                    if (sessionKey && session.categories[sessionKey].notes) {
+                        // Attempt to replace
+                        if (session.categories[sessionKey].notes.includes(mod.original_fragment)) {
+                            session.categories[sessionKey].notes = session.categories[sessionKey].notes.replace(mod.original_fragment, mod.new_content);
+                            updatesMade = true;
+                        }
+                    }
+                });
+            }
+
+            if (updatesMade) {
+                console.log('[WorldWeaver] Notes updated via Delta Memory.');
+            }
 
         } catch (e) {
             console.warn('[WorldWeaver] Extraction failed:', e);
