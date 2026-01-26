@@ -1,119 +1,119 @@
-# Features of Anansi v1.18
+# Anansi: The Scriptorium Engine
 
-Anansi is a professional-grade narrative simulation engine and character authoring suite designed to bridge the gap between static character cards and dynamic, logic-driven AI personalities.
-
----
-
-## 🌍 World Weaver 2.0 (New)
-*The Collaborative World Architect*
-A guided interview partner that helps you build entire worlds from scratch.
-- **Brainstorm Mode**: A new creative sandbox mode. Toggle "Build" vs "Brainstorm" in the sidebar. Features a "Spark" button for creative twists and freeform "Yes, and..." co-authoring.
-- **Living Lore**: Automatic entity detection. The system scans chat for new proper nouns (factions, places, people) and suggests adding them to your world bible instantly.
-- **Structured Dossiers**: A completely new generation pipeline that builds deep psychological profiles, giving characters authentic voices, internal conflicts, and grounded histories.
-- **World Bible Export**: Compiles your entire world (Rules, Setting, Cast, Plot) into a beautifully formatted Markdown Bible, organized by category.
-- **Visual Progress**: Real-time progress indicators using high-fidelity visualizations for each category's development.
+Anansi is a comprehensive Narrative, RPG, and Logic engine designed for complex interactive storytelling, world-building, and agentic simulation. It combines the creativity of a Writer's Room with the systems of a Tabletop RPG and the logic of a Simulation Game.
 
 ---
 
-## ⚔️ The RPG Engine (New)
-*A Complete Tabletop Simulator*
-Turn your narrative into a playable Game Mastered experience.
-- **Turn-Based Combat**: Full combat engine with Initiative, Rounds, Action Economy (Main/Bonus), and automated Monster AI.
-- **Quest System**: Create multi-stage quest chains with specific objectives (Kill, Fetch, Visit, Talk) and rewards.
-- **Loot & Economy**: Manage Gold, Shops, and randomized Loot Tables. Enemies drop "Corpse Containers" on death containing their inventory.
-- **Bestiary**: A comprehensive database of Monsters and NPCs with auto-leveling support and equipment slots.
-- **Leveling**: Configurable XP curves (D&D 5e, Linear, Custom) with automated Class Benefits and Stat growth.
-- **Dialogue Trees**: Visual editor for branching NPC conversations with conditional logic and script triggers.
+## 1. Narrative & Agents (The Cast)
+*Tools for breathing life into characters and their relationships.*
+
+### **Actors & Character Designer**
+*   **Designer Panel**: Full character creation suite including physical appearance, personality traits, and custom metadata.
+*   **Gallery**: Grid view of all project actors with filtering and quick-edit access.
+*   **Voice Tuner**: Configure Text-to-Speech (TTS) settings per actor using 11Labs or local engines. Supports "Subtones" (whisper, shout, emotional inflections).
+*   **Relationships (Pairs)**: Define directed relationships (A -> B dynamics) with relationship strength/type tracking.
+*   **Microcues**: AI-driven personality signals that subtly influence dialogue generation based on traits.
 
 ---
 
-## 🗺️ Hina's Travel Guide
-*Dynamic Map Builder*
-- **Procedural Mapping**: Generate connected world maps based on genre templates (Hub & Spoke, Grid, Linear).
-- **Dynamic Gates**: Locations can open/close based on Time of Day or Logic Keys (e.g. "VIP Pass").
-- **Visual Editor**: Drag-and-drop location nodes, assign encounters, link loot tables, and visualize connections.
-- **Vault Integration**: Import and export map templates sharing layouts between projects.
+## 2. Living World (The Stage)
+*Tools for environment, lore, and geography.*
+
+### **World Weaver**
+*   **Map Editor**: Dynamic map editor and viewer.
+*   **Pins & Layers**: Place locations, NPCs, and events on custom map images.
+*   **Fog of War**: Reveal areas as the story progresses.
+*   **Templates**: Import/Export map logic and layouts.
+
+### **Hina's Guide**
+*   **Context-Aware Lore**: Injects relevant lore into the LLM context based on current location, active actors, and conversation topics.
+*   **Lorebook**: Database of world facts, history, items, and magic systems.
+*   **Smart Retrieval**: Vector-based or keyword-based lookup for relevant story details.
 
 ---
 
-## 🏛️ The Anansi Vault
-*A centralized, cross-project asset management system.*
-The Vault acts as your personal "GitHub" for creative assets, allowing you to build a reusable library of narrative blocks.
+## 3. RPG Engine (The Game)
+*Systems to gamify the narrative experience.*
 
-- **Localized Asset Library**: Store Actors, Lorebook entries, Voice Configs, and Logic Rules in a persistent database separate from your projects.
-- **Publish-Push-Pull Workflow**: 
-  - **Publish**: Ship local items to the Vault with unique identifiers.
-  - **Pull**: Import Vault assets into any new or existing project.
-  - **Push**: Update the master copy in the Vault when you improve an item locally.
-- **Universal Organization**: Group your assets into **Universes** (e.g., *Cyberpunk*, *Dark Fantasy*) and use a robust tagging system for instant discovery.
-- **Asset Portability**: Export your entire Vault to `.vault` files for backup or sharing.
+### **Game Master (GM)**
+*   **Rulesets**: Configurable core mechanics (D20, D6, Narrative Only).
+*   **Stats Engine**: Custom stat tracking (HP, Mana, Reputation, etc.) with real-time updates.
+*   **Lockdown Mode**: Restrict player actions during critical narrative beats.
 
----
+### **RPG Play**
+*   **Context Action Bar**: Dynamic buttons that change based on context (Combat, Exploration, Social).
+*   **Selectors**:
+    *   **Move**: Navigate between World Weaver locations.
+    *   **Interact**: Trigger events or examine objects.
+    *   **Talk**: Initiate conversations with specific Actors.
+    *   **Attack/Ability**: Combat executions with dice rolls.
+*   **Modes**:
+    *   **MUD Mode**: Button/Command-driven classic RPG interface.
+    *   **Freeform**: Pure narrative input for creative freedom.
+*   **LLM Narration**: AI narrator that describes results of actions and dice rolls.
 
-## ✍️ The Writer's Block
-*An AI-powered creative assistant for brainstorming and drafting.*
-A specialized environment for breaking through creative walls and expanding your narrative.
-
-- **Dual-Mode Workflow**: Toggle between **Brainstorm** (ideation) and **Edit** (refining existing text) modes.
-- **Context Injection**: Automatically inject Actor and Location data into your prompts for hyper-relevant suggestions.
-- **Genre & Emphasis Chips**: Quickly steer the AI's output with pre-defined genre and stylistic emphasis toggles.
-- **Smart Session Management**: Sliding context window with auto-summarization to keep long brainstorming sessions coherent.
-- **Markdown Export**: Direct export of your writing sessions for use in external editors.
-
----
-
-## 🎭 Unified Character Designer
-*Deep character synthesis with Actor-driven logic.*
-The Character panel replaces traditional text boxes with a structured data engine.
-
-- **Dual-Mode Construction**:
-  - **Solo Mode**: Draft a single, high-fidelity character profile.
-  - **Ensemble Mode**: Build a cast-based scenario where multiple actors interact.
-- **Actor-to-Text Synthesis**: Character personality and scenario fields are automatically generated based on the traits, aliases, and tags of the assigned Actors.
-- **One-Way Compilation**: Edits happen in the Designer, but the AI only sees the "Compiled" result, ensuring project-wide consistency and preventing "context drift."
-- **Legacy Support**: Older projects are seamlessly migrated into the V2 structure upon loading.
+### **Dialogue & Quest Logic**
+*   **Dialogue Trees**: Node-based visual editor for branching conversations.
+    *   **Conditions**: Unlock branches based on Stats, Flags, or Inventory.
+    *   **Actions**: Trigger Quests, Open Shops, Give Items, or update Quest Steps.
+    *   **Shops**: Define merchant inventories and prices.
+*   **Quest System**: Track active, completed, and failed quests with multi-stage objectives.
+*   **Leveling**: XP curves and Party Views to track progression.
 
 ---
 
-## 🌦️ AURA Logic System
-*A modular ecosystem for simulating complex narrative states.*
-AURA (Anansi Unified Relationship & Ambience) allows you to "code" your character's behavior without writing a single line of JavaScript.
+## 4. Logic & Simulation (The Brain)
+*The AURA engine that powers cause and effect.*
 
-- **Logic Rules (SBX)**: Create "If/Else" chains that respond to message length, keyword counts, and custom variables.
-- **Narrative Events**: Trigger specific text injections or "mood shifts" based on user keywords or active tags.
-- **Weighted Scoring**: Influence the LLM’s focus by assigning weights to specific narrative concepts.
-- **Nested Logic Rules (Chains)**: Rules can now trigger other rules (`Execute Shift`), allowing for complex, hierarchical decision trees.
-- **Rule Blocks**: Group related logic (Lists, Rules, Scoring Topics) into **Rule Blocks** for easy project-wide management and one-click importing.
-- **AuraBuilder**: Export your logic as a standalone `AURA.js` payload that can run inside frontends like SillyTavern or JanitorAI.
+### **The Spindle (Simulator)**
+*   **Live vs Simulated**: Switch between real LLM calls and "Dry Run" simulations to test logic without API costs.
+*   **Diff View**: See exactly how a turn changed the world state (Stats modified, Flags set).
+*   **Flow Explorer**: Visual graph of the narrative flow and logic branching.
+*   **Context Injection**: Manually seed conversation history to test specific scenarios.
 
----
+### **Chronos (Time & Space)**
+*   **Time Tracking**: Manage Day/Night cycles, specific dates, and time slots.
+*   **Weather System**: Track weather conditions (Rain, Storm, Clear) and intensity.
+*   **Presence System**: dynamic tracking of which Actors are "Present", "Nearby", or "Elsewhere" based on Location.
+*   **Lens**: Web-based sidebar showing real-time actor locations.
 
-## 🗣️ Voice Rails & Subtones
-*Giving character speech distinct patterns and cadence.*
-The Voices system ensures that your characters don't just "talk," but have a recognizable "voice."
+### **Advanced Logic Editor**
+*   **Custom Lists**: Define keyword lists (e.g., "Fire Spells", "Royalty").
+*   **Derived Metrics**: Create stats based on narrative frequency (e.g., "Aggression" = count of "Attack" keywords in last 10 turns).
+*   **Rule Chains**: Visual programming interface for complex logic:
+    *   `IF target.hp < 10 AND weather == 'storm' THEN trigger_event('desperate_escape')`
+    *   Supports `ElseIf`, `Else`, Random Pickers, and Shifts.
 
-- **Actor-Voice Binding**: Directly link voice configurations to specific Actors in your project.
-- **Cadence & Baseline Rails**: Define the underlying rhythm and core speech quirks of a character.
-- **Dynamic Subtones**: Use weighted probability to trigger "Subtones" (e.g., *Sarcastic*, *Whispering*, *Aggressive*) that modify speech patterns turn-by-turn.
-
----
-
-## 🌀 The Spindle (Simulator)
-*The ultimate testing ground for narrative logic.*
-The Simulator provides a "transparent" chat experience where you can see exactly how your logic is firing.
-
-- **Context Inspector**: View the raw system prompt and see every AURA injection in real-time.
-- **Injection Diffs**: Visual highlight of how logic rules transformed the base character card into the final prompt.
-- **Live State Toggles**: Manually adjust Stats, Tags, and Active Actors mid-conversation to test different narrative branches.
+### **Events (Logos & Chaos)**
+*   **Logos (Logic Events)**: deterministic triggers based on state (e.g., "If Reputation > 50, Unlock Palace").
+*   **Chaos (Probability)**: Random event injections to spice up the narrative (e.g., 5% chance of ambush when travelling).
 
 ---
 
-## 📦 Deployment & Portability
-- **Universal Backup System**: Export and import your entire **Vault** as `.vault` files.
-- **Project Portability**: Save and load full **Projects** as `.json` or `.anansi` bundles, containing all actors, lore, and logic.
-- **Narrative Archiving**: Export your **Live Chat Stories** directly from the Simulator as formatted Markdown logs.
-- **Multi-Platform Adapters**: One-click exports optimized for **SillyTavern**, **JanitorAI**, and **Chub.ai** formats.
-- **Guided Tours**: Over 20+ interactive tours to help you master every panel in the engine.
-- **Drag-and-Drop Media**: Seamless image uploads for project covers, actors, and locations.
-- **Mobile Native**: Full support for Android builds (APK targets) with touch-optimized controls.
-- **Private & Local**: All data is stored locally via IndexedDB, ensuring your work is yours alone.
+## 5. Creative Studio (The Muse)
+*Tools for inspiration, asset management, and export.*
+
+### **The Spider's Parlor**
+*   **Character Creator**: Interactive "interview" with Anansi to generate detailed Character Cards.
+*   **Templates**: Quick-start archetypes for Romance, Horror, Adventure, etc.
+*   **Ensemble Support**: Generate entire casts with defined relationships in one go.
+
+### **Writer's Block**
+*   **AI Writing Assistant**: Specialized modes for Brainstorming and Editing.
+*   **Context Aware**: summarizing older context to maintain continuity.
+*   **Session Management**: Save/Load brainstorming sessions and branch ideas.
+
+### **The Vault**
+*   **Asset Browser**: Cross-project library for sharing Actors, Maps, Scripts, and Logic.
+*   **Filters**: Smart filtering by Universe, Type, and Tags.
+*   **Pull/Push**: Easily move assets between projects or share with the community.
+
+### **Nabu (The Scribe)**
+*   **Project Management**: Dashboard for switching universes and backing up data.
+*   **Export Tools**:
+    *   **Publish to JSON**: Export actors and lore for external sharing.
+    *   **Rule Generation**: Convert free-text descriptions into formal AURA logic rules.
+    *   **Logs**: View debug logs for troubleshooting simulation issues.
+
+---
+*Generated by Anansi v2.0 Audit*
