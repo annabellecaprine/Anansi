@@ -70,12 +70,12 @@
             const adapter = A.Adapters[envId];
 
             if (!adapter) {
-                alert(`No adapter found for environment: ${envId}`);
+                A.UI.Toast.show(`No adapter found for environment: ${envId}`, 'error');
                 return;
             }
 
             if (!adapter.render) {
-                alert(`Adapter ${adapter.meta?.name || envId} does not support Build/Export yet.`);
+                A.UI.Toast.show(`Adapter ${adapter.meta?.name || envId} does not support Build/Export yet.`, 'warning');
                 return;
             }
 
@@ -113,7 +113,7 @@
                 console.log(`[Export] Built ${safeName}.${ext}`);
             } catch (e) {
                 console.error('[Export] Build failed:', e);
-                alert('Build failed: ' + e.message);
+                A.UI.Toast.show('Build failed: ' + e.message, 'error');
             }
         }
     };

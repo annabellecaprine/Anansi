@@ -226,7 +226,7 @@
                     toggleNarration(false); // Force off
                 }
             } else {
-                alert('Auto-Pilot plugin not loaded');
+                A.UI.Toast.show('Auto-Pilot plugin not loaded', 'error');
             }
         };
         controls.appendChild(simToggle);
@@ -1941,7 +1941,7 @@ ${logs.join('\n')}`;
      */
     function showQuestLog() {
         if (!A.RPGQuests) {
-            alert("Quest System not loaded.");
+            A.UI.Toast.show("Quest System not loaded.", 'error');
             return;
         }
 

@@ -191,7 +191,7 @@
             actorBtn.onclick = () => {
                 // Simplified Actor Picker (Inline modal for speed)
                 const actors = Object.values(A.State.get().nodes?.actors?.items || {});
-                if (actors.length === 0) return alert('No actors found in project.');
+                if (actors.length === 0) return A.UI.Toast.show('No actors found in project.', 'warning');
 
                 const modal = document.createElement('div');
                 modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10005;';

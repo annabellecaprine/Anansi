@@ -342,7 +342,7 @@
                     if (A.UI && A.UI.Toast) A.UI.Toast.show('Player Mode export successful', 'success');
                 } catch (err) {
                     console.error('Export failed:', err);
-                    alert('Export failed: ' + err.message);
+                    A.UI.Toast.show('Export failed: ' + err.message, 'error');
                 }
             };
         };

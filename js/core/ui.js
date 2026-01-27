@@ -442,20 +442,9 @@
 
                 const isCollapsed = collapsedState[cat];
 
-                // Render Header
+                // Render Header - Styles moved to main.css .nav-header
                 const header = document.createElement('div');
-                header.className = 'nav-header';
-                header.style.padding = '8px 12px 2px 12px';
-                header.style.fontSize = '10px';
-                header.style.fontWeight = 'bold';
-                header.style.color = 'var(--text-muted)';
-                header.style.textTransform = 'uppercase';
-                header.style.letterSpacing = '1px';
-                header.style.cursor = 'pointer';
-                header.style.display = 'flex';
-                header.style.justifyContent = 'space-between';
-                header.style.alignItems = 'center';
-                header.style.userSelect = 'none';
+                header.className = 'nav-header flex-row justify-between';
 
                 header.innerHTML = `
                     <span>${cat}</span>
@@ -783,16 +772,18 @@
          */
         renderErrorState: function (container, error, retryCallback) {
             container.innerHTML = `
-                <div class="empty-state error-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:32px; text-align:center;">
-                    <div style="font-size:48px; margin-bottom:16px;">💥</div>
-                    <div style="font-size:18px; font-weight:bold; color:var(--status-error); margin-bottom:8px;">Panel Crashed</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">The application encountered an unexpected error.</div>
-                    <div style="background:var(--bg-deep); padding:12px; border-radius:6px; font-family:monospace; font-size:11px; max-width:600px; overflow:auto; margin-bottom:24px; border:1px solid var(--border-subtle); text-align:left; width:100%;">
-                        <div style="color:var(--status-error); font-weight:bold; margin-bottom:4px;">${error.name || 'Error'}</div>
+                <div class="empty-state-card error-state m-md">
+                    <div class="empty-icon">💥</div>
+                    <div class="empty-title text-error">Panel Crashed</div>
+                    <div class="empty-description">The application encountered an unexpected error.</div>
+                    
+                    <div class="text-xs font-mono p-sm mb-md text-left width-100" style="background:var(--bg-deep); border-radius:6px; border:1px solid var(--border-subtle); max-height:200px; overflow:auto;">
+                        <div class="text-error font-bold mb-sm">${error.name || 'Error'}</div>
                         <div>${error.message || 'Unknown error'}</div>
-                        ${error.stack ? `<div style="margin-top:8px; opacity:0.6; white-space:pre-wrap;">${error.stack.split('\n').slice(0, 3).join('\n')}...</div>` : ''}
+                        ${error.stack ? `<div class="mt-sm" style="opacity:0.6; white-space:pre-wrap;">${error.stack.split('\n').slice(0, 3).join('\n')}...</div>` : ''}
                     </div>
-                    <div style="display:flex; gap:12px;">
+                    
+                    <div class="flex-row gap-md">
                         ${retryCallback ? '<button id="err-retry-btn" class="btn btn-primary">🔄 Retry Panel</button>' : ''}
                         <button id="err-reload-btn" class="btn btn-ghost">Reload App</button>
                     </div>

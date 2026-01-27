@@ -166,7 +166,7 @@
                 A.WorldWeaver.renderMainInterface(container, newSession, sessions, state);
             } catch (e) {
                 console.error("[WorldWeaver] Finish Error:", e);
-                alert("Failed to create world: " + e.message);
+                A.UI.Toast.show("Failed to create world: " + e.message, 'error');
             }
         };
 
@@ -649,7 +649,7 @@
                 if (container.querySelector('#ww-chat-status')) {
                     container.querySelector('#ww-chat-status').textContent = "Error: " + e.message;
                 }
-                alert("Thinking failed: " + e.message);
+                A.UI.Toast.show("Thinking failed: " + e.message, 'error');
             } finally {
                 // Clear Thinking State
                 if (state.worldWeaver) state.worldWeaver.isThinking = false;
@@ -801,7 +801,7 @@
     function showMultiCastSelection(session, sessions, settings) {
         const cast = session.cast || [];
         if (cast.length === 0) {
-            alert('No cast members identified yet. Continue the interview to build your ensemble.');
+            A.UI.Toast.show('No cast members identified yet. Continue the interview to build your ensemble.', 'warning');
             return;
         }
 
@@ -846,7 +846,7 @@
             });
 
             if (selected.length === 0) {
-                alert('Please select at least one character.');
+                A.UI.Toast.show('Please select at least one character.', 'warning');
                 return;
             }
 

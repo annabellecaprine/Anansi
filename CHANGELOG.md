@@ -2,6 +2,18 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.20.0 - 2026-01-27
+### Codebase Standardization (Audit)
+- **Architecture**:
+  - **Modular Panels**: Migrated 100% of panels to a scalable directory structure (`js/panels/[name]/index.js`).
+  - **Plugin Consolidation**: Merged "owned" plugins (Actors, Lorebook, Character, Parlor, Hina's Guide) into their respective panel modules.
+  - **CSS Standardization**: Introduced `css/panels.css` and refactored the `Stats` panel to use utility classes instead of inline styles.
+- **Modernization**:
+  - **Legacy Cleanup**: Removed `var` usage and `.bak` files.
+  - **Notifications**: Replaced all blocking `alert()` calls with the non-blocking `A.UI.Toast` system.
+- **Fixes**:
+  - **Regression Fix**: Restored `Tester` and `Validator` functionality after module migration.
+
 ## v1.19.0 - 2026-01-27
 ### Architecture
 - **Centralized I/O**: Refactored the entire application to use a unified `A.IO` service, standardizing file import/export operations across all panels (Project, Vault, Actors, Lorebook, Scripts, Writer's Block, Simulator, Character).

@@ -159,7 +159,7 @@
                 renderList();
                 if (A.UI?.Toast) A.UI.Toast.show('Dialogue imported!', 'success');
             } catch (e) {
-                alert('Import failed: ' + e.message);
+                A.UI.Toast.show('Import failed: ' + e.message, 'error');
             }
         };
 

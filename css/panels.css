@@ -1,0 +1,103 @@
+/* 
+ * Anansi Panel Utilities 
+ * specialized layouts and utilities for panels
+ */
+
+/* === Grid Layouts === */
+.panel-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-auto-fill { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* === Flex Utilities === */
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-wrap { flex-wrap: wrap; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.align-start { align-items: flex-start; }
+.align-center { align-items: center; }
+
+.gap-sm { gap: var(--space-2); }
+.gap-md { gap: var(--space-4); }
+.gap-lg { gap: var(--space-6); }
+
+/* === Typography Utilities === */
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.text-primary { color: var(--text-primary); }
+.text-accent { color: var(--accent-primary); }
+.text-error { color: var(--status-error); }
+.text-success { color: var(--status-success); }
+.text-warning { color: var(--status-warning); }
+
+.font-mono { font-family: var(--font-mono); }
+.font-bold { font-weight: 600; }
+.text-uppercase { text-transform: uppercase; }
+
+/* === Spacing === */
+.m-0 { margin: 0; }
+.mt-sm { margin-top: var(--space-2); }
+.mt-md { margin-top: var(--space-4); }
+.mb-sm { margin-bottom: var(--space-2); }
+.mb-md { margin-bottom: var(--space-4); }
+.p-0 { padding: 0; }
+.p-sm { padding: var(--space-2); }
+.p-md { padding: var(--space-4); }
+
+/* === Panel Specific Components === */
+
+/* Sidebar Layout (e.g. Stats, Actors) */
+.panel-sidebar-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: var(--space-4);
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Status Dot */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+}
+.status-dot.active { background-color: var(--status-success); }
+.status-dot.busy { background-color: var(--status-warning); }
+.status-dot.error { background-color: var(--status-error); }
+
+/* Scrollable List container */
+.scroll-list {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}

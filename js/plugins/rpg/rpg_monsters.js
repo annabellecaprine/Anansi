@@ -223,7 +223,7 @@ Guidelines:
             A.State.notify();
             A.ProjectDB.save(state).catch(e => console.error('[Bestiary] Failed to save cleanup:', e));
 
-            alert(`Cleaned up ${count} entities.`);
+            A.UI.Toast.show(`Cleaned up ${count} entities.`, 'success');
             render();
         };
 

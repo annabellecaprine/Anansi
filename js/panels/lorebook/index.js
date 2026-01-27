@@ -275,7 +275,7 @@
               if (A.UI.Toast) A.UI.Toast.show('No valid entries found in file.', 'warning');
             }
           } else {
-            alert('Converter module missing!');
+            A.UI.Toast.show('Converter module missing!', 'error');
           }
         } catch (err) {
           console.error(err);

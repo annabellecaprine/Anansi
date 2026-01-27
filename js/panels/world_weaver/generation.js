@@ -945,7 +945,7 @@ Return ONLY this JSON:
                     if (A.UI?.Toast?.show) {
                         A.UI.Toast.show(`Batch Complete: Imported ${importedCount} characters!`, 'success');
                     } else {
-                        alert(`Batch Generation Complete! Imported ${importedCount} characters into the Gallery.`);
+                        A.UI.Toast.show(`Batch Generation Complete! Imported ${importedCount} characters into the Gallery.`, 'success');
                     }
                 }
 

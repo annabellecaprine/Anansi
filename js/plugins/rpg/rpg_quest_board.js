@@ -205,7 +205,7 @@
             qSel('#edit-desc').onchange = (e) => { quest.description = e.target.value; A.State.notify(); };
             qSel('#edit-rewards').onchange = (e) => {
                 try { quest.rewards = JSON.parse(e.target.value); A.State.notify(); }
-                catch (err) { alert('Invalid JSON'); }
+                catch (err) { A.UI.Toast.show('Invalid JSON', 'error'); }
             };
 
             // Render Objectives
@@ -268,7 +268,7 @@
                     });
                     if (A.UI.Toast) A.UI.Toast.show('Quest started!', 'success');
                 } else {
-                    alert('Quest System not loaded');
+                    A.UI.Toast.show('Quest System not loaded', 'error');
                 }
             };
 

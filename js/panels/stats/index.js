@@ -10,50 +10,59 @@
     // --- Radar Renderer (Ported) ---
     const AxisRadar = {};
     AxisRadar.renderRadar = function (w, h, labels, values, min, max) {
-        var i, n = labels.length, cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.44;
+        const n = labels.length, cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.44;
         if (!n) return '<svg width="' + w + '" height="' + h + '"></svg>';
-        var rng = (max - min) || 1;
+        const rng = (max - min) || 1;
 
         function norm(vals) {
-            var out = [], j;
-            for (j = 0; j < n; j++) {
-                var v = (parseFloat(vals[j]) - min) / rng; if (isNaN(v)) v = 0; if (v < 0) v = 0; if (v > 1) v = 1; out.push(v);
+            const out = [];
+            for (let j = 0; j < n; j++) {
+                let v = (parseFloat(vals[j]) - min) / rng;
+                if (isNaN(v)) v = 0;
+                if (v < 0) v = 0;
+                if (v > 1) v = 1;
+                out.push(v);
             }
             return out;
         }
-        var base = norm(values);
+        const base = norm(values);
 
-        var rings = 4, ringPaths = [], k, j;
-        for (k = 1; k <= rings; k++) {
-            var rr = r * k / rings, path = [];
-            for (j = 0; j < n; j++) {
-                var ang = (Math.PI * 2 * j / n) - Math.PI / 2;
-                var x = cx + rr * Math.cos(ang), y = cy + rr * Math.sin(ang);
+        const rings = 4, ringPaths = [];
+        for (let k = 1; k <= rings; k++) {
+            const rr = r * k / rings, path = [];
+            for (let j = 0; j < n; j++) {
+                const ang = (Math.PI * 2 * j / n) - Math.PI / 2;
+                const x = cx + rr * Math.cos(ang), y = cy + rr * Math.sin(ang);
                 path.push((j === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1));
             }
             path.push('Z');
             ringPaths.push('<path d="' + path.join(' ') + '" fill="none" stroke="currentColor" opacity="0.12" stroke-width="1"/>');
         }
-        var spokes = [], lbls = [];
-        for (i = 0; i < n; i++) {
-            var ang2 = (Math.PI * 2 * i / n) - Math.PI / 2;
-            var x2 = cx + r * Math.cos(ang2), y2 = cy + r * Math.sin(ang2);
+
+        const spokes = [], lbls = [];
+        for (let i = 0; i < n; i++) {
+            const ang2 = (Math.PI * 2 * i / n) - Math.PI / 2;
+            const x2 = cx + r * Math.cos(ang2), y2 = cy + r * Math.sin(ang2);
             spokes.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="currentColor" opacity="0.18" stroke-width="1"/>');
-            var lx = cx + (r + 20) * Math.cos(ang2), ly = cy + (r + 20) * Math.sin(ang2);
-            var anchor = 'middle';
+
+            const lx = cx + (r + 20) * Math.cos(ang2), ly = cy + (r + 20) * Math.sin(ang2);
+            // Anchor logic (unused but kept for layout reference or future tweaks)
+            /*
+            let anchor = 'middle';
             if (i === 0) anchor = 'middle';
             else if (i < n / 2) anchor = 'start';
             else if (i === n / 2) anchor = 'middle';
             else anchor = 'end';
+            */
 
             lbls.push('<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" font-size="11" fill="var(--text-secondary)" text-anchor="middle" dominant-baseline="middle" opacity="0.9">' + labels[i] + '</text>');
         }
 
         function poly(norm) {
-            var pts = [], path = [], m;
-            for (m = 0; m < n; m++) {
-                var ang3 = (Math.PI * 2 * m / n) - Math.PI / 2, rr2 = r * norm[m];
-                var px = cx + rr2 * Math.cos(ang3), py = cy + rr2 * Math.sin(ang3);
+            const pts = [], path = [];
+            for (let m = 0; m < n; m++) {
+                const ang3 = (Math.PI * 2 * m / n) - Math.PI / 2, rr2 = r * norm[m];
+                const px = cx + rr2 * Math.cos(ang3), py = cy + rr2 * Math.sin(ang3);
                 pts.push(px.toFixed(1) + ',' + py.toFixed(1));
                 path.push((m === 0 ? 'M' : 'L') + px.toFixed(1) + ' ' + py.toFixed(1));
             }
@@ -61,7 +70,7 @@
             return { pts: pts.join(' '), d: path.join(' ') };
         }
 
-        var basePoly = poly(base);
+        const basePoly = poly(base);
 
         return ''
             + '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-hidden="false">'
@@ -129,19 +138,11 @@
         let vizBlockIndex = 0; // Index of block to visualize
 
         // Layout
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '250px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        container.classList.add('panel-sidebar-layout');
 
         // --- Sidebar ---
         const sidebar = document.createElement('div');
-        sidebar.className = 'card';
-        sidebar.style.display = 'flex';
-        sidebar.style.flexDirection = 'column';
-        sidebar.style.padding = '12px';
-        sidebar.style.gap = '16px';
+        sidebar.className = 'card p-sm flex-col gap-md';
 
         sidebar.innerHTML = `
             <div>
@@ -183,7 +184,7 @@
 
             // Duplicate Check (Strict ID check)
             if (data.blocks.find(b => b.id === tplId)) {
-                alert(`A "${tpl.label}" block already exists.`);
+                if (A.UI.Toast) A.UI.Toast.show(`A "${tpl.label}" block already exists.`, 'warning');
                 return;
             }
 
@@ -232,7 +233,7 @@
             for (let i = 0; i < count; i++) {
                 const label = prompt(`Label for Field #${i + 1} (e.g. 'Agility'):`);
                 if (!label) { i--; continue; } // Retry
-                const key = label.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') || `S${i}`;
+                let key = label.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') || `S${i}`;
 
                 // Check uniqueness in this block
                 let finalKey = key;
@@ -276,11 +277,7 @@
 
         // --- Main Content ---
         const main = document.createElement('div');
-        main.className = 'card';
-        main.style.display = 'flex';
-        main.style.flexDirection = 'column';
-        main.style.overflowY = 'auto';
-        main.style.padding = '0';
+        main.className = 'card p-0 flex-col scroll-list';
         container.appendChild(main);
 
         function refreshMain() {
@@ -288,7 +285,7 @@
 
             // Header
             const header = document.createElement('div');
-            header.className = 'card-header';
+            header.className = 'card-header justify-between';
             header.innerHTML = `<strong>Active Stats for: <span style="color:var(--accent-primary);">${currentTarget === 'user' ? 'User' : (actors.find(a => a.id === currentTarget) || {}).name || currentTarget}</span></strong>`;
             main.appendChild(header);
 
@@ -306,10 +303,7 @@
             }
 
             const body = document.createElement('div');
-            body.className = 'card-body';
-            body.style.display = 'flex';
-            body.style.flexDirection = 'column';
-            body.style.gap = '24px';
+            body.className = 'card-body flex-col gap-lg';
             body.style.flex = '1';
 
             // 1. Render Blocks
@@ -326,9 +320,7 @@
                  `;
 
                 const grid = document.createElement('div');
-                grid.style.display = 'grid';
-                grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
-                grid.style.gap = '12px';
+                grid.className = 'panel-grid grid-auto-fill gap-sm';
 
                 block.defs.forEach(def => {
                     const val = tVals[def.key] !== undefined ? tVals[def.key] : (def.min || 0);

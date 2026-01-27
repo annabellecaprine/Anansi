@@ -641,7 +641,7 @@
                     const apiKey = keyInput.value.trim();
                     const baseUrl = urlInput.value.trim() || PROVIDER_PRESETS[selectedProvider].baseUrl;
 
-                    if (!name) { alert('Please enter a configuration name.'); return; }
+                    if (!name) { A.UI.Toast.show('Please enter a configuration name.', 'warning'); return; }
 
                     if (isEdit) {
                         editingConfig.name = name;
