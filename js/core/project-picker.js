@@ -29,7 +29,7 @@
                         <button class="btn btn-ghost btn-sm" id="pp-import">
                             📥 Import File
                         </button>
-                        <input type="file" id="pp-import-input" accept=".json,.anansi.json" style="display:none" />
+
                     </div>
                     <div class="project-picker-count">
                         ${count} / ${max} slots used
@@ -118,14 +118,14 @@
             });
 
             // Import
-            container.querySelector('#pp-import')?.addEventListener('click', () => {
-                container.querySelector('#pp-import-input')?.click();
-            });
-
-            container.querySelector('#pp-import-input')?.addEventListener('change', async (e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                    await ProjectPicker._importProject(file);
+            container.querySelector('#pp-import')?.addEventListener('click', async () => {
+                try {
+                    const { content } = await A.IO.open({ accept: '.json,.anansi.json', as: 'json' });
+                    if (content) {
+                        await ProjectPicker._importProject(content);
+                    }
+                } catch (err) {
+                    console.error('[ProjectPicker] File open failed:', err);
                 }
             });
 
@@ -397,82 +397,76 @@
         },
 
         /**
-         * Import a project from file
+         * Import a project from data
          */
-        _importProject: async function (file) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    if (typeof e.target.result !== 'string') return;
-                    const data = JSON.parse(e.target.result);
-                    if (!data.meta) data.meta = {};
-                    const importName = data.meta.name || 'Untitled Project';
+        _importProject: async function (data) {
+            try {
+                if (!data.meta) data.meta = {};
+                const importName = data.meta.name || 'Untitled Project';
 
-                    // Check for existing project with same name
-                    const projects = await A.ProjectDB.list();
-                    const existing = projects.find(p => p.name.toLowerCase() === importName.toLowerCase());
+                // Check for existing project with same name
+                const projects = await A.ProjectDB.list();
+                const existing = projects.find(p => p.name.toLowerCase() === importName.toLowerCase());
 
-                    if (existing) {
-                        // Prompt user: replace or create copy?
-                        const choice = confirm(
-                            `A project named "${importName}" already exists.\n\n` +
-                            `Click OK to UPDATE the existing project.\n` +
-                            `Click Cancel to create a COPY instead.`
-                        );
+                if (existing) {
+                    // Prompt user: replace or create copy?
+                    const choice = confirm(
+                        `A project named "${importName}" already exists.\n\n` +
+                        `Click OK to UPDATE the existing project.\n` +
+                        `Click Cancel to create a COPY instead.`
+                    );
 
-                        if (choice) {
-                            // Replace existing - use same ID
-                            data.meta.id = existing.id;
-                        } else {
-                            // Create copy - check capacity first
-                            const isFull = await A.ProjectDB.isFull();
-                            if (isFull) {
-                                A.UI.Toast.show('Project slots full. Delete a project first.', 'warning');
-                                return;
-                            }
-                            data.meta.id = A.ProjectDB.generateId();
-                            data.meta.name = importName + ' (Copy)';
-                        }
+                    if (choice) {
+                        // Replace existing - use same ID
+                        data.meta.id = existing.id;
                     } else {
-                        // New project - check capacity
+                        // Create copy - check capacity first
                         const isFull = await A.ProjectDB.isFull();
                         if (isFull) {
                             A.UI.Toast.show('Project slots full. Delete a project first.', 'warning');
                             return;
                         }
                         data.meta.id = A.ProjectDB.generateId();
+                        data.meta.name = importName + ' (Copy)';
                     }
-
-                    // Save current first
-                    await A.ProjectDB.save(A.State.get());
-
-                    // Save imported project
-                    await A.ProjectDB.save(data);
-
-                    // Load it
-                    A.State.load(data);
-
-                    // Refresh
-                    if (ProjectPicker.overlay) A.UI.Modal.hide(ProjectPicker.overlay);
-                    A.UI.refresh();
-
-                    const action = existing && data.meta.id === existing.id ? 'Updated' : 'Imported';
-                    A.UI.Toast.show(`${action} "${data.meta.name}"`, 'success');
-
-                } catch (err) {
-                    console.error('[ProjectPicker] Import failed:', err);
-                    let msg = 'Failed to import project';
-                    if (err instanceof SyntaxError) {
-                        msg = 'Import failed: Invalid JSON file';
-                    } else if (err.message) {
-                        msg = `Import failed: ${err.message}`;
+                } else {
+                    // New project - check capacity
+                    const isFull = await A.ProjectDB.isFull();
+                    if (isFull) {
+                        A.UI.Toast.show('Project slots full. Delete a project first.', 'warning');
+                        return;
                     }
-                    if (A.UI && A.UI.Toast) {
-                        A.UI.Toast.show(msg, 'error');
-                    }
+                    data.meta.id = A.ProjectDB.generateId();
                 }
-            };
-            reader.readAsText(file);
+
+                // Save current first
+                await A.ProjectDB.save(A.State.get());
+
+                // Save imported project
+                await A.ProjectDB.save(data);
+
+                // Load it
+                A.State.load(data);
+
+                // Refresh
+                if (ProjectPicker.overlay) A.UI.Modal.hide(ProjectPicker.overlay);
+                A.UI.refresh();
+
+                const action = existing && data.meta.id === existing.id ? 'Updated' : 'Imported';
+                A.UI.Toast.show(`${action} "${data.meta.name}"`, 'success');
+
+            } catch (err) {
+                console.error('[ProjectPicker] Import failed:', err);
+                let msg = 'Failed to import project';
+                if (err instanceof SyntaxError) {
+                    msg = 'Import failed: Invalid JSON file';
+                } else if (err.message) {
+                    msg = `Import failed: ${err.message}`;
+                }
+                if (A.UI && A.UI.Toast) {
+                    A.UI.Toast.show(msg, 'error');
+                }
+            }
         },
 
         /**

@@ -2,6 +2,13 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.19.0 - 2026-01-27
+### Architecture
+- **Centralized I/O**: Refactored the entire application to use a unified `A.IO` service, standardizing file import/export operations across all panels (Project, Vault, Actors, Lorebook, Scripts, Writer's Block, Simulator, Character).
+
+### Bug Fixes
+- **Character Quirks**: Fixed an issue where "Quirks" were not being correctly saved to or loaded from Character Cards.
+
 ## v1.18.0 - 2026-01-25
 ### World Weaver 2.0 (Generation Overhaul)
 - **Features**:

@@ -313,7 +313,7 @@
         </div>
       </div>
       
-      <input type="file" id="vault-import-input" accept=".vault,.json" style="display:none;">
+
       
       <!-- Selection Footer (hidden by default) -->
       <div class="card-footer" id="vault-footer-selection" style="display:none; padding:8px;">
@@ -484,33 +484,23 @@
         });
     };
 
-    const importInput = listCol.querySelector('#vault-import-input');
-    listCol.querySelector('#btn-vault-import').onclick = () => {
-      importInput.click();
-    };
+    listCol.querySelector('#btn-vault-import').onclick = async () => {
+      try {
+        const { content } = await A.IO.open({ accept: '.vault,.json,.vault.json', as: 'json' });
+        if (!content) return;
 
-    importInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          // Confirm import
-          if (confirm(`Import ${data.itemCount} items from backup?\nExisting items will be preserved (unless overwritten).`)) {
-            const result = await A.VaultDB.importVault(data, { overwrite: true });
-            await loadVaultData();
-            renderList();
-            if (A.UI.Toast) A.UI.Toast.show(`Imported ${result.imported} items (${result.skipped} skipped)`, 'success');
-          }
-        } catch (err) {
-          console.error('[Vault] Import failed:', err);
-          if (A.UI.Toast) A.UI.Toast.show('Import failed: Invalid file', 'error');
+        // Confirm import
+        const itemCount = content.itemCount || (content.items ? content.items.length : 0);
+        if (confirm(`Import ${itemCount} items from backup?\nExisting items will be preserved (unless overwritten).`)) {
+          const result = await A.VaultDB.importVault(content, { overwrite: true });
+          await loadVaultData();
+          renderList();
+          if (A.UI.Toast) A.UI.Toast.show(`Imported ${result.imported} items (${result.skipped} skipped)`, 'success');
         }
-        importInput.value = ''; // Reset
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        console.error('[Vault] Import failed:', err);
+        if (A.UI.Toast) A.UI.Toast.show('Import failed: Invalid file', 'error');
+      }
     };
 
     function renderList() {

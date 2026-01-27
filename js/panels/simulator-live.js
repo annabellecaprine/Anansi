@@ -714,7 +714,7 @@
         };
 
         // --- Story Export ---
-        chatCol.querySelector('#btn-export-story').onclick = () => {
+        chatCol.querySelector('#btn-export-story').onclick = async () => {
             const state = A.State.get();
             const history = state.sim?.history || [];
 
@@ -733,16 +733,10 @@
             });
 
             const storyText = storyLines.join('\n');
-            const blob = new Blob([storyText], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            a.href = url;
-            a.download = `story_${characterName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const filename = `story_${characterName.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.md`;
+
+            await A.IO.save(storyText, filename, 'text/markdown');
 
             if (A.UI.Toast) A.UI.Toast.show('Story exported successfully', 'success');
         };

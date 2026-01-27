@@ -54,7 +54,7 @@
                 }
 
                 // Auto-save listener (debounced)
-                A.State.subscribe(IO.save);
+                A.State.subscribe(IO.persist);
 
             } catch (e) {
                 console.error('[IO] Init failed, falling back to reset:', e);
@@ -102,7 +102,7 @@
         /**
          * Save current project (debounced for performance)
          */
-        save: function (state) {
+        persist: function (state) {
             if (!state) return;
 
             // Debounce saves to IndexedDB (500ms)
@@ -136,20 +136,95 @@
         },
 
         /**
+         * Generic file save handler
+         * @param {any} content - String, Object (will be stringified), or Blob
+         * @param {string} filename - Output filename
+         * @param {string} type - MIME type (default: application/json or text/plain)
+         */
+        save: async function (content, filename, type) {
+            try {
+                let blob;
+                if (content instanceof Blob) {
+                    blob = content;
+                } else if (typeof content === 'object') {
+                    blob = new Blob([JSON.stringify(content, null, 2)], { type: type || 'application/json' });
+                } else {
+                    blob = new Blob([content], { type: type || 'text/plain' });
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a); // Firefox requirement
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                if (A.UI && A.UI.Toast) {
+                    A.UI.Toast.show(`Saved "${filename}"`, 'success');
+                }
+            } catch (err) {
+                console.error('[IO] Save failed:', err);
+                if (A.UI && A.UI.Toast) {
+                    A.UI.Toast.show(`Failed to save "${filename}"`, 'error');
+                }
+            }
+        },
+
+        /**
+         * Generic file open handler
+         * @param {Object} options - { accept: string, as: 'text'|'json'|'dataUrl'|'arrayBuffer' }
+         * @returns {Promise<{content: any, file: File}>}
+         */
+        open: function (options = {}) {
+            return new Promise((resolve, reject) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = options.accept || '*';
+                // Multiple selection support could be added here if needed
+
+                input.onchange = (e) => {
+                    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
+                    if (!file) {
+                        return; // User cancelled
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            let content = ev.target.result;
+                            if (options.as === 'json') {
+                                if (typeof content !== 'string') throw new Error('Invalid JSON file content');
+                                content = JSON.parse(content);
+                            }
+                            resolve({ content, file });
+                        } catch (err) {
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = (err) => reject(err);
+
+                    if (options.as === 'dataUrl') {
+                        reader.readAsDataURL(file);
+                    } else if (options.as === 'arrayBuffer') {
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        reader.readAsText(file);
+                    }
+                };
+
+                input.click();
+            });
+        },
+
+        /**
          * Export current project to file
          */
         exportToFile: function () {
             const state = A.State.get();
-            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${(state.meta?.name || 'project').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.anansi.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            if (A.UI && A.UI.Toast) {
-                A.UI.Toast.show('Project exported successfully!', 'success');
-            }
+            const name = (state.meta?.name || 'project').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            IO.save(state, `${name}.anansi.json`, 'application/json');
         },
 
         /**

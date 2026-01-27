@@ -242,17 +242,10 @@
                 }
 
                 const state = project.data;
-                const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${(state.meta?.name || 'project').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.anansi.json`;
-                a.click();
-                URL.revokeObjectURL(url);
+                const filename = `${(state.meta?.name || 'project').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.anansi.json`;
 
-                if (A.UI?.Toast) {
-                    A.UI.Toast.show(`Exported "${project.name}"`, 'success');
-                }
+                // Use centralized IO
+                return A.IO.save(state, filename, 'application/json');
             });
         }
     };

@@ -333,7 +333,8 @@
                         actorId: actor.id,
                         gender: actor.gender,
                         pronouns: actor.pronouns,
-                        aliases: actor.aliases
+                        aliases: actor.aliases,
+                        quirks: actor.quirks
                     }
                 }
             }
@@ -359,6 +360,7 @@
             gender: d.extensions?.anansi?.gender || 'N',
             pronouns: d.extensions?.anansi?.pronouns || '',
             aliases: d.extensions?.anansi?.aliases || [],
+            quirks: d.extensions?.anansi?.quirks || null,
             traits: {
                 description: d.description || '',
                 personality: d.personality || ''

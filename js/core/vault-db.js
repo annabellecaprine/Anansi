@@ -641,20 +641,11 @@
                     items: filtered
                 };
 
-                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
                 const filename = options.universe
-                    ? `${options.universe.replace(/[^a-z0-9]/gi, '_')}.vault`
-                    : 'anansi_vault.vault';
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
+                    ? `${options.universe.replace(/[^a-z0-9]/gi, '_')}.vault.json`
+                    : 'anansi_vault.vault.json';
 
-                if (A.UI?.Toast) {
-                    A.UI.Toast.show(`Exported ${filtered.length} items`, 'success');
-                }
+                return A.IO.save(exportData, filename, 'application/json');
             });
         },
 

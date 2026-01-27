@@ -669,7 +669,7 @@
         };
 
         // --- Export to Markdown ---
-        container.querySelector('#btn-export').onclick = () => {
+        container.querySelector('#btn-export').onclick = async () => {
             if (wb.history.length === 0) {
                 if (A.UI.Toast) A.UI.Toast.show('Nothing to export', 'info');
                 return;
@@ -696,13 +696,9 @@
             });
 
             const markdown = lines.join('\n');
-            const blob = new Blob([markdown], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `writers-block-${wb.activeBranch}-${Date.now()}.md`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const filename = `writers-block-${wb.activeBranch}-${Date.now()}.md`;
+
+            await A.IO.save(markdown, filename, 'text/markdown');
 
             if (A.UI.Toast) A.UI.Toast.show('Session exported!', 'success');
         };

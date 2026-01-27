@@ -79,7 +79,7 @@
                 <button class="btn btn-ghost btn-sm" id="btn-export-lore" style="flex:1; font-size:10px;">Export</button>
             </div>
             <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
-            <input type="file" id="file-import-hidden" style="display:none;" accept=".json,.png,.txt">
+
         </div>
 
         <!-- Selection Actions -->
@@ -102,22 +102,15 @@
     // --- Event Handlers (Import/Export) ---
 
     // Import
-    const fileInput = listCol.querySelector('#file-import-hidden');
+    // Import
+    listCol.querySelector('#btn-import-lore').onclick = async () => {
+      try {
+        const { content } = await A.IO.open({ accept: '.json,.txt', as: 'text' });
+        if (!content) return;
 
-    listCol.querySelector('#btn-import-lore').onclick = () => {
-      fileInput.value = ''; // Reset
-      fileInput.click();
-    };
-
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (evt) => {
         try {
           if (A.Converter) {
-            const imported = A.Converter.importLorebook(evt.target.result);
+            const imported = A.Converter.importLorebook(content);
             const importedKeys = Object.keys(imported);
             const count = importedKeys.length;
 
@@ -220,11 +213,6 @@
                 overlay.appendChild(modal);
                 document.body.appendChild(overlay);
 
-                // Auto-open first category if exists
-                // This line seems to be from a different context, removing it.
-                // const first = /** @type {HTMLElement} */ (catList.firstChild);
-                // if (first) first.click();
-
                 // Bulk Actions
                 const setAll = (act) => {
                   collisions.forEach(k => decisions[k] = act);
@@ -293,16 +281,16 @@
           console.error(err);
           if (A.UI.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
         }
-      };
+      } catch (err) {
+        // console.error(err);
+      }
+    };
 
-      // Helper to finish up
-      const finalizeImport = (msg) => {
-        A.State.notify();
-        renderList();
-        if (A.UI.Toast) A.UI.Toast.show(msg, 'success');
-      };
-
-      reader.readAsText(file);
+    // Helper to finish up
+    const finalizeImport = (msg) => {
+      A.State.notify();
+      renderList();
+      if (A.UI.Toast) A.UI.Toast.show(msg, 'success');
     };
 
     // Export
@@ -343,17 +331,16 @@
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
 
-      const performExport = (ext) => {
+      const performExport = async (ext) => {
         const entries = state.weaves.lorebook.entries;
-        const blob = new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: 'application/json' }); // Mime always JSON
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `lorebook_export_${new Date().getTime()}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const filename = `lorebook_export_${new Date().getTime()}.${ext}`;
+        // Note: For 'txt', the original logic just JSON.stringified it anyway?
+        // Line 348: new Blob([JSON.stringify({ entries: entries }, null, 2)], { type: 'application/json' });
+        // So it was always JSON.
+        // We will keep it as JSON content.
+        const content = { entries: entries };
+        await A.IO.save(content, filename, 'application/json');
+
         overlay.remove();
         if (A.UI.Toast) A.UI.Toast.show(`Lorebook exported as .${ext}`, 'success');
       };

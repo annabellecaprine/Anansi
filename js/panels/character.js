@@ -236,7 +236,7 @@
         <div class="modal-content" style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:24px;max-width:400px;box-shadow:var(--shadow-lg);">
           <h3 style="margin:0 0 12px;color:var(--text-primary);">📷 No Portrait Available</h3>
           <p style="margin:0 0 20px;color:var(--text-secondary);font-size:14px;">None of the selected Actors have images. Upload an image to use as the card portrait.</p>
-          <input type="file" id="upload-portrait" accept="image/png,image/jpeg,image/webp" style="display:none;">
+
           <div style="display:flex;gap:12px;justify-content:flex-end;">
             <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
             <button class="btn btn-primary" id="modal-upload">Upload Image</button>
@@ -245,22 +245,18 @@
       `;
       document.body.appendChild(modal);
 
-      const fileInput = /** @type {HTMLElement} */ (modal.querySelector('#upload-portrait'));
       /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
-      /** @type {HTMLElement} */ (modal.querySelector('#modal-upload')).onclick = () => fileInput.click();
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-      /** @type {HTMLInputElement} */ (fileInput).onchange = (e) => {
-        const file = /** @type {HTMLInputElement} */ (e.target).files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          if (typeof ev.target.result !== 'string') return;
-          modal.remove();
-          onSelect(ev.target.result);
-        };
-        reader.readAsDataURL(file);
+      /** @type {HTMLElement} */ (modal.querySelector('#modal-upload')).onclick = async () => {
+        try {
+          const { content } = await A.IO.open({ accept: 'image/png,image/jpeg,image/webp', as: 'dataUrl' });
+          if (content) {
+            modal.remove();
+            onSelect(content);
+          }
+        } catch (e) { /* ignore */ }
       };
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      return;
       return;
     }
 
@@ -287,7 +283,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="upload-portrait" accept="image/png,image/jpeg,image/webp" style="display:none;">
+
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
           <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
         </div>
@@ -295,7 +291,7 @@
     `;
     document.body.appendChild(modal);
 
-    const fileInput = /** @type {HTMLInputElement} */ (modal.querySelector('#upload-portrait'));
+
     /** @type {HTMLElement} */ (modal.querySelector('#modal-cancel')).onclick = () => modal.remove();
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -320,22 +316,15 @@
     });
 
     // Upload new option
-    /** @type {HTMLElement} */ (modal.querySelector('.upload-new')).onclick = (e) => {
+    /** @type {HTMLElement} */ (modal.querySelector('.upload-new')).onclick = async (e) => {
       e.stopPropagation();
-      /** @type {HTMLElement} */ (fileInput).click();
-    };
-
-    fileInput.onchange = (e) => {
-      const target = /** @type {HTMLInputElement} */ (e.target);
-      const file = target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (typeof ev.target.result !== 'string') return;
-        modal.remove();
-        onSelect(ev.target.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { content } = await A.IO.open({ accept: 'image/png,image/jpeg,image/webp', as: 'dataUrl' });
+        if (content) {
+          modal.remove();
+          onSelect(content);
+        }
+      } catch (err) { /* ignore */ }
     };
   }
 

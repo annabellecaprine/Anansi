@@ -126,8 +126,7 @@
 
                     <!-- Controls -->
                     <div style="display: flex; flex-direction: column; gap: 6px; min-width: 100px;">
-                        <input type="file" id="gallery-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
-                        <input type="file" id="gallery-card-import" accept="image/png" style="display: none;">
+
                         <button class="btn btn-sm" id="btn-gallery-add" ${gallery.images.length >= MAX_GALLERY_IMAGES ? 'disabled' : ''}>📷 Add Image</button>
                         <button class="btn btn-sm" id="btn-gallery-export" ${!primarySrc ? 'disabled' : ''}>📤 Export Card</button>
                         <button class="btn btn-ghost btn-sm" id="btn-gallery-import">📥 Import Card</button>
@@ -222,39 +221,51 @@
 
             // Wire Add button
             const addBtn = container.querySelector('#btn-gallery-add');
-            const fileInput = container.querySelector('#gallery-input');
             const galleryPrimary = container.querySelector('#gallery-primary');
 
-            const handleGalleryFile = (file) => {
-                if (!file) return;
+            const handleGalleryFile = (dataUrl, mimeType) => {
+                if (!dataUrl) return;
                 if (gallery.images.length >= MAX_GALLERY_IMAGES) {
                     if (A.UI?.Toast) A.UI.Toast.show(`Gallery full (${MAX_GALLERY_IMAGES} max)`, 'warning');
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const newImg = {
-                        id: 'img_' + crypto.randomUUID().split('-')[0],
-                        folder: 'sfw', // Default SFW
-                        data: ev.target.result,
-                        mimeType: file.type,
-                        caption: '',
-                        timestamp: Date.now()
-                    };
-                    gallery.images.push(newImg);
-                    if (!gallery.primary) gallery.primary = newImg.id;
-                    A.State.notify();
-                    render();
-                    if (A.UI?.Toast) A.UI.Toast.show('Image added to gallery', 'success');
+                const newImg = {
+                    id: 'img_' + crypto.randomUUID().split('-')[0],
+                    folder: 'sfw', // Default SFW
+                    data: dataUrl,
+                    mimeType: mimeType || 'image/png',
+                    caption: '',
+                    timestamp: Date.now()
                 };
-                reader.readAsDataURL(file);
+                gallery.images.push(newImg);
+                if (!gallery.primary) gallery.primary = newImg.id;
+                A.State.notify();
+                render();
+                if (A.UI?.Toast) A.UI.Toast.show('Image added to gallery', 'success');
             };
 
-            if (addBtn) addBtn.onclick = () => fileInput.click();
-            if (fileInput) fileInput.onchange = (e) => handleGalleryFile(e.target.files[0]);
+            if (addBtn) addBtn.onclick = async () => {
+                try {
+                    const { content, file } = await A.IO.open({ accept: 'image/png,image/jpeg,image/webp', as: 'dataUrl' });
+                    if (content) {
+                        handleGalleryFile(content, file.type);
+                    }
+                } catch (err) {
+                    // Ignore cancel
+                }
+            };
 
             if (galleryPrimary && A.UI.makeDraggable) {
-                A.UI.makeDraggable(galleryPrimary, { onDrop: (files) => handleGalleryFile(files[0]) });
+                A.UI.makeDraggable(galleryPrimary, {
+                    onDrop: (files) => {
+                        const file = files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => handleGalleryFile(e.target.result, file.type);
+                            reader.readAsDataURL(file);
+                        }
+                    }
+                });
             }
 
             // Wire thumbnail clicks (left-click: lightbox, right-click: context menu)
@@ -351,13 +362,10 @@
                         const blob = await response.blob();
                         const cardData = A.CardEncoder.actorToCard(actor, seed, state);
                         const cardPng = await A.CardEncoder.embed(blob, cardData);
-                        const url = URL.createObjectURL(cardPng);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        if (A.UI?.Toast) A.UI.Toast.show(`Exported: ${actor.name}`, 'success');
+
+                        const filename = `${(actor.name || 'character').replace(/[^a-z0-9]/gi, '_')}_card.png`;
+                        await A.IO.save(cardPng, filename, 'image/png');
+
                     } catch (err) {
                         console.error('[Gallery] Export error:', err);
                         if (A.UI?.Toast) A.UI.Toast.show('Export failed: ' + err.message, 'error');
@@ -367,96 +375,90 @@
 
             // Wire Import button
             const importBtn = container.querySelector('#btn-gallery-import');
-            const importInput = container.querySelector('#gallery-card-import');
-            if (importBtn) importBtn.onclick = () => importInput.click();
-            if (importInput) importInput.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
 
-                // Confirm Overwrite or Merge is handled by caller or we handle it here?
-                // The original code had a large overwrite confirmation logic.
-                // We will implement that confirmation here.
+            if (importBtn) importBtn.onclick = async () => {
+                try {
+                    const { file } = await A.IO.open({ accept: 'image/png' });
+                    if (!file) return;
 
-                const doImport = async () => {
-                    try {
-                        const cardData = await A.CardEncoder.extract(file);
-                        if (!cardData) {
-                            if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
-                            return;
-                        }
+                    const doImport = async () => {
+                        try {
+                            const cardData = await A.CardEncoder.extract(file);
+                            if (!cardData) {
+                                if (A.UI?.Toast) A.UI.Toast.show('No Character Card data found', 'warning');
+                                return;
+                            }
 
-                        const imported = A.CardEncoder.cardToActor(cardData);
+                            const imported = A.CardEncoder.cardToActor(cardData);
 
-                        actor.name = imported.name || actor.name;
-                        actor.tags = imported.tags || actor.tags;
-                        actor.notes = imported.notes || actor.notes;
-                        actor.gender = imported.gender || actor.gender;
-                        actor.aliases = imported.aliases || actor.aliases;
-                        actor.traits = { ...actor.traits, ...imported.traits };
-                        actor.cardFields = imported.cardFields || actor.cardFields;
+                            actor.name = imported.name || actor.name;
+                            actor.tags = imported.tags || actor.tags;
+                            actor.notes = imported.notes || actor.notes;
+                            actor.gender = imported.gender || actor.gender;
+                            actor.aliases = imported.aliases || actor.aliases;
+                            actor.traits = { ...actor.traits, ...imported.traits };
+                            actor.cardFields = imported.cardFields || actor.cardFields;
+                            actor.quirks = imported.quirks || actor.quirks;
 
-                        // Map to top-level fields for Character V2
-                        actor.personality = imported.traits?.personality || imported.cardFields?.personality || actor.personality;
-                        actor.description = imported.traits?.description || imported.cardFields?.description || actor.description;
-                        actor.scenario = imported.imported?.scenario || imported.cardFields?.scenario || actor.scenario;
-                        actor.exampleDialogue = imported.imported?.examples || actor.exampleDialogue;
-                        actor.firstMessage = imported.imported?.firstMessage || imported.cardFields?.firstMessage || actor.firstMessage;
+                            // Map to top-level fields for Character V2
+                            actor.personality = imported.traits?.personality || imported.cardFields?.personality || actor.personality;
+                            actor.description = imported.traits?.description || imported.cardFields?.description || actor.description;
+                            actor.scenario = imported.imported?.scenario || imported.cardFields?.scenario || actor.scenario;
+                            actor.exampleDialogue = imported.imported?.examples || actor.exampleDialogue;
+                            actor.firstMessage = imported.imported?.firstMessage || imported.cardFields?.firstMessage || actor.firstMessage;
 
-                        // Add imported image to gallery
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            const newImg = {
-                                id: 'img_' + crypto.randomUUID().split('-')[0],
-                                folder: 'sfw',
-                                data: ev.target.result,
-                                mimeType: 'image/png',
-                                caption: 'Imported from Character Card',
-                                timestamp: Date.now()
+                            // Add imported image to gallery
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const newImg = {
+                                    id: 'img_' + crypto.randomUUID().split('-')[0],
+                                    folder: 'sfw',
+                                    data: ev.target.result,
+                                    mimeType: 'image/png',
+                                    caption: 'Imported from Character Card',
+                                    timestamp: Date.now()
+                                };
+                                gallery.images.push(newImg);
+                                if (!gallery.primary) gallery.primary = newImg.id;
+
+                                handleLorebookImport(cardData, actor);
+
+                                A.State.notify();
+                                render();
+                                if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
+
+                                if (A.UI.refreshPanel) A.UI.refreshPanel('actors');
                             };
-                            gallery.images.push(newImg);
-                            if (!gallery.primary) gallery.primary = newImg.id;
+                            reader.readAsDataURL(file);
 
-                            // Handle logic for Lorebook import here if possible, 
-                            // or emit an event? Ideally we keep it self contained or call a helper.
-                            // For simplicity in this refactor, we can replicate the logic or 
-                            // expose a global helper. Since A.Converter is global, we can use it.
-                            handleLorebookImport(cardData, actor);
+                        } catch (err) {
+                            console.error('[Gallery] Import error:', err);
+                            if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                        }
+                    };
 
-                            A.State.notify();
-                            render();
-                            if (A.UI?.Toast) A.UI.Toast.show(`Imported: ${imported.name}`, 'success');
-
-                            // Trigger full panel refresh if possible, but at least we updated state
-                            // We might need a callback to refresh the main Actors list as name might have changed
-                            if (A.UI.refreshPanel) A.UI.refreshPanel('actors');
-                        };
-                        reader.readAsDataURL(file);
-
-                    } catch (err) {
-                        console.error('[Gallery] Import error:', err);
-                        if (A.UI?.Toast) A.UI.Toast.show('Import failed: ' + err.message, 'error');
+                    if (A.UI && A.UI.Modal) {
+                        A.UI.Modal.show({
+                            title: 'Overwrite Character Data?',
+                            content: `
+                                <p style="margin-bottom:12px; color:var(--text-primary);">
+                                    You are about to import <strong>${file.name}</strong>. 
+                                    This will <strong>overwrite</strong> the current Name, Description, Personality, and other fields.
+                                </p>
+                                <p style="font-size:12px; color:var(--text-muted);">
+                                    Existing images will remain in the gallery, but the primary image will be updated.
+                                </p>
+                            `,
+                            actions: [
+                                { label: 'Cancel', class: 'btn-ghost', onclick: () => true },
+                                { label: 'Overwrite', class: 'btn-primary', onclick: async () => { await doImport(); return true; } }
+                            ]
+                        });
+                    } else {
+                        if (confirm('Overwrite existing character data with this card?')) doImport();
                     }
-                };
-
-                if (A.UI && A.UI.Modal) {
-                    A.UI.Modal.show({
-                        title: 'Overwrite Character Data?',
-                        content: `
-                            <p style="margin-bottom:12px; color:var(--text-primary);">
-                                You are about to import <strong>${file.name}</strong>. 
-                                This will <strong>overwrite</strong> the current Name, Description, Personality, and other fields.
-                            </p>
-                            <p style="font-size:12px; color:var(--text-muted);">
-                                Existing images will remain in the gallery, but the primary image will be updated.
-                            </p>
-                        `,
-                        actions: [
-                            { label: 'Cancel', class: 'btn-ghost', onclick: () => true },
-                            { label: 'Overwrite', class: 'btn-primary', onclick: async () => { await doImport(); return true; } }
-                        ]
-                    });
-                } else {
-                    if (confirm('Overwrite existing character data with this card?')) doImport();
+                } catch (err) {
+                    // console.error(err);
                 }
             };
         }

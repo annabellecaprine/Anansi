@@ -992,27 +992,21 @@ const Inventory = {
             });
         };
 
-        container.querySelector('#btn-upload-script').onclick = () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.js,.txt,.json,.ts,.mjs,.cjs';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+        container.querySelector('#btn-upload-script').onclick = async () => {
+            try {
+                const { content, file } = await A.IO.open({ accept: '.js,.txt,.json,.ts,.mjs,.cjs', as: 'text' });
+                if (!content) return;
 
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const name = file.name.replace(/\.[^.]+$/, '');
-                    const id = A.Scripts.create(name);
-                    A.Scripts.update(id, {
-                        source: { type: 'inline', code: evt.target.result }
-                    });
-                    selectScript(id);
-                    if (A.UI.Toast) A.UI.Toast.show(`Uploaded: ${file.name}`, 'success');
-                };
-                reader.readAsText(file);
-            };
-            input.click();
+                const name = file.name.replace(/\.[^.]+$/, '');
+                const id = A.Scripts.create(name);
+                A.Scripts.update(id, {
+                    source: { type: 'inline', code: content }
+                });
+                selectScript(id);
+                if (A.UI.Toast) A.UI.Toast.show(`Uploaded: ${file.name}`, 'success');
+            } catch (err) {
+                // Ignore cancel
+            }
         };
 
         container.querySelector('#btn-download-script').onclick = () => {
@@ -1047,24 +1041,19 @@ const Inventory = {
             modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
             // Download Selected Script as .txt
-            modal.querySelector('#export-selected').onclick = () => {
+            // Download Selected Script as .txt
+            modal.querySelector('#export-selected').onclick = async () => {
                 if (!currentScriptId) return;
                 const scripts = A.Scripts.getAll();
                 const script = scripts.find(s => s.id === currentScriptId);
                 if (!script) return;
 
                 const code = monacoEditor ? monacoEditor.getValue() : (script.source && script.source.code ? script.source.code : '');
-                const blob = new Blob([code], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = (script.name || 'script').replace(/[^a-zA-Z0-9_-]/g, '_') + '.txt';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                const filename = (script.name || 'script').replace(/[^a-zA-Z0-9_-]/g, '_') + '.txt';
 
-                if (A.UI.Toast) A.UI.Toast.show(`Downloaded: ${a.download}`, 'success');
+                await A.IO.save(code, filename, 'text/plain');
+
+                if (A.UI.Toast) A.UI.Toast.show(`Downloaded: ${filename}`, 'success');
                 modal.remove();
             };
 
@@ -1102,15 +1091,7 @@ const Inventory = {
                     readme += `  * GENERATED scripts are auto-created from panel configurations\n`;
 
                     // Download Instructions First
-                    const readmeBlob = new Blob([readme], { type: 'text/plain' });
-                    const readmeUrl = URL.createObjectURL(readmeBlob);
-                    const readmeLink = document.createElement('a');
-                    readmeLink.href = readmeUrl;
-                    readmeLink.download = 'Loading Instructions.txt';
-                    document.body.appendChild(readmeLink);
-                    readmeLink.click();
-                    document.body.removeChild(readmeLink);
-                    setTimeout(() => URL.revokeObjectURL(readmeUrl), 1000);
+                    await A.IO.save(readme, 'Loading Instructions.txt', 'text/plain');
 
                     // Small delay before scripts start
                     await new Promise(resolve => setTimeout(resolve, 300));
@@ -1123,18 +1104,7 @@ const Inventory = {
                         const paddedIdx = String(i + 1).padStart(2, '0');
                         const filename = `${paddedIdx}_${safeName}.txt`;
 
-                        const blob = new Blob([code], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = filename;
-
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-
-                        // Revoke after small delay
-                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        await A.IO.save(code, filename, 'text/plain');
 
                         // Pace downloads to avoid browser throttling
                         await new Promise(resolve => setTimeout(resolve, 200));
