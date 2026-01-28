@@ -43,16 +43,13 @@
     if (!state.weaves.lorebook) state.weaves.lorebook = { entries: {} };
 
     // Layout Containers
-    container.style.height = '100%';
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = '250px 1fr';
-    container.style.gap = 'var(--space-4)';
-    container.style.overflow = 'hidden';
+    // Layout Containers
+    container.className = 'panel-sidebar-layout';
+    container.style.gridTemplateColumns = '320px 1fr';
 
     // Left: List
     const listCol = document.createElement('div');
-    listCol.className = 'card';
-    Object.assign(listCol.style, { display: 'flex', flexDirection: 'column', minHeight: '0', marginBottom: '0' });
+    listCol.className = 'card flex-col min-h-0 mb-0';
 
     listCol.innerHTML = `
       <div class="card-header">
@@ -68,7 +65,7 @@
             <input type="number" class="input" id="scan-depth" style="width:40px; font-size:11px; padding:2px;" min="1" max="10" value="${state.weaves.lorebook.scanDepth || 3}">
         </div>
       </div>
-      <div class="card-body" id="lore-list" style="padding:0; flex:1; overflow-y:auto;"></div>
+      <div class="card-body p-0 flex-1 scroll-y pr-xs" id="lore-list"></div>
       <div class="card-footer" id="lore-footer" style="display:flex; flex-direction:column; gap:8px;">
         <!-- Standard Actions -->
         <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
@@ -92,8 +89,7 @@
 
     // Right: Editor
     const editorCol = document.createElement('div');
-    editorCol.className = 'card';
-    Object.assign(editorCol.style, { display: 'flex', flexDirection: 'column', minHeight: '0', marginBottom: '0', padding: '0', overflow: 'hidden' });
+    editorCol.className = 'card flex-col min-h-0 mb-0 p-0 overflow-hidden';
     editorCol.id = 'lore-editor';
 
     container.appendChild(listCol);
@@ -125,26 +121,20 @@
 
                 // Render Resolver Modal
                 const overlay = document.createElement('div');
-                overlay.style.cssText = `
-                        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0,0,0,0.7); z-index: 10000;
-                        display: flex; align-items: center; justify-content: center;
-                     `;
+                overlay.className = 'modal';
 
                 const modal = document.createElement('div');
-                modal.style.cssText = `
-                        background: var(--bg-panel); border: 1px solid var(--border-default);
-                        border-radius: var(--radius-lg); width: 600px; max-height: 80vh;
-                        box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;
-                     `;
+                modal.className = 'modal-content';
+                modal.style.width = '600px'; // Override max-width for specific size if needed
+                modal.style.height = '80vh';
 
                 // Header
                 const header = document.createElement('div');
-                header.style.cssText = 'padding:16px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
+                header.className = 'modal-header';
                 header.innerHTML = `
                         <div>
-                            <h3 style="margin:0; font-size:16px; color:var(--text-primary);">Import Conflicts</h3>
-                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${collisions.length} existing entries found. ${count - collisions.length} new entries ready.</div>
+                            <h3 class="m-0 text-base">Import Conflicts</h3>
+                            <div class="text-xs text-muted mt-xs">${collisions.length} existing entries found. ${count - collisions.length} new entries ready.</div>
                         </div>
                         <div style="font-size:11px; display:flex; gap:8px;">
                             <span style="color:var(--text-muted);">Set All:</span>
@@ -156,7 +146,7 @@
 
                 // List
                 const listBody = document.createElement('div');
-                listBody.style.cssText = 'flex:1; overflow-y:auto; padding:0; background:var(--bg-base);';
+                listBody.className = 'modal-body bg-base p-0 flex-1';
 
                 const renderConflictList = () => {
                   listBody.innerHTML = collisions.map(id => {
@@ -201,7 +191,7 @@
 
                 // Footer
                 const footer = document.createElement('div');
-                footer.style.cssText = 'padding:16px; border-top:1px solid var(--border-subtle); display:flex; justify-content:flex-end; gap:8px;';
+                footer.className = 'modal-footer';
                 footer.innerHTML = `
                         <button id="btn-resolve-cancel" class="btn btn-ghost">Cancel Import</button>
                         <button id="btn-resolve-apply" class="btn btn-primary">Complete Import</button>
@@ -299,18 +289,11 @@
     listCol.querySelector('#btn-export-lore').onclick = () => {
       // Create Format Selection Modal
       const overlay = document.createElement('div');
-      overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7); z-index: 10000;
-            display: flex; align-items: center; justify-content: center;
-        `;
+      overlay.className = 'modal';
 
       const modal = document.createElement('div');
-      modal.className = 'card';
-      modal.style.cssText = `
-            width: 300px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border-default);
-        `;
+      modal.className = 'modal-content flex-col gap-md p-md';
+      modal.style.width = '300px';
 
       modal.innerHTML = `
             <h3 style="margin:0; font-size:16px;">Export Lorebook</h3>
@@ -493,13 +476,10 @@
 
       filtered.forEach((e, i) => {
         const row = document.createElement('div');
-        row.style.padding = '8px 12px';
-        row.style.borderBottom = '1px solid var(--border-subtle)';
-        row.style.cursor = 'pointer';
+        row.className = 'list-item';
 
         if (e.id === currentId && !selectionMode) {
-          row.style.backgroundColor = 'var(--bg-surface)';
-          row.style.borderLeft = '3px solid var(--accent-primary)';
+          row.classList.add('active');
         }
 
         // Selection Styles
@@ -708,53 +688,50 @@
               <h3>${isUpdate ? '📤 Push Update to Vault' : '📤 Publish to Vault'}</h3>
               <button class="modal-close">&times;</button>
             </div>
-            <div class="modal-body" style="padding:20px;">
-              <div style="margin-bottom:16px;">
+            <div class="modal-body">
+              <div class="mb-md">
                 <strong>Lorebook Entry:</strong> ${entry.title || 'Untitled'}
               </div>
 
-              <div style="margin-bottom:16px;">
-                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Source Project</label>
-                <div style="color:var(--text-secondary);font-size:13px;">${state.meta?.name || 'Untitled Project'}</div>
+              <div class="mb-md">
+                <label class="label">Source Project</label>
+                <div class="text-secondary text-sm">${state.meta?.name || 'Untitled Project'}</div>
               </div>
 
-              <div style="margin-bottom:16px;">
-                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Universe</label>
-                <input type="text" id="vault-universe" class="input" list="universe-list" 
+              <div class="mb-md">
+                <label class="label">Universe</label>
+                <input type="text" id="vault-universe" class="input w-full" list="universe-list" 
                        placeholder="e.g., Obsidian Chronicles" 
-                       value="${entry.vaultLink?.universe || ''}"
-                       style="width:100%;">
+                       value="${entry.vaultLink?.universe || ''}">
                 <datalist id="universe-list">
                   ${universes.map(u => `<option value="${u}">`).join('')}
                 </datalist>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Group related items by universe</div>
+                <div class="text-xs text-muted mt-xs">Group related items by universe</div>
               </div>
 
-              <div style="margin-bottom:16px;">
-                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Tags</label>
-                <input type="text" id="vault-tags" class="input" 
+              <div class="mb-md">
+                <label class="label">Tags</label>
+                <input type="text" id="vault-tags" class="input w-full" 
                        placeholder="worldbuilding, magic-system, faction" 
-                       value="${(entry.vaultLink?.tags || []).join(', ')}"
-                       style="width:100%;">
-                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Comma-separated tags for filtering</div>
+                       value="${(entry.vaultLink?.tags || []).join(', ')}">
+                <div class="text-xs text-muted mt-xs">Comma-separated tags for filtering</div>
               </div>
 
               ${isUpdate ? `
-              <div style="margin-bottom:16px;">
-                <label class="label" style="font-size:11px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;display:block;">Commit Message</label>
-                <input type="text" id="vault-message" class="input" 
-                       placeholder="What changed?" 
-                       style="width:100%;">
+              <div class="mb-md">
+                <label class="label">Commit Message</label>
+                <input type="text" id="vault-message" class="input w-full" 
+                       placeholder="What changed?">
               </div>
               ` : ''}
 
-              <div style="padding:12px;background:var(--bg-inset);border-radius:var(--radius-md);font-size:12px;color:var(--text-muted);">
+              <div class="p-sm bg-inset rounded-md text-xs text-muted">
                 ${isUpdate
             ? '⚠️ This will update the existing Vault entry and increment the version.'
             : 'ℹ️ This creates a snapshot in your Vault. Future changes require a new Push.'}
               </div>
             </div>
-            <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding:16px;">
+            <div class="modal-footer">
               <button class="btn btn-ghost" id="vault-cancel">Cancel</button>
               <button class="btn btn-primary" id="vault-confirm">${isUpdate ? '📤 Push Update' : '📤 Publish'}</button>
             </div>
@@ -1450,7 +1427,6 @@
     label: 'Lorebook',
     subtitle: 'World Knowledge',
     category: 'Seeds',
-    order: 5,
     render: render
   });
 

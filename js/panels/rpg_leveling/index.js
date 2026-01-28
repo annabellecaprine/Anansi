@@ -194,13 +194,6 @@
     }
 
     A.registerPanel('rpg_leveling', {
-        label: 'Leveling',
-        subtitle: 'XP & Progression',
-        category: 'RPG Experiment',
-        subcategory: 'Game Master',
-        order: 16,
-        gmOnly: true,
-        icon: '📈',
         render: render
     });
 

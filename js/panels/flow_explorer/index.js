@@ -516,7 +516,7 @@
         }).join('');
     }
 
-    A.registerPanel('flow-explorer', {
+    A.registerPanel('flow_explorer', {
         label: 'Flow Explorer',
         subtitle: 'Execution Log',
         category: 'Magic',

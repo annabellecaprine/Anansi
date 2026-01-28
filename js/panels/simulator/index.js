@@ -43,36 +43,28 @@
     let currentMode = localStorage.getItem('anansi_spindle_mode') || 'live';
     setTimeout(updateTour, 100); // Init tour steps
 
-    container.style.height = '100%';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.gap = 'var(--space-4)';
-    container.style.overflow = 'hidden';
+    // Use standard flex layout that fills available space
+    container.className = 'flex-col h-full overflow-hidden gap-md';
+    // container.style.height = '100%'; // Redundant with h-full
 
     // --- Mode Toggle Header ---
     const modeHeader = document.createElement('div');
-    modeHeader.style.display = 'flex';
-    modeHeader.style.flexDirection = 'column';
-    modeHeader.style.gap = '8px';
-    modeHeader.style.marginBottom = '8px';
+    modeHeader.className = 'flex-col gap-sm mb-sm';
     modeHeader.innerHTML = `
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-sm spindle-mode-btn" data-mode="simulated" style="flex:1;">Simulated</button>
-        <button class="btn btn-sm spindle-mode-btn" data-mode="live" style="flex:1;">Live</button>
+      <div class="flex-row gap-sm">
+        <button class="btn btn-sm spindle-mode-btn flex-1" data-mode="simulated">Simulated</button>
+        <button class="btn btn-sm spindle-mode-btn flex-1" data-mode="live">Live</button>
       </div>
-      <div style="font-size:11px; color:var(--text-muted); padding:8px 12px; background:var(--bg-surface); border-radius:6px; line-height:1.4;">
-        <strong style="color:var(--text-secondary);">Simulated</strong>: Dry-run with mock responses (fast, no API needed). 
-        <strong style="color:var(--text-secondary);">Live</strong>: Real LLM calls using your API key.
+      <div class="p-sm bg-surface rounded-md text-xs text-muted leading-snug">
+        <strong class="text-secondary">Simulated</strong>: Dry-run with mock responses (fast, no API needed). 
+        <strong class="text-secondary">Live</strong>: Real LLM calls using your API key.
       </div>
     `;
     container.appendChild(modeHeader);
 
     // --- Content Container ---
     const contentArea = document.createElement('div');
-    contentArea.style.flex = '1';
-    contentArea.style.display = 'flex';
-    contentArea.style.flexDirection = 'column';
-    contentArea.style.overflow = 'hidden';
+    contentArea.className = 'flex-1 flex-col overflow-hidden';
     contentArea.id = 'spindle-content';
     container.appendChild(contentArea);
 
@@ -122,6 +114,7 @@
       contentArea.innerHTML = '';
       if (currentMode === 'simulated') {
         renderSimulatedMode(contentArea);
+        updateGlobalLens(); // Ensure lens is active in Simulated mode
       } else {
         // Delegate to SimulatorLive module
         if (A.SimulatorLive && A.SimulatorLive.renderLiveMode) {
@@ -144,7 +137,7 @@
     const updateGlobalLens = () => {
       A.UI.setLens((lensRoot) => {
         lensRoot.innerHTML = `
-          <div class="lens-tabs" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
+          <div class="lens-tabs flex-row flex-wrap gap-xs mb-sm border-b pb-xs">
             ${[
             { k: 'state', l: 'State' },
             { k: 'arc', l: 'Arc' },
@@ -157,8 +150,8 @@
             { k: 'locations', l: 'Locs' },
             { k: 'config', l: 'Cfg' }
           ].map(o => `
-              <button class="btn btn-ghost btn-sm lens-tab-btn ${activeLens === o.k ? 'active' : ''}"
-                      style="font-size:10px; padding:4px 8px; white-space:nowrap; ${activeLens === o.k ? 'background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border-subtle);' : ''}"
+              <button class="btn btn-ghost btn-sm lens-tab-btn ${activeLens === o.k ? 'active' : ''} text-tiny px-sm py-xs items-center justify-center min-w-0"
+                      style="white-space:nowrap; ${activeLens === o.k ? 'background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border-subtle);' : ''}"
                       data-lens="${o.k}">${o.l.toUpperCase()}</button>
             `).join('')}
           </div>
@@ -179,84 +172,64 @@
 
     // --- SIMULATED MODE ---
     function renderSimulatedMode(target) {
-      target.style.display = 'grid';
-      target.style.gridTemplateColumns = '35% 65%';
-      target.style.gap = 'var(--space-4)';
-      target.style.height = '100%';
-      target.style.overflow = 'hidden';
+      target.className = 'panel-grid gap-md h-full overflow-hidden';
+      // Use standard grid columns for split view (approx 1/3 - 2/3)
+      target.style.gridTemplateColumns = '320px 1fr';
 
       // Left: Sources Configuration
       const sourcesCard = document.createElement('div');
-      sourcesCard.className = 'card';
-      sourcesCard.style.display = 'flex';
-      sourcesCard.style.flexDirection = 'column';
-      sourcesCard.style.marginBottom = '0';
-      sourcesCard.style.height = '100%';
+      sourcesCard.className = 'card flex-col mb-0 h-full';
       sourcesCard.innerHTML = `
         <div class="card-header">
           <strong>Sources Override</strong>
           <button class="btn btn-ghost btn-sm" id="btn-reset-sources" title="Reset all overrides">Reset</button>
         </div>
-        <div class="card-body" id="sim-sources-list" style="flex:1; overflow-y:auto; padding:12px;"></div>
+        <div class="card-body scroll-y p-md flex-1" id="sim-sources-list"></div>
       `;
       target.appendChild(sourcesCard);
 
       // Right: Results & Controls
       const rightCol = document.createElement('div');
-      rightCol.style.display = 'flex';
-      rightCol.style.flexDirection = 'column';
-      rightCol.style.gap = 'var(--space-4)';
-      rightCol.style.overflow = 'hidden';
-      rightCol.style.height = '100%';
+      rightCol.className = 'flex-col gap-md overflow-hidden h-full';
 
       // Message History
       const msgCard = document.createElement('div');
-      msgCard.className = 'card';
-      msgCard.style.flex = '0 0 auto';
+      msgCard.className = 'card flex-col mb-0 flex-none';
       msgCard.style.maxHeight = '30%';
-      msgCard.style.display = 'flex';
-      msgCard.style.flexDirection = 'column';
-      msgCard.style.marginBottom = '0';
       msgCard.innerHTML = `
-        <div class="card-header" style="flex-wrap:wrap; gap:8px;">
+        <div class="card-header flex-wrap gap-sm">
           <strong>Message Context</strong>
-          <div style="display:flex; gap:4px; align-items:center;">
-            <select class="input" id="sim-session-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:100px;">
+          <div class="flex-row gap-xs items-center">
+            <select class="input text-xs py-0 px-sm w-auto min-w-[100px]" id="sim-session-select">
               <option value="">-- Sessions --</option>
             </select>
             <button class="btn btn-ghost btn-sm" id="btn-load-session" title="Load selected session">Load</button>
             <button class="btn btn-ghost btn-sm" id="btn-save-session" title="Save current as session">Save</button>
-            <div style="width:1px; height:16px; background:var(--border-subtle); margin:0 4px;"></div>
+            <div class="border-l border-subtle h-4 mx-sm"></div>
             <button class="btn btn-ghost btn-sm" id="btn-add-msg">+ Msg</button>
-            <button class="btn btn-ghost btn-sm" id="btn-clear-msgs" style="color:var(--status-error);">Reset</button>
+            <button class="btn btn-ghost btn-sm text-error" id="btn-clear-msgs">Reset</button>
           </div>
         </div>
-        <div class="card-body" id="sim-msg-list" style="flex:1; overflow-y:auto; padding:0;"></div>
+        <div class="card-body scroll-y p-0 flex-1" id="sim-msg-list"></div>
       `;
       rightCol.appendChild(msgCard);
 
       // Execution Log
       const runCard = document.createElement('div');
-      runCard.className = 'card';
-      runCard.style.flex = '1';
-      runCard.style.display = 'flex';
-      runCard.style.flexDirection = 'column';
-      runCard.style.marginBottom = '0';
-      runCard.style.minHeight = '0';
-      runCard.style.flex = '0 0 auto';
+      runCard.className = 'card flex-1 flex-col mb-0 min-h-0 flex-none';
       runCard.innerHTML = `
-        <div class="card-header" style="background:var(--ink-700); border-bottom:1px solid var(--border-subtle);">
-          <div style="display:flex; align-items:center; gap:8px;">
+        <div class="card-header border-b border-subtle bg-ink-700">
+          <div class="flex-row items-center gap-sm">
              <strong>Simulation</strong>
-             <span id="sim-run-time" style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono);"></span>
+             <span id="sim-run-time" class="text-xs text-muted font-mono"></span>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn btn-ghost btn-sm" id="btn-flow-explorer">📊 Flow Explorer</button>
             <button class="btn btn-primary btn-sm" id="btn-run-sim">▶ Recall</button>
           </div>
         </div>
-        <div class="card-body" id="sim-output" style="padding:12px; background:var(--bg-app);">
-          <div style="color:var(--text-muted); text-align:center; font-size:12px;">
+        <div class="card-body p-md bg-app" id="sim-output">
+          <div class="text-muted text-center text-xs">
              Set sources and messages, then click <strong>Recall</strong> to run simulation.
           </div>
         </div>
@@ -265,19 +238,15 @@
 
       // State Impact (Diff)
       const diffCard = document.createElement('div');
-      diffCard.className = 'card';
-      diffCard.style.marginBottom = '0';
-      diffCard.style.flex = '0 0 35%';
-      diffCard.style.display = 'flex';
-      diffCard.style.flexDirection = 'column';
+      diffCard.className = 'card flex-col mb-0 flex-1 min-h-0';
       diffCard.style.minHeight = '160px';
       diffCard.innerHTML = `
-        <div class="card-header" style="border-top:2px solid var(--accent-primary);">
+        <div class="card-header border-t-accent" style="border-top-width:2px; border-top-style:solid;">
           <strong>State Impact</strong>
-          <span style="font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Context Delta</span>
+          <span class="text-tiny text-muted text-uppercase" style="letter-spacing:0.5px;">Context Delta</span>
         </div>
-        <div class="card-body" id="sim-diff-view" style="flex:1; overflow-y:auto; padding:12px; font-size:11px; background:var(--ink-800);">
-           <div style="color:var(--text-muted); font-style:italic; opacity:0.6;">No changes recorded.</div>
+        <div class="card-body scroll-y p-sm text-xs bg-ink-800 flex-1" id="sim-diff-view">
+           <div class="text-muted italic opacity-60">No changes recorded.</div>
         </div>
       `;
       rightCol.appendChild(diffCard);

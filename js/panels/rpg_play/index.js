@@ -72,7 +72,7 @@
     function render(container) {
         containerEl = container;
         container.innerHTML = '';
-        container.style.cssText = 'height:100%; display:flex; flex-direction:column; background:var(--bg-base); padding:0; overflow:hidden;';
+        container.className = 'panel-container flex-col bg-base p-0 overflow-hidden h-full';
 
         // Restore state
         const state = A.State.get();
@@ -158,12 +158,12 @@
         const state = A.State.get();
 
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex; flex-direction:column; background:var(--bg-elevated); border-bottom:1px solid var(--border-subtle);';
+        header.className = 'flex-col bg-elevated border-b border-subtle';
 
         // Top row with mode toggle and controls
         const headerTop = document.createElement('div');
         headerTop.id = 'rpg-header-top';
-        headerTop.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 16px;';
+        headerTop.className = 'flex-row justify-between items-center p-md';
 
         // Mode Toggle (left)
         const modeToggle = document.createElement('div');
@@ -193,7 +193,7 @@
         // Combat status indicator
         const combatStatus = document.createElement('span');
         combatStatus.id = 'combat-status';
-        combatStatus.style.cssText = 'font-size:11px; padding:3px 8px; border-radius:4px; display:none;';
+        combatStatus.className = 'text-xs py-xs px-sm rounded-sm hidden';
         controls.appendChild(combatStatus);
 
         // LLM Narration Toggle
@@ -263,7 +263,7 @@
         // Status bar (location, round, etc.)
         const statusBar = document.createElement('div');
         statusBar.id = 'rpg-status-bar';
-        statusBar.style.cssText = 'padding:6px 16px; background:var(--bg-surface); border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-muted); display:flex; gap:16px;';
+        statusBar.className = 'bg-surface border-t border-subtle text-xs text-muted flex-row gap-lg p-sm';
         header.appendChild(statusBar);
 
         container.appendChild(header);
@@ -322,7 +322,7 @@
     function renderChatArea(container) {
         const chatArea = document.createElement('div');
         chatArea.id = 'rpg-chat-log';
-        chatArea.style.cssText = 'flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; background:var(--bg-base);';
+        chatArea.className = 'chat-log flex-1 scroll-y p-lg flex-col gap-md bg-base';
         container.appendChild(chatArea);
         chatLog = chatArea;
     }
@@ -333,7 +333,7 @@
     function renderActionBar(container) {
         const actionBar = document.createElement('div');
         actionBar.id = 'rpg-action-bar';
-        actionBar.style.cssText = 'padding:12px 16px; background:var(--bg-elevated); border-top:1px solid var(--border-subtle);';
+        actionBar.className = 'toolbar p-md bg-elevated border-t border-subtle';
         container.appendChild(actionBar);
     }
 
@@ -413,7 +413,7 @@
     // ===========================================
     function renderInputArea(container) {
         const inputArea = document.createElement('div');
-        inputArea.style.cssText = 'padding:12px 16px; background:var(--bg-elevated); border-top:1px solid var(--border-subtle); display:flex; gap:8px;';
+        inputArea.className = 'p-md bg-elevated border-t border-subtle flex-row gap-sm';
         inputArea.innerHTML = `
             <div style="flex:1; position:relative;">
                 <textarea id="rpg-input" class="input" rows="1" placeholder="${getPlaceholder()}" 
@@ -2002,11 +2002,6 @@ ${logs.join('\n')}`;
     // REGISTER PANEL
     // ===========================================
     A.registerPanel('rpg_play', {
-        label: 'Play',
-        subtitle: 'Game Session',
-        category: 'RPG Experiment',
-        order: 1,
-        icon: '🎮',
         render: render
     });
 

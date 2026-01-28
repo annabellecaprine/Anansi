@@ -223,18 +223,18 @@
 
   async function render(container) {
     container.innerHTML = '';
-    container.style.display = 'flex';
-    container.style.gap = '16px';
-    container.style.height = '100%';
+    container.innerHTML = '';
+    container.className = 'panel-container split-view';
+    // container.style.display & gap are handled by split-view
 
     // Load data
     await loadVaultData();
 
     // --- Left Column: List ---
     const listCol = document.createElement('div');
-    listCol.className = 'card';
-    // Default to full width (flex:1)
-    listCol.style.cssText = 'flex:1; display:flex; flex-direction:column; height:100%; margin-bottom:0; transition: flex 0.2s ease-in-out;';
+    listCol.className = 'card split-col';
+    // Default to full width (flex:1) - inline style for transition handling
+    listCol.style.cssText = 'flex:1; margin-bottom:0; transition: flex 0.2s ease-in-out;';
 
     listCol.innerHTML = `
       <div class="card-header" style="flex-direction:column; gap:8px;">
@@ -258,7 +258,7 @@
                value="${filters.search}" style="width:100%; height:28px; font-size:12px;">
       </div>
       
-      <div style="display:flex; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
+      <div class="flex-row gap-sm p-sm border-b border-subtle bg-elevated">
         <select class="input" id="filter-type" style="flex:1; font-size:11px; height:32px;">
           <option value="">All Types</option>
           ${(() => {
@@ -300,7 +300,7 @@
         </select>
       </div>
 
-      <div id="vault-list" style="flex:1; overflow-y:auto;"></div>
+      <div id="vault-list" class="scroll-list"></div>
 
       <!-- Standard Footer -->
       <div class="card-footer" id="vault-footer-standard" style="display:flex; justify-content:space-between; align-items:center; padding:8px;">
@@ -323,10 +323,10 @@
 
     // --- Right Column: Detail ---
     const detailCol = document.createElement('div');
-    detailCol.className = 'card';
+    detailCol.className = 'card split-col';
     detailCol.id = 'vault-detail';
-    // Default to hidden
-    detailCol.style.cssText = 'display:none; flex-direction:column; height:100%; margin-bottom:0; width:0; overflow:hidden; transition: width 0.2s;';
+    // Default to hidden - inline style for transition handling
+    detailCol.style.cssText = 'display:none; margin-bottom:0; width:0; overflow:hidden; transition: width 0.2s;';
 
     container.appendChild(listCol);
     container.appendChild(detailCol);
@@ -525,14 +525,14 @@
         return;
       }
 
-      filteredItems.forEach(item => {
+      filteredItems.forEach((item, idx) => {
         const row = document.createElement('div');
         const isSelected = selectionMode && selectedIds.has(item.id);
-        row.style.cssText = `
-          padding:10px 12px; border-bottom:1px solid var(--border-subtle); cursor:pointer;
-          ${!selectionMode && selectedId === item.id ? 'background:var(--bg-surface); border-left:3px solid var(--accent-primary);' : ''}
-          ${isSelected ? 'background:rgba(218, 165, 32, 0.15); border-left:3px solid var(--accent-primary);' : ''}
-        `;
+        const isActive = !selectionMode && selectedId === item.id;
+
+        row.className = 'list-item';
+        if (isActive || isSelected) row.classList.add('active');
+        if (isSelected) row.style.background = 'rgba(218, 165, 32, 0.15)'; // Special color for selection mode
 
         const name = getItemName(item);
         const preview = getItemPreview(item).substring(0, 60);
@@ -546,7 +546,7 @@
             </strong>
             
             <!-- Block Badge -->
-            ${item.blockName ? `<span style="font-size:9px; padding:2px 6px; background:rgba(100, 149, 237, 0.2); border:1px solid rgba(100, 149, 237, 0.4); border-radius:8px; color:cornflowerblue; white-space:nowrap;">📦 ${item.blockName}</span>` : ''}
+            ${item.blockName ? `<span class="badge badge-subtle text-xs" style="color:cornflowerblue;">📦 ${item.blockName}</span>` : ''}
             
             <!-- Tags as Pills -->
             <div style="flex:1; display:flex; gap:6px; overflow:hidden; margin-left:8px;">
@@ -557,10 +557,10 @@
               `).join('')}
             </div>
 
-            <span style="font-size:10px; color:var(--text-muted); opacity:0.8;">
-              v${item.version}
-            </span>
-            ${item.data?.subtype ? `<span style="font-size:9px; padding:2px 6px; background:var(--bg-inset); border:1px solid var(--border-subtle); border-radius:8px; color:var(--text-secondary); margin-left:4px;">${item.data.subtype}</span>` : ''}
+             <span class="text-xs text-muted" style="opacity:0.8;">
+               v${item.version}
+             </span>
+             ${item.data?.subtype ? `<span class="badge badge-subtle text-xs text-muted ml-sm">${item.data.subtype}</span>` : ''}
           </div>
           <div style="font-size:10px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${selectionMode ? 'margin-left:24px;' : ''}">
             ${item.universe ? `<span style="color:var(--accent-primary);">${item.universe}</span> • ` : ''}

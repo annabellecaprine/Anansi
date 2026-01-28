@@ -27,45 +27,37 @@
     function renderLiveMode(target, options = {}) {
         const { updateGlobalLens, activeLens } = options;
 
-        target.style.display = 'flex';
-        target.style.flexDirection = 'column';
-        target.style.gap = 'var(--space-4)';
-        target.style.overflow = 'hidden';
+        target.className = 'flex-col gap-md h-full overflow-hidden';
 
         // Chat Area
         const chatCol = document.createElement('div');
-        chatCol.className = 'card';
-        chatCol.style.display = 'flex';
-        chatCol.style.flexDirection = 'column';
-        chatCol.style.padding = '0';
-        chatCol.style.minHeight = '0';
-        chatCol.style.flex = '1';
+        chatCol.className = 'card flex-col p-0 min-h-0 flex-1';
 
         chatCol.innerHTML = `
-      <div class="card-header" style="flex-wrap:wrap; gap:8px;">
+      <div class="card-header flex-wrap gap-sm">
         <strong>The Spindle (Live)</strong>
-        <div style="display: flex; gap: 8px; align-items:center;">
-          <select class="input" id="live-session-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:100px;">
+        <div class="flex-row gap-sm items-center">
+          <select class="input text-xs py-0 px-sm w-auto min-w-[100px]" id="live-session-select">
             <option value="">-- Sessions --</option>
           </select>
           <button class="btn btn-ghost btn-sm" id="btn-live-load" title="Load session">Load</button>
           <button class="btn btn-ghost btn-sm" id="btn-live-save" title="Save session">Save</button>
-          <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
-          <select class="input" id="branch-select" style="font-size:10px; padding:2px 6px; width:auto; min-width:80px; background:var(--bg-elevated);">
+          <div class="w-px h-4 bg-border-subtle"></div>
+          <select class="input text-xs py-0 px-sm w-auto min-w-[80px] bg-elevated" id="branch-select">
             <option value="main">🌿 main</option>
           </select>
-          <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
+          <div class="w-px h-4 bg-border-subtle"></div>
           <button class="btn btn-ghost btn-sm" id="btn-run-all" title="Run Full Simulation Trace">Run Trace</button>
           <button class="btn btn-ghost btn-sm" id="btn-export-story" title="Export as Story">Export</button>
-          <button class="btn btn-ghost btn-sm" id="btn-clear-chat" style="color:var(--status-error);">Clear</button>
-          <div style="width:1px; height:16px; background:var(--border-subtle);"></div>
-          <label style="display:flex; align-items:center; gap:4px; font-size:10px; cursor:pointer; user-select:none;">
+          <button class="btn btn-ghost btn-sm text-error" id="btn-clear-chat">Clear</button>
+          <div class="w-px h-4 bg-border-subtle"></div>
+          <label class="flex-row items-center gap-xs text-xs cursor-pointer select-none">
              <input type="checkbox" id="chk-show-thinking">
-             <span style="color:var(--text-muted);">Thinking</span>
+             <span class="text-muted">Thinking</span>
           </label>
         </div>
       </div>
-      <div class="card-body" id="sim-chat-log" style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; background: var(--bg-surface);"></div>
+      <div class="card-body chat-log flex-1 scroll-y p-lg flex-col gap-sm bg-surface" id="sim-chat-log"></div>
       
       <style>
           .chat-thinking {
@@ -97,23 +89,23 @@
           }
           #sim-chat-log:not(.show-thoughts) .chat-thinking { display: none; }
       </style>
-      <div class="card-footer" style="padding:12px;">
+      <div class="card-footer p-sm">
         <!-- Director's Console -->
         <div class="director-toolbar collapsed" id="director-toolbar">
-            <div style="cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:bold; color:var(--text-muted); font-size:10px;" onclick="document.getElementById('director-toolbar').classList.toggle('collapsed')">
+            <div class="cursor-pointer flex-row items-center gap-xs font-bold text-muted text-tiny" onclick="document.getElementById('director-toolbar').classList.toggle('collapsed')">
                 <span>🎬 DIRECTOR</span>
-                <span style="font-size:8px;">▼</span>
+                <span class="text-tiny">▼</span>
             </div>
             
-            <div class="director-group" style="flex:1;">
+            <div class="director-group flex-1">
                 <span class="director-label">Guide</span>
                 <input type="text" class="director-input" id="dir-guidance" placeholder="Inject instruction for LLM (appended to system prompt)...">
             </div>
         </div>
 
-        <div style="display:flex; gap:8px; align-items:flex-end;">
-          <textarea class="input" id="sim-input" placeholder="Weave a message... (Shift+Enter for new line)" style="flex:1; resize:none; min-height:36px; max-height:120px; line-height:1.4;" rows="1"></textarea>
-          <button class="btn btn-primary" id="sim-send" style="height:36px;">Send</button>
+        <div class="flex-row gap-sm items-end">
+          <textarea class="input flex-1" id="sim-input" placeholder="Weave a message... (Shift+Enter for new line)" style="resize:none; min-height:36px; max-height:120px; line-height:1.4;" rows="1"></textarea>
+          <button class="btn btn-primary h-[36px]" id="sim-send">Send</button>
         </div>
       </div>
     `;
@@ -152,11 +144,13 @@
 
             history.forEach((msg, idx) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = `chat-message chat-message-${msg.role}`;
+                // Use built-in chat classes
+                // The new .chat-bubble logic handles most of this, but we need a wrapper for alignment
+                wrapper.className = `w-full flex ${msg.role === 'model' ? 'flex-row' : 'flex-row-reverse'} gap-md items-start`;
                 wrapper.dataset.index = idx;
 
                 const bubble = document.createElement('div');
-                bubble.className = `chat-bubble chat-bubble-${msg.role}`;
+                bubble.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'model'} flex-1`;
 
                 // Role label
                 const roleLabel = document.createElement('div');
@@ -209,23 +203,17 @@
                         else if (pulse.includes('LOVE') || pulse.includes('LUST')) pulseClass = 'avatar-pulse-love';
 
                         avatarHtml = `
-               <div class="chat-avatar-frame ${pulseClass}" style="
+               <div class="chat-avatar-frame ${pulseClass} rounded-full overflow-hidden flex-shrink-0 bg-base mt-xs" style="
                   width:${avatarSize}px; height:${avatarSize}px; 
-                  border-radius:50%; overflow:hidden; flex-shrink:0; 
-                  background:var(--bg-base); margin-top:4px;
                   border:2px solid ${pulseClass ? 'var(--accent-primary)' : 'var(--border-subtle)'};
                ">
-                  <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;">
+                  <img src="${imgSrc}" class="w-full h-full" style="object-fit:cover;">
                </div>
              `;
                     }
                 }
 
-                wrapper.style.display = 'flex';
-                wrapper.style.gap = '12px';
-                wrapper.style.alignItems = 'flex-start';
-                if (!isAI) wrapper.style.flexDirection = 'row-reverse';
-
+                // Removed custom styling block as it is now handled by classes
                 if (isAI && avatarHtml) {
                     const avDiv = document.createElement('div');
                     avDiv.innerHTML = avatarHtml;

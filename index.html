@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anansi - v1.19.0</title>
+  <title>Anansi - v1.21.0</title>
 
   <!-- Open Graph / Social Media Previews -->
   <meta property="og:title" content="Anansi: AI Narrative Engine" />
@@ -125,7 +125,7 @@
         <button class="btn btn-ghost btn-sm" id="btn-new" title="New Project">New</button>
         <button class="btn btn-ghost btn-sm" id="btn-import" title="Import Project">Import</button>
         <button class="btn btn-ghost btn-sm" id="btn-export" title="Export Project">Export</button>
-        <button class="btn btn-ghost btn-sm" id="btn-export" title="Export Project">Export</button>
+
         <button class="btn btn-ghost btn-icon" id="btn-api-config" title="API Configuration"
           style="color:var(--accent-primary);">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -226,6 +226,10 @@
   <script src="js/core/io.js"></script>
   <script src="js/core/validator.js"></script>
   <script src="js/panels/validator/index.js"></script>
+  <script src="js/panels/simulator_lens/index.js"></script>
+  <script src="js/panels/simulator_live/index.js"></script>
+  <script src="js/panels/lorebook/lorebook-shared.js"></script>
+  <script src="js/panels/lorebook/index.js"></script>
   <script src="js/core/system_data.js"></script>
   <script src="js/core/scripts.js"></script>
 
@@ -268,6 +272,8 @@
 
   <script src="js/core/state.js"></script>
 
+  <script src="js/core/loader.js"></script>
+  <script src="js/core/panel_manifest.js"></script>
   <script src="js/core/ui.js?v=2"></script>
   <script src="js/core/ui-modal.js"></script>
   <script src="js/core/ui-components.js"></script>
@@ -277,21 +283,14 @@
   <script src="js/core/tour.js"></script>
   <script src="js/core/tour_content.js?v=20260106"></script>
 
-  <!-- RPG Plugin System -->
-  <!-- RPG Plugin System -->
-  <!-- rpg_core, rpg_loader loaded dynamically below -->
-  <script src="js/plugins/rpg/rpg_engine.js"></script>
-  <script src="js/plugins/rpg/rpg_quests.js"></script>
-  <script src="js/plugins/rpg/rpg_quest_board.js"></script> <!-- Logical Core -->
 
-  <!-- RPG Panel UIs -->
-  <!-- rpg_gm, rpg_party loaded dynamically below -->
 
   <!-- Adapters -->
   <script src="js/env/jai.js"></script>
   <script src="js/env/jai.renderer.js"></script>
 
   <!-- Panels -->
+  <!-- Panels (Restored for Stability) -->
   <script src="js/panels/project/index.js"></script>
   <script src="js/panels/sources/index.js"></script>
   <script src="js/panels/character/character-synth.js"></script>
@@ -302,7 +301,6 @@
   <script src="js/panels/actors/actors-tabs.js"></script>
   <script src="js/panels/actors/index.js"></script>
 
-  <!-- Lorebook Plugin -->
   <script src="js/panels/lorebook/lorebook-shared.js"></script>
   <script src="js/panels/lorebook/index.js"></script>
   <script src="js/panels/vault/index.js"></script>
@@ -317,7 +315,6 @@
   <script src="js/panels/stats/index.js"></script>
   <script src="js/panels/writers_block/index.js"></script>
 
-  <!-- Hina's Guide Plugin -->
   <script src="js/panels/hinas_guide/hinas-templates.js"></script>
   <script src="js/panels/hinas_guide/index.js"></script>
   <script src="js/core/chat-formatter.js"></script>
@@ -335,8 +332,13 @@
   <script src="js/panels/guide/index.js"></script>
   <script src="js/panels/gamemaster/index.js"></script>
   <script src="js/panels/rpg_play/index.js"></script>
+  <script src="js/panels/rpg_party/index.js"></script>
+  <script src="js/panels/rpg_map/index.js"></script>
+  <script src="js/panels/rpg_dm_map/index.js"></script>
+  <script src="js/panels/rpg_quest_board/index.js"></script>
   <script src="js/panels/rpg_dialogue/index.js"></script>
   <script src="js/panels/rpg_leveling/index.js"></script>
+
   <script src="js/panels/world_weaver/templates.js?v=test4"></script>
   <script src="js/panels/world_weaver/llm.js?v=test4"></script>
   <script src="js/panels/world_weaver/generation.js?v=test4"></script>
@@ -347,43 +349,26 @@
   <script src="js/panels/world_weaver/index.js?v=test4"></script>
   <!-- <script src="js/panels/world_weaver/tests.js?v=test3"></script> -->
 
-  <!-- RPG Plugin (Isolated - errors won't crash main app) -->
-  <script>
-    (function () {
-      var rpgScripts = [
-        'js/plugins/rpg/rpg_loader.js',
-        'js/plugins/rpg/rpg_core.js',
-        'js/plugins/rpg/rpg_leveling.js',
-        'js/plugins/rpg/rpg_memory.js',
-        'js/plugins/rpg/rpg_cache.js',
-        'js/plugins/rpg/rpg_prompts.js',
-        'js/plugins/rpg/rpg_idle.js',
-        'js/plugins/rpg/rpg_death.js',
-        'js/plugins/rpg/rpg_autopilot.js',
-        'js/plugins/rpg/rpg_dialogue.js',
-        'js/plugins/rpg/rpg_combat_engine.js',
-        'js/plugins/rpg/rpg_gm.js',
-        'js/plugins/rpg/rpg_classes.js',
-        'js/plugins/rpg/rpg_party.js',
-        'js/plugins/rpg/rpg_monsters.js',
-        'js/plugins/rpg/rpg_feats.js',
-        'js/plugins/rpg/rpg_map.js',
-        'js/plugins/rpg/rpg_dm_map.js',
-        'js/plugins/rpg/rpg_armory.js'
-      ];
+  <!-- RPG Core (Strict Order) -->
+  <!-- RPG Core (Strict Order - Restored for Stability) -->
+  <script src="js/core/rpg/index.js"></script>
+  <script src="js/core/rpg/systems/context.js"></script>
+  <script src="js/core/rpg/systems/cache.js"></script>
+  <script src="js/core/rpg/systems/items.js"></script>
+  <script src="js/core/rpg/systems/monsters.js"></script>
+  <script src="js/core/rpg/systems/classes.js"></script>
+  <script src="js/core/rpg/systems/feats.js"></script>
+  <script src="js/core/rpg/systems/leveling.js"></script>
+  <script src="js/core/rpg/systems/quests.js"></script>
+  <script src="js/core/rpg/systems/death.js"></script>
+  <script src="js/core/rpg/systems/idle.js"></script>
+  <script src="js/core/rpg/systems/autopilot.js"></script>
 
-      rpgScripts.forEach(function (src) {
-        try {
-          var script = document.createElement('script');
-          script.src = src;
-          script.onerror = function () { console.error('[RPG Plugin] Failed to load:', src); };
-          document.head.appendChild(script);
-        } catch (e) {
-          console.error('[RPG Plugin] Script load error:', src, e);
-        }
-      });
-    })();
-  </script>
+  <script src="js/core/rpg/narrative/dialogue.js"></script>
+  <script src="js/core/rpg/narrative/memory.js"></script>
+  <script src="js/core/rpg/narrative/prompts.js"></script>
+
+  <script src="js/core/rpg/engine.js"></script>
 
   <!-- Chronos Plugin (Enhanced RP - Isolated loading) -->
   <script>

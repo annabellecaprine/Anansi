@@ -35,19 +35,14 @@
         const isBound = context && context.boundTo;
 
         // Layout
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '240px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        // Layout
+        container.className = 'panel-sidebar-layout';
+        // container.style.height/display/grid/columns/gap/overflow handled by class
 
         // 1. Sidebar (Tabs + Navigation)
+        // 1. Sidebar (Tabs + Navigation)
         const sideCol = document.createElement('div');
-        sideCol.className = 'card';
-        sideCol.style.marginBottom = '0';
-        sideCol.style.display = 'flex';
-        sideCol.style.flexDirection = 'column';
-        sideCol.style.padding = '0';
+        sideCol.className = 'card flex-col p-0 m-0';
 
         // If Bound, hide tabs (only show Rules for this item)
         if (isBound) {
@@ -73,10 +68,10 @@
             if (btnImp) btnImp.onclick = () => importHandler('rule');
         } else {
             sideCol.innerHTML = `
-        <div style="display:flex; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
-           <div class="tab-btn active" id="tab-lists" style="flex:1; text-align:center; padding:12px; cursor:pointer; font-weight:bold; border-bottom:2px solid var(--accent-primary);">Lists</div>
-           <div class="tab-btn" id="tab-deriv" style="flex:1; text-align:center; padding:12px; cursor:pointer; font-weight:bold; color:var(--text-muted);">Derived</div>
-           <div class="tab-btn" id="tab-rules" style="flex:1; text-align:center; padding:12px; cursor:pointer; font-weight:bold; color:var(--text-muted);">Rules</div>
+        <div class="tab-header">
+           <div class="tab-btn active" id="tab-lists">Lists</div>
+           <div class="tab-btn" id="tab-deriv">Derived</div>
+           <div class="tab-btn" id="tab-rules">Rules</div>
         </div>
         <div id="side-list" style="flex:1; overflow-y:auto; padding:0;"></div>
         <div class="card-footer" id="side-footer">
@@ -88,13 +83,8 @@
 
         // 2. Main Content
         const mainCol = document.createElement('div');
-        mainCol.className = 'card';
+        mainCol.className = 'card flex-col m-0 p-0 overflow-hidden';
         mainCol.id = 'sbx-main';
-        mainCol.style.marginBottom = '0';
-        mainCol.style.padding = '0'; // We'll manage padding in sub-views
-        mainCol.style.display = 'flex';
-        mainCol.style.flexDirection = 'column';
-        mainCol.style.overflow = 'hidden';
 
         container.appendChild(sideCol);
         container.appendChild(mainCol);
@@ -114,18 +104,15 @@
             activeTab = t;
             activeId = null;
             // UI update
+            // UI update (DOM classes)
             Object.keys(tabs).forEach(k => {
                 const tab = /** @type {HTMLElement} */ (tabs[k]);
-                tab.style.color = (k === t.substr(0, 1) || k === t) ? 'var(--text-primary)' : 'var(--text-muted)';
-                tab.style.borderBottomColor = (k === t.substr(0, 1) || k === t) ? 'var(--accent-primary)' : 'transparent';
+                if (k === t || k === t.substr(0, 1)) tab.className = 'tab-btn active';
+                else tab.className = 'tab-btn';
+                // Remove inline overrides
+                tab.style.color = '';
+                tab.style.borderBottomColor = '';
             });
-            // Specific highlighting
-            /** @type {HTMLElement} */ (tabs.lists).style.color = (t === 'lists' ? 'var(--text-primary)' : 'var(--text-muted)');
-            /** @type {HTMLElement} */ (tabs.lists).style.borderBottomColor = (t === 'lists' ? 'var(--accent-primary)' : 'transparent');
-            /** @type {HTMLElement} */ (tabs.deriv).style.color = (t === 'derived' ? 'var(--text-primary)' : 'var(--text-muted)');
-            /** @type {HTMLElement} */ (tabs.deriv).style.borderBottomColor = (t === 'derived' ? 'var(--accent-primary)' : 'transparent');
-            /** @type {HTMLElement} */ (tabs.rules).style.color = (t === 'rules' ? 'var(--text-primary)' : 'var(--text-muted)');
-            /** @type {HTMLElement} */ (tabs.rules).style.borderBottomColor = (t === 'rules' ? 'var(--accent-primary)' : 'transparent');
 
             refreshSidebar();
             renderMain();
@@ -277,13 +264,12 @@
             items.forEach((item, idx) => {
                 const row = document.createElement('div');
                 row.className = 'list-item';
-                row.style.padding = '8px 10px';
-                row.style.borderBottom = '1px solid var(--border-subtle)';
-                row.style.cursor = 'pointer';
-                row.style.display = 'flex';
-                row.style.alignItems = 'center';
+                if (item.id === activeId) row.classList.add('active');
 
-                if (item.id === activeId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
+                // Styles handled by class list-item and active state
+                // row.style.padding/borderBottom handled by css
+
+                // Sync badge logic...
 
                 let syncBadge = '';
                 if (item.vaultLink && item.vaultLink.vaultId) {

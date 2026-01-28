@@ -406,14 +406,7 @@
         renderList();
     }
 
-    A.registerPanel('rpg_dialogues', {
-        label: 'Dialogues',
-        subtitle: 'NPC Conversations',
-        category: 'RPG Experiment',
-        subcategory: 'Game Master',
-        order: 15,
-        gmOnly: true,
-        icon: '💬',
+    A.registerPanel('rpg_dialogue', {
         render: render
     });
 

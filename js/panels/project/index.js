@@ -34,20 +34,19 @@
 
     const tokenMetrics = getTokenMetrics();
 
-    container.style.padding = 'var(--space-4)';
-    container.style.height = '100%';
-    container.style.overflowY = 'auto'; // Dashboard scrolls
+    // Layout
+    container.className = 'panel-container h-full scroll-y p-md';
 
     // --- Template ---
     container.innerHTML = `
-      <div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+      <div style="max-width: 1400px;" class="mx-auto flex-col gap-lg">
         
         <!-- Header / Welcome -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+        <div class="flex-row justify-between align-start gap-md">
             <div style="flex: 1;">
-                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px;">Mission Control</div>
+                <div class="text-xs text-uppercase text-muted" style="letter-spacing: 1px; margin-bottom: 4px;">Mission Control</div>
                 <h1 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: -0.5px;">${state.meta.name || 'Untitled Project'}</h1>
-                <span class="badge" style="background:var(--bg-elevated); font-family:var(--font-mono); margin-top: 8px; display: inline-block;">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
+                <span class="badge font-mono" style="background:var(--bg-elevated); margin-top: 8px; display: inline-block;">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
             </div>
             <!-- Project Cover Image -->
             <div style="flex-shrink: 0; text-align: center;">
@@ -73,7 +72,7 @@
         </div>
 
         <!-- Stats Row -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+        <div class="panel-grid grid-cols-4 gap-md">
             ${renderTokenCard(tokenMetrics)}
             
             ${renderStatCard('Actors', getCount('nodes.actors.items'), 'Active Nodes',
@@ -95,7 +94,7 @@
                 <div class="card">
                     <div class="card-header"><strong>Project Metadata</strong></div>
                     <div class="card-body">
-                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                         <div class="panel-grid grid-cols-2 gap-md mb-md">
                             <div class="form-group">
                               <label class="label">Project Name</label>
                               <input type="text" class="input" id="inp-proj-name" value="${state.meta.name || ''}">
@@ -128,10 +127,10 @@
                 <div class="card">
                     <div class="card-header"><strong>Platform Compatibility</strong></div>
                     <div class="card-body">
-                         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                         <div class="flex-row gap-sm flex-wrap">
                             <span class="badge" style="background: var(--status-success); color: white; padding: 6px 12px;">✓ All Major Platforms</span>
                          </div>
-                         <div style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+                         <div class="text-xs text-muted mt-sm">
                             Character Card v2 format compatible with most platforms.
                          </div>
                     </div>
@@ -151,11 +150,11 @@
             </div>
             
             <!-- Right: Quick Actions & Health -->
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="flex-col gap-md">
                 
                 <div class="card">
                     <div class="card-header"><strong>Quick Actions</strong></div>
-                    <div class="card-body" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="card-body flex-col gap-sm">
                         <button class="btn btn-secondary" onclick="Anansi.UI.switchPanel('actors', { createNew: true })">
                             <span style="display:flex; align-items:center; gap:8px;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -207,7 +206,7 @@
     // --- Helper Component: Token Card (with breakdown) ---
     function renderTokenCard(metrics) {
       return `
-            <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 4px; position:relative; overflow:hidden;">
+            <div class="card p-md flex-col relative overflow-hidden" style="gap:4px;">
                 <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; z-index:1;">Total Tokens</div>
                 <div style="font-size: 24px; font-weight: 300; color: var(--text-primary); z-index:1;">${metrics.total.toLocaleString()}</div>
                 <div style="font-size: 9px; color: var(--text-muted); z-index:1; display:flex; gap:8px; flex-wrap:wrap;">
@@ -226,7 +225,7 @@
     // --- Helper Component: Stat Card ---
     function renderStatCard(label, value, sub, iconSvg, valueStyle = '') {
       return `
-            <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 4px; position:relative; overflow:hidden;">
+            <div class="card p-md flex-col relative overflow-hidden" style="gap:4px;">
                 <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; z-index:1;">${label}</div>
                 <div style="font-size: 24px; font-weight: 300; color: var(--text-primary); ${valueStyle} z-index:1;">${value}</div>
                 <div style="font-size: 10px; color: var(--text-muted); opacity: 0.7; z-index:1;">${sub}</div>

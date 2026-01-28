@@ -7,36 +7,24 @@
     'use strict';
 
     function render(container) {
-        container.style.padding = 'var(--space-6)';
-        container.style.height = '100%';
-        container.style.overflowY = 'auto'; // Native scrolling
+        container.className = 'panel-container h-full scroll-y p-lg';
 
         container.innerHTML = `
-            <div style="max-width: 800px; margin: 0 auto;">
-                <h1 style="font-family: var(--font-serif); border-bottom: 2px solid var(--border-subtle); padding-bottom: 16px; margin-bottom: 24px; color: var(--accent-primary);">
+            <div style="max-width: 800px;" class="mx-auto">
+                <h1 class="font-serif border-b pb-md mb-lg text-accent text-xl font-bold">
                     Platform Export Guides
                 </h1>
 
-                <p style="color: var(--text-secondary); margin-bottom: 32px;">
+                <p class="text-secondary mb-lg">
                     Learn how to export your Anansi project for various AI platforms.  
                     Note that Anansi may exceed the native capabilities of some runtimes; export methods reflect best-fit compatibility.
                 </p>
 
                 <!-- SillyTavern / Agnaistic -->
-                <div class="card" style="margin-bottom: 32px;">
+                <div class="card mb-lg">
                     <div class="card-header">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="
-                                width: 32px;
-                                height: 32px;
-                                background: var(--bg-elevated);
-                                border-radius: 4px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-weight: bold;
-                                color: var(--accent-secondary);
-                            ">ST</div>
+                        <div class="flex-row gap-md">
+                            <div class="w-8 h-8 bg-elevated rounded-sm center-content font-bold text-secondary">ST</div>
                             <strong>SillyTavern / Agnaistic</strong>
                         </div>
                     </div>
@@ -67,20 +55,10 @@
                 </div>
 
                 <!-- JanitorAI -->
-                <div class="card" style="margin-bottom: 32px;">
+                <div class="card mb-lg">
                     <div class="card-header">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="
-                                width: 32px;
-                                height: 32px;
-                                background: var(--bg-elevated);
-                                border-radius: 4px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-weight: bold;
-                                color: var(--accent-secondary);
-                            ">JAI</div>
+                        <div class="flex-row gap-md">
+                            <div class="w-8 h-8 bg-elevated rounded-sm center-content font-bold text-secondary">JAI</div>
                             <strong>JanitorAI</strong>
                         </div>
                     </div>
@@ -115,20 +93,10 @@
                 </div>
 
                 <!-- Chub.ai -->
-                <div class="card" style="margin-bottom: 32px;">
+                <div class="card mb-lg">
                     <div class="card-header">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="
-                                width: 32px;
-                                height: 32px;
-                                background: var(--bg-elevated);
-                                border-radius: 4px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-weight: bold;
-                                color: var(--accent-secondary);
-                            ">CH</div>
+                        <div class="flex-row gap-md">
+                            <div class="w-8 h-8 bg-elevated rounded-sm center-content font-bold text-secondary">CH</div>
                             <strong>Chub.ai</strong>
                         </div>
                     </div>
@@ -162,7 +130,6 @@
         label: 'Platform Guides',
         subtitle: 'Export Instructions',
         category: 'Loom',
-        hidden: true,
         render: render
     });
 

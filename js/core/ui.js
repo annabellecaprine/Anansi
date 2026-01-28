@@ -353,6 +353,25 @@
                 }
             });
 
+            // NEW: Bootstrap from Manifest (Phase 6)
+            if (A.PanelManifest) {
+                // Register stubs for all manifest entries that aren't already registered
+                Object.keys(A.PanelManifest).forEach(function (id) {
+                    if (!A.getPanel(id)) {
+                        var meta = A.PanelManifest[id];
+                        // Register stub so it appears in navigation structure
+                        A.registerPanel(id, {
+                            label: meta.label,
+                            icon: meta.icon,
+                            category: meta.category,
+                            subcategory: meta.subcategory, // Pass subcategory
+                            order: meta.order,            // Pass order
+                            render: null // Will be overwritten when actually loaded
+                        });
+                    }
+                });
+            }
+
             // Render Initial Nav
             this.refreshNav();
 
@@ -610,14 +629,59 @@
         },
 
         /**
+         * Dynamically load a panel script if not already present.
+         * @param {string} id - Panel ID
+         */
+        loadPanel: function (id) {
+            return new Promise(async (resolve, reject) => {
+                // 1. Check if already registered AND has a valid render (not just a stub)
+                const panel = A.getPanel(id);
+                // Note: Stubs have render: null, so we check if render is truthy
+                if (panel && panel.render) {
+                    resolve();
+                    return;
+                }
+
+                // 2. Get Metadata from Manifest
+                const meta = A.PanelManifest ? A.PanelManifest[id] : null;
+                const path = meta && meta.path ? meta.path : 'js/panels/' + id + '/index.js';
+
+                console.log('[UI] Lazy loading panel: ' + id + ' from ' + path);
+
+                try {
+                    // 3. Load Dependencies First
+                    if (meta && meta.dependencies) {
+                        for (const depSrc of meta.dependencies) {
+                            if (!isScriptLoaded(depSrc)) {
+                                await loadScript(depSrc);
+                            }
+                        }
+                    }
+
+                    // 4. Load Main Panel Script
+                    await loadScript(path);
+
+                    console.log('[UI] Loaded ' + id);
+                    resolve();
+                } catch (e) {
+                    console.error('[UI] Failed to load panel ' + id, e);
+                    reject(e);
+                }
+            });
+        },
+
+        /**
          * Switch to a different panel by ID.
          * Updates navigation, renders the panel, and manages history.
          * 
          * @param {string} id - Panel ID to switch to
          * @param {Object} [context] - Optional context to pass to panel render function
          */
-        switchPanel: function (id, context) {
+        switchPanel: async function (id, context) {
             try {
+                // Ensure panel code is loaded
+                await this.loadPanel(id);
+
                 // Track panel history (skip if it's the same panel)
                 if (id !== activePanelId) {
                     // Add current panel to history before switching
@@ -671,19 +735,30 @@
                 if (this.els.panelTitle) this.els.panelTitle.textContent = section.label;
                 if (this.els.panelSubtitle) this.els.panelSubtitle.textContent = section.subtitle || '';
 
-                // Clear global lens on panel switch by default unless specific panels handle it
-                // Wrapped in try-catch to prevent lens errors from blocking panel load
+                // Default to Global Lens (State) if panel doesn't specify one
                 try {
                     if (id !== 'simulator' && id !== 'scripts') {
-                        this.setLens(null);
+                        // Use the new Project Lens for most panels
+                        if (A.SimulatorLens && A.SimulatorLens.renderProjectLens) {
+                            // Ensure container is clear before rendering
+                            this.els.lensRoot.innerHTML = '';
+
+                            // FORCE LENS OPEN: Recover from collapsed state
+                            this.els.appShell.classList.remove('lens-collapsed');
+
+                            A.SimulatorLens.renderProjectLens(this.els.lensRoot, A.State.get());
+                        } else {
+                            this.setLens(null);
+                        }
                     }
                 } catch (e) {
-                    console.warn(`[UI] Lens reset failed: ${e.message}`);
+                    console.warn(`[UI] Lens default reset failed: ${e.message}`);
                 }
 
-                // CRITICAL: Clear inline styles from previous panel to prevent layout bleed
+                // CRITICAL: Clear inline styles/classes from previous panel
                 if (this.els.panelRoot) {
                     this.els.panelRoot.removeAttribute('style');
+                    this.els.panelRoot.className = 'panel-content';
                     this.els.panelRoot.innerHTML = '';
                     if (section.render) {
                         try {
@@ -691,7 +766,7 @@
                             // Emit panel switch event for interested listeners
                             if (A.Events) A.Events.emit('panel:switched', { id, context });
                         } catch (renderErr) {
-                            console.error(`[UI] Failed to render panel ${id}:`, renderErr);
+                            console.error('[UI] Failed to render panel ' + id + ':', renderErr);
                             this.renderErrorState(this.els.panelRoot, renderErr, () => {
                                 // Retry callback: recursively call switchPanel to retry rendering
                                 this.switchPanel(id, context);
@@ -702,8 +777,8 @@
                     }
                 }
             } catch (err) {
-                console.error(`[UI] switchPanel critical failure:`, err);
-                if (A.UI.Toast) A.UI.Toast.show(`Nav Error: ${err.message}`, 'error');
+                console.error('[UI] switchPanel critical failure:', err);
+                if (A.UI.Toast) A.UI.Toast.show('Nav Error: ' + err.message, 'error');
             }
         },
 
@@ -746,57 +821,17 @@
          */
         toggleLens: function (force) {
             const shell = this.els.appShell;
-
-            // Mobile: Use slide-out drawer with lens-open class
             if (window.innerWidth < 768) {
                 shell.classList.toggle('lens-open');
                 return;
             }
-
-            // Desktop: Use collapse behavior
             const isCollapsed = force !== undefined ? force : !shell.classList.contains('lens-collapsed');
-
             if (isCollapsed) {
                 shell.classList.add('lens-collapsed');
             } else {
                 shell.classList.remove('lens-collapsed');
             }
             localStorage.setItem('anansi_lens_collapsed', String(isCollapsed));
-        },
-
-        /**
-         * Render a standardized error state into a container.
-         * @param {HTMLElement} container - Target container
-         * @param {Error} error - The error object
-         * @param {(e: Event) => void} [retryCallback] - Optional callback for retry button
-         */
-        renderErrorState: function (container, error, retryCallback) {
-            container.innerHTML = `
-                <div class="empty-state-card error-state m-md">
-                    <div class="empty-icon">💥</div>
-                    <div class="empty-title text-error">Panel Crashed</div>
-                    <div class="empty-description">The application encountered an unexpected error.</div>
-                    
-                    <div class="text-xs font-mono p-sm mb-md text-left width-100" style="background:var(--bg-deep); border-radius:6px; border:1px solid var(--border-subtle); max-height:200px; overflow:auto;">
-                        <div class="text-error font-bold mb-sm">${error.name || 'Error'}</div>
-                        <div>${error.message || 'Unknown error'}</div>
-                        ${error.stack ? `<div class="mt-sm" style="opacity:0.6; white-space:pre-wrap;">${error.stack.split('\n').slice(0, 3).join('\n')}...</div>` : ''}
-                    </div>
-                    
-                    <div class="flex-row gap-md">
-                        ${retryCallback ? '<button id="err-retry-btn" class="btn btn-primary">🔄 Retry Panel</button>' : ''}
-                        <button id="err-reload-btn" class="btn btn-ghost">Reload App</button>
-                    </div>
-                </div>
-            `;
-
-            if (retryCallback) {
-                const retryBtn = container.querySelector('#err-retry-btn');
-                if (retryBtn) /** @type {HTMLElement} */ (retryBtn).onclick = retryCallback;
-            }
-
-            const reloadBtn = container.querySelector('#err-reload-btn');
-            if (reloadBtn) /** @type {HTMLElement} */ (reloadBtn).onclick = () => window.location.reload();
         }
     };
 
@@ -849,3 +884,7 @@
 
     // @ts-ignore - Anansi is a global defined in anansi.js
 })(window.Anansi);
+
+// Helper for lazy loading
+function loadScript(src) { return new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = reject; document.head.appendChild(s); }); }
+function isScriptLoaded(src) { return !!document.querySelector('script[src=\'' + src + '\']'); }

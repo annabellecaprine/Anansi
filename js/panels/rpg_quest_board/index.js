@@ -298,13 +298,6 @@
     }
 
     A.registerPanel('rpg_quest_board', {
-        label: 'Quest Board',
-        subtitle: 'Quest Database',
-        category: 'RPG Experiment',
-        subcategory: 'Game Master',
-        order: 51,
-        gmOnly: true,
-        icon: '📜',
         render: render
     });
 

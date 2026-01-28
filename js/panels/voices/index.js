@@ -162,45 +162,36 @@
     const data = state.weaves.voices;
 
     // Layout
-    container.style.height = '100%';
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = '220px 1fr';
-    container.style.gap = 'var(--space-4)';
-    container.style.overflow = 'hidden';
+    // Layout
+    container.className = 'panel-sidebar-layout';
+    container.style.gridTemplateColumns = '320px 1fr';
 
     // List Col
     const listCol = document.createElement('div');
-    listCol.className = 'card';
-    listCol.style.display = 'flex';
-    listCol.style.flexDirection = 'column';
-    listCol.style.marginBottom = '0';
+    listCol.className = 'card flex-col mb-0';
     listCol.innerHTML = `
-      <div class="card-header" style="flex-direction:column; align-items:stretch; gap:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <strong>Voices</strong>
-          <button class="btn btn-secondary btn-sm" id="btn-add-voice">+ New</button>
+      <div class="card-header w-full flex-col items-stretch gap-sm p-sm">
+        <div class="flex-row justify-between items-center">
+          <strong class="text-sm">Voices</strong>
+          <button class="btn btn-secondary btn-sm text-xs px-sm py-xs" id="btn-add-voice">+ New</button>
         </div>
-        <input class="input" id="search-voices" placeholder="Filter voices..." style="width:100%; font-size:12px; height:28px;" value="${searchTerm}">
+        <input class="input w-full text-xs h-8" id="search-voices" placeholder="Filter voices..." value="${searchTerm}">
       </div>
-      <div class="card-body" id="voice-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer" style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; gap:8px; align-items:center;">
-          <label style="font-size:11px; cursor:pointer;"><input type="checkbox" id="chk-debug" ${data.debug ? 'checked' : ''}> Debug Crumbs</label>
+      <div class="card-body p-0 flex-1 scroll-y" id="voice-list"></div>
+      <div class="card-footer flex-row justify-between">
+        <div class="flex-row gap-sm">
+          <label class="text-xs cursor-pointer flex-row gap-xs"><input type="checkbox" id="chk-debug" ${data.debug ? 'checked' : ''}> Debug Crumbs</label>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div class="flex-row gap-sm">
            <button class="btn btn-ghost btn-sm" id="btn-vault-import" title="Import from Vault">📥</button>
-           <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+           <button class="btn btn-ghost btn-sm text-tiny" id="btn-view-script">View Script →</button>
         </div>
       </div>
     `;
 
     // Editor Col
     const editorCol = document.createElement('div');
-    editorCol.className = 'card';
-    editorCol.style.display = 'flex';
-    editorCol.style.flexDirection = 'column';
-    editorCol.style.marginBottom = '0';
-    editorCol.style.padding = '0';
+    editorCol.className = 'card flex-col mb-0 p-0';
     editorCol.id = 'voice-editor';
 
     // Simplified layout
@@ -263,23 +254,15 @@
       }
 
       if (!voices.length) {
-        listBody.innerHTML = `<div style="padding:16px; color:gray;">${searchTerm ? 'No matches.' : 'No voices defined.'}</div>`;
+        listBody.innerHTML = `<div class="p-md text-muted italic">${searchTerm ? 'No matches.' : 'No voices defined.'}</div>`;
         return;
       }
 
       voices.forEach((v, displayIdx) => {
         const row = document.createElement('div');
-        row.style.padding = '8px 4px';
-        row.style.borderBottom = '1px solid var(--border-subtle)';
-        row.style.cursor = 'pointer';
-        row.style.fontSize = '12px';
-        row.style.display = 'flex';
-        row.style.alignItems = 'center';
+        row.className = 'list-item p-sm';
 
-        if (v.originalIndex === currentVoiceIndex) {
-          row.style.backgroundColor = 'var(--bg-surface)';
-          row.style.borderLeft = '3px solid var(--accent-primary)';
-        }
+        if (v.originalIndex === currentVoiceIndex) row.classList.add('active');
 
         // Arrows (Only if not searching)
         let arrows = '';
@@ -287,20 +270,20 @@
           const isFirst = displayIdx === 0;
           const isLast = displayIdx === voices.length - 1;
           arrows = `
-                <div style="display:flex; flex-direction:column; margin-right:8px; align-items:center;">
-                    <div class="btn-up" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isFirst ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Up">▲</div>
-                    <div class="btn-down" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isLast ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Down">▼</div>
+                <div class="flex-col mr-sm items-center">
+                    <div class="btn-up text-xs leading-none cursor-pointer p-xs text-muted ${isFirst ? 'opacity-20' : 'opacity-70'}" title="Move Up">▲</div>
+                    <div class="btn-down text-xs leading-none cursor-pointer p-xs text-muted ${isLast ? 'opacity-20' : 'opacity-70'}" title="Move Down">▼</div>
                 </div>
             `;
         }
 
         row.innerHTML = `
            ${arrows}
-           <div style="flex:1;">
-               <div style="font-weight:bold;">${v.characterName || 'Unnamed Voice'}
-               ${v.vaultLink && v.vaultLink.vaultId ? (v.vaultLink.locallyModified ? '<span style="color:var(--status-warning);"> ●</span>' : '<span style="color:var(--text-muted);"> ✓</span>') : ''}
+           <div class="flex-1">
+               <div class="font-bold">${v.characterName || 'Unnamed Voice'}
+               ${v.vaultLink && v.vaultLink.vaultId ? (v.vaultLink.locallyModified ? '<span class="text-warning"> ●</span>' : '<span class="text-muted"> ✓</span>') : ''}
                </div>
-               <div style="font-size:10px; color:var(--text-muted);">${v.chatName ? 'Chat: ' + v.chatName : ''} • ${v.subtones ? v.subtones.length : 0} subtones</div>
+               <div class="text-tiny text-muted">${v.chatName ? 'Chat: ' + v.chatName : ''} • ${v.subtones ? v.subtones.length : 0} subtones</div>
            </div>
         `;
 
@@ -330,16 +313,7 @@
         return;
       }
 
-      // Styles
-      const style = `<style>
-        .v-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        .v-col { flex: 1; display:flex; flex-direction:column; }
-        .v-lab { font-size: 10px; font-weight:bold; color:var(--text-muted); margin-bottom:2px; text-transform:uppercase; }
-        .v-sec { border-top: 1px solid var(--border-subtle); padding-top: 12px; margin-top: 12px; }
-      </style>`;
-      editorCol.innerHTML = style;
-
-      // Helper: Get available actors
+      // --- Editor UI ---
       const freshState = A.State.get();
       const freshData = freshState.weaves?.voices || { voices: [] };
       const allActors = freshState.nodes?.actors?.items || {};
@@ -376,50 +350,48 @@
       // User said "Make it a drop down tied to ACTOR."
 
       header.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-          <select class="input" id="sel-charname" style="font-weight:bold;">
+        <div class="flex-col gap-xs flex-1">
+          <select class="input font-bold" id="sel-charname">
             ${actorOptions}
           </select>
-          <input class="input" id="inp-chatname" value="${v.chatName || ''}" placeholder="Chat Name (in messages)" style="font-size:12px;">
+          <input class="input text-xs" id="inp-chatname" value="${v.chatName || ''}" placeholder="Chat Name (in messages)">
         </div>
-        <label style="display:flex; align-items:center; gap:4px; font-size:12px;"><input type="checkbox" id="chk-en" ${v.enabled ? 'checked' : ''}> Enabled</label>
-        <button class="btn btn-ghost btn-sm" id="btn-vault-pub" style="margin-left:8px;" title="Publish to Vault">📤</button>
-        <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
+        <label class="flex-row items-center gap-xs text-xs"><input type="checkbox" id="chk-en" ${v.enabled ? 'checked' : ''}> Enabled</label>
+        <button class="btn btn-ghost btn-sm ml-sm" id="btn-vault-pub" title="Publish to Vault">📤</button>
+        <button class="btn btn-ghost btn-sm text-error" id="btn-del">Delete</button>
       `;
       editorCol.appendChild(header);
 
       // Body (Scrollable)
       const body = document.createElement('div');
-      body.className = 'card-body';
-      body.style.overflowY = 'auto'; // ensure scroll
-      body.style.flex = '1';
+      body.className = 'card-body scroll-y flex-1';
 
       body.innerHTML = `
-        <div class="v-row">
-           <div class="v-col"><label class="v-lab">Tag (Debug Trace)</label><input class="input" id="inp-tag" value="${v.tag || 'V'}"></div>
+        <div class="flex-col gap-sm">
+           <div class="flex-col"><label class="text-xs font-bold text-muted mb-xs">Tag (Debug Trace)</label><input class="input" id="inp-tag" value="${v.tag || 'V'}"></div>
         </div>
 
-        <div class="v-sec">
-          <div class="v-lab">Baseline & Cadence</div>
-          <div class="v-row">
-            <div class="v-col"><label class="v-lab">Baseline Marker</label><input class="input" id="inp-mark" value="${v.baselineMarker || '[VOICE]'}"></div>
+        <div class="mb-md border border-subtle p-sm rounded">
+          <div class="text-tiny font-bold text-muted text-uppercase mb-sm">Baseline & Cadence</div>
+          <div class="flex-col gap-sm">
+            <div class="flex-col"><label class="text-xs font-bold text-muted mb-xs">Baseline Marker</label><input class="input" id="inp-mark" value="${v.baselineMarker || '[VOICE]'}"></div>
           </div>
-          <div class="v-col"><label class="v-lab">Baseline Rail (Injected once if missing)</label><textarea class="input" rows="2" id="inp-base">${v.baselineRail || ''}</textarea></div>
-          <div class="v-col" style="margin-top:8px;"><label class="v-lab">Cadence Rail (Injected always)</label><textarea class="input" rows="2" id="inp-cad">${v.cadenceRail || ''}</textarea></div>
+          <div class="flex-col mt-sm"><label class="text-xs font-bold text-muted mb-xs">Baseline Rail (Injected once if missing)</label><textarea class="input" rows="2" id="inp-base">${v.baselineRail || ''}</textarea></div>
+          <div class="flex-col mt-sm"><label class="text-xs font-bold text-muted mb-xs">Cadence Rail (Injected always)</label><textarea class="input" rows="2" id="inp-cad">${v.cadenceRail || ''}</textarea></div>
         </div>
         
-        <div class="v-sec">
-          <div class="v-lab">Probability</div>
-          <div class="v-row">
-            <div class="v-col"><label class="v-lab">Chance (0-1)</label><input type="number" step="0.1" class="input" id="inp-chance" value="${v.attempt?.baseChance || 0.6}"></div>
-            <div class="v-col"><label class="v-lab">Boost (+)</label><input type="number" step="0.1" class="input" id="inp-boost" value="${v.attempt?.contentBoost || 0.15}"></div>
+        <div class="mb-md border border-subtle p-sm rounded">
+          <div class="text-tiny font-bold text-muted text-uppercase mb-sm">Probability</div>
+          <div class="flex-row gap-sm">
+            <div class="flex-1 flex-col"><label class="text-xs font-bold text-muted mb-xs">Chance (0-1)</label><input type="number" step="0.1" class="input" id="inp-chance" value="${v.attempt?.baseChance || 0.6}"></div>
+            <div class="flex-1 flex-col"><label class="text-xs font-bold text-muted mb-xs">Boost (+)</label><input type="number" step="0.1" class="input" id="inp-boost" value="${v.attempt?.contentBoost || 0.15}"></div>
           </div>
         </div>
 
-        <div class="v-sec">
-          <div class="v-lab">Subtones</div>
+        <div class="mb-md border border-subtle p-sm rounded">
+          <div class="text-tiny font-bold text-muted text-uppercase mb-sm">Subtones</div>
           <div id="subtone-list"></div>
-          <button class="btn btn-secondary btn-sm" id="btn-add-subtone" style="margin-top:8px;">+ Add Subtone</button>
+          <button class="btn btn-secondary btn-sm mt-sm" id="btn-add-subtone">+ Add Subtone</button>
         </div>
       `;
       editorCol.appendChild(body);
@@ -483,10 +455,7 @@
         stList.innerHTML = '';
         (v.subtones || []).forEach((st, idx) => {
           const div = document.createElement('div');
-          div.style.border = '1px solid var(--border-subtle)';
-          div.style.padding = '8px';
-          div.style.marginBottom = '8px';
-          div.style.borderRadius = '4px';
+          div.className = 'card p-sm mb-sm';
           div.innerHTML = `
              <div class="v-row">
                <div class="v-col"><input class="input" placeholder="Label" value="${st.label || ''}" oninput="this.getRootNode().host_edit(${idx}, 'label', this.value)"></div>

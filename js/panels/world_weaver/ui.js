@@ -125,23 +125,24 @@
 
         container.innerHTML = '';
         const wizard = document.createElement('div');
-        wizard.style.cssText = 'position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:20px; background:var(--bg-base);';
+        wizard.className = 'absolute inset-0 flex-col items-center scroll-y p-lg bg-base';
 
         const header = `
-            <div style="text-align:center; margin-bottom:24px; animation: fadeIn 0.5s ease;">
-                <div style="font-size:48px; margin-bottom:12px;">🕸️</div>
-                <div style="font-size:24px; font-weight:700; color:var(--text-primary);">World Weaver</div>
-                <div style="font-size:14px; color:var(--text-muted);">Step ${setupState.step} of 3</div>
-                <div style="display:flex; justify-content:center; gap:8px; margin-top:12px;">
-                    <div style="height:4px; width:30px; border-radius:2px; background:${setupState.step >= 1 ? 'var(--accent)' : 'var(--bg-elevated)'}"></div>
-                    <div style="height:4px; width:30px; border-radius:2px; background:${setupState.step >= 2 ? 'var(--accent)' : 'var(--bg-elevated)'}"></div>
-                    <div style="height:4px; width:30px; border-radius:2px; background:${setupState.step >= 3 ? 'var(--accent)' : 'var(--bg-elevated)'}"></div>
+            <div class="text-center mb-lg animate-fade-in">
+                <div style="font-size:48px;" class="mb-md opacity-90">🕸️</div>
+                <div class="text-2xl font-bold text-primary mb-xs">World Weaver</div>
+                <div class="text-sm text-muted">Step ${setupState.step} of 3</div>
+                <div class="flex-row justify-center gap-sm mt-md">
+                    <div class="h-1 rounded-full ${setupState.step >= 1 ? 'bg-accent' : 'bg-elevated'}" style="width:30px;"></div>
+                    <div class="h-1 rounded-full ${setupState.step >= 2 ? 'bg-accent' : 'bg-elevated'}" style="width:30px;"></div>
+                    <div class="h-1 rounded-full ${setupState.step >= 3 ? 'bg-accent' : 'bg-elevated'}" style="width:30px;"></div>
                 </div>
             </div>
         `;
 
         const contentBox = document.createElement('div');
-        contentBox.style.cssText = 'width:100%; max-width:600px; animation: slideUp 0.3s ease;';
+        contentBox.className = 'w-full animate-slide-up';
+        contentBox.style.maxWidth = '600px';
         contentBox.innerHTML = header;
 
         const onNext = (nextStep) => A.WorldWeaver.renderSetupWizard(container, sessions, nextStep);
@@ -190,23 +191,24 @@
             const sessionsList = Object.values(sessions);
             if (sessionsList.length > 0) {
                 const sessionSection = document.createElement('div');
-                sessionSection.style.cssText = 'width:100%; max-width:600px; margin-top:40px; border-top:1px solid var(--border-subtle); padding-top:20px;';
-                sessionSection.innerHTML = `<div style="font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:12px; text-transform:uppercase;">Continue Session</div>`;
+                sessionSection.className = 'w-full mt-xl border-t border-subtle pt-lg';
+                sessionSection.style.maxWidth = '600px';
+                sessionSection.innerHTML = `<div class="text-sm font-bold text-secondary mb-sm uppercase">Continue Session</div>`;
 
                 sessionsList.sort((a, b) => b.lastModified - a.lastModified).forEach(s => {
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; align-items:center; padding:12px; background:var(--bg-panel); border:1px solid var(--border-subtle); border-radius:8px; margin-bottom:8px; cursor:pointer; transition:all 0.2s;';
+                    row.className = 'flex-row p-md bg-panel border-subtle border rounded-md mb-sm cursor-pointer transition-all hover:border-primary';
                     row.innerHTML = `
-                       <div style="font-size:24px; margin-right:12px;">${(A.WorldWeaver.Templates.WORLD_ARCHETYPES.find(a => a.id === s.worldArchetype) || {}).icon || '📄'}</div>
-                       <div style="flex:1;">
-                           <div style="font-weight:600; color:var(--text-primary);">${s.name}</div>
-                           <div style="font-size:11px; color:var(--text-muted);">Last played: ${s.lastModified ? new Date(s.lastModified).toLocaleDateString() : 'Just now'}</div>
+                       <div class="text-2xl mr-md">${(A.WorldWeaver.Templates.WORLD_ARCHETYPES.find(a => a.id === s.worldArchetype) || {}).icon || '📄'}</div>
+                       <div class="flex-1">
+                           <div class="font-bold text-primary">${s.name}</div>
+                           <div class="text-xs text-muted">Last played: ${s.lastModified ? new Date(s.lastModified).toLocaleDateString() : 'Just now'}</div>
                        </div>
-                       <div class="delete-btn" style="padding:8px; margin-right:8px; opacity:0.6; cursor:pointer; color:var(--status-error);" title="Delete Session">🗑️</div>
-                       <div style="color:var(--text-secondary);">→</div>
+                       <div class="delete-btn p-sm mr-sm opacity-60 cursor-pointer text-error hover:opacity-100" title="Delete Session">🗑️</div>
+                       <div class="text-secondary">→</div>
                     `;
-                    row.onmouseover = () => row.style.borderColor = 'var(--text-primary)';
-                    row.onmouseout = () => row.style.borderColor = 'var(--border-subtle)';
+                    // row.onmouseover handled by CSS hover class
+                    // row.onmouseout handled by CSS hover class
                     row.onclick = () => {
                         delete state.worldWeaver.setupState;
                         state.worldWeaver.currentSessionId = s.id;
@@ -234,9 +236,9 @@
 
     A.WorldWeaver.renderMainInterface = function (container, session, sessions, state) {
         container.innerHTML = `
-            <div class="ww-interface" style="display:flex; height:100%; width:100%;">
-                <div class="ww-sidebar" style="width:300px; background:var(--bg-panel); border-right:1px solid var(--border-subtle); display:flex; flex-direction:column; flex-shrink:0;"></div>
-                <div class="ww-content" style="flex:1; display:flex; flex-direction:column; background:var(--bg-base); min-width:0;"></div>
+            <div class="ww-interface w-full h-full flex-row items-stretch overflow-hidden">
+                <div class="ww-sidebar w-300 bg-panel border-r border-subtle flex-col flex-shrink-0"></div>
+                <div class="ww-content flex-1 flex-col bg-base min-w-0"></div>
             </div>
         `;
 
@@ -261,8 +263,8 @@
             style.id = 'ww-ui-styles';
             style.textContent = `
                 @keyframes ww-pulse {
-                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); border-color: var(--accent); }
-                    50% { transform: scale(1.03); box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.4); border-color: var(--accent); }
+                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); border-color: var(--accent-primary); }
+                    50% { transform: scale(1.03); box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.4); border-color: var(--accent-primary); }
                     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); border-color: transparent; }
                 }
                 .ww-category-row {
@@ -314,33 +316,34 @@
         }
 
         const protagonistIndicator = isProtagonistMode && protagonistName
-            ? `<div style="margin-top:8px; padding:8px 12px; background:var(--bg-elevated); border-radius:6px; display:flex; align-items:center; gap:8px;">
-                   <span style="font-size:16px;">🎭</span>
-                   <span style="font-size:13px; color:var(--text-primary); font-weight:500;">${protagonistName}</span>
+            ? `<div class="mt-sm p-sm bg-elevated rounded-md flex-row gap-sm">
+                   <span class="text-base">🎭</span>
+                   <span class="text-xs font-bold text-primary">${protagonistName}</span>
                </div>`
-            : isProtagonistMode ? `<div style="margin-top:8px; padding:8px 12px; background:var(--bg-elevated); border-radius:6px; font-size:12px; color:var(--text-muted); font-style:italic;">🎭 Protagonist not yet named</div>` : '';
+            : isProtagonistMode ? `<div class="mt-sm p-sm bg-elevated rounded-md text-xs text-muted italic">🎭 Protagonist not yet named</div>` : '';
 
         sidebar.innerHTML = `
-            <div style="padding:12px; border-bottom:1px solid var(--border-subtle);">
-                <div style="font-weight:700; font-size:16px; margin-bottom:4px;">${session.name}</div>
-                <div style="font-size:12px; color:var(--text-muted);">
-                    ${currentGenre?.icon || '🕸️'} ${session.contentRating.toUpperCase()} · ${isProtagonistMode ? 'Protagonist' : 'Ensemble'}
+            <div class="p-lg border-b border-subtle">
+                <div class="text-xl font-bold font-serif mb-xs" style="margin-left:-4px;">${session.name}</div>
+                <div class="flex-row items-center gap-sm opacity-60">
+                    <div class="status-dot ${session.contentRating === 'ADULT' ? 'error' : 'busy'}"></div>
+                    <div class="text-tiny text-uppercase font-bold tracking-wider">${session.contentRating} - ${session.storyFocus}</div>
                 </div>
                 ${protagonistIndicator}
             </div>
 
-            <div style="flex:1; overflow-y:auto; padding:8px;">
+            <div class="flex-1 scroll-y p-sm">
                  <div id="ww-categories-list"></div>
                  
-                 <div id="ww-entity-suggestions" style="margin-top:16px; padding:0 8px;">
+                 <div id="ww-entity-suggestions" class="mt-md px-sm">
                     <!-- Detected Entities will appear here -->
                  </div>
             </div>
 
-            <div style="padding:16px; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:8px;">
-                <button id="ww-view-context" style="padding:8px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:6px; cursor:pointer; font-size:12px; color:var(--text-secondary);">👁️ View Active Context</button>
-                <button id="ww-generate" style="padding:12px; background:var(--accent); border:none; border-radius:6px; cursor:pointer; color:white; font-weight:600;">✨ Generate Output</button>
-                <button id="ww-back" style="padding:8px; background:transparent; border:none; cursor:pointer; font-size:12px; color:var(--text-muted);">↩️ Back to Sessions</button>
+            <div class="p-md border-t border-subtle flex-col gap-sm">
+                <button id="ww-view-context" class="btn btn-secondary btn-sm w-full">👁️ View Active Context</button>
+                <button id="ww-generate" class="btn btn-primary w-full py-sm">✨ Generate Output</button>
+                <button id="ww-back" class="btn btn-ghost btn-sm w-full">↩️ Back to Sessions</button>
             </div>
         `;
 
@@ -352,23 +355,22 @@
             // Color Logic (Gray -> Yellow -> Blue -> Green)
             let color = 'var(--text-muted)'; // 0%
             if (confidence > 0) color = 'var(--warning)'; // 1-49%
-            if (confidence >= 50) color = 'var(--accent)'; // 50-79%
+            if (confidence >= 50) color = 'var(--accent-primary)'; // 50-79%
             if (confidence >= 80) color = 'var(--success)'; // 80-100%
 
             let displayLabel = conf.label;
             if (key === 'cast') displayLabel = isProtagonistMode ? 'Protagonist' : 'Cast & Characters';
 
             const row = document.createElement('div');
-            row.className = `ww-category-row ${session.currentFocus === key ? 'active' : ''}`;
-            // Tight styling to remove scrollbar
-            row.style.cssText = "margin-bottom:4px; padding:6px 8px; border-radius:6px; cursor:pointer; position:relative;";
+            row.className = `ww-category-row ${session.currentFocus === key ? 'active' : ''} mb-xs p-sm rounded-md cursor-pointer relative`;
+            // Tight styling to remove scrollbar (CSS)
             row.dataset.key = key; // For pulse targeting
 
             row.innerHTML = `
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:16px;">${conf.icon}</span>
-                    <span style="flex:1; font-size:13px; font-weight:500; color:${session.currentFocus === key ? 'var(--text-primary)' : 'var(--text-secondary)'}">${displayLabel}</span>
-                    <span style="font-size:11px; font-weight:600; color:${color};">${confidence}%</span>
+                <div class="flex-row gap-sm items-center">
+                    <span class="text-base">${conf.icon}</span>
+                    <span class="flex-1 text-xs font-bold ${session.currentFocus === key ? 'text-primary' : 'text-secondary'}">${displayLabel}</span>
+                    <span class="text-[11px] font-bold" style="color:${color};">${confidence}%</span>
                 </div>
                 <div class="ww-progress-bg">
                     <div class="ww-progress-fill" style="width:${confidence}%; background-color:${color};"></div>
@@ -415,14 +417,15 @@
         const data = session.categories[key] || { notes: '' };
 
         const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;';
+        modal.className = 'modal';
 
         modal.innerHTML = `
-            <div style="background:var(--bg-surface); padding:24px; border-radius:12px; width:600px; max-width:90vw; height:80vh; display:flex; flex-direction:column;">
-                <h3>${conf.label}</h3>
-                <textarea id="cat-notes" style="flex:1; padding:12px; background:var(--bg-base); border:1px solid var(--border-subtle); border-radius:8px; resize:none; color:var(--text-primary); white-space: pre-wrap;">${data.notes || ''}</textarea>
-                <div style="margin-top:16px; display:flex; justify-content:flex-end;">
-                     <button id="save-notes" style="padding:10px 20px; background:var(--accent); color:white; border:none; border-radius:6px;">Save & Close</button>
+            <div class="modal-backdrop"></div>
+            <div class="modal-content flex-col w-full p-lg" style="max-width:600px; height:80vh;">
+                <div class="font-bold text-lg mb-md">${conf.label}</div>
+                <textarea id="cat-notes" class="input flex-1 p-md resize-none font-mono text-sm leading-relaxed">${data.notes || ''}</textarea>
+                <div class="mt-lg flex-row justify-end">
+                     <button id="save-notes" class="btn btn-primary">Save & Close</button>
                 </div>
             </div>
         `;
@@ -449,8 +452,8 @@
         const T = A.WorldWeaver.Templates;
 
         container.innerHTML = `
-            <div id="ww-chat-messages" style="flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:16px;"></div>
-            <div id="ww-chat-status" style="padding:0 24px; font-size:12px; color:var(--text-muted); font-style:italic; height:20px;"></div>
+            <div id="ww-chat-messages" class="flex-1 scroll-y p-lg flex-col gap-md"></div>
+            <div id="ww-chat-status" class="px-lg h-5 text-xs text-muted italic"></div>
             <!-- Chat Styles for Formatting -->
             <style>
                 #ww-chat-messages strong { color: #facc15; font-weight: 700; } /* Yellow/Gold for emphasis */
@@ -458,21 +461,21 @@
                 #ww-chat-messages .chat-code-inline { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; }
                 #ww-chat-messages ul { margin-left: 20px; }
             </style>
-            <div style="padding:16px; background:var(--bg-elevated); border-top:1px solid var(--border-subtle);">
+            <div class="p-md bg-elevated border-t border-subtle">
                 <!-- Header: Mode Switch -->
-                <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:8px; gap:12px;">
-                     <div style="font-size:12px; color:var(--text-muted); font-weight:600; letter-spacing:0.5px; text-transform:uppercase;">Mode:</div>
-                     <div id="ww-mode-switch" style="display:flex; background:var(--bg-base); padding:2px; border-radius:20px; border:1px solid var(--border-subtle); cursor:pointer; position:relative;">
-                        <div id="ww-mode-highlight" style="position:absolute; top:2px; left:2px; width:calc(50% - 2px); height:calc(100% - 4px); background:var(--accent); border-radius:18px; transition:all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                <div class="flex-row justify-end items-center mb-md gap-md">
+                     <div class="text-[10px] text-muted font-bold text-uppercase tracking-wider">Mode:</div>
+                     <div id="ww-mode-switch" class="flex-row bg-inset rounded-full border border-subtle cursor-pointer relative" style="width:200px; height:32px; padding:2px;">
+                        <div id="ww-mode-highlight" class="absolute bg-accent rounded-full transition-all duration-300 shadow-sm" style="top:2px; left:2px; width:calc(50% - 2px); height:calc(100% - 4px);"></div>
                         
-                        <div class="ww-mode-opt" data-mode="build" style="position:relative; z-index:1; padding:4px 0; width:80px; text-align:center; font-size:11px; font-weight:700; color:white; transition:color 0.3s; user-select: none;">Build</div>
-                        <div class="ww-mode-opt" data-mode="brainstorm" style="position:relative; z-index:1; padding:4px 0; width:80px; text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); transition:color 0.3s; user-select: none;">Brainstorm</div>
+                        <div class="ww-mode-opt flex-1 flex-row items-center justify-center text-tiny font-bold text-white relative z-10 transition-colors select-none" data-mode="build">BUILD</div>
+                        <div class="ww-mode-opt flex-1 flex-row items-center justify-center text-tiny font-bold text-muted relative z-10 transition-colors select-none" data-mode="brainstorm">BRAINSTORM</div>
                      </div>
                 </div>
 
-                <div style="display:flex; gap:8px;">
-                    <textarea id="ww-chat-input" placeholder="${session.mode === 'brainstorm' ? 'Ask me anything to spark ideas...' : 'Type your answer...'}" style="flex:1; min-height:44px; padding:12px; border-radius:8px; border:1px solid ${session.mode === 'brainstorm' ? 'var(--accent)' : 'var(--border-subtle)'}; box-shadow:${session.mode === 'brainstorm' ? '0 0 0 1px var(--accent)' : 'none'}; background:var(--bg-surface); color:var(--text-primary); resize:none; transition: all 0.3s ease;"></textarea>
-                    <button id="ww-send-btn" style="padding:0 20px; background:${session.mode === 'brainstorm' ? '#d946ef' : 'var(--accent)'}; color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition: background 0.3s;">
+                <div class="flex-row gap-sm items-stretch">
+                    <textarea id="ww-chat-input" placeholder="${session.mode === 'brainstorm' ? 'Ask me anything to spark ideas...' : 'Type your answer...'}" class="flex-1 p-md rounded-md bg-surface text-primary resize-none transition-all input" style="height:48px; min-height:48px;"></textarea>
+                    <button id="ww-send-btn" class="px-lg bg-accent text-white rounded-md font-bold cursor-pointer transition-all btn shadow-sm hover:brightness-110 active:scale-95" style="min-width:100px;">
                         ${session.mode === 'brainstorm' ? 'Spark ✨' : 'Send'}
                     </button>
                 </div>
@@ -494,13 +497,13 @@
 
             if (mode === 'build') {
                 highlight.style.left = '2px';
-                highlight.style.background = 'var(--accent)';
+                highlight.style.background = 'var(--accent-primary)';
                 opts[0].style.color = 'white';
                 opts[1].style.color = 'var(--text-muted)';
                 input.placeholder = 'Type your answer...';
                 input.style.borderColor = 'var(--border-subtle)';
                 input.style.boxShadow = 'none';
-                sendBtn.style.background = 'var(--accent)';
+                sendBtn.style.background = 'var(--accent-primary)';
                 sendBtn.textContent = 'Send';
             } else {
                 highlight.style.left = '50%';
@@ -527,7 +530,7 @@
 
         session.chatHistory.forEach(msg => {
             const el = document.createElement('div');
-            el.style.cssText = `max-width:80%; padding:12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; ${msg.role === 'user' ? 'align-self:flex-end; background:var(--accent); color:white;' : 'align-self:flex-start; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border-subtle);'}`;
+            el.style.cssText = `max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; ${msg.role === 'user' ? 'align-self:flex-end; background:var(--accent-primary); color:white;' : 'align-self:flex-start; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border-subtle);'}`;
 
             let finalHtml = '';
 
@@ -541,7 +544,6 @@
                 let questionCat = msg.questions?.[0]?.category || msg.category;
 
                 // NORMALIZE KEY (Fix for missing badges)
-                // LLM might return "Story Arc" instead of "storyArc"
                 if (questionCat && !T.CATEGORIES[questionCat]) {
                     const normalized = questionCat.toLowerCase().replace(/[^a-z]/g, '');
                     const found = Object.keys(T.CATEGORIES).find(k => k.toLowerCase() === normalized);
@@ -555,36 +557,22 @@
                     finalHtml += badgeHtml;
                 }
 
-                // 3. Question (Crucial: Was missing before!)
+                // 3. Question
                 if (msg.question) {
                     finalHtml += `<div style="font-weight:600; font-size:1.05em; margin-top:4px; color:var(--text-primary);">${msg.question}</div>`;
                 }
 
                 // 4. Suggestion Chips
-                // If the LLM provided a 'suggestion', render it as a clickable chip.
                 if (msg.questions && msg.questions.length > 0) {
                     msg.questions.forEach(q => {
                         if (q.suggestion) {
                             const chipId = `sugg-${Math.random().toString(36).substr(2, 9)}`;
                             finalHtml += `
-                                <div class="ww-suggestion-chip" id="${chipId}" style="
-                                    margin-top: 8px; 
-                                    display: inline-flex; 
-                                    align-items: center; 
-                                    gap: 6px; 
-                                    padding: 6px 12px; 
-                                    background: var(--bg-surface); 
-                                    border: 1px solid var(--accent); 
-                                    border-radius: 16px; 
-                                    font-size: 12px; 
-                                    color: var(--text-primary); 
-                                    cursor: pointer; 
-                                    transition: all 0.2s;
-                                    opacity: 0.9;">
-                                    <span style="color:var(--accent);">✨</span>
+                                <div class="ww-suggestion-chip" id="${chipId}" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--accent-primary); border-radius: 16px; font-size: 12px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; opacity: 0.9;">
+                                    <span style="color:var(--accent-primary);">✨</span>
                                     <span>${q.suggestion}</span>
                                 </div>
-                             `;
+                            `;
 
                             // Defer click handler attachment until after append
                             setTimeout(() => {
@@ -597,8 +585,7 @@
                                         if (input) {
                                             input.value = q.suggestion;
                                             input.focus();
-                                            // Optional: Highlight effect
-                                            chip.style.background = 'var(--accent)';
+                                            chip.style.background = 'var(--accent-primary)';
                                             chip.style.color = 'white';
                                             setTimeout(() => {
                                                 chip.style.background = 'var(--bg-surface)';
@@ -679,18 +666,15 @@
         const isProtagonistMode = session.storyFocus === 'protagonist';
 
         const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
-            z-index: 9999; backdrop-filter: blur(4px);
-        `;
+        modal.className = 'modal';
 
         modal.innerHTML = `
-            <div style="max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
-                <h3 style="margin-top: 0;">🕸️ Generate World Output</h3>
-                <p style="color: var(--text-muted); margin-bottom: 24px;">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
+            <div class="modal-backdrop"></div>
+            <div class="modal-content w-full p-lg" style="max-width:500px;">
+                <h3 class="mt-0 mb-sm">🕸️ Generate World Output</h3>
+                <p class="text-muted mb-lg">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
 
-                <!-- SETTINGS UI -->
+                <!--SETTINGS UI-- >
                 <div style="margin-bottom:24px; padding:16px; background:var(--bg-elevated); border-radius:8px; border:1px solid var(--border-subtle);">
                      <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Generation Settings</div>
                      
@@ -698,7 +682,7 @@
                      <label style="display:block; margin-bottom:12px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                             <span style="font-size:13px; font-weight:600;">Information Density</span>
-                            <span id="label-dossier" style="font-size:11px; color:var(--accent);">High (Comprehensive)</span>
+                            <span id="label-dossier" style="font-size:11px; color:var(--accent-primary);">High (Comprehensive)</span>
                         </div>
                         <input type="range" id="set-dossier" min="0" max="1" step="1" value="1" style="width:100%; cursor:pointer;">
                      </label>
@@ -707,7 +691,7 @@
                      <label style="display:block;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                             <span style="font-size:13px; font-weight:600;">Writing Verbosity</span>
-                            <span id="label-verbosity" style="font-size:11px; color:var(--accent);">Standard (Chat Optimized)</span>
+                            <span id="label-verbosity" style="font-size:11px; color:var(--accent-primary);">Standard (Chat Optimized)</span>
                         </div>
                         <input type="range" id="set-verbosity" min="0" max="1" step="1" value="0" style="width:100%; cursor:pointer;">
                      </label>
@@ -748,7 +732,7 @@
 
                 <button id="gen-modal-cancel" style="margin-top: 24px; width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
             </div>
-        `;
+            `;
         document.body.appendChild(modal);
 
         // Slider Logic
@@ -770,7 +754,7 @@
         });
 
         modal.querySelectorAll('.ww-gen-option').forEach(btn => {
-            btn.onmouseover = () => { btn.style.borderColor = 'var(--accent)'; btn.style.transform = 'translateY(-2px)'; };
+            btn.onmouseover = () => { btn.style.borderColor = 'var(--accent-primary)'; btn.style.transform = 'translateY(-2px)'; };
             btn.onmouseout = () => { btn.style.borderColor = 'var(--border-subtle)'; btn.style.transform = 'none'; };
             btn.onclick = () => {
                 const type = btn.dataset.type;
@@ -807,13 +791,13 @@
 
         const modal = document.createElement('div');
         modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
-            z-index: 9999; backdrop-filter: blur(4px);
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
+        z-index: 9999; backdrop-filter: blur(4px);
         `;
 
         modal.innerHTML = `
-            <div style="max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            < div style = "max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);" >
                 <h3 style="margin-top: 0;">👥 Select Characters to Generate</h3>
                 <p style="color: var(--text-muted); margin-bottom: 16px;">Choose which cast members to generate cards for:</p>
 
@@ -831,10 +815,10 @@
 
                 <div style="display: flex; gap: 8px;">
                     <button id="cast-cancel" style="flex:1; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
-                    <button id="cast-generate" style="flex:1; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Generate Selected</button>
+                    <button id="cast-generate" style="flex:1; padding: 12px; background: var(--accent-primary); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Generate Selected</button>
                 </div>
-            </div>
-        `;
+            </div >
+            `;
         document.body.appendChild(modal);
 
         modal.querySelector('#cast-cancel').onclick = () => modal.remove();
@@ -867,13 +851,13 @@
         let actorContext = "None imported";
         if (session.importedActor) {
             const a = session.importedActor;
-            actorContext = `IMPORTED ACTOR PROFILE:\n`;
-            actorContext += `Name: ${a.name}\n`;
-            if (a.gender) actorContext += `Gender: ${a.gender}\n`;
-            if (a.pronouns) actorContext += `Pronouns: ${a.pronouns}\n`;
-            if (a.description) actorContext += `Description: ${a.description}\n`;
-            if (a.summary) actorContext += `Summary: ${a.summary}\n`;
-            if (a.notes) actorContext += `Notes: ${a.notes}\n`;
+            actorContext = `IMPORTED ACTOR PROFILE: \n`;
+            actorContext += `Name: ${a.name} \n`;
+            if (a.gender) actorContext += `Gender: ${a.gender} \n`;
+            if (a.pronouns) actorContext += `Pronouns: ${a.pronouns} \n`;
+            if (a.description) actorContext += `Description: ${a.description} \n`;
+            if (a.summary) actorContext += `Summary: ${a.summary} \n`;
+            if (a.notes) actorContext += `Notes: ${a.notes} \n`;
         }
 
         // Build notes context
@@ -881,9 +865,9 @@
         Object.entries(session.categories).forEach(([key, data]) => {
             const label = T.CATEGORIES[key]?.label || key;
             if (data.notes && data.notes.trim()) {
-                notesContext += `## ${label}\n${data.notes}\n\n`;
+                notesContext += `## ${label} \n${data.notes} \n\n`;
             } else if (data.summary) {
-                notesContext += `## ${label}\n${data.summary}\n\n`;
+                notesContext += `## ${label} \n${data.summary} \n\n`;
             }
         });
 
@@ -894,26 +878,26 @@
         }
 
         const fullContext = `=== SESSION INFO ===
-World: ${world?.label || session.worldArchetype}
-Mode: ${mode?.label || session.storyMode}
-Focus: ${session.storyFocus}
-Rating: ${session.contentRating}
+            World: ${world?.label || session.worldArchetype}
+        Mode: ${mode?.label || session.storyMode}
+        Focus: ${session.storyFocus}
+        Rating: ${session.contentRating}
 
 ${tagsContext}=== ACTOR DATA ===
-${actorContext}
+            ${actorContext}
 
 === WORLD NOTES ===
-${notesContext || '(No notes yet)'}`;
+            ${notesContext || '(No notes yet)'} `;
 
         const modal = document.createElement('div');
         modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
-            z-index: 10001; backdrop-filter: blur(4px);
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.75); display: flex; align - items: center; justify - content: center;
+        z - index: 10001; backdrop - filter: blur(4px);
         `;
 
         modal.innerHTML = `
-            <div style="width: 800px; max-width: 90vw; height: 80vh; background: var(--bg-surface); display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden;">
+            < div style = "width: 800px; max-width: 90vw; height: 80vh; background: var(--bg-surface); display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden;" >
                 <div style="padding: 16px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between;">
                     <h3 style="margin:0">🧠 Active LLM Context</h3>
                     <button class="btn-close" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 20px;">✕</button>
@@ -921,8 +905,8 @@ ${notesContext || '(No notes yet)'}`;
                 <div style="flex: 1; padding: 0; overflow: hidden;">
                     <textarea style="width: 100%; height: 100%; background: var(--bg-base); color: var(--text-primary); border: none; padding: 16px; font-family: monospace; font-size: 13px; resize: none; white-space: pre-wrap;" readonly>${fullContext}</textarea>
                 </div>
-            </div>
-        `;
+            </div >
+            `;
 
         document.body.appendChild(modal);
         modal.querySelector('.btn-close').onclick = () => modal.remove();
@@ -985,18 +969,18 @@ ${notesContext || '(No notes yet)'}`;
             const el = document.createElement('div');
             el.style.cssText = "background:var(--bg-elevated); padding:8px; border-radius:6px; margin-bottom:4px; border:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:4px; font-size:12px;";
             el.innerHTML = `
-                <div style="font-weight:600; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+            < div style = "font-weight:600; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;" >
                     <span>${ent.name}</span>
                     <span style="font-size:10px; padding:2px 4px; background:rgba(255,255,255,0.1); border-radius:4px;">${ent.type}</span>
-                </div>
+                </div >
                 <div style="color:var(--text-secondary); font-size:11px; line-height:1.2;">
                     ${ent.context || 'Mentioned in chat'}
                 </div>
                 <div style="display:flex; gap:6px; margin-top:4px;">
-                    <button class="es-btn-add" style="flex:1; padding:4px; cursor:pointer; background:var(--accent); color:white; border:none; border-radius:4px; font-size:10px;">Add</button>
+                    <button class="es-btn-add" style="flex:1; padding:4px; cursor:pointer; background:var(--accent-primary); color:white; border:none; border-radius:4px; font-size:10px;">Add</button>
                     <button class="es-btn-dismiss" style="padding:4px 8px; cursor:pointer; background:transparent; border:1px solid var(--border-subtle); color:var(--text-muted); border-radius:4px; font-size:10px;">✕</button>
                 </div>
-             `;
+        `;
 
             // Add Logic
             el.querySelector('.es-btn-add').onclick = () => {
@@ -1011,7 +995,7 @@ ${notesContext || '(No notes yet)'}`;
 
                 // Append to Notes
                 if (!session.categories[targetCat].notes) session.categories[targetCat].notes = '';
-                session.categories[targetCat].notes += `\n• ${ent.name} (${ent.type}): ${ent.context}`;
+                session.categories[targetCat].notes += `\n• ${ent.name} (${ent.type}): ${ent.context} `;
 
                 // Remove from suggestions
                 session.entitySuggestions.splice(idx, 1);
@@ -1019,7 +1003,7 @@ ${notesContext || '(No notes yet)'}`;
                 renderEntitySuggestions(container, session, sessions);
 
                 // Toast
-                if (A.UI?.Toast?.show) A.UI.Toast.show(`Added ${ent.name} to ${targetCat}`, 'success');
+                if (A.UI?.Toast?.show) A.UI.Toast.show(`Added ${ent.name} to ${targetCat} `, 'success');
             };
 
             // Dismiss Logic
@@ -1044,7 +1028,7 @@ ${notesContext || '(No notes yet)'}`;
 
         keys.forEach(key => {
             // Find row by dataset
-            const row = list.querySelector(`.ww-category-row[data-key="${key}"]`);
+            const row = list.querySelector(`.ww - category - row[data - key="${key}"]`);
             if (row) {
                 // Remove class to reset animation if already playing
                 row.classList.remove('ww-pulse');

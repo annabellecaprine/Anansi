@@ -39,25 +39,14 @@
             }
         }
         // Layout: Split Pane (List | Editor)
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '280px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-sidebar-layout';
 
         // 1. Script List Column
         const listCol = document.createElement('div');
-        listCol.className = 'card';
-        listCol.style.display = 'flex';
-        listCol.style.flexDirection = 'column';
-        listCol.style.height = '100%';
-        listCol.style.marginBottom = '0';
+        listCol.className = 'card flex-col mb-0 h-full';
 
         const listHeader = document.createElement('div');
-        listHeader.className = 'card-header';
-        listHeader.style.flexDirection = 'column';
-        listHeader.style.alignItems = 'stretch';
-        listHeader.style.gap = '8px';
+        listHeader.className = 'card-header flex-col items-stretch gap-sm';
 
         // Footer for Multi-Select
         const listFooter = document.createElement('div');
@@ -138,8 +127,6 @@
                 fSel.querySelector('#btn-del-multi').disabled = selectedIds.size === 0;
                 fSel.querySelector('#btn-del-multi').style.opacity = selectedIds.size === 0 ? '0.5' : '1';
             } else {
-                fStd.style.display = 'block';
-                fSel.style.display = 'none';
                 hStd.style.visibility = 'visible';
                 hStd.style.opacity = '1';
                 hStd.style.pointerEvents = 'auto';
@@ -191,17 +178,10 @@
 
         // 2. Editor Column
         const editorCol = document.createElement('div');
-        editorCol.className = 'card';
-        editorCol.style.display = 'flex';
-        editorCol.style.flexDirection = 'column';
-        editorCol.style.height = '100%';
-        editorCol.style.marginBottom = '0';
+        editorCol.className = 'card flex-col h-full mb-0';
 
         const editorHeader = document.createElement('div');
-        editorHeader.className = 'card-header';
-        editorHeader.style.justifyContent = 'flex-start';
-        editorHeader.style.gap = 'var(--space-3)';
-        editorHeader.style.alignItems = 'center'; // Ensure vertical alignment
+        editorHeader.className = 'toolbar justify-start gap-md items-center';
         editorHeader.innerHTML = `
       <input type="text" id="script-name-input" class="input" style="width:200px; padding:2px 8px; height:24px;" placeholder="Script Name" disabled>
       <div style="flex:1;"></div>
@@ -216,22 +196,12 @@
     `;
 
         const editorBody = document.createElement('div');
-        editorBody.className = 'card-body';
-        editorBody.style.flex = '1';
-        editorBody.style.padding = '0';
-        editorBody.style.position = 'relative';
-        editorBody.style.overflow = 'hidden';
-        editorBody.style.isolation = 'isolate'; // Create stacking context
+        editorBody.className = 'card-body relative overflow-hidden isolate p-0 flex-1';
 
         // Monaco container - with proper containment for widgets
         const monacoContainer = document.createElement('div');
         monacoContainer.id = 'monaco-editor-container';
-        monacoContainer.style.width = '100%';
-        monacoContainer.style.height = '100%';
-        monacoContainer.style.position = 'absolute';
-        monacoContainer.style.top = '0';
-        monacoContainer.style.left = '0';
-        monacoContainer.style.zIndex = '1';
+        monacoContainer.className = 'monaco-wrapper';
 
         // Placeholder while Monaco loads
         const placeholder = document.createElement('div');
@@ -434,18 +404,11 @@
                 if (script.id === 'sys_aura') displayName = 'SPIDER_AURA';
 
                 const item = document.createElement('div');
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-subtle)';
-                item.style.cursor = 'pointer';
-                item.style.display = 'flex';
-                item.style.justifyContent = 'space-between';
-                item.style.alignItems = 'center';
-                item.style.gap = '8px';
+                item.className = 'list-item justify-between gap-sm';
 
                 if (script.id === currentScriptId && !selectionMode) {
-                    item.style.backgroundColor = 'var(--bg-surface)';
+                    item.classList.add('active');
                     item.style.borderLeft = script.system ? '3px solid var(--accent-secondary)' : '3px solid var(--accent-primary)';
-                    item.style.paddingLeft = '9px';
                 }
 
                 if (selectionMode && selectedIds.has(script.id)) {
@@ -555,10 +518,8 @@
                 item.appendChild(reorderDiv);
 
                 if (script.id !== currentScriptId) {
-                    item.onmouseenter = () => item.style.backgroundColor = 'var(--bg-surface)';
-                    item.onmouseleave = () => {
-                        if (script.id !== currentScriptId) item.style.backgroundColor = 'transparent';
-                    };
+                    item.onmouseenter = () => item.classList.add('hover');
+                    item.onmouseleave = () => item.classList.remove('hover');
                 }
 
                 listBody.appendChild(item);

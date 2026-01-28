@@ -125,6 +125,7 @@
     label: 'Tester',
     subtitle: 'Tracing the Web',
     category: 'Deep',
+    hidden: true,
     render: render
   });
 

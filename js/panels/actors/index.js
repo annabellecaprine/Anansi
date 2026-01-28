@@ -77,19 +77,11 @@
 
     function render(container, context) {
         const state = A.State.get();
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '250px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-sidebar-layout';
 
         // 1. List Col
         const listCol = document.createElement('div');
-        listCol.className = 'card';
-        listCol.style.display = 'flex';
-        listCol.style.flexDirection = 'column';
-        listCol.style.height = '100%';
-        listCol.style.marginBottom = '0';
+        listCol.className = 'card flex-col mb-0 h-full';
 
         listCol.innerHTML = `
       <div class="card-header" style="flex-wrap:wrap; gap:8px;">
@@ -108,9 +100,9 @@
 
         <input class="input" id="search-actors" placeholder="Search..." style="width:100%; font-size:12px; height:28px;" value="${searchTerm}">
       </div>
-      <div class="card-body" id="actor-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer" id="footer-actions" style="display:none; padding:8px; border-top:1px solid var(--border-subtle);">
-         <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected</button>
+      <div class="card-body p-0 flex-1 scroll-y" id="actor-list"></div>
+      <div class="card-footer hidden p-sm border-t border-subtle" id="footer-actions">
+          <button class="btn btn-sm w-full bg-status-error text-white" id="btn-del-multi">Delete Selected</button>
       </div>
     `;
 
@@ -118,12 +110,7 @@
 
         // 2. Editor Col
         const editorCol = document.createElement('div');
-        editorCol.className = 'card';
-        editorCol.style.display = 'flex';
-        editorCol.style.flexDirection = 'column';
-        editorCol.style.height = '100%';
-        editorCol.style.marginBottom = '0';
-        editorCol.style.padding = '0'; // Custom padding management
+        editorCol.className = 'card flex-col mb-0 p-0 h-full';
 
         // Editor Header
         const header = document.createElement('div');
@@ -137,9 +124,7 @@
 
         // Tabs (removed Voice tab)
         const tabs = document.createElement('div');
-        tabs.style.display = 'flex';
-        tabs.style.borderBottom = '1px solid var(--border-subtle)';
-        tabs.style.background = 'var(--bg-elevated)';
+        tabs.className = 'tab-header';
 
         // const state = A.State.get(); // Duplicate declaration removed
 
@@ -150,20 +135,11 @@
     `;
 
 
-        // Tab Styles (apply immediately so tabs look styled before any actor is selected)
-        const tabStyle = document.createElement('style');
-        tabStyle.textContent = `
-          .tab-btn { padding: 8px 16px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; transition: color 0.1s, border-color 0.1s; }
-          .tab-btn:hover { color: var(--text-primary); }
-          .tab-btn.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
-        `;
-        tabs.appendChild(tabStyle);
+        // Tab Styling handled by CSS (.tab-btn)
 
         // Tab Content Area
         const content = document.createElement('div');
-        content.className = 'card-body';
-        content.style.flex = '1';
-        content.style.overflowY = 'auto';
+        content.className = 'card-body flex-1 scroll-y';
         content.id = 'actor-content';
 
         editorCol.appendChild(header);
@@ -290,14 +266,10 @@
                     if (!file) return;
                 };
                 const item = document.createElement('div');
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-subtle)';
-                item.style.cursor = 'pointer';
-                item.style.fontSize = '13px';
+                item.className = 'list-item';
 
                 if (actor.id === currentId && !selectionMode) {
-                    item.style.backgroundColor = 'var(--bg-surface)';
-                    item.style.borderLeft = '3px solid var(--accent-primary)';
+                    item.classList.add('active');
                 }
 
                 // Selection Styles

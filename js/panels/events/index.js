@@ -29,24 +29,16 @@
       }
     };
 
-    container.style.height = '100%';
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = '250px 1fr';
-    container.style.gap = 'var(--space-4)';
-    container.style.overflow = 'hidden';
+    container.className = 'panel-sidebar-layout';
 
     // 1. Sidebar (Tabs + List)
     const listCol = document.createElement('div');
-    listCol.className = 'card';
-    listCol.style.display = 'flex';
-    listCol.style.flexDirection = 'column';
-    listCol.style.marginBottom = '0';
-    listCol.style.padding = '0';
+    listCol.className = 'card flex-col mb-0 p-0';
 
     listCol.innerHTML = `
-      <div style="display:flex; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
-         <div class="tab-btn active" id="tab-logic" style="flex:1; text-align:center; padding:10px; cursor:pointer; font-weight:bold; border-bottom:2px solid var(--accent-primary);">Logos (Logic)</div>
-         <div class="tab-btn" id="tab-prob" style="flex:1; text-align:center; padding:10px; cursor:pointer; font-weight:bold; color:var(--text-muted);">Chaos</div>
+      <div class="tab-header">
+         <div class="tab-btn active" id="tab-logic">Logos (Logic)</div>
+         <div class="tab-btn" id="tab-prob">Chaos</div>
       </div>
       <div class="card-body" id="event-list" style="padding:0; flex:1; overflow-y:auto;"></div>
       <div class="card-footer" id="events-footer" style="display:flex; flex-direction:column; gap:8px; padding:8px; border-top:1px solid var(--border-subtle);">
@@ -141,16 +133,12 @@
 
       // Update Tab UI
       if (tab === 'logic') {
-        /** @type {HTMLElement} */ (tabLogic).style.color = 'var(--text-primary)';
-        /** @type {HTMLElement} */ (tabLogic).style.borderBottomColor = 'var(--accent-primary)';
-        /** @type {HTMLElement} */ (tabProb).style.color = 'var(--text-muted)';
-        /** @type {HTMLElement} */ (tabProb).style.borderBottomColor = 'transparent';
+        tabLogic.classList.add('active');
+        tabProb.classList.remove('active');
         btnAdd.textContent = '+ New Event';
       } else {
-        /** @type {HTMLElement} */ (tabProb).style.color = 'var(--text-primary)';
-        /** @type {HTMLElement} */ (tabProb).style.borderBottomColor = 'var(--accent-primary)';
-        /** @type {HTMLElement} */ (tabLogic).style.color = 'var(--text-muted)';
-        /** @type {HTMLElement} */ (tabLogic).style.borderBottomColor = 'transparent';
+        tabProb.classList.add('active');
+        tabLogic.classList.remove('active');
         btnAdd.textContent = '+ New Group';
       }
       refreshList();
@@ -160,27 +148,17 @@
     /** @type {HTMLElement} */ (tabLogic).onclick = () => switchTab('logic');
     /** @type {HTMLElement} */ (tabProb).onclick = () => switchTab('probability');
 
-    function refreshList() {
+    const refreshList = () => {
       listBody.innerHTML = '';
-
       if (currentTab === 'logic') {
-        // Render Logic Events (Dict)
         const items = Object.values(state.aura.events.items);
         if (!items.length) { listBody.innerHTML = '<div class="muted" style="padding:16px; text-align:center;">No logic events.</div>'; return; }
 
         items.forEach(ev => {
           const row = document.createElement('div');
-          row.className = 'list-item';
-          row.style.padding = '8px 12px';
-          row.style.borderBottom = '1px solid var(--border-subtle)';
-          row.style.cursor = 'pointer';
-          row.style.fontSize = '12px';
-          if (ev.id === currentId && !selectionMode) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
-
-          if (selectionMode && selectedIds.has(ev.id)) {
-            row.style.background = 'rgba(218, 165, 32, 0.1)';
-            row.style.borderColor = 'var(--accent-primary)';
-          }
+          row.className = 'list-item p-sm flex-col items-stretch';
+          if (ev.id === currentId && !selectionMode) row.classList.add('active');
+          if (selectionMode && selectedIds.has(ev.id)) row.classList.add('selected');
 
           let syncBadge = '';
           if (ev.vaultLink && ev.vaultLink.vaultId) {
@@ -214,17 +192,11 @@
 
         groups.forEach((g, idx) => {
           const row = document.createElement('div');
-          row.style.padding = '8px 12px';
-          row.style.borderBottom = '1px solid var(--border-subtle)';
-          row.style.cursor = 'pointer';
-          row.style.fontSize = '12px';
+          row.className = 'list-item p-sm flex-col items-stretch';
           // Use index as ID for array items logic
           const thisId = 'g-' + idx;
-          if (thisId === currentId && !selectionMode) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
-          if (selectionMode && selectedIds.has(thisId)) {
-            row.style.background = 'rgba(218, 165, 32, 0.1)';
-            row.style.borderColor = 'var(--accent-primary)';
-          }
+          if (thisId === currentId && !selectionMode) row.classList.add('active');
+          if (selectionMode && selectedIds.has(thisId)) row.classList.add('selected');
 
           let syncBadge = '';
           if (g.vaultLink && g.vaultLink.vaultId) {
@@ -234,12 +206,12 @@
           }
 
           row.innerHTML = `
-              <div style="font-weight:bold; display:flex; align-items:center; ${!g.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
-                 ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(thisId) ? 'checked' : ''}>` : ''}
-                 ${g.name || 'Group'}${syncBadge}
-              </div>
-              <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
-            `;
+                <div style="font-weight:bold; display:flex; align-items:center; ${!g.enabled ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">
+                   ${selectionMode ? `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(thisId) ? 'checked' : ''}>` : ''}
+                   ${g.name || 'Group'}${syncBadge}
+                </div>
+                <div style="font-size:10px; color:var(--text-muted); margin-left:${selectionMode ? '24px' : '0'};">Chance: ${g.triggerChancePct || 15}% • ${g.items ? g.items.length : 0} items</div>
+              `;
           /** @type {HTMLElement} */ (row).onclick = () => {
             if (selectionMode) {
               if (selectedIds.has(thisId)) selectedIds.delete(thisId); else selectedIds.add(thisId);
@@ -251,7 +223,7 @@
           listBody.appendChild(row);
         });
       }
-    }
+    };
 
     // --- Multi-Select Handlers ---
     const updateFooterState = () => {

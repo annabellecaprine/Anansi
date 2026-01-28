@@ -507,8 +507,7 @@ CRITICAL: Respond ONLY with valid JSON:
   // RENDER FUNCTION
   // ============================================
   function render(container) {
-    container.style.height = '100%';
-    container.style.overflowY = 'hidden';
+    container.className = 'h-full overflow-hidden';
     container.style.background = 'linear-gradient(135deg, var(--bg-base) 0%, rgba(139, 69, 19, 0.05) 100%)';
 
     // State
@@ -531,99 +530,49 @@ CRITICAL: Respond ONLY with valid JSON:
     let skipTyping = false;
 
     container.innerHTML = `
-      <div class="parlor-layout" style="
-        display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: var(--space-4);
-        height: 100%;
-        padding: var(--space-4);
-        max-width: 1100px;
-        margin: 0 auto;
-      ">
+      <div class="panel-grid h-full p-md gap-md mx-auto" style="grid-template-columns: 280px 1fr; max-width: 1400px;">
         <!-- Left: Spider Visual -->
-        <div class="parlor-visual" style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: flex-start;
-          padding-top: var(--space-6);
-          position: relative;
-        ">
-          <div class="spider-glow" style="
-            position: absolute;
+        <div class="flex-col items-center justify-start pt-lg relative">
+          <div class="spider-glow absolute rounded-full" style="
             width: 240px;
             height: 240px;
             background: radial-gradient(circle, rgba(218, 165, 32, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
             animation: pulse-glow 4s ease-in-out infinite;
             top: 20px;
           "></div>
           
           <!-- Sparkle particle container -->
-          <div id="sparkle-container" class="sparkle-container" style="
-            position: absolute;
+          <div id="sparkle-container" class="sparkle-container absolute z-10" style="
             width: 220px;
             height: 220px;
             top: 24px;
             pointer-events: none;
-            z-index: 10;
           "></div>
           
           <img 
             id="spider-image"
             src="assets/spider_parlor.png" 
             alt="Anansi, the Spider God" 
-            class="spider-img"
+            class="spider-img relative z-1"
             style="
               max-width: 220px;
               filter: drop-shadow(0 0 20px rgba(218, 165, 32, 0.3));
-              position: relative;
-              z-index: 1;
             "
             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
           >
-          <div class="spider-fallback" style="
-            display: none;
+          <div class="spider-fallback hidden rounded-full items-center justify-center text-4xl" style="
             width: 150px;
             height: 150px;
             background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%);
-            border-radius: 50%;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
           ">🕷️</div>
           
-          <div style="
-            text-align: center;
-            margin-top: var(--space-4);
-            position: relative;
-            z-index: 1;
-          ">
-            <h2 style="
-              font-size: 18px;
-              font-weight: 300;
-              color: var(--text-primary);
-              margin: 0 0 8px 0;
-              letter-spacing: 2px;
-            ">THE SPIDER'S PARLOR</h2>
-            <p style="
-              font-size: 11px;
-              color: var(--text-muted);
-              font-style: italic;
-              max-width: 200px;
-              line-height: 1.4;
-            ">"Every story begins with a single thread..."</p>
+          <div class="text-center mt-md relative z-1">
+            <h2 class="text-lg font-light text-primary mb-sm" style="letter-spacing: 2px;">THE SPIDER'S PARLOR</h2>
+            <p class="text-xs text-muted italic leading-relaxed" style="max-width: 200px;">"Every story begins with a single thread..."</p>
           </div>
 
           <!-- Magical Rune Display -->
-          <div id="rune-container" class="rune-container" style="
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            padding: var(--space-4);
-            margin-top: var(--space-3);
+          <div id="rune-container" class="rune-container flex-row flex-wrap justify-center items-center gap-md p-md mt-sm" style="
             min-height: 80px;
             max-width: 240px;
           "></div>
@@ -638,31 +587,12 @@ CRITICAL: Respond ONLY with valid JSON:
         </div>
 
         <!-- Right: Conversation Area -->
-        <div class="parlor-conversation" style="
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          background: var(--bg-surface);
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--border-subtle);
-          overflow: hidden;
-        ">
+        <div class="parlor-conversation flex-col h-full bg-surface rounded-lg border border-subtle overflow-hidden">
           <!-- Conversation Log -->
-          <div id="conversation-log" style="
-            flex: 1;
-            overflow-y: auto;
-            padding: var(--space-4);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-4);
-          "></div>
+          <div id="conversation-log" class="flex-1 scroll-y p-md flex-col gap-md"></div>
 
           <!-- Input Area (for textareas) -->
-          <div id="input-area" style="
-            padding: var(--space-3);
-            border-top: 1px solid var(--border-subtle);
-            display: none;
-          "></div>
+          <div id="input-area" class="p-sm border-t border-subtle hidden"></div>
         </div>
       </div>
 

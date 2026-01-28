@@ -2,6 +2,25 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v1.21.0 - 2026-01-27
+### Architecture (Phase 6: Strict Isolation)
+- **RPG Engine Refactor**: Migrated the legacy monolithic RPG plugin (`js/plugins/rpg`) to a clean, modular Core architecture (`js/core/rpg` and `js/panels/rpg_*`).
+- **Loader Infrastructure**: Implemented `A.UI.loadPanel(id)` and `loader.js` to support future lazy-loading. (Currently operating in pass-through mode for RPG stability).
+- **Manifest Authority**: Introduced `panel_manifest.js` as the single source of truth for panel metadata (Icon, Label, Category, Order).
+- **Smart Merge System**: Rewrote `A.registerPanel` to strictly enforce Manifest metadata (Order/Category) over legacy file configurations, putting an end to "Jumping Tabs".
+
+### Navigation Overhaul
+- **Reorganized Experience**: Restructured the entire sidebar into a cohesive narrative flow:
+  - **Loom**: Mission Control, Vault
+  - **Seeds**: Actors, Character, Pairs, Voices, Lorebook
+  - **Weave**: Events, Scoring, Scripts, Custom Rules
+  - **Magic**: The Spindle, MicroCues, Flow Explorer
+  - **Sacred Tools**: Spider's Parlor, Nabu, World Weaver, Writer's Block, Hina's Guide
+  - **Deep**: Sources, Tokens
+  - **Forbidden Secrets**: Stats, Locations, Immersion (Chronos)
+- **Deduplication**: Resolved `Chronos` panel duplication by unifying IDs across Manifest and File logic.
+- **Cleanup**: Removed non-functional placeholder panels (Guide, Validator, Tester) from the main menu.
+
 ## v1.20.0 - 2026-01-27
 ### Codebase Standardization (Audit)
 - **Architecture**:
@@ -13,6 +32,11 @@ All notable changes to Anansi will be documented in this file.
   - **Notifications**: Replaced all blocking `alert()` calls with the non-blocking `A.UI.Toast` system.
 - **Fixes**:
   - **Regression Fix**: Restored `Tester` and `Validator` functionality after module migration.
+  - **Layout Repair (Batch 5)**:
+    - **Global Lens Rescope**: Replaced empty "Sim State" with a **Project Overview** (Mission Control) for non-simulation panels.
+    - **Double Scrollbars**: Resolved `overflow` conflicts in Character and Simulator panels.
+    - **Sidebar Consistency**: Enforced standardized widths for Lorebook, Voices, and Spider's Parlor sidebars.
+    - **Spider's Parlor**: Fixed CSS glitch (missing `.hidden` class) and updated grid structure.
 
 ## v1.19.0 - 2026-01-27
 ### Architecture

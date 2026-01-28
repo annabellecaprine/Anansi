@@ -816,12 +816,6 @@
     }
 
     A.registerPanel('rpg_dm_map', {
-        label: 'GM Atlas',
-        subtitle: 'Loot, Traps & Secrets',
-        category: 'RPG Experiment',
-        subcategory: 'Game Master',
-        order: 20,
-        icon: '🗺️',
         render: render
     });
 

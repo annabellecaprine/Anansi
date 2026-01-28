@@ -378,11 +378,6 @@
     }
 
     A.registerPanel('rpg_map', {
-        label: 'Map',
-        subtitle: 'World View',
-        category: 'RPG Experiment',
-        order: 3,
-        icon: '🗺️',
         render: render
     });
 

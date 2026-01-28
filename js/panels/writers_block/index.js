@@ -80,11 +80,7 @@
         const locations = state.weaves?.locations || [];
 
         // Layout - 2 column
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '280px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.height = '100%';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-sidebar-layout';
 
         container.innerHTML = `
             <!-- Left: Control Panel -->
@@ -103,23 +99,23 @@
                     </div>
                     <!-- Genre Chips -->
                     <div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; font-weight:bold;">Genre</div>
-                        <div id="genre-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+                        <div class="text-xs text-muted mb-sm text-uppercase font-bold">Genre</div>
+                        <div id="genre-chips" class="chip-group"></div>
                     </div>
                     <!-- Emphasis Chips -->
                     <div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; font-weight:bold;">Emphasis</div>
-                        <div id="emphasis-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+                        <div class="text-xs text-muted mb-sm text-uppercase font-bold">Emphasis</div>
+                        <div id="emphasis-chips" class="chip-group"></div>
                     </div>
                     <!-- Actor Chips -->
                     <div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; font-weight:bold;">Actors</div>
-                        <div id="actor-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+                        <div class="text-xs text-muted mb-sm text-uppercase font-bold">Actors</div>
+                        <div id="actor-chips" class="chip-group"></div>
                     </div>
                     <!-- Location Chips -->
                     <div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; font-weight:bold;">Locations</div>
-                        <div id="location-chips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+                        <div class="text-xs text-muted mb-sm text-uppercase font-bold">Locations</div>
+                        <div id="location-chips" class="chip-group"></div>
                     </div>
                     <!-- Context Management -->
                     <div style="border-top:1px solid var(--border-subtle); padding-top:12px; margin-top:4px;">
@@ -152,9 +148,9 @@
             </div>
 
             <!-- Right: Chat Panel -->
-            <div class="card" style="display:flex; flex-direction:column; height:100%; overflow:hidden; padding:0;">
+            <div class="card flex-col p-0 overflow-hidden">
                 <!-- Chat Log -->
-                <div id="chat-log" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--bg-base);"></div>
+                <div id="chat-log" class="chat-log"></div>
                 <!-- Footer -->
                 <div style="flex-shrink:0; border-top:1px solid var(--border-subtle); padding:12px; display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; gap:8px;">
@@ -196,14 +192,8 @@
                 const label = typeof opt === 'string' ? opt : (opt.name || opt.id);
                 const isActive = selectedArray.includes(value);
                 const chip = document.createElement('button');
-                chip.className = 'btn btn-sm';
-                chip.style.cssText = `
-                    background: ${isActive ? 'var(--accent-primary)' : 'var(--bg-elevated)'};
-                    color: ${isActive ? 'var(--bg-base)' : 'var(--text-secondary)'};
-                    border: 1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'};
-                    font-size: 10px;
-                    padding: 4px 8px;
-                `;
+                chip.className = `chip ${isActive ? 'active' : ''}`;
+                // Styles removed, handled by CSS
                 chip.textContent = label;
                 chip.onclick = () => onToggle(value, isActive);
                 containerEl.appendChild(chip);
@@ -493,23 +483,15 @@
                 const isUser = msg.role === 'user';
 
                 const msgEl = document.createElement('div');
-                msgEl.style.cssText = `
-                    padding: 10px 14px;
-                    border-radius: var(--radius-md);
-                    background: ${isUser ? 'var(--accent-soft)' : 'var(--bg-elevated)'};
-                    border: 1px solid ${isPinned ? 'var(--accent-primary)' : 'var(--border-subtle)'};
-                    max-width: 85%;
-                    align-self: ${isUser ? 'flex-end' : 'flex-start'};
-                    position: relative;
-                `;
+                msgEl.className = `chat-bubble ${isUser ? 'user' : 'model'} ${isPinned ? 'pinned' : ''}`;
 
                 msgEl.innerHTML = `
-                    <div style="font-size:12px; white-space:pre-wrap; line-height:1.5;">${msg.content}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:9px; color:var(--text-muted);">
+                    <div>${msg.content}</div>
+                    <div class="chat-meta">
                         <span>${isUser ? 'You' : '✍️ Assistant'}</span>
-                        <div style="display:flex; gap:8px;">
-                            <span class="btn-pin" style="cursor:pointer; opacity:0.7;" title="${isPinned ? 'Unpin' : 'Pin'}">${isPinned ? '📌' : '📍'}</span>
-                            <span class="btn-copy" style="cursor:pointer; opacity:0.7;" title="Copy">📋</span>
+                        <div class="flex-row gap-sm">
+                            <span class="btn-pin cursor-pointer opacity-70" title="${isPinned ? 'Unpin' : 'Pin'}">${isPinned ? '📌' : '📍'}</span>
+                            <span class="btn-copy cursor-pointer opacity-70" title="Copy">📋</span>
                         </div>
                     </div>
                 `;
@@ -738,7 +720,7 @@
         updateLens();
     }
 
-    A.registerPanel('writers-block', {
+    A.registerPanel('writers_block', {
         label: "Writer's Block",
         subtitle: 'AI Assistant',
         category: 'Sacred Tools',

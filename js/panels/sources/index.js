@@ -22,20 +22,19 @@
     const items = Object.values(state.strands.sources.items || {});
 
     // Layout
-    container.style.height = '100%';
+    // Layout
+    container.className = 'panel-container h-full p-sm';
     container.style.display = 'grid';
     container.style.gridTemplateRows = 'auto 1fr';
     container.style.gap = '16px';
-    container.style.padding = '4px';
 
     // --- Header / Creation Form ---
     const header = document.createElement('div');
-    header.className = 'card';
-    header.style.padding = '16px';
+    header.className = 'card p-md';
 
     header.innerHTML = `
       <div style="font-weight:bold; margin-bottom:12px; font-size:14px;">Add Custom Source</div>
-      <div style="display:flex; gap:10px; align-items:flex-end;">
+      <div class="flex-row gap-sm" style="align-items:flex-end;">
         <div style="flex:1;">
           <label class="sc-lab">Source Label</label>
           <input class="input" id="new-label" placeholder="e.g. User Inventory">
@@ -69,9 +68,9 @@
 
     // Persistence Checkbox
     const persistDiv = document.createElement('div');
-    persistDiv.style.marginTop = '12px';
+    persistDiv.className = 'mt-sm';
     persistDiv.innerHTML = `
-      <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+      <label class="flex-row items-center gap-sm text-xs cursor-pointer">
         <input type="checkbox" id="new-persist">
         <span style="font-weight:bold;">Make Persistent</span>
         <span style="color:var(--text-muted); font-weight:normal;">(Values changed by scripts are saved back to source)</span>
@@ -115,10 +114,7 @@
 
     // --- List View ---
     const listCard = document.createElement('div');
-    listCard.className = 'card';
-    listCard.style.display = 'flex';
-    listCard.style.flexDirection = 'column';
-    listCard.style.overflow = 'hidden';
+    listCard.className = 'card flex-col overflow-hidden';
 
     let listContent = '';
 
@@ -128,16 +124,16 @@
       items.forEach(src => {
         const isSystem = src.kind !== 'custom';
         listContent += `
-          <div style="padding:12px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div class="flex-row justify-between p-sm" style="border-bottom:1px solid var(--border-subtle);">
              <div>
                <div style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px;">
                  ${src.label}
                  ${isSystem
-            ? '<span style="font-size:9px; background:var(--bg-elevated); padding:2px 6px; border-radius:4px; text-transform:uppercase; color:var(--text-muted);">System</span>'
-            : '<span style="font-size:9px; background:var(--accent-soft); padding:2px 6px; border-radius:4px; text-transform:uppercase; color:var(--accent-primary);">Custom</span>'}
+            ? '<span class="badge badge-subtle text-xs text-uppercase">System</span>'
+            : '<span class="badge badge-accent text-xs text-uppercase">Custom</span>'}
                </div>
-               <div style="font-size:11px; font-family:monospace; color:var(--text-muted); margin-top:4px;">
-                  ID: ${src.id} &nbsp;&bull;&nbsp; Ref: <span style="color:var(--text-primary);">${src.access}</span>
+               <div class="font-mono text-muted mt-sm" style="font-size:11px;">
+                  ID: ${src.id} &nbsp;&bull;&nbsp; Ref: <span class="text-primary">${src.access}</span>
                </div>
              </div>
              ${!isSystem ? `<button class="btn btn-ghost btn-sm btn-del" data-id="${src.id}" style="color:var(--status-error);">Delete</button>` : ''}
@@ -151,7 +147,7 @@
          <strong>Registered Sources</strong>
          <span class="badge" style="margin-left:auto;">${items.length}</span>
        </div>
-       <div class="card-body" style="padding:0; overflow-y:auto;">
+       <div class="card-body p-0 scroll-y">
          ${listContent}
        </div>
     `;

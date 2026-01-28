@@ -63,11 +63,36 @@ window.Anansi = window.Anansi || {};
     A.registerPanel = function (id, config) {
         const idx = navSections.findIndex(s => s.id === id);
         if (idx !== -1) {
-            navSections[idx] = { id, ...config };
-            console.log(`[Kernel] Updated panel: ${config.label}`);
+            // Smart Merge: If panel exists (stub), update render but preserve Manifest metadata if present.
+            // This prevents old panel files (with 'Creative' category) from overwriting Manifest ('Seeds').
+            const existing = navSections[idx];
+            navSections[idx] = {
+                ...existing,                // Keep existing (Manifest)
+                ...config,                  // Overwrite with new
+                category: existing.category || config.category, // Prefer Existing Category (Manifest)
+                label: existing.label || config.label,          // Prefer Existing Label
+                icon: existing.icon || config.icon,             // Prefer Existing Icon
+                order: (existing.order !== undefined) ? existing.order : config.order // Prefer Existing Order
+            };
+            // Note: 'render' will be taken from config, which is what we want.
+
+            console.log(`[Kernel] Updated panel: ${navSections[idx].label}`);
         } else {
-            navSections.push({ id, ...config });
-            console.log(`[Kernel] Registered panel: ${config.label}`);
+            // New Registration - Check Manifest for metadata
+            // Ensure we pick up centralized config (Manifest) even for fresh loads
+            const meta = (A.PanelManifest && A.PanelManifest[id]) || {};
+            navSections.push({
+                ...meta,    // Load defaults from Manifest
+                ...config,  // Apply panel config (render fn)
+                // Enforce Manifest Authority for structural metadata
+                category: meta.category || config.category,
+                subcategory: meta.subcategory || config.subcategory,
+                label: meta.label || config.label,
+                icon: meta.icon || config.icon,
+                order: (meta.order !== undefined) ? meta.order : config.order,
+                id
+            });
+            console.log(`[Kernel] Registered panel: ${meta.label || config.label}`);
         }
 
         // If UI is loaded and initialized, refresh nav
@@ -81,6 +106,15 @@ window.Anansi = window.Anansi || {};
      */
     A.getNavSections = function () {
         return navSections;
+    };
+
+    /**
+     * Get a registered panel by ID.
+     * @param {string} id - Panel ID
+     * @returns {Object|undefined} Panel configuration
+     */
+    A.getPanel = function (id) {
+        return navSections.find(s => s.id === id);
     };
 
     /**

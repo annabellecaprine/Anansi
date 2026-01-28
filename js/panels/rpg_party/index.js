@@ -860,11 +860,6 @@
     }
 
     A.registerPanel('rpg_party', {
-        label: 'Party',
-        subtitle: 'Character Sheets',
-        category: 'RPG Experiment',
-        order: 2,
-        icon: '🛡️',
         render: render
     });
 

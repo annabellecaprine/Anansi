@@ -325,10 +325,6 @@
     }
 
     A.registerPanel('gamemaster', {
-        label: 'Game Master',
-        subtitle: 'RPG Engine',
-        category: 'RPG Experiment',
-        icon: '🎲',
         render: render
     });
 

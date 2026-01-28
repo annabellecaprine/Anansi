@@ -209,15 +209,12 @@
         const state = A.State.get();
         ensureMapStructure(state);
 
-        container.style.display = 'grid';
+        container.className = 'panel-grid h-full overflow-hidden gap-0';
         container.style.gridTemplateColumns = '320px 1fr';
-        container.style.gap = '0';
-        container.style.height = '100%';
-        container.style.overflow = 'hidden';
 
         // --- Left Column ---
         const leftCol = document.createElement('div');
-        leftCol.style.cssText = 'display:flex; flex-direction:column; height:100%; overflow:hidden; border-right:1px solid var(--border-subtle); background:var(--bg-surface);';
+        leftCol.className = 'flex-col h-full overflow-hidden border-r border-subtle bg-surface';
 
         leftCol.innerHTML = `
             <!-- Map Selector -->
@@ -256,7 +253,7 @@
 
         // --- Right: Map ---
         const mapCard = document.createElement('div');
-        mapCard.style.cssText = 'display:flex; flex-direction:column; overflow:hidden; position:relative; background:var(--bg-base);';
+        mapCard.className = 'flex-col overflow-hidden relative bg-base';
 
         mapCard.innerHTML = `
             <div style="border-bottom:1px solid var(--border-subtle); padding:8px 12px; display:flex; justify-content:space-between; background:var(--bg-elevated);">
@@ -335,25 +332,25 @@
         /** @type {HTMLElement} */ (leftCol.querySelector('#btn-new-map')).onclick = () => {
             const modalContent = document.createElement('div');
             modalContent.innerHTML = `
-                <div style="display:flex; flex-direction:column; gap:12px;">
+                <div class="flex-col gap-md">
                     <div>
                         <label class="label">Map Name</label>
-                        <input type="text" class="input" id="new-map-name" style="width:100%;" placeholder="e.g. Riverside Village">
+                        <input type="text" class="input w-full" id="new-map-name" placeholder="e.g. Riverside Village">
                     </div>
                     <div>
                         <label class="label">Type</label>
-                        <select class="input" id="new-map-type" style="width:100%;">
+                        <select class="input w-full" id="new-map-type">
                             ${MAP_TYPES.map(t => `<option value="${t.id}">${t.label} - ${t.desc}</option>`).join('')}
                         </select>
                     </div>
                     <div>
                         <label class="label">Parent Map (optional)</label>
-                        <select class="input" id="new-map-parent" style="width:100%;">
+                        <select class="input w-full" id="new-map-parent">
                             <option value="">— None —</option>
                             ${state.weaves.maps.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
                         </select>
                     </div>
-                    <button class="btn btn-primary" id="btn-create-map" style="margin-top:8px;">Create Map</button>
+                    <button class="btn btn-primary mt-sm" id="btn-create-map">Create Map</button>
                 </div>
             `;
 
@@ -390,27 +387,27 @@
 
             const modalContent = document.createElement('div');
             modalContent.innerHTML = `
-                <div style="display:flex; flex-direction:column; gap:12px;">
+                <div class="flex-col gap-md">
                     <div>
                         <label class="label">Map Name</label>
-                        <input type="text" class="input" id="edit-map-name" style="width:100%;" value="${activeMap.name}">
+                        <input type="text" class="input w-full" id="edit-map-name" value="${activeMap.name}">
                     </div>
                     <div>
                         <label class="label">Type</label>
-                        <select class="input" id="edit-map-type" style="width:100%;">
+                        <select class="input w-full" id="edit-map-type">
                             ${MAP_TYPES.map(t => `<option value="${t.id}" ${activeMap.type === t.id ? 'selected' : ''}>${t.label}</option>`).join('')}
                         </select>
                     </div>
                     <div>
                         <label class="label">Parent Map</label>
-                        <select class="input" id="edit-map-parent" style="width:100%;">
+                        <select class="input w-full" id="edit-map-parent">
                             <option value="">— None —</option>
                             ${state.weaves.maps.filter(m => m.id !== activeMap.id).map(m => `<option value="${m.id}" ${activeMap.parentMap === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
                         </select>
                     </div>
-                    <div style="display:flex; gap:8px; margin-top:12px;">
-                        <button class="btn btn-primary" id="btn-save-map" style="flex:1;">Save</button>
-                        ${state.weaves.maps.length > 1 ? `<button class="btn" id="btn-delete-map" style="background:var(--status-error); color:white;">Delete Map</button>` : ''}
+                    <div class="flex-row gap-sm mt-md">
+                        <button class="btn btn-primary flex-1" id="btn-save-map">Save</button>
+                        ${state.weaves.maps.length > 1 ? `<button class="btn bg-status-error text-white" id="btn-delete-map">Delete Map</button>` : ''}
                     </div>
                 </div>
             `;

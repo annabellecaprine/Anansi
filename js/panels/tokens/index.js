@@ -11,55 +11,55 @@
     const ratio = state.sim.tokenRatio || 4; // Default heuristic
 
     container.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:24px;">
+      <div class="flex-col gap-lg">
         
         <!-- Summary Dashboard -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
-          <div class="card" style="padding:16px; text-align:center;">
-            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Total Project Characters</div>
-            <div style="font-size:32px; font-weight:bold; color:var(--accent-primary);" id="total-chars">0</div>
+        <div class="grid-auto-fill gap-md">
+          <div class="card p-md text-center">
+            <div class="text-xs text-muted text-uppercase mb-xs">Total Project Characters</div>
+            <div class="text-xl font-bold text-accent" style="font-size:32px;" id="total-chars">0</div>
           </div>
-          <div class="card" style="padding:16px; text-align:center;">
-            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Estimated Tokens</div>
-            <div style="font-size:32px; font-weight:bold; color:var(--status-success);" id="total-tokens">0</div>
+          <div class="card p-md text-center">
+            <div class="text-xs text-muted text-uppercase mb-xs">Estimated Tokens</div>
+            <div class="text-xl font-bold text-success" style="font-size:32px;" id="total-tokens">0</div>
           </div>
-          <div class="card" style="padding:16px;">
-            <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Heuristic Configuration</div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:11px;">1 Token ≈</span>
-              <input type="number" class="input" id="inp-ratio" value="${ratio}" style="width:60px; font-size:11px; padding:4px;">
-              <span style="font-size:11px;">chars</span>
+          <div class="card p-md">
+            <div class="text-xs text-muted text-uppercase mb-sm">Heuristic Configuration</div>
+            <div class="flex-row items-center gap-sm">
+              <span class="text-xs">1 Token ≈</span>
+              <input type="number" class="input text-xs p-sm" style="width:60px;" id="inp-ratio" value="${ratio}">
+              <span class="text-xs">chars</span>
             </div>
-            <div style="font-size:9px; color:var(--text-muted); margin-top:4px;">Gemini/GPT averages ~4 chars/token.</div>
+            <div class="text-xs text-muted mt-xs">Gemini/GPT averages ~4 chars/token.</div>
           </div>
         </div>
 
         <!-- Detailed Breakdown -->
-        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:24px;">
+        <div class="panel-grid gap-lg" style="grid-template-columns: 1fr 1.5fr;">
           
           <!-- Column 1: Actors & Seeds -->
-          <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="flex-col gap-md">
             <section>
-              <h3 style="font-family:var(--font-serif); font-size:18px; margin-bottom:12px;">The Anchor (Seed)</h3>
-              <div id="seed-breakdown" class="card" style="padding:12px; display:flex; flex-direction:column; gap:8px;"></div>
+              <h3 class="font-serif text-lg mb-sm">The Anchor (Seed)</h3>
+              <div id="seed-breakdown" class="card p-sm flex-col gap-sm"></div>
             </section>
             
             <section>
-              <h3 style="font-family:var(--font-serif); font-size:18px; margin-bottom:12px;">Actors & Personas</h3>
-              <div id="actor-breakdown" class="card" style="padding:12px; display:flex; flex-direction:column; gap:8px;"></div>
+              <h3 class="font-serif text-lg mb-sm">Actors & Personas</h3>
+              <div id="actor-breakdown" class="card p-sm flex-col gap-sm"></div>
             </section>
           </div>
 
           <!-- Column 2: Lorebook Weights -->
           <section>
-            <h3 style="font-family:var(--font-serif); font-size:18px; margin-bottom:12px;">Lorebook Density</h3>
-            <div id="lore-breakdown" class="card" style="padding:0; overflow:hidden;">
+            <h3 class="font-serif text-lg mb-sm">Lorebook Density</h3>
+            <div id="lore-breakdown" class="card overflow-hidden p-0">
               <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                <thead style="background:var(--bg-surface);">
+                <thead class="bg-surface">
                   <tr>
-                    <th style="padding:8px; text-align:left; border-bottom:1px solid var(--border-subtle);">Entry</th>
-                    <th style="padding:8px; text-align:right; border-bottom:1px solid var(--border-subtle);">Chars</th>
-                    <th style="padding:8px; text-align:right; border-bottom:1px solid var(--border-subtle);">Tokens</th>
+                    <th class="p-sm text-left border-b">Entry</th>
+                    <th class="p-sm text-right border-b">Chars</th>
+                    <th class="p-sm text-right border-b">Tokens</th>
                   </tr>
                 </thead>
                 <tbody id="lore-table-body"></tbody>
@@ -98,20 +98,20 @@
       // Seed Breakdown - Now show Permanent + Temporary
       const seedBox = container.querySelector('#seed-breakdown');
       seedBox.innerHTML = `
-        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--accent-primary);">Permanent (Every Turn)</div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+        <div class="text-xs font-bold mb-sm text-accent">Permanent (Every Turn)</div>
+        <div class="flex-row justify-between text-xs pl-sm">
           <span>Personality</span>
-          <span style="color:var(--text-secondary);">${metrics.permanent.breakdown.personality.tokens} tkn</span>
+          <span class="text-secondary">${metrics.permanent.breakdown.personality.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; margin-bottom:12px;">
+        <div class="flex-row justify-between text-xs pl-sm mb-sm">
           <span>Scenario</span>
-          <span style="color:var(--text-secondary);">${metrics.permanent.breakdown.scenario.tokens} tkn</span>
+          <span class="text-secondary">${metrics.permanent.breakdown.scenario.tokens} tkn</span>
         </div>
         
-        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--status-warning);">Temporary (Initial Only)</div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+        <div class="text-xs font-bold mb-xs text-warning">Temporary (Initial Only)</div>
+        <div class="flex-row justify-between text-xs pl-sm">
           <span>Example Dialogue</span>
-          <span style="color:var(--text-secondary);">${metrics.temporary.breakdown.examples.tokens} tkn</span>
+          <span class="text-secondary">${metrics.temporary.breakdown.examples.tokens} tkn</span>
         </div>
       `;
 
@@ -119,34 +119,34 @@
       const actorBox = container.querySelector('#actor-breakdown');
       const injBreakdown = metrics.injectable.breakdown;
       actorBox.innerHTML = `
-        <div style="font-size:13px; font-weight:bold; margin-bottom:8px; color:var(--status-success);">Injectable (Conditional)</div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="text-xs font-bold mb-sm text-success">Injectable (Conditional)</div>
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Actors (Appearance + Cues)</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.actors.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.actors.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Lorebook Entries</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.lorebook.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.lorebook.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Relationships (Pairs)</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.pairs.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.pairs.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Voices & Rails</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.voices.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.voices.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Events</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.events.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.events.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px; border-bottom:1px solid var(--divider); padding-bottom:4px;">
+        <div class="flex-row justify-between text-xs pl-sm border-b border-subtle pb-xs mb-xs">
           <span>Custom Rules (Advanced)</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.advanced.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.advanced.tokens} tkn</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; padding-left:8px;">
+        <div class="flex-row justify-between text-xs pl-sm">
           <span>Scoring Context</span>
-          <span style="color:var(--text-secondary);">${injBreakdown.scoring.tokens} tkn</span>
+          <span class="text-secondary">${injBreakdown.scoring.tokens} tkn</span>
         </div>
       `;
 
@@ -156,15 +156,15 @@
       const r = state.sim.tokenRatio || 4;
 
       if (loreEntries.length === 0) {
-        loreBody.innerHTML = '<tr><td colspan="3" style="padding:16px; text-align:center; color:var(--text-muted);">Lorebook is empty.</td></tr>';
+        loreBody.innerHTML = '<tr><td colspan="3" class="p-lg text-center text-muted">Lorebook is empty.</td></tr>';
       } else {
         loreBody.innerHTML = loreEntries.map(e => {
           const content = e.content || '';
           return `
             <tr>
-              <td style="padding:8px; border-bottom:1px solid var(--divider);">${e.title || 'Untitled'}</td>
-              <td style="padding:8px; text-align:right; border-bottom:1px solid var(--divider);">${content.length}</td>
-              <td style="padding:8px; text-align:right; border-bottom:1px solid var(--divider); color:var(--accent-primary);">${Math.ceil(content.length / r)}</td>
+              <td class="p-sm border-b">${e.title || 'Untitled'}</td>
+              <td class="p-sm text-right border-b">${content.length}</td>
+              <td class="p-sm text-right border-b text-accent">${Math.ceil(content.length / r)}</td>
             </tr>
           `;
         }).join('');
