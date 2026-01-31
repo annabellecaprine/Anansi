@@ -137,7 +137,7 @@
     const updateGlobalLens = () => {
       A.UI.setLens((lensRoot) => {
         lensRoot.innerHTML = `
-          <div class="lens-tabs flex-row flex-wrap gap-xs mb-sm border-b pb-xs">
+          <div class="lens-tabs flex-row flex-wrap gap-xs mb-sm border-b border-subtle pb-xs">
             ${[
             { k: 'state', l: 'State' },
             { k: 'arc', l: 'Arc' },
@@ -150,8 +150,7 @@
             { k: 'locations', l: 'Locs' },
             { k: 'config', l: 'Cfg' }
           ].map(o => `
-              <button class="btn btn-ghost btn-sm lens-tab-btn ${activeLens === o.k ? 'active' : ''} text-tiny px-sm py-xs items-center justify-center min-w-0"
-                      style="white-space:nowrap; ${activeLens === o.k ? 'background:var(--bg-surface); color:var(--text-primary); border:1px solid var(--border-subtle);' : ''}"
+              <button class="btn btn-ghost btn-sm lens-tab-btn ${activeLens === o.k ? 'active btn-primary' : ''} text-tiny px-sm py-xs items-center justify-center min-w-0"
                       data-lens="${o.k}">${o.l.toUpperCase()}</button>
             `).join('')}
           </div>
@@ -172,9 +171,9 @@
 
     // --- SIMULATED MODE ---
     function renderSimulatedMode(target) {
-      target.className = 'panel-grid gap-md h-full overflow-hidden';
-      // Use standard grid columns for split view (approx 1/3 - 2/3)
-      target.style.gridTemplateColumns = '320px 1fr';
+      target.className = 'panel-sidebar-layout h-full overflow-hidden';
+      // Sidebar layout handles the grid columns automatically via CSS
+      // target.style.gridTemplateColumns = '320px 1fr'; (Handled by class)
 
       // Left: Sources Configuration
       const sourcesCard = document.createElement('div');
@@ -239,11 +238,11 @@
       // State Impact (Diff)
       const diffCard = document.createElement('div');
       diffCard.className = 'card flex-col mb-0 flex-1 min-h-0';
-      diffCard.style.minHeight = '160px';
+      diffCard.style.minHeight = '160px'; // Keep min-height for usability
       diffCard.innerHTML = `
-        <div class="card-header border-t-accent" style="border-top-width:2px; border-top-style:solid;">
+        <div class="card-header border-t-2 border-accent">
           <strong>State Impact</strong>
-          <span class="text-tiny text-muted text-uppercase" style="letter-spacing:0.5px;">Context Delta</span>
+          <span class="text-tiny text-muted uppercase tracking-wide">Context Delta</span>
         </div>
         <div class="card-body scroll-y p-sm text-xs bg-ink-800 flex-1" id="sim-diff-view">
            <div class="text-muted italic opacity-60">No changes recorded.</div>

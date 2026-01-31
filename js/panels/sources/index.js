@@ -23,19 +23,16 @@
 
     // Layout
     // Layout
-    container.className = 'panel-container h-full p-sm';
-    container.style.display = 'grid';
-    container.style.gridTemplateRows = 'auto 1fr';
-    container.style.gap = '16px';
+    container.className = 'panel-container h-full p-sm flex-col gap-md';
 
     // --- Header / Creation Form ---
     const header = document.createElement('div');
     header.className = 'card p-md';
 
     header.innerHTML = `
-      <div style="font-weight:bold; margin-bottom:12px; font-size:14px;">Add Custom Source</div>
-      <div class="flex-row gap-sm" style="align-items:flex-end;">
-        <div style="flex:1;">
+      <div class="font-bold text-sm mb-sm">Add Custom Source</div>
+      <div class="flex-row gap-sm items-end">
+        <div class="flex-1">
           <label class="sc-lab">Source Label</label>
           <input class="input" id="new-label" placeholder="e.g. User Inventory">
         </div>
@@ -49,9 +46,9 @@
         </div>
         <button class="btn btn-primary" id="btn-add">Add</button>
       </div>
-      <div style="margin-top:8px; font-size:11px; color:var(--text-muted);">
+      <div class="mt-xs text-xs text-muted">
         Defines a new data field that can be populated by the system or scripts. 
-        Reference using <code style="color:var(--accent-primary);">{{custom.key}}</code>
+        Reference using <code class="text-accent">{{custom.key}}</code>
       </div>
     `;
 
@@ -119,24 +116,24 @@
     let listContent = '';
 
     if (items.length === 0) {
-      listContent = '<div class="muted" style="padding:20px; text-align:center;">No sources defined.</div>';
+      listContent = '<div class="text-muted p-lg text-center">No sources defined.</div>';
     } else {
       items.forEach(src => {
         const isSystem = src.kind !== 'custom';
         listContent += `
-          <div class="flex-row justify-between p-sm" style="border-bottom:1px solid var(--border-subtle);">
+          <div class="flex-row justify-between p-sm border-b border-subtle">
              <div>
-               <div style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px;">
+               <div class="font-bold text-sm flex-row items-center gap-sm">
                  ${src.label}
                  ${isSystem
             ? '<span class="badge badge-subtle text-xs text-uppercase">System</span>'
             : '<span class="badge badge-accent text-xs text-uppercase">Custom</span>'}
                </div>
-               <div class="font-mono text-muted mt-sm" style="font-size:11px;">
+               <div class="font-mono text-muted mt-sm text-xs">
                   ID: ${src.id} &nbsp;&bull;&nbsp; Ref: <span class="text-primary">${src.access}</span>
                </div>
              </div>
-             ${!isSystem ? `<button class="btn btn-ghost btn-sm btn-del" data-id="${src.id}" style="color:var(--status-error);">Delete</button>` : ''}
+             ${!isSystem ? `<button class="btn btn-ghost btn-sm btn-del text-error" data-id="${src.id}">Delete</button>` : ''}
           </div>
         `;
       });

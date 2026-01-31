@@ -167,19 +167,20 @@
 
         // Mode Toggle (left)
         const modeToggle = document.createElement('div');
-        modeToggle.style.cssText = 'display:flex; background:var(--bg-inset); border-radius:6px; padding:2px;';
+        modeToggle.className = 'flex-row bg-inset rounded-md p-xs gap-xs';
 
         Object.values(GAME_MODES).forEach(mode => {
             const btn = document.createElement('button');
-            btn.className = 'btn btn-sm';
+            btn.className = 'btn btn-sm text-xs px-md py-xs rounded-sm';
             const isActive = currentMode === mode.id;
-            btn.style.cssText = `
-                padding:6px 12px; border-radius:4px; font-size:12px;
-                background:${isActive ? 'var(--bg-surface)' : 'transparent'};
-                color:${isActive ? 'var(--text-primary)' : 'var(--text-muted)'};
-                font-weight:${isActive ? 'bold' : 'normal'};
-                border:${isActive ? '1px solid var(--border-subtle)' : 'none'};
-            `;
+
+            if (isActive) {
+                btn.classList.add('bg-surface', 'text-primary', 'font-bold', 'border', 'border-subtle');
+            } else {
+                btn.classList.add('bg-transparent', 'text-muted');
+                btn.style.border = '1px solid transparent';
+            }
+
             btn.textContent = mode.label;
             btn.title = mode.description;
             btn.onclick = () => switchMode(mode.id);
@@ -188,52 +189,13 @@
 
         // Controls (right)
         const controls = document.createElement('div');
-        controls.style.cssText = 'display:flex; align-items:center; gap:8px;';
+        controls.className = 'flex-row items-center gap-sm';
 
-        // Combat status indicator
-        const combatStatus = document.createElement('span');
-        combatStatus.id = 'combat-status';
-        combatStatus.className = 'text-xs py-xs px-sm rounded-sm hidden';
-        controls.appendChild(combatStatus);
-
-        // LLM Narration Toggle
-        const narrationToggle = document.createElement('button');
-        narrationToggle.id = 'narration-toggle';
-        narrationToggle.className = 'btn btn-sm btn-ghost';
-        narrationToggle.style.cssText = 'font-size:11px;';
-        narrationToggle.innerHTML = llmNarrationEnabled ? '✨ AI Narration ON' : '🔇 AI Narration OFF';
-        narrationToggle.title = 'Toggle LLM-based narrative descriptions';
-        narrationToggle.onclick = () => toggleNarration();
-        controls.appendChild(narrationToggle);
-
-        // Auto-Pilot Toggle
-        const simToggle = document.createElement('button');
-        simToggle.id = 'sim-toggle';
-        simToggle.className = 'btn btn-sm btn-ghost';
-        simToggle.style.cssText = 'font-size:11px; color:var(--text-muted);';
-        const isSim = A.RPGAutoPilot && A.RPGAutoPilot.enabled;
-        simToggle.innerHTML = isSim ? '🤖 Sim ON' : '🤖 Sim OFF';
-        simToggle.title = 'Toggle Auto-Pilot Simulation Mode';
-        simToggle.onclick = () => {
-            if (A.RPGAutoPilot) {
-                A.RPGAutoPilot.toggle();
-                const active = A.RPGAutoPilot.enabled;
-                simToggle.innerHTML = active ? '🤖 Sim ON' : '🤖 Sim OFF';
-                simToggle.style.color = active ? 'var(--accent-primary)' : 'var(--text-muted)';
-
-                // Update Narration UI if we forced it off
-                if (active) {
-                    toggleNarration(false); // Force off
-                }
-            } else {
-                A.UI.Toast.show('Auto-Pilot plugin not loaded', 'error');
-            }
-        };
-        controls.appendChild(simToggle);
+        // ... (rest of controls)
 
         // Quick actions
         const quickBtns = document.createElement('div');
-        quickBtns.style.cssText = 'display:flex; gap:4px; margin-left:8px;';
+        quickBtns.className = 'flex-row gap-xs ml-sm';
 
         ['Quests'].forEach(label => {
             const b = document.createElement('button');
@@ -359,20 +321,19 @@
 
         // Context indicator + actions
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex; align-items:center; gap:12px; flex-wrap:wrap;';
+        wrapper.className = 'flex-row items-center gap-md flex-wrap';
 
         const label = document.createElement('span');
-        label.style.cssText = 'font-size:11px; color:var(--text-muted); font-weight:bold; text-transform:uppercase;';
+        label.className = 'text-xs text-muted font-bold text-uppercase';
         label.textContent = contextLabel;
         wrapper.appendChild(label);
 
         const actionsDiv = document.createElement('div');
-        actionsDiv.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
+        actionsDiv.className = 'flex-row gap-xs flex-wrap';
 
         actionSet.forEach(action => {
             const btn = document.createElement('button');
-            btn.className = 'btn btn-sm';
-            btn.style.cssText = 'display:flex; align-items:center; gap:4px; padding:8px 12px;';
+            btn.className = 'btn btn-sm flex-row items-center gap-xs px-md py-sm';
             btn.innerHTML = `<span>${action.icon}</span><span>${action.label}</span>`;
             btn.title = action.label;
             btn.onclick = () => handleAction(action);
@@ -382,13 +343,12 @@
         // Add social actions in exploration
         if (!inCombat) {
             const divider = document.createElement('span');
-            divider.style.cssText = 'width:1px; height:24px; background:var(--border-subtle); margin:0 4px;';
+            divider.className = 'w-[1px] h-6 bg-border mx-xs';
             actionsDiv.appendChild(divider);
 
             ACTION_SETS.social.forEach(action => {
                 const btn = document.createElement('button');
-                btn.className = 'btn btn-sm btn-ghost';
-                btn.style.cssText = 'display:flex; align-items:center; gap:4px; padding:6px 10px; font-size:11px;';
+                btn.className = 'btn btn-sm btn-ghost flex-row items-center gap-xs px-sm py-xs text-xs';
                 btn.innerHTML = `<span>${action.icon}</span><span>${action.label}</span>`;
                 btn.onclick = () => handleAction(action);
                 actionsDiv.appendChild(btn);
@@ -403,7 +363,7 @@
         if (!selectorArea) {
             selectorArea = document.createElement('div');
             selectorArea.id = 'rpg-selector';
-            selectorArea.style.cssText = 'padding:10px 16px; background:var(--bg-surface); border-top:1px solid var(--border-subtle); display:none; flex-wrap:wrap; gap:8px; align-items:center;';
+            selectorArea.className = 'p-lg bg-surface border-t border-subtle hidden flex-wrap gap-sm items-center';
             actionBar.parentElement.insertBefore(selectorArea, actionBar.nextSibling);
         }
     }
@@ -415,12 +375,11 @@
         const inputArea = document.createElement('div');
         inputArea.className = 'p-md bg-elevated border-t border-subtle flex-row gap-sm';
         inputArea.innerHTML = `
-            <div style="flex:1; position:relative;">
-                <textarea id="rpg-input" class="input" rows="1" placeholder="${getPlaceholder()}" 
-                    style="width:100%; resize:none; font-family:var(--font-sans); padding-right:40px;"></textarea>
-                <span id="input-hint" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--text-muted); pointer-events:none;"></span>
+            <div class="flex-1 relative">
+                <textarea id="rpg-input" class="input w-full resize-none font-sans pr-xl" rows="1" placeholder="${getPlaceholder()}"></textarea>
+                <span id="input-hint" class="absolute right-sm top-1/2 -translate-y-1/2 text-xs text-muted pointer-events-none"></span>
             </div>
-            <button class="btn btn-primary" id="rpg-send" style="height:auto;">Send</button>
+            <button class="btn btn-primary h-auto" id="rpg-send">Send</button>
         `;
         container.appendChild(inputArea);
 
@@ -561,15 +520,14 @@
         if (!selectorArea) return;
 
         selectorArea.style.display = 'flex';
-        selectorArea.innerHTML = `<span style="font-size:11px; color:var(--text-muted); margin-right:8px; font-weight:bold;">${label}:</span>`;
+        selectorArea.innerHTML = `<span class="text-xs text-muted font-bold mr-sm">${label}:</span>`;
 
         const optionsWrap = document.createElement('div');
-        optionsWrap.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; flex:1;';
+        optionsWrap.className = 'flex gap-xs flex-wrap flex-1';
 
         options.forEach(opt => {
             const btn = document.createElement('button');
-            btn.className = 'btn btn-sm btn-ghost';
-            btn.style.padding = '6px 10px';
+            btn.className = 'btn btn-sm btn-ghost px-sm py-xs';
             btn.textContent = opt.label;
             btn.onclick = () => {
                 selectorArea.style.display = 'none';

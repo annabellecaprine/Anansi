@@ -73,9 +73,9 @@
         <div class="card mb-md">
           <div class="card-header"><strong>Profile Image</strong></div>
           <div class="card-body flex-row gap-md items-start">
-            <div id="portrait-preview" class="bg-inset border-dashed border-subtle rounded-md flex-row items-center justify-center overflow-hidden flex-shrink-0" style="width:150px;height:200px;">
+            <div id="portrait-preview" class="portrait-preview">
               ${solo.portrait?.data
-        ? `<img src="${solo.portrait.data}" class="w-full h-full" style="object-fit:cover;">`
+        ? `<img src="${solo.portrait.data}" class="portrait-img">`
         : `<span class="text-muted text-xs text-center p-sm">No image</span>`
       }
             </div>
@@ -143,8 +143,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-personality" data-field="personality" 
-                        style="height:200px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-lg" id="field-personality" data-field="personality" 
                         placeholder="Character personality description...">${UI.escapeHtml(personalityContent)}</textarea>
             </div>
           </div>
@@ -163,8 +162,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-scenario" data-field="scenario" 
-                        style="height:120px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-sm" id="field-scenario" data-field="scenario" 
                         placeholder="Scene context or setup...">${UI.escapeHtml(scenarioContent)}</textarea>
             </div>
           </div>
@@ -183,8 +181,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-exampleDialogue" data-field="exampleDialogue" 
-                        style="height:150px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-md" id="field-exampleDialogue" data-field="exampleDialogue" 
                         placeholder="<START>\\nUser: Hello.\\n{{char}}: Hi there!">${UI.escapeHtml(examplesContent)}</textarea>
             </div>
           </div>
@@ -209,11 +206,10 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-firstMessage" data-field="firstMessage" 
-                        style="height:120px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-sm" id="field-firstMessage" data-field="firstMessage" 
                         placeholder="The character's opening message...">${UI.escapeHtml(currentFm)}</textarea>
               ${fmOptions[currentFmIndex]?.isCustom ? `
-                <div style="margin-top:12px;padding:12px;background:var(--bg-inset);border-radius:var(--radius-md);">
+                <div class="mt-sm p-sm bg-inset rounded-md">
                   <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Generate with AI (optional guidance):</label>
                   <div style="display:flex;gap:8px;">
                     <input type="text" class="input" id="fm-guidance" placeholder="e.g., Start with a question" style="flex:1;">

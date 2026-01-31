@@ -43,13 +43,13 @@
         
         <!-- Header / Welcome -->
         <div class="flex-row justify-between align-start gap-md">
-            <div style="flex: 1;">
-                <div class="text-xs text-uppercase text-muted" style="letter-spacing: 1px; margin-bottom: 4px;">Mission Control</div>
-                <h1 style="margin: 0; font-size: 24px; font-weight: 300; letter-spacing: -0.5px;">${state.meta.name || 'Untitled Project'}</h1>
-                <span class="badge font-mono" style="background:var(--bg-elevated); margin-top: 8px; display: inline-block;">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
+            <div class="flex-1">
+                <div class="text-xs text-uppercase text-muted tracking-wide mb-xs">Mission Control</div>
+                <h1 class="text-2xl font-light tracking-tight m-0">${state.meta.name || 'Untitled Project'}</h1>
+                <span class="badge font-mono mt-sm inline-block bg-elevated">${state.meta.id ? state.meta.id.substring(0, 8) : 'LOCAL'}</span>
             </div>
             <!-- Project Cover Image -->
-            <div style="flex-shrink: 0; text-align: center;">
+            <div class="flex-shrink-0 text-center">
                 <div id="project-cover-preview" style="
                     width: 100px;
                     height: 100px;
@@ -63,8 +63,8 @@
                     cursor: pointer;
                 " title="Click to upload project cover">
                     ${state.meta.cover?.data
-        ? `<img src="${state.meta.cover.data}" style="width: 100%; height: 100%; object-fit: cover;">`
-        : `<span style="color: var(--text-muted); font-size: 9px; text-align: center;">Project<br>Cover</span>`
+        ? `<img src="${state.meta.cover.data}" class="w-full h-full object-cover">`
+        : `<span class="text-muted text-xs text-center">Project<br>Cover</span>`
       }
                 </div>
                 <input type="file" id="cover-input" accept="image/png,image/jpeg,image/webp" style="display: none;">
@@ -207,15 +207,15 @@
     function renderTokenCard(metrics) {
       return `
             <div class="card p-md flex-col relative overflow-hidden" style="gap:4px;">
-                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; z-index:1;">Total Tokens</div>
-                <div style="font-size: 24px; font-weight: 300; color: var(--text-primary); z-index:1;">${metrics.total.toLocaleString()}</div>
-                <div style="font-size: 9px; color: var(--text-muted); z-index:1; display:flex; gap:8px; flex-wrap:wrap;">
-                  <span style="color:var(--accent-primary);">●${metrics.permanent} Perm</span>
-                  <span style="color:var(--status-warning);">●${metrics.temporary} Temp</span>
-                  <span style="color:var(--status-success);">●${metrics.injectable} Inj</span>
+                <div class="text-xs text-uppercase text-muted tracking-wide z-1">Total Tokens</div>
+                <div class="text-2xl font-light text-primary z-1">${metrics.total.toLocaleString()}</div>
+                <div class="text-xs text-muted z-1 flex-row gap-sm flex-wrap">
+                  <span class="text-accent">●${metrics.permanent} Perm</span>
+                  <span class="text-warning">●${metrics.temporary} Temp</span>
+                  <span class="text-success">●${metrics.injectable} Inj</span>
                 </div>
                 
-                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05; color: var(--text-primary); transform: rotate(-15deg);">
+                <div class="absolute" style="right: -10px; bottom: -10px; opacity: 0.05; color: var(--text-primary); transform: rotate(-15deg);">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                 </div>
             </div>
@@ -226,11 +226,11 @@
     function renderStatCard(label, value, sub, iconSvg, valueStyle = '') {
       return `
             <div class="card p-md flex-col relative overflow-hidden" style="gap:4px;">
-                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; z-index:1;">${label}</div>
-                <div style="font-size: 24px; font-weight: 300; color: var(--text-primary); ${valueStyle} z-index:1;">${value}</div>
-                <div style="font-size: 10px; color: var(--text-muted); opacity: 0.7; z-index:1;">${sub}</div>
+                <div class="text-xs text-uppercase text-muted tracking-wide z-1">${label}</div>
+                <div class="text-2xl font-light text-primary z-1" style="${valueStyle}">${value}</div>
+                <div class="text-xs text-muted z-1" style="opacity: 0.7;">${sub}</div>
                 
-                <div style="position: absolute; right: -10px; bottom: -10px; opacity: 0.05; color: var(--text-primary); transform: rotate(-15deg);">
+                <div class="absolute" style="right: -10px; bottom: -10px; opacity: 0.05; color: var(--text-primary); transform: rotate(-15deg);">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconSvg}</svg>
                 </div>
             </div>

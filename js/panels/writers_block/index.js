@@ -84,17 +84,17 @@
 
         container.innerHTML = `
             <!-- Left: Control Panel -->
-            <div class="card" style="display:flex; flex-direction:column; height:100%; overflow:hidden; padding:0;">
-                <div class="card-header" style="flex-shrink:0; border-bottom:1px solid var(--border-subtle); padding:12px;">
+            <div class="card flex-col h-full overflow-hidden p-0">
+                <div class="card-header shrink-0 border-b border-subtle p-md">
                     <strong>✍️ Writer's Block</strong>
                 </div>
-                <div style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:12px;">
+                <div class="flex-1 scroll-y p-md flex-col gap-md">
                     <!-- Mode -->
                     <div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; font-weight:bold;">Mode</div>
-                        <div style="display:flex; gap:4px; background:var(--bg-base); border-radius:var(--radius-md); padding:2px;">
-                            <button class="btn btn-sm mode-btn" data-mode="brainstorm" style="border-radius:var(--radius-sm); flex:1;">💡 Brainstorm</button>
-                            <button class="btn btn-sm mode-btn" data-mode="edit" style="border-radius:var(--radius-sm); flex:1;">✏️ Edit</button>
+                        <div class="text-xs text-muted mb-xs uppercase font-bold">Mode</div>
+                        <div class="flex-row gap-xs bg-base rounded-md p-xs">
+                            <button class="btn btn-sm mode-btn flex-1 rounded-sm" data-mode="brainstorm">💡 Brainstorm</button>
+                            <button class="btn btn-sm mode-btn flex-1 rounded-sm" data-mode="edit">✏️ Edit</button>
                         </div>
                     </div>
                     <!-- Genre Chips -->
@@ -118,29 +118,29 @@
                         <div id="location-chips" class="chip-group"></div>
                     </div>
                     <!-- Context Management -->
-                    <div style="border-top:1px solid var(--border-subtle); padding-top:12px; margin-top:4px;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; font-weight:bold;">Context</div>
-                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                            <label style="font-size:10px; color:var(--text-secondary);">Window:</label>
-                            <select class="input" id="sel-context-window" style="flex:1; font-size:10px;">
+                    <div class="border-t border-subtle pt-md mt-xs">
+                        <div class="text-xs text-muted mb-xs uppercase font-bold">Context</div>
+                        <div class="flex-row gap-sm items-center mb-sm">
+                            <label class="text-xs text-secondary">Window:</label>
+                            <select class="input flex-1 text-xs" id="sel-context-window">
                                 <option value="10">Last 10</option>
                                 <option value="20">Last 20</option>
                                 <option value="40">Last 40</option>
                                 <option value="0">All</option>
                             </select>
                         </div>
-                        <button class="btn btn-secondary btn-sm" id="btn-summarize" style="width:100%; font-size:10px;">📝 Summarize Older Context</button>
-                        <div id="context-summary-preview" style="margin-top:8px; font-size:9px; color:var(--text-muted); font-style:italic; max-height:60px; overflow-y:auto;"></div>
+                        <button class="btn btn-secondary btn-sm w-full text-xs" id="btn-summarize">📝 Summarize Older Context</button>
+                        <div id="context-summary-preview" class="mt-sm text-tiny text-muted italic scroll-y max-h-[60px]"></div>
                     </div>
                 </div>
                 <!-- Sessions/Branches Footer -->
-                <div style="flex-shrink:0; border-top:1px solid var(--border-subtle); padding:12px; display:flex; flex-direction:column; gap:8px;">
-                    <div style="display:flex; gap:4px; align-items:center;">
-                        <select class="input" id="branch-select" style="flex:1; font-size:10px;"></select>
+                <div class="shrink-0 border-t border-subtle p-md flex-col gap-sm">
+                    <div class="flex-row gap-xs items-center">
+                        <select class="input flex-1 text-xs" id="branch-select"></select>
                         <button class="btn btn-ghost btn-sm" id="btn-new-branch" title="New Branch">+</button>
                     </div>
-                    <div style="display:flex; gap:4px; align-items:center;">
-                        <select class="input" id="session-select" style="flex:1; font-size:10px;"></select>
+                    <div class="flex-row gap-xs items-center">
+                        <select class="input flex-1 text-xs" id="session-select"></select>
                         <button class="btn btn-ghost btn-sm" id="btn-save-session" title="Save Session">💾</button>
                         <button class="btn btn-ghost btn-sm" id="btn-load-session" title="Load Session">📂</button>
                     </div>
@@ -152,18 +152,18 @@
                 <!-- Chat Log -->
                 <div id="chat-log" class="chat-log"></div>
                 <!-- Footer -->
-                <div style="flex-shrink:0; border-top:1px solid var(--border-subtle); padding:12px; display:flex; flex-direction:column; gap:8px;">
-                    <div style="display:flex; gap:8px;">
-                        <select class="input" id="sel-template" style="min-width:160px; font-size:11px;">
+                <div class="shrink-0 border-t border-subtle p-md flex-col gap-sm">
+                    <div class="flex-row gap-sm">
+                        <select class="input text-xs min-w-[160px]" id="sel-template">
                             <option value="">📝 Templates...</option>
                         </select>
-                        <div style="flex:1;"></div>
+                        <div class="flex-1"></div>
                         <button class="btn btn-ghost btn-sm" id="btn-export" title="Export as Markdown">📤 Export</button>
                         <button class="btn btn-ghost btn-sm" id="btn-clear">🗑️ Clear</button>
                     </div>
-                    <div style="display:flex; gap:8px;">
-                        <textarea class="input" id="chat-input" rows="3" placeholder="Ask for help with your writing..." style="flex:1; resize:none;"></textarea>
-                        <button class="btn btn-primary" id="btn-send" style="align-self:flex-end;">Send</button>
+                    <div class="flex-row gap-sm">
+                        <textarea class="input flex-1 resize-none" id="chat-input" rows="3" placeholder="Ask for help with your writing..."></textarea>
+                        <button class="btn btn-primary self-end" id="btn-send">Send</button>
                     </div>
                 </div>
             </div>

@@ -30,25 +30,21 @@
     // RENDER FUNCTION
     // ===========================================
     async function render(container) {
-        container.style.height = '100%';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.overflow = 'hidden';
-        container.style.background = 'var(--bg-base)';
+        container.className = 'panel-container flex-col overflow-hidden h-full bg-base';
 
         // Load templates
         await loadTemplates();
 
         // Header
         const header = document.createElement('div');
-        header.style.cssText = 'padding:16px 20px; background:var(--bg-elevated); border-bottom:1px solid var(--border-subtle);';
+        header.className = 'p-md bg-elevated border-b border-subtle';
         header.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="flex-row justify-between items-center">
                 <div>
-                    <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+                    <h2 class="m-0 text-lg flex items-center gap-sm">
                         🗺️ Hina's Travel Guide
                     </h2>
-                    <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);">Rapid map generation with templates and AI enrichment</p>
+                    <p class="mt-xs mb-0 text-xs text-muted">Rapid map generation with templates and AI enrichment</p>
                 </div>
             </div>
         `;
@@ -56,19 +52,18 @@
 
         // Content
         const content = document.createElement('div');
-        content.style.cssText = 'flex:1; overflow-y:auto; padding:20px;';
+        content.className = 'flex-1 scroll-y p-md';
         container.appendChild(content);
 
         // === SECTION: Map Cabinet (Templates) ===
         const cabinetSection = document.createElement('div');
-        cabinetSection.className = 'card';
-        cabinetSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+        cabinetSection.className = 'card mb-md p-md';
         cabinetSection.innerHTML = `
-            <h3 style="margin:0 0 16px; font-size:14px; display:flex; align-items:center; gap:8px;">
+            <h3 class="mt-0 mb-md text-sm flex items-center gap-sm">
                 🗄️ Map Cabinet
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${templates.length} templates available)</span>
+                <span class="text-xs text-muted font-normal">(${templates.length} templates available)</span>
             </h3>
-            <div id="template-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"></div>
+            <div id="template-grid" class="hina-cabinet-grid gap-md"></div>
         `;
         content.appendChild(cabinetSection);
 
@@ -77,17 +72,16 @@
 
         // === SECTION: Custom Map Builder (Wizard) ===
         const builderSection = document.createElement('div');
-        builderSection.className = 'card';
-        builderSection.style.cssText = 'padding:20px; margin-bottom:20px;';
+        builderSection.className = 'card mb-md p-md';
 
         // Determine visibility based on persistent step
         const showStep1 = wizardState.step === 1 ? 'block' : 'none';
         const showStep2 = wizardState.step === 2 ? 'block' : 'none';
 
         builderSection.innerHTML = `
-            <h3 style="margin:0 0 16px; font-size:14px; display:flex; align-items:center; gap:8px;">
+            <h3 class="mt-0 mb-md text-sm flex items-center gap-sm">
                 ✏️ Custom Map Builder
-                <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(Create from scratch)</span>
+                <span class="text-xs text-muted font-normal">(Create from scratch)</span>
             </h3>
             
             <div id="wizard-container">
@@ -132,10 +126,10 @@
                         </div>
                     </div>
                     
-                    <div style="margin-bottom:16px;">
+                    <div class="mb-md">
                         <label class="label">Number of Locations</label>
-                        <input type="range" id="wizard-count" min="3" max="15" value="5" style="width:100%;">
-                        <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted);">
+                        <input type="range" id="wizard-count" min="3" max="15" value="5" class="w-full">
+                        <div class="flex justify-between text-xs text-muted">
                             <span>Small (3)</span>
                             <span id="wizard-count-display">5 locations</span>
                             <span>Large (15)</span>
@@ -903,12 +897,12 @@
     function renderPreview(container, template) {
         if (!template) return;
         container.innerHTML = `
-            <div class="card" style="border:1px solid var(--border-subtle); background:var(--bg-surface); overflow:hidden;">
-                <div style="padding:16px; border-bottom:1px solid var(--border-subtle);">
-                    <div style="font-weight:600; font-size:14px; margin-bottom:4px;">${template.name}</div>
-                    <div style="font-size:11px; color:var(--text-muted);">${template.description}</div>
+            <div class="card bg-surface border border-subtle overflow-hidden">
+                <div class="p-md border-b border-subtle">
+                    <div class="font-semibold text-sm mb-xs">${template.name}</div>
+                    <div class="text-xs text-muted">${template.description}</div>
                 </div>
-                <div style="padding:12px 16px; background:var(--bg-inset); border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-muted);">
+                <div class="p-sm px-md bg-inset border-t border-subtle text-xs text-muted">
                     📍 ${template.locations.length} locations • 🔗 ${template.connections.length} connections
                 </div>
             </div>

@@ -94,22 +94,23 @@
         'sources': { label: 'Sources', icon: '📚', category: 'Deep', order: 10 },
         'tester': { label: 'Tester', icon: '🧪', category: 'Deep', order: 20, hidden: true }, // HIDDEN
         'tokens': { label: 'Tokens', icon: '🪙', category: 'Deep', order: 30 },
-        'validator': { label: 'Validator', icon: '✅', category: 'Deep', order: 40, hidden: true }, // HIDDEN
+        'validator': {
+            label: 'Validator', icon: '✅', category: 'Deep', order: 40, hidden: true,
+            dependencies: ['js/core/validator.js']
+        },
 
         // --- Forbidden Secrets ---
         'stats': { label: 'Stats', icon: '📊', category: 'Forbidden Secrets', order: 10 },
         'locations': { label: 'Locations', icon: '🌍', category: 'Forbidden Secrets', order: 20 },
 
         // CORRECTION: ID match for Chronos Chat. 
-        // Note: The file js/panels/chronos_chat/index.js registers 'chronos_chat'.
-        // So we MUST use 'chronos_chat' as key to prevent duplication.
-        // We also need to map the path manually because implicit path is js/panels/chronos_chat/index.js (which matches key).
         'chronos_chat': {
             label: 'Chronos',
             icon: '⏳',
             category: 'Forbidden Secrets',
             subcategory: 'Immersion',
-            order: 30
+            order: 30,
+            dependencies: ['js/plugins/chronos/chronos_core.js']
         },
         'chronos_scheduler': {
             label: 'Scheduler',
@@ -117,7 +118,8 @@
             category: 'Forbidden Secrets',
             subcategory: 'Immersion',
             order: 40,
-            path: 'js/plugins/chronos/chronos_scheduler.js'
+            path: 'js/plugins/chronos/chronos_scheduler.js',
+            dependencies: ['js/plugins/chronos/chronos_core.js']
         },
         'chronos_settings': {
             label: 'Immersion Config',
@@ -125,7 +127,8 @@
             category: 'Forbidden Secrets',
             subcategory: 'Immersion',
             order: 50,
-            path: 'js/plugins/chronos/chronos_settings.js'
+            path: 'js/plugins/chronos/chronos_settings.js',
+            dependencies: ['js/plugins/chronos/chronos_core.js']
         },
 
         // --- RPG Experiment ---
@@ -135,7 +138,7 @@
         },
         'rpg_dm_map': {
             label: 'DM Atlas', icon: '📍', category: 'RPG Experiment', subcategory: 'Game Master', order: 11, gmOnly: true,
-            dependencies: rpgCoreDeps
+            dependencies: ['js/panels/locations/index.js'].concat(rpgCoreDeps)
         },
         'rpg_leveling': {
             label: 'Leveling', icon: '🆙', category: 'RPG Experiment', subcategory: 'Game Master', order: 12, gmOnly: true,
@@ -156,11 +159,11 @@
         },
         'rpg_party': {
             label: 'Party', icon: '🛡️', category: 'RPG Experiment', order: 21,
-            dependencies: rpgCoreDeps
+            dependencies: ['js/panels/actors/actors-gallery.js', 'js/panels/actors/actors-tabs.js', 'js/panels/actors/index.js'].concat(rpgCoreDeps)
         },
         'rpg_map': {
             label: 'World Map', icon: '🗺️', category: 'RPG Experiment', order: 22,
-            dependencies: rpgCoreDeps
+            dependencies: ['js/panels/locations/index.js'].concat(rpgCoreDeps)
         },
     };
 })(window.Anansi);

@@ -47,15 +47,15 @@
         // If Bound, hide tabs (only show Rules for this item)
         if (isBound) {
             sideCol.innerHTML = `
-        <div style="padding:12px; background:var(--bg-elevated); border-bottom:1px solid var(--border-subtle);">
-           <div style="font-size:10px; text-transform:uppercase; color:var(--accent-primary); font-weight:bold;">Logic For</div>
-           <div style="font-weight:bold; font-size:14px;">${context.boundName || 'Entry'}</div>
-           <button class="btn btn-ghost btn-xs" id="btn-back-adv" style="margin-top:4px;">&larr; Show All</button>
+        <div class="p-md bg-elevated border-b border-subtle">
+           <div class="text-[10px] uppercase text-accent font-bold">Logic For</div>
+           <div class="font-bold text-sm text-primary">${context.boundName || 'Entry'}</div>
+           <button class="btn btn-ghost btn-xs mt-xs" id="btn-back-adv">&larr; Show All</button>
         </div>
-        <div id="side-list" style="flex:1; overflow-y:auto; padding:0;"></div>
-        <div class="card-footer" id="side-footer">
-          <button class="btn btn-primary btn-sm" id="btn-add-side" style="width:100%;">+ Add Logic Chain</button>
-          <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:4px;">📥 Import Chain</button>
+        <div id="side-list" class="flex-1 scroll-y p-0"></div>
+        <div class="card-footer p-sm gap-xs" id="side-footer">
+          <button class="btn btn-primary btn-sm w-full" id="btn-add-side">+ Add Logic Chain</button>
+          <button class="btn btn-ghost btn-sm w-full" id="btn-vault-import">📥 Import Chain</button>
         </div>
        `;
             /** @type {HTMLElement} */ (sideCol.querySelector('#btn-back-adv')).onclick = () => {
@@ -73,10 +73,10 @@
            <div class="tab-btn" id="tab-deriv">Derived</div>
            <div class="tab-btn" id="tab-rules">Rules</div>
         </div>
-        <div id="side-list" style="flex:1; overflow-y:auto; padding:0;"></div>
-        <div class="card-footer" id="side-footer">
-          <button class="btn btn-primary btn-sm" id="btn-add-side" style="width:100%;">+ Add Item</button>
-          <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:4px;">📥 Import</button>
+        <div id="side-list" class="flex-1 scroll-y p-0"></div>
+        <div class="card-footer p-sm gap-xs" id="side-footer">
+          <button class="btn btn-primary btn-sm w-full" id="btn-add-side">+ Add Item</button>
+          <button class="btn btn-ghost btn-sm w-full mt-xs" id="btn-vault-import">📥 Import</button>
         </div>
       `;
         }
@@ -257,7 +257,7 @@
             };
 
             if (!items.length) {
-                listEl.innerHTML = '<div class="muted" style="padding:12px; text-align:center;">No items.</div>';
+                listEl.innerHTML = '<div class="muted p-md text-center">No items.</div>';
                 return;
             }
 
@@ -302,7 +302,7 @@
         function renderMain() {
             mainCol.innerHTML = '';
             if (!activeId) {
-                mainCol.innerHTML = '<div class="muted" style="padding:20px; text-align:center;">Select or Create an item</div>';
+                mainCol.innerHTML = '<div class="muted p-lg text-center">Select or Create an item</div>';
                 return;
             }
 
@@ -315,11 +315,7 @@
 
             // Container
             const container = document.createElement('div');
-            container.style.flex = '1';
-            container.style.padding = '0';
-            container.style.display = 'flex';
-            container.style.flexDirection = 'column';
-            container.style.overflow = 'hidden';
+            container.className = 'flex-1 p-0 flex-col overflow-hidden';
 
             // Common Header
             const header = document.createElement('div');
@@ -369,10 +365,7 @@
 
             // Body
             const body = document.createElement('div');
-            body.className = 'card-body';
-            body.style.flex = '1';
-            body.style.overflowY = 'auto';
-            body.style.paddingBottom = '60px';
+            body.className = 'card-body flex-1 scroll-y pb-xl';
 
             if (activeTab === 'lists') renderListEditor(body, item, markMod);
             else if (activeTab === 'derived') renderDerivedEditor(body, item, state, markMod);

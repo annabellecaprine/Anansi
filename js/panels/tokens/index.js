@@ -17,11 +17,11 @@
         <div class="grid-auto-fill gap-md">
           <div class="card p-md text-center">
             <div class="text-xs text-muted text-uppercase mb-xs">Total Project Characters</div>
-            <div class="text-xl font-bold text-accent" style="font-size:32px;" id="total-chars">0</div>
+            <div class="font-bold text-accent" style="font-size:32px;" id="total-chars">0</div>
           </div>
           <div class="card p-md text-center">
             <div class="text-xs text-muted text-uppercase mb-xs">Estimated Tokens</div>
-            <div class="text-xl font-bold text-success" style="font-size:32px;" id="total-tokens">0</div>
+            <div class="font-bold text-success" style="font-size:32px;" id="total-tokens">0</div>
           </div>
           <div class="card p-md">
             <div class="text-xs text-muted text-uppercase mb-sm">Heuristic Configuration</div>

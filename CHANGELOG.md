@@ -2,6 +2,19 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v2.0 - 2026-01-30
+### Structural Standardization (Phase 5)
+- **CSS Overhaul**: Eliminated legacy inline styles across all panels, enforcing a unified, maintainable utility class system (`css/panels.css`).
+- **Layout Consistency**: Resolved persistent alignment issues in Lorebook and Sidebar elements.
+
+### Manifest-Driven Architecture (Phase 6)
+- **Bootstrap Logic**: Refactored `ui.js` to dynamically bootstrap all panels from `panel_manifest.js`, ensuring a single source of truth for panel metadata.
+- **Lazy Loading**: Completed the migration of core panels to an efficient on-demand loading architecture.
+
+### Stability & Hardening (Phase 7)
+- **Deterministic Sidebar**: Rewrote sidebar rendering logic to strictly respect Manifest `order`, permanently resolving category "jumping".
+- **Metadata Separation**: Hardened registration logic to prevent lazy-loaded scripts from overwriting critical UI metadata (Icons, Categories).
+
 ## v1.21.0 - 2026-01-27
 ### Architecture (Phase 6: Strict Isolation)
 - **RPG Engine Refactor**: Migrated the legacy monolithic RPG plugin (`js/plugins/rpg`) to a clean, modular Core architecture (`js/core/rpg` and `js/panels/rpg_*`).

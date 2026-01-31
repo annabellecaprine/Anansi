@@ -145,8 +145,7 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
 
   // --- Render Function ---
   function render(container) {
-    container.style.height = '100%';
-    container.style.overflow = 'hidden';
+    container.className = 'panel-container h-full overflow-hidden';
 
     const state = A.State.get();
     const actors = Object.values(state.nodes?.actors?.items || {});
@@ -161,57 +160,18 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
     let advancedTarget = 'any'; // Default for advanced to avoid conflicting with natural language requests
 
     container.innerHTML = `
-      <div class="nabu-layout" style="
-        display: grid;
-        grid-template-columns: 260px 1fr;
-        gap: var(--space-4);
-        height: 100%;
-        padding: var(--space-4);
-      ">
+      <div class="nabu-layout">
         <!-- Left: Visual & Options -->
-        <div class="nabu-left" style="
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-3);
-          overflow-y: auto;
-        ">
+        <div class="nabu-left">
           <!-- Tablet Visual -->
-          <div style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: var(--space-3);
-            background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(139, 90, 43, 0.08) 100%);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-subtle);
-            position: relative;
-          ">
-            <div style="
-              position: absolute;
-              width: 100px;
-              height: 120px;
-              background: radial-gradient(ellipse, rgba(205, 133, 63, 0.25) 0%, transparent 70%);
-              border-radius: 30%;
-              top: 8px;
-              animation: tablet-pulse 4s ease-in-out infinite;
-            "></div>
+          <div class="nabu-tablet">
+            <div class="nabu-tablet-glow"></div>
             
-            <div style="
-              width: 80px;
-              height: 100px;
-              background: linear-gradient(145deg, #8B7355 0%, #6B5344 50%, #5a4636 100%);
-              border-radius: 8px 8px 12px 12px;
-              box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              position: relative;
-              z-index: 1;
-            ">
-              <div id="cuneiform-display" style="font-size: 16px; color: rgba(50, 35, 25, 0.8);">𒀭𒈾𒁍</div>
+            <div class="nabu-tablet-face">
+              <div id="cuneiform-display" class="text-base text-ink-900 opacity-80">𒀭𒈾𒁍</div>
             </div>
             
-            <h3 style="margin: 8px 0 2px 0; font-size: 12px; font-weight: 300; letter-spacing: 1px; text-transform: uppercase; position: relative; z-index: 1;">Temple of Nabu</h3>
+            <h3 class="mt-xs text-xs font-light tracking-wide uppercase relative z-10">Temple of Nabu</h3>
           </div>
           
           <!-- Rule Type Selector -->
@@ -312,12 +272,7 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
         </div>
 
         <!-- Right: Input & Preview -->
-        <div class="nabu-right" style="
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-3);
-          min-height: 0;
-        ">
+        <div class="nabu-right">
           <!-- Input Section -->
           <div style="
             background: var(--bg-surface);
@@ -369,28 +324,7 @@ Apply the COOKII methodology to optimize this character based on my request. Rem
         </div>
       </div>
 
-      <style>
-        @keyframes tablet-pulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.03); }
-        }
-        @keyframes inscribing {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 1; }
-        }
-        .aura-tag-btn {
-          font-size: 9px;
-          padding: 3px 7px;
-          border-radius: 10px;
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
-          color: var(--text-muted);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .aura-tag-btn:hover { border-color: var(--accent-primary); color: var(--text-primary); }
-        .aura-tag-btn.selected { background: var(--accent-primary); color: white; border-color: var(--accent-primary); }
-      </style>
+      <style>/* Styles moved to panels.css */</style>
     `;
 
     // --- Wire Event Handlers ---

@@ -218,34 +218,34 @@
 
         leftCol.innerHTML = `
             <!-- Map Selector -->
-            <div style="padding:12px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
-                <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-                    <select id="map-selector" class="input" style="flex:1; font-weight:bold;"></select>
+            <div class="p-sm border-b border-subtle bg-elevated">
+                <div class="flex-row gap-sm items-center mb-sm">
+                    <select id="map-selector" class="input font-bold flex-1"></select>
                     <button class="btn btn-sm btn-primary" id="btn-new-map" title="Create new map">+</button>
                     <button class="btn btn-sm btn-ghost" id="btn-edit-map" title="Edit map properties">⚙️</button>
                 </div>
-                <div id="map-breadcrumb" style="font-size:10px; color:var(--text-muted);"></div>
+                <div id="map-breadcrumb" class="text-xs text-muted"></div>
             </div>
             
             <!-- Location Creator -->
-            <div style="padding:12px; border-bottom:1px solid var(--border-subtle);">
-                <div style="display:flex; gap:8px;">
-                    <input class="input" id="new-loc-name" placeholder="New Location Name" style="flex:1;">
+            <div class="p-sm border-b border-subtle">
+                <div class="flex-row gap-sm">
+                    <input class="input flex-1" id="new-loc-name" placeholder="New Location Name">
                     <button class="btn btn-primary btn-sm" id="btn-add-loc">+</button>
                 </div>
             </div>
             
             <!-- Location List -->
-            <div id="loc-list" style="flex:1; overflow-y:auto; padding:12px;"></div>
+            <div id="loc-list" class="flex-1 scroll-y p-sm"></div>
             
             <!-- Footer Actions -->
-            <div style="padding:8px 12px; border-top:1px solid var(--border-subtle); background:var(--bg-elevated);">
+            <div class="p-sm border-t border-subtle bg-elevated">
                 <div id="footer-std-act">
-                    <button class="btn btn-ghost btn-sm" id="btn-select-mode" style="width:100%;">☑️ Multi-Select...</button>
+                    <button class="btn btn-ghost btn-sm w-full" id="btn-select-mode">☑️ Multi-Select...</button>
                 </div>
-                <div id="footer-sel-act" style="display:none; flex-direction:column; gap:8px;">
-                    <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
-                    <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel</button>
+                <div id="footer-sel-act" class="flex-col gap-sm" style="display:none;">
+                    <button class="btn btn-sm w-full bg-status-error text-white" id="btn-del-multi">Delete Selected (0)</button>
+                    <button class="btn btn-ghost btn-sm w-full" id="btn-cancel-select">Cancel</button>
                 </div>
             </div>
         `;
@@ -568,45 +568,46 @@
             activeMap.locations.forEach((loc, idx) => {
                 const isSel = (G.selection === loc.id);
                 const el = document.createElement('div');
-                el.className = 'card';
-                el.style.cssText = `padding:12px; margin-bottom:8px; ${isSel && !selectionMode ? 'border:2px solid var(--accent-primary);' : ''} ${selectionMode && selectedIds.has(loc.id) ? 'border:2px solid var(--accent-primary); background:var(--bg-elevated);' : ''}`;
+                el.className = 'card p-sm mb-sm transition-all';
+                if (isSel && !selectionMode) el.classList.add('border-accent');
+                if (selectionMode && selectedIds.has(loc.id)) el.classList.add('bg-elevated', 'border-accent');
 
                 const hasMapLink = loc.mapLink;
                 const linkedMap = hasMapLink ? getMapById(state, loc.mapLink) : null;
 
                 el.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center;">
-                        ${selectionMode ? `<input type="checkbox" style="margin-right:8px;" ${selectedIds.has(loc.id) ? 'checked' : ''}>` : ''}
-                        <input class="input loc-name" value="${loc.name || ''}" style="font-weight:bold; flex:1;" ${selectionMode ? 'disabled' : ''}>
-                        <div style="font-size:10px; color:var(--text-muted); margin-left:8px; font-family:var(--font-mono); cursor:pointer;" title="Copy ID" onclick="navigator.clipboard.writeText('${loc.id}'); Anansi.UI.Toast.show('ID copied', 'info');">ID</div>
+                    <div class="flex-row justify-between items-center mb-sm">
+                        ${selectionMode ? `<input type="checkbox" class="mr-sm" ${selectedIds.has(loc.id) ? 'checked' : ''}>` : ''}
+                        <input class="input loc-name font-bold flex-1" value="${loc.name || ''}" ${selectionMode ? 'disabled' : ''}>
+                        <div class="text-xs text-muted ml-sm font-mono cursor-pointer" title="Copy ID" onclick="navigator.clipboard.writeText('${loc.id}'); Anansi.UI.Toast.show('ID copied', 'info');">ID</div>
                     </div>
                     
-                    <textarea class="input loc-desc" placeholder="Description..." rows="2" style="width:100%; font-size:11px; margin-bottom:8px;" ${selectionMode ? 'disabled' : ''}>${loc.description || ''}</textarea>
+                    <textarea class="input loc-desc w-full text-xs mb-sm" placeholder="Description..." rows="2" ${selectionMode ? 'disabled' : ''}>${loc.description || ''}</textarea>
                     
                     <!-- Exits -->
-                    <div style="margin-bottom:8px;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">EXITS</div>
-                        <div class="exits-list" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px;"></div>
-                        <select class="input loc-add-exit" style="width:100%; font-size:10px;" ${selectionMode ? 'disabled' : ''}>
+                    <div class="mb-sm">
+                        <div class="text-xs text-muted mb-xs">EXITS</div>
+                        <div class="exits-list flex-wrap gap-xs mb-xs flex-row"></div>
+                        <select class="input loc-add-exit w-full text-xs" ${selectionMode ? 'disabled' : ''}>
                             <option value="">+ Add Exit</option>
                             ${activeMap.locations.filter(l => l.id !== loc.id).map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
                         </select>
                     </div>
                     
                     <!-- Map Link -->
-                    <div style="margin-bottom:8px; padding:8px; background:var(--bg-surface); border-radius:4px;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">🚪 MAP TRANSITION</div>
-                        <select class="input loc-map-link" style="width:100%; font-size:11px;" ${selectionMode ? 'disabled' : ''}>
+                    <div class="mb-sm p-sm bg-surface rounded">
+                        <div class="text-xs text-muted mb-xs">🚪 MAP TRANSITION</div>
+                        <select class="input loc-map-link w-full text-xs" ${selectionMode ? 'disabled' : ''}>
                             <option value="">— No link —</option>
                             ${state.weaves.maps.filter(m => m.id !== activeMap.id).map(m => `<option value="${m.id}" ${loc.mapLink === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
                         </select>
-                        ${linkedMap ? `<div style="font-size:10px; color:var(--accent-primary); margin-top:4px;">Double-click node to enter</div>` : ''}
+                        ${linkedMap ? `<div class="text-xs text-accent mt-xs">Double-click node to enter</div>` : ''}
                     </div>
                     
                     <!-- Actions -->
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <button class="btn btn-xs btn-ghost loc-create-submap" style="font-size:10px;" ${selectionMode ? 'disabled' : ''} title="Create a new map linked from this location">🗺️ Create Sub-Map</button>
-                        <button class="btn btn-ghost btn-xs loc-del" style="color:var(--status-error);" ${selectionMode ? 'disabled' : ''}>Delete</button>
+                    <div class="flex-row justify-between items-center">
+                        <button class="btn btn-xs btn-ghost loc-create-submap text-xs" ${selectionMode ? 'disabled' : ''} title="Create a new map linked from this location">🗺️ Create Sub-Map</button>
+                        <button class="btn btn-ghost btn-xs loc-del text-error" ${selectionMode ? 'disabled' : ''}>Delete</button>
                     </div>
                 `;
 

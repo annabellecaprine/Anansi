@@ -257,53 +257,7 @@
         const currentGenre = T.WORLD_ARCHETYPES.find(t => t.id === session.worldArchetype);
         const isProtagonistMode = session.storyFocus === 'protagonist';
 
-        // Inject Styles for Animations & Progress
-        if (!document.getElementById('ww-ui-styles')) {
-            const style = document.createElement('style');
-            style.id = 'ww-ui-styles';
-            style.textContent = `
-                @keyframes ww-pulse {
-                    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); border-color: var(--accent-primary); }
-                    50% { transform: scale(1.03); box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.4); border-color: var(--accent-primary); }
-                    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); border-color: transparent; }
-                }
-                .ww-category-row {
-                    padding: 10px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    margin-bottom: 6px;
-                    border: 1px solid transparent;
-                    transition: all 0.2s ease;
-                    background: transparent;
-                }
-                .ww-category-row:hover {
-                    background: var(--bg-elevated);
-                }
-                .ww-category-row.active {
-                    background: var(--bg-elevated);
-                    border-color: var(--border-subtle);
-                }
-                .ww-pulse {
-                    animation: ww-pulse 1.2s ease-out;
-                    z-index: 10;
-                    position: relative;
-                }
-                .ww-progress-bg {
-                    height: 4px;
-                    width: 100%;
-                    background: var(--bg-base);
-                    border-radius: 2px;
-                    margin-top: 8px;
-                    overflow: hidden;
-                }
-                .ww-progress-fill {
-                    height: 100%;
-                    border-radius: 2px;
-                    transition: width 0.5s ease, background-color 0.5s ease;
-                }
-            `;
-            document.head.appendChild(style);
-        }
+        // Styles moved to panels.css
 
         let protagonistName = null;
         if (isProtagonistMode) {
@@ -421,7 +375,7 @@
 
         modal.innerHTML = `
             <div class="modal-backdrop"></div>
-            <div class="modal-content flex-col w-full p-lg" style="max-width:600px; height:80vh;">
+            <div class="modal-content flex-col w-full p-lg max-w-[600px] h-[80vh]">
                 <div class="font-bold text-lg mb-md">${conf.label}</div>
                 <textarea id="cat-notes" class="input flex-1 p-md resize-none font-mono text-sm leading-relaxed">${data.notes || ''}</textarea>
                 <div class="mt-lg flex-row justify-end">
@@ -454,13 +408,7 @@
         container.innerHTML = `
             <div id="ww-chat-messages" class="flex-1 scroll-y p-lg flex-col gap-md"></div>
             <div id="ww-chat-status" class="px-lg h-5 text-xs text-muted italic"></div>
-            <!-- Chat Styles for Formatting -->
-            <style>
-                #ww-chat-messages strong { color: #facc15; font-weight: 700; } /* Yellow/Gold for emphasis */
-                #ww-chat-messages em { color: #e5e5e5; font-style: italic; }
-                #ww-chat-messages .chat-code-inline { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; }
-                #ww-chat-messages ul { margin-left: 20px; }
-            </style>
+            <!-- Chat Styles moved to panels.css -->
             <div class="p-md bg-elevated border-t border-subtle">
                 <!-- Header: Mode Switch -->
                 <div class="flex-row justify-end items-center mb-md gap-md">
@@ -578,19 +526,14 @@
                             setTimeout(() => {
                                 const chip = document.getElementById(chipId);
                                 if (chip) {
-                                    chip.onmouseover = () => { chip.style.background = 'var(--bg-elevated)'; chip.style.transform = 'translateY(-1px)'; };
-                                    chip.onmouseout = () => { chip.style.background = 'var(--bg-surface)'; chip.style.transform = 'none'; };
+                                    chip.onmouseover = null; // Handled by CSS
+                                    chip.onmouseout = null; // Handled by CSS
                                     chip.onclick = () => {
                                         const input = container.querySelector('#ww-chat-input');
                                         if (input) {
                                             input.value = q.suggestion;
                                             input.focus();
-                                            chip.style.background = 'var(--accent-primary)';
-                                            chip.style.color = 'white';
-                                            setTimeout(() => {
-                                                chip.style.background = 'var(--bg-surface)';
-                                                chip.style.color = 'var(--text-primary)';
-                                            }, 200);
+                                            // Reset styles via class toggle if needed, or rely on CSS hover
                                         }
                                     };
                                 }
@@ -670,7 +613,7 @@
 
         modal.innerHTML = `
             <div class="modal-backdrop"></div>
-            <div class="modal-content w-full p-lg" style="max-width:500px;">
+            <div class="modal-content w-full p-lg max-w-[500px]">
                 <h3 class="mt-0 mb-sm">🕸️ Generate World Output</h3>
                 <p class="text-muted mb-lg">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
 
@@ -790,14 +733,10 @@
         }
 
         const modal = document.createElement('div');
-        modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center;
-        z-index: 9999; backdrop-filter: blur(4px);
-        `;
+        modal.className = 'modal flex items-center justify-center p-md z-[9999] backdrop-blur-sm bg-black/75 fixed inset-0';
 
         modal.innerHTML = `
-            < div style = "max-width: 500px; background: var(--bg-surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: 0 10px 40px rgba(0,0,0,0.5);" >
+            <div class="max-w-[500px] bg-surface p-lg rounded-xl border border-subtle shadow-2xl">
                 <h3 style="margin-top: 0;">👥 Select Characters to Generate</h3>
                 <p style="color: var(--text-muted); margin-bottom: 16px;">Choose which cast members to generate cards for:</p>
 

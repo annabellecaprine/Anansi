@@ -29,17 +29,10 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div style="
-                            background: rgba(124, 108, 255, 0.1);
-                            border-left: 3px solid var(--accent-primary);
-                            padding: 12px;
-                            font-size: 13px;
-                            border-radius: 4px;
-                            margin-bottom: 16px;
-                        ">
+                        <div class="guide-info-box">
                             Best for V2 Character Card import and metadata preservation.
                         </div>
-                        <ol style="padding-left: 20px; line-height: 1.6; font-size: 14px; color: var(--text-main);">
+                        <ol class="guide-list">
                             <li>Click the <strong>Export</strong> button in the Top Bar.</li>
                             <li>Select <strong>V2 Character Card (.png)</strong>.</li>
                             <li>Save the PNG image to your device.</li>
@@ -47,7 +40,7 @@
                                 Import the PNG into SillyTavern or Agnaistic.
                                 Character data and associated lore are embedded as metadata.
                             </li>
-                            <li style="margin-top: 8px; font-style: italic;">
+                            <li class="guide-note">
                                 Note: Embedded scripts may be preserved for reference, but execution depends on platform support and configuration.
                             </li>
                         </ol>
@@ -63,17 +56,10 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div style="
-                            background: rgba(124, 108, 255, 0.1);
-                            border-left: 3px solid var(--accent-primary);
-                            padding: 12px;
-                            font-size: 13px;
-                            border-radius: 4px;
-                            margin-bottom: 16px;
-                        ">
+                        <div class="guide-info-box">
                             Recommended Method: Scripts (Beta) Upload
                         </div>
-                        <ol style="padding-left: 20px; line-height: 1.6; font-size: 14px; color: var(--text-main);">
+                        <ol class="guide-list">
                             <li>Create your JanitorAI character as normal.</li>
                             <li>
                                 In Anansi, open the <strong>Scripts</strong> panel and export
@@ -86,7 +72,7 @@
                                 listed in the <code>README.txt</code> included in the ZIP.
                             </li>
                         </ol>
-                        <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary); opacity: 0.85;">
+                        <div class="mt-sm text-xs text-secondary opacity-85">
                             Tip: Script order matters. Later scripts may depend on state created by earlier ones.
                         </div>
                     </div>
@@ -101,17 +87,10 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div style="
-                            background: rgba(124, 108, 255, 0.1);
-                            border-left: 3px solid var(--accent-primary);
-                            padding: 12px;
-                            font-size: 13px;
-                            border-radius: 4px;
-                            margin-bottom: 16px;
-                        ">
+                        <div class="guide-info-box">
                             Lorebook Sharing
                         </div>
-                        <ol style="padding-left: 20px; line-height: 1.6; font-size: 14px; color: var(--text-main);">
+                        <ol class="guide-list">
                             <li>Open the <strong>Lorebook</strong> panel in Anansi.</li>
                             <li>Click the <strong>Export</strong> button in the footer.</li>
                             <li>Select <strong>JSON (Standard)</strong>.</li>

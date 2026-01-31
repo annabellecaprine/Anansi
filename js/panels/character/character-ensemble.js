@@ -71,9 +71,9 @@
         <div class="card mb-md">
           <div class="card-header"><strong>Profile Image</strong></div>
           <div class="card-body flex-row gap-md items-start">
-            <div id="portrait-preview" class="bg-inset border-dashed border-subtle rounded-md flex-row items-center justify-center overflow-hidden flex-shrink-0" style="width:150px;height:200px;">
+            <div id="portrait-preview" class="portrait-preview">
               ${ensemble.portrait?.data
-        ? `<img src="${ensemble.portrait.data}" class="w-full h-full" style="object-fit:cover;">`
+        ? `<img src="${ensemble.portrait.data}" class="portrait-img">`
         : `<span class="text-muted text-xs text-center p-sm">No image</span>`
       }
             </div>
@@ -91,15 +91,15 @@
         <!-- Character Name & Chat Name -->
         <div class="card" style="margin-bottom:var(--space-4);">
           <div class="card-body">
-            <div class="form-group" style="margin-bottom:16px;">
-              <label class="label" style="font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;">Character Name</label>
+            <div class="form-group mb-md">
+              <label class="label v-lab">Character Name</label>
               <input type="text" id="char-name" class="input" placeholder="The card's name (e.g., 'The Dream Team')" value="${UI.escapeHtml(ensemble.characterName || '')}">
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">The displayed name for this ensemble card.</div>
+              <div class="text-xs text-muted mt-xs">The displayed name for this ensemble card.</div>
             </div>
             <div class="form-group">
-              <label class="label" style="font-size:11px;font-weight:bold;color:var(--text-muted);text-transform:uppercase;">Chat Name</label>
+              <label class="label v-lab">Chat Name</label>
               <input type="text" id="chat-name" class="input" placeholder="Name used in chat messages" value="${UI.escapeHtml(ensemble.chatName || '')}">
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">The name that appears in chat (optional for ensembles).</div>
+              <div class="text-xs text-muted mt-xs">The name that appears in chat (optional for ensembles).</div>
             </div>
           </div>
         </div>
@@ -164,8 +164,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-personality" data-field="personality" 
-                        style="height:250px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-xl" id="field-personality" data-field="personality" 
                         placeholder="Combined character profiles...">${UI.escapeHtml(personalityContent)}</textarea>
             </div>
           </div>
@@ -185,8 +184,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-scenario" data-field="scenario" 
-                        style="height:200px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-lg" id="field-scenario" data-field="scenario" 
                         placeholder="Multi-character system prompt...">${UI.escapeHtml(scenarioContent)}</textarea>
             </div>
           </div>
@@ -206,8 +204,7 @@
               </div>
             </div>
             <div class="card-body">
-              <textarea class="input field-editor" id="field-exampleDialogue" data-field="exampleDialogue" 
-                        style="height:180px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
+              <textarea class="input field-editor field-editor-lg" id="field-exampleDialogue" data-field="exampleDialogue" 
                         placeholder="Voice samples from each actor...">${UI.escapeHtml(examplesContent)}</textarea>
             </div>
           </div>
@@ -235,9 +232,9 @@
                         style="height:150px;resize:vertical;font-family:var(--font-mono);font-size:13px;"
                         placeholder="Opening scene message...">${UI.escapeHtml(currentFm)}</textarea>
               ${fmOptions[currentFmIndex]?.isCustom ? `
-                <div style="margin-top:12px;padding:12px;background:var(--bg-inset);border-radius:var(--radius-md);">
-                  <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Generate Combined Opening (optional guidance):</label>
-                  <div style="display:flex;gap:8px;">
+                <div class="mt-md p-md bg-inset rounded-md">
+                  <label class="v-lab mb-xs block">Generate Combined Opening (optional guidance):</label>
+                  <div class="flex-row gap-sm">
                     <input type="text" class="input" id="fm-guidance" placeholder="e.g., Start with tension, Elena speaks first" style="flex:1;">
                     <button class="btn btn-secondary" id="btn-generate-fm">🪄 Generate</button>
                   </div>

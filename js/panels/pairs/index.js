@@ -28,16 +28,11 @@
         if (!state.nodes.pairs) state.nodes.pairs = { items: {} };
 
         // Layout
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '250px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-sidebar-layout';
 
         // 1. List Column
         const listCol = document.createElement('div');
-        listCol.className = 'card';
-        Object.assign(listCol.style, { display: 'flex', flexDirection: 'column', minHeight: '0', marginBottom: '0' });
+        listCol.className = 'card flex-col min-h-0 mb-0';
 
         listCol.innerHTML = `
             <div class="card-header">
@@ -52,8 +47,7 @@
 
         // 2. Editor Column
         const editorCol = document.createElement('div');
-        editorCol.className = 'card';
-        Object.assign(editorCol.style, { display: 'flex', flexDirection: 'column', minHeight: '0', marginBottom: '0', padding: '0' });
+        editorCol.className = 'card flex-col min-h-0 mb-0 p-0';
         editorCol.id = 'pair-editor';
 
         container.appendChild(listCol);
@@ -110,12 +104,9 @@
 
             pairs.forEach(pair => {
                 const item = document.createElement('div');
-                item.style.padding = '8px 12px';
-                item.style.borderBottom = '1px solid var(--border-subtle)';
-                item.style.cursor = 'pointer';
+                item.className = 'list-item';
                 if (pair.id === currentId) {
-                    item.style.backgroundColor = 'var(--bg-surface)';
-                    item.style.borderLeft = '3px solid var(--accent-primary)';
+                    item.classList.add('active');
                 }
 
                 // Resolve names
@@ -170,10 +161,10 @@
                      <button class="btn btn-ghost btn-sm" id="btn-vault-pub" title="Publish to Vault">📤</button>
                      <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
                 </div>
-                <div class="card-body" style="overflow-y:auto; flex:1;">
+                <div class="card-body scroll-y flex-1">
                     <style>
                         .p-row { display:flex; gap:12px; margin-bottom:12px; }
-                        .p-col { flex:1; display:flex; flexDirection:column; }
+                        .p-col { flex:1; display:flex; flex-direction:column; }
                         .p-lab { font-size:10px; font-weight:bold; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase; }
                     </style>
 

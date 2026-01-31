@@ -237,29 +237,28 @@
     listCol.style.cssText = 'flex:1; margin-bottom:0; transition: flex 0.2s ease-in-out;';
 
     listCol.innerHTML = `
-      <div class="card-header" style="flex-direction:column; gap:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+      <div class="card-header flex-col gap-sm">
+        <div class="flex-row justify-between items-center w-full">
           <strong>🕸️ Vault</strong>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:11px; color:var(--text-muted);">${items.length} items</span>
+          <div class="flex-row items-center gap-sm">
+            <span class="text-xs text-muted">${items.length} items</span>
             <button class="btn btn-ghost btn-sm" id="btn-vault-select">Select</button>
           </div>
         </div>
         
         <!-- Selection Mode Header (hidden by default) -->
-        <div id="vault-selection-header" style="display:none; width:100%; padding:8px; background:var(--bg-inset); border-radius:var(--radius-sm);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span id="vault-sel-count" style="font-size:11px; font-weight:bold;">0 selected</span>
+        <div id="vault-selection-header" class="hidden w-full p-sm bg-inset rounded-sm">
+          <div class="flex-row justify-between items-center">
+            <span id="vault-sel-count" class="text-xs font-bold">0 selected</span>
             <button class="btn btn-ghost btn-sm" id="btn-vault-cancel-select">Cancel</button>
           </div>
         </div>
         
-        <input type="text" class="input" id="vault-search" placeholder="Search..." 
-               value="${filters.search}" style="width:100%; height:28px; font-size:12px;">
+        <input type="text" class="input w-full h-7 text-xs" id="vault-search" placeholder="Search..." value="${filters.search}">
       </div>
       
       <div class="flex-row gap-sm p-sm border-b border-subtle bg-elevated">
-        <select class="input" id="filter-type" style="flex:1; font-size:11px; height:32px;">
+        <select class="input flex-1 text-xs h-8" id="filter-type">
           <option value="">All Types</option>
           ${(() => {
         // Dynamic Subtype extraction
@@ -292,7 +291,7 @@
         return opts;
       })()}
         </select>
-        <select class="input" id="filter-universe" style="flex:1; font-size:11px; height:32px;">
+        <select class="input flex-1 text-xs h-8" id="filter-universe">
           <option value="">All Universes</option>
           ${(registry?.universes || []).map(u =>
         `<option value="${u}" ${filters.universe === u ? 'selected' : ''}>${u}</option>`
@@ -509,13 +508,12 @@
 
       if (filteredItems.length === 0) {
         listBody.innerHTML = `
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; 
-                      height:100%; color:var(--text-muted); padding:20px; text-align:center;">
-            <div style="font-size:32px; margin-bottom:12px;">🕸️</div>
-            <div style="font-size:13px; margin-bottom:8px;">
+          <div class="flex-col items-center justify-center h-full text-muted p-lg text-center">
+            <div class="text-3xl mb-sm">🕸️</div>
+            <div class="text-sm mb-xs">
               ${items.length === 0 ? 'Vault is empty' : 'No items match your filters'}
             </div>
-            <div style="font-size:11px; opacity:0.7;">
+            <div class="text-xs opacity-70">
               ${items.length === 0
             ? 'Publish Actors or Lorebook entries to populate your Vault.'
             : 'Try adjusting your search or filters.'}
@@ -537,38 +535,27 @@
         const name = getItemName(item);
         const preview = getItemPreview(item).substring(0, 60);
 
-        row.innerHTML = `
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            ${selectionMode ? `<input type="checkbox" style="pointer-events:none;" ${isSelected ? 'checked' : ''}>` : ''}
-            <span style="font-size:14px;">${TYPE_ICONS[item.type] || '📦'}</span>
-            <strong style="font-size:12px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              ${name}
-            </strong>
-            
-            <!-- Block Badge -->
-            ${item.blockName ? `<span class="badge badge-subtle text-xs" style="color:cornflowerblue;">📦 ${item.blockName}</span>` : ''}
-            
-            <!-- Tags as Pills -->
-            <div style="flex:1; display:flex; gap:6px; overflow:hidden; margin-left:8px;">
-              ${(item.tags || []).slice(0, 2).map(t => `
-                <span style="font-size:10px; padding:2px 10px; background:rgba(218, 165, 32, 0.1); border:1px solid rgba(218, 165, 32, 0.2); border-radius:12px; color:var(--accent-primary); white-space:nowrap; font-weight:500;">
-                  ${t}
-                </span>
-              `).join('')}
-            </div>
+        const firstTag = (item.tags && item.tags.length > 0) ? item.tags[0] : '';
+        const project = item.universe || item.sourceProjectName || 'Unknown Project';
 
-             <span class="text-xs text-muted" style="opacity:0.8;">
-               v${item.version}
-             </span>
-             ${item.data?.subtype ? `<span class="badge badge-subtle text-xs text-muted ml-sm">${item.data.subtype}</span>` : ''}
+        row.innerHTML = `
+          <!-- Line 1: Centered Header -->
+          <div class="flex-row items-center justify-center gap-xs w-full mb-xxs">
+            ${selectionMode ? `<input type="checkbox" class="pointer-events-none mr-sm" ${isSelected ? 'checked' : ''}>` : ''}
+            <span class="text-sm border border-subtle bg-base rounded-sm px-xs">${TYPE_ICONS[item.type] || '📦'}</span>
+            <strong class="text-sm text-primary truncate max-w-[200px] text-center">${name}</strong>
+            ${firstTag ? `<span class="px-xs py-xxs bg-accent-subtle rounded-xl text-accent border border-accent-subtle text-xxs font-medium whitespace-nowrap">${firstTag}</span>` : ''}
+            <span class="text-xxs text-muted opacity-60">v${item.version}</span>
           </div>
-          <div style="font-size:10px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${selectionMode ? 'margin-left:24px;' : ''}">
-            ${item.universe ? `<span style="color:var(--accent-primary);">${item.universe}</span> • ` : ''}
-            ${item.sourceProjectName || 'Unknown Project'}
+
+          <!-- Line 2: Centered Project -->
+          <div class="text-xs font-bold text-accent text-center mb-xxs truncate w-full">
+            ${project}
           </div>
-          ${preview ? `<div style="font-size:10px; color:var(--text-muted); margin-top:4px; opacity:0.7; 
-                                    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; ${selectionMode ? 'margin-left:24px;' : ''}">
-            ${preview}...
+
+          <!-- Line 3: Content Snippet -->
+          ${preview ? `<div class="text-xs text-muted text-center opacity-70 truncate w-full px-lg italic">
+            "${preview}..."
           </div>` : ''}
         `;
 
@@ -596,10 +583,9 @@
     function renderDetail(item) {
       if (!item) {
         detailCol.innerHTML = `
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; 
-                      height:100%; color:var(--text-muted);">
-            <div style="font-size:32px; margin-bottom:12px;">📋</div>
-            <div style="font-size:13px;">Select an item to view details</div>
+          <div class="flex-col items-center justify-center h-full text-muted">
+            <div class="text-3xl mb-sm">📋</div>
+            <div class="text-xs">Select an item to view details</div>
           </div>
         `;
         return;

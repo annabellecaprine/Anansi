@@ -84,21 +84,21 @@
         listCol.className = 'card flex-col mb-0 h-full';
 
         listCol.innerHTML = `
-      <div class="card-header" style="flex-wrap:wrap; gap:8px;">
-        <strong style="flex:1;">Actors</strong>
-        <div style="flex:1;"></div>
-        <div id="header-actions" style="display:flex; gap:4px;">
+      <div class="card-header flex-wrap gap-sm">
+        <strong class="flex-1">Actors</strong>
+        <div class="flex-1"></div>
+        <div id="header-actions" class="flex-row gap-xs">
             <button class="btn btn-secondary btn-sm" id="btn-add-actor">+ New</button>
             <button class="btn btn-ghost btn-sm" id="btn-select-mode">Select</button>
         </div>
         
         <!-- Selection Actions Header (Alternate) -->
-        <div id="header-selection" style="display:none; gap:4px; align-items:center; width:100%;">
-             <span id="sel-count" style="font-size:11px; font-weight:bold; flex:1;">0 Selected</span>
+        <div id="header-selection" class="hidden gap-xs items-center w-full">
+             <span id="sel-count" class="text-xs font-bold flex-1">0 Selected</span>
              <button class="btn btn-sm btn-ghost" id="btn-cancel-select">Cancel</button>
         </div>
 
-        <input class="input" id="search-actors" placeholder="Search..." style="width:100%; font-size:12px; height:28px;" value="${searchTerm}">
+        <input class="input w-full text-xs h-8" id="search-actors" placeholder="Search..." value="${searchTerm}">
       </div>
       <div class="card-body p-0 flex-1 scroll-y" id="actor-list"></div>
       <div class="card-footer hidden p-sm border-t border-subtle" id="footer-actions">
@@ -116,10 +116,10 @@
         const header = document.createElement('div');
         header.className = 'card-header';
         header.innerHTML = `
-      <input type="text" id="actor-name" class="input" style="width:200px; font-weight:bold;" placeholder="e.g., Seraphine, The Merchant" disabled>
-      <div style="flex:1;"></div>
+      <input type="text" id="actor-name" class="input font-bold" style="width:200px;" placeholder="e.g., Seraphine, The Merchant" disabled>
+      <div class="flex-1"></div>
       <button class="btn btn-secondary btn-sm" id="btn-vault-actor" disabled>📤 Vault</button>
-      <button class="btn btn-ghost btn-sm" id="btn-del-actor" style="color:var(--status-error);" disabled>Delete</button>
+      <button class="btn btn-ghost btn-sm text-error" id="btn-del-actor" disabled>Delete</button>
     `;
 
         // Tabs (removed Voice tab)
@@ -291,9 +291,9 @@
                 }
 
                 item.innerHTML = `
-                    <div style="display:flex; align-items:center;">
+                    <div class="flex-row items-center">
                         ${selectionMode ?
-                        `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(actor.id) ? 'checked' : ''}>`
+                        `<input type="checkbox" class="mr-sm pointer-events-none" ${selectedIds.has(actor.id) ? 'checked' : ''}>`
                         : ''}
                         <strong>${actor.name || 'Unnamed'}</strong>
                         ${syncBadge}

@@ -162,15 +162,13 @@
     const data = state.weaves.voices;
 
     // Layout
-    // Layout
     container.className = 'panel-sidebar-layout';
-    container.style.gridTemplateColumns = '320px 1fr';
 
     // List Col
     const listCol = document.createElement('div');
     listCol.className = 'card flex-col mb-0';
     listCol.innerHTML = `
-      <div class="card-header w-full flex-col items-stretch gap-sm p-sm">
+      <div class="flex-col gap-sm p-sm border-b bg-surface">
         <div class="flex-row justify-between items-center">
           <strong class="text-sm">Voices</strong>
           <button class="btn btn-secondary btn-sm text-xs px-sm py-xs" id="btn-add-voice">+ New</button>
@@ -270,7 +268,7 @@
           const isFirst = displayIdx === 0;
           const isLast = displayIdx === voices.length - 1;
           arrows = `
-                <div class="flex-col mr-sm items-center">
+                <div class="voice-list-arrows">
                     <div class="btn-up text-xs leading-none cursor-pointer p-xs text-muted ${isFirst ? 'opacity-20' : 'opacity-70'}" title="Move Up">▲</div>
                     <div class="btn-down text-xs leading-none cursor-pointer p-xs text-muted ${isLast ? 'opacity-20' : 'opacity-70'}" title="Move Down">▼</div>
                 </div>
@@ -457,9 +455,9 @@
           const div = document.createElement('div');
           div.className = 'card p-sm mb-sm';
           div.innerHTML = `
-             <div class="v-row">
+             <div class="voice-subtone-row">
                <div class="v-col"><input class="input" placeholder="Label" value="${st.label || ''}" oninput="this.getRootNode().host_edit(${idx}, 'label', this.value)"></div>
-               <div style="width:60px;"><input type="number" class="input" placeholder="W" value="${st.weight || 0}" oninput="this.getRootNode().host_edit(${idx}, 'weight', this.value)"></div>
+               <div class="voice-weight-input"><input type="number" class="input" placeholder="W" value="${st.weight || 0}" oninput="this.getRootNode().host_edit(${idx}, 'weight', this.value)"></div>
                <button class="btn btn-ghost btn-sm" onclick="this.getRootNode().host_del(${idx})">×</button>
              </div>
              <textarea class="input" rows="2" placeholder="Rail content..." oninput="this.getRootNode().host_edit(${idx}, 'rail', this.value)">${st.rail || ''}</textarea>

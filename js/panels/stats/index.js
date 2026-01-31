@@ -277,7 +277,7 @@
 
         // --- Main Content ---
         const main = document.createElement('div');
-        main.className = 'card p-0 flex-col scroll-list';
+        main.className = 'card p-0 flex-col scroll-list min-h-0';
         container.appendChild(main);
 
         function refreshMain() {
@@ -286,17 +286,17 @@
             // Header
             const header = document.createElement('div');
             header.className = 'card-header justify-between';
-            header.innerHTML = `<strong>Active Stats for: <span style="color:var(--accent-primary);">${currentTarget === 'user' ? 'User' : (actors.find(a => a.id === currentTarget) || {}).name || currentTarget}</span></strong>`;
+            header.innerHTML = `<strong>Active Stats for: <span class="text-accent">${currentTarget === 'user' ? 'User' : (actors.find(a => a.id === currentTarget) || {}).name || currentTarget}</span></strong>`;
             main.appendChild(header);
 
             if (data.blocks.length === 0) {
                 main.innerHTML += `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;">
+                    <div class="flex-col items-center justify-center h-full text-muted opacity-70">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-md">
                             <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>
                         </svg>
-                        <div style="margin-bottom:8px;">No stat fields active</div>
-                        <div style="font-size:11px;">Select a template from the sidebar to begin</div>
+                        <div class="mb-sm">No stat fields active</div>
+                        <div class="text-xs">Select a template from the sidebar to begin</div>
                     </div>
                 `;
                 return;
@@ -313,9 +313,9 @@
 
                 const blockDiv = document.createElement('div');
                 blockDiv.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; margin-bottom:12px;">
-                        <h3 style="margin:0; font-size:14px;">${block.label}</h3>
-                        <button class="btn btn-ghost btn-sm btn-del-blk" data-idx="${bIdx}" style="color:var(--status-error);">Remove</button>
+                    <div class="flex-row justify-between items-center border-b border-subtle pb-sm mb-md">
+                        <h3 class="m-0 text-sm font-bold">${block.label}</h3>
+                        <button class="btn btn-ghost btn-sm btn-del-blk text-error" data-idx="${bIdx}">Remove</button>
                     </div>
                  `;
 
@@ -334,12 +334,12 @@
                     item.style.gap = '6px';
 
                     item.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; font-size:12px;">
-                            <span style="font-weight:600;">${def.label}</span>
-                            <span class="val-disp" style="font-family:monospace;">${val}</span>
+                        <div class="flex-row justify-between text-xs">
+                            <span class="font-bold">${def.label}</span>
+                            <span class="val-disp font-mono">${val}</span>
                         </div>
-                        <input type="range" min="${def.min}" max="${def.max}" value="${val}" style="width:100%;">
-                        <div style="font-family:monospace; font-size:9px; color:var(--text-muted); margin-top:2px; text-align:right; opacity:0.7; user-select:all; cursor:pointer;" title="Click to copy path" onclick="navigator.clipboard.writeText(this.innerText.trim()); Anansi.UI.Toast.show('Path copied', 'info');">
+                        <input type="range" min="${def.min}" max="${def.max}" value="${val}" class="w-full">
+                        <div class="text-xs text-muted mt-xs text-right opacity-70 font-mono cursor-pointer select-all" title="Click to copy path" onclick="navigator.clipboard.writeText(this.innerText.trim()); Anansi.UI.Toast.show('Path copied', 'info');">
                             {{stats.${currentTarget === 'user' ? 'user' : (actors.find(a => a.id === currentTarget)?.name?.replace(/\s+/g, '_') || currentTarget)}.${block.id}.${def.key}}}
                         </div>
                      `;
@@ -374,24 +374,16 @@
 
             // 2. Radar Section
             const radarSection = document.createElement('div');
-            radarSection.style.borderTop = '2px solid var(--border-subtle)';
-            radarSection.style.marginTop = '24px';
-            radarSection.style.paddingTop = '16px';
-            radarSection.style.display = 'flex';
-            radarSection.style.flexDirection = 'column';
-            radarSection.style.alignItems = 'center';
-            radarSection.style.background = 'var(--bg-surface)'; // slight contrast
-            radarSection.style.borderRadius = 'var(--radius-lg)';
-            radarSection.style.padding = '24px';
+            radarSection.className = 'card mt-lg p-lg flex-col items-center bg-surface';
 
             radarSection.innerHTML = `
-                <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
-                    <strong style="font-size:14px;">Axis Visualization</strong>
-                    <select id="sel-radar-src" class="input" style="min-width:150px;">
+                <div class="flex-row gap-md items-center mb-md">
+                    <strong class="text-sm">Axis Visualization</strong>
+                    <select id="sel-radar-src" class="input min-w-[150px]">
                         ${data.blocks.map((b, i) => `<option value="${i}">${b.label}</option>`).join('')}
                     </select>
                 </div>
-                <div id="radar-stage" style="width:400px; height:400px; display:flex; align-items:center; justify-content:center;"></div>
+                <div id="radar-stage" class="flex items-center justify-center w-[400px] h-[400px]"></div>
             `;
 
             body.appendChild(radarSection);

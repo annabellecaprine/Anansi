@@ -24,42 +24,28 @@
         if (!state.scoring.advanced) state.scoring.advanced = [];
 
         // Layout
-        container.style.height = '100%';
-        container.style.display = 'grid';
-        container.style.gridTemplateColumns = '220px 1fr';
-        container.style.gap = 'var(--space-4)';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-sidebar-layout';
 
         // 1. Sidebar
         const listCol = document.createElement('div');
-        listCol.className = 'card';
-        listCol.style.display = 'flex';
-        listCol.style.flexDirection = 'column';
-        listCol.style.marginBottom = '0';
-        listCol.style.minHeight = '0';
+        listCol.className = 'card flex-col mb-0 h-full';
 
         listCol.innerHTML = `
-      <div style="display:flex; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);">
-         <div class="tab-btn active" id="tab-basic" style="flex:1; text-align:center; padding:10px; cursor:pointer; font-weight:bold; border-bottom:2px solid var(--accent-primary);">Basic</div>
-         <div class="tab-btn" id="tab-adv" style="flex:1; text-align:center; padding:10px; cursor:pointer; font-weight:bold; color:var(--text-muted);">Advanced</div>
+      <div class="flex-row border-b border-subtle bg-elevated">
+         <div class="tab-btn active flex-1 text-center p-sm font-bold cursor-pointer border-b-2 border-accent" id="tab-basic">Basic</div>
+         <div class="tab-btn flex-1 text-center p-sm font-bold cursor-pointer text-muted border-b-2 border-transparent" id="tab-adv">Advanced</div>
       </div>
-      <div class="card-body" id="sc-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer">
-        <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ Add Topic</button>
-        <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%; margin-top:8px;">📥 Import from Vault</button>
+      <div class="card-body p-0 flex-1 scroll-y" id="sc-list"></div>
+      <div class="card-footer p-sm flex-col gap-sm">
+        <button class="btn btn-primary btn-sm w-full" id="btn-add">+ Add Topic</button>
+        <button class="btn btn-ghost btn-sm w-full" id="btn-vault-import">📥 Import from Vault</button>
       </div>
     `;
 
         // 2. Editor
         const editorCol = document.createElement('div');
-        editorCol.className = 'card';
+        editorCol.className = 'card mb-0 p-0 flex-col h-full overflow-hidden';
         editorCol.id = 'sc-editor';
-        editorCol.style.marginBottom = '0';
-        editorCol.style.padding = '0';
-        editorCol.style.display = 'flex';
-        editorCol.style.flexDirection = 'column';
-        editorCol.style.minHeight = '0';
-        editorCol.style.overflow = 'hidden'; // Flex fix
 
         container.appendChild(listCol);
         container.appendChild(editorCol);
@@ -123,15 +109,21 @@
         function switchTab(t) {
             currentTab = t;
             currentId = null;
-            if (t === 'basic') {
-                tabBasic.style.color = 'var(--text-primary)'; tabBasic.style.borderBottomColor = 'var(--accent-primary)';
-                tabAdv.style.color = 'var(--text-muted)'; tabAdv.style.borderBottomColor = 'transparent';
-                btnAdd.textContent = '+ Add Topic';
-            } else {
-                tabAdv.style.color = 'var(--text-primary)'; tabAdv.style.borderBottomColor = 'var(--accent-primary)';
-                tabBasic.style.color = 'var(--text-muted)'; tabBasic.style.borderBottomColor = 'transparent';
-                btnAdd.textContent = '+ Add Rule';
-            }
+
+            // Toggle classes
+            const isBasic = t === 'basic';
+            tabBasic.classList.toggle('active', isBasic);
+            tabBasic.classList.toggle('text-muted', !isBasic);
+            tabBasic.classList.toggle('border-transparent', !isBasic);
+            tabBasic.classList.toggle('border-accent', isBasic);
+
+            tabAdv.classList.toggle('active', !isBasic);
+            tabAdv.classList.toggle('text-muted', isBasic);
+            tabAdv.classList.toggle('border-transparent', isBasic);
+            tabAdv.classList.toggle('border-accent', !isBasic);
+
+            btnAdd.textContent = isBasic ? '+ Add Topic' : '+ Add Rule';
+
             refreshList();
             renderEditor();
         }
@@ -161,12 +153,7 @@
 
             items.forEach((item, idx) => {
                 const row = document.createElement('div');
-                row.className = 'list-item';
-                row.style.padding = '8px 10px';
-                row.style.borderBottom = '1px solid var(--border-subtle)';
-                row.style.cursor = 'pointer';
-                row.style.display = 'flex';
-                row.style.alignItems = 'center';
+                row.className = 'list-item p-sm border-b border-subtle flex-row items-center cursor-pointer';
 
                 if (item.id === currentId) { row.style.background = 'var(--bg-surface)'; row.style.borderLeft = '3px solid var(--accent-primary)'; }
 
@@ -181,9 +168,9 @@
                 const isFirst = idx === 0;
                 const isLast = idx === items.length - 1;
                 const arrows = `
-                    <div style="display:flex; flex-direction:column; margin-right:8px; align-items:center;">
-                        <div class="btn-up" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isFirst ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Up">▲</div>
-                        <div class="btn-down" style="font-size:12px; line-height:1; cursor:pointer; opacity:${isLast ? 0.2 : 0.7}; padding:2px; color:var(--text-muted);" title="Move Down">▼</div>
+                    <div class="flex-col mr-sm items-center">
+                        <div class="btn-up text-xs leading-none cursor-pointer p-xs text-muted" style="opacity:${isFirst ? 0.2 : 0.7};" title="Move Up">▲</div>
+                        <div class="btn-down text-xs leading-none cursor-pointer p-xs text-muted" style="opacity:${isLast ? 0.2 : 0.7};" title="Move Down">▼</div>
                     </div>
                 `;
 

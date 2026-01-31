@@ -50,15 +50,10 @@
 
         // Footer for Multi-Select
         const listFooter = document.createElement('div');
-        listFooter.className = 'card-footer';
-        listFooter.style.flexDirection = 'column';
-        listFooter.style.gap = '8px';
-        listFooter.style.padding = '8px';
-        listFooter.style.borderTop = '1px solid var(--border-subtle)';
-        listFooter.style.display = 'block';
+        listFooter.className = 'card-footer flex-col gap-sm p-sm border-t border-subtle';
 
         listHeader.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="flex-row justify-between items-center">
           <strong>Scripts</strong>
             <div style="display:flex; gap:4px;">
                 <button class="btn btn-ghost btn-sm" id="btn-repo-script" title="Script Repository (Presets)" style="color:var(--accent-primary);">
@@ -91,10 +86,7 @@
         `;
 
         const listBody = document.createElement('div');
-        listBody.className = 'card-body';
-        listBody.style.padding = '0';
-        listBody.style.flex = '1';
-        listBody.style.overflowY = 'auto';
+        listBody.className = 'card-body p-0 flex-1 scroll-y';
         listBody.id = 'script-list-container';
 
         listCol.appendChild(listHeader);

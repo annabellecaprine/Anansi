@@ -15,15 +15,12 @@
         const state = A.State.get();
         const log = state?.sim?.executionLog || [];
 
-        container.style.height = '100%';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.overflow = 'hidden';
+        container.className = 'panel-container flex-col overflow-hidden h-full';
 
         // If no logs, show empty state
         if (log.length === 0) {
             container.innerHTML = `
-                <div class="empty-state-card" style="margin:auto; max-width:400px;">
+                <div class="empty-state-card m-auto max-w-[400px]">
                     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
@@ -32,7 +29,7 @@
                         Run a simulation in Spindle to capture rule execution data.
                         The Flow Explorer will show which rules passed or failed and why.
                     </div>
-                    <button class="btn btn-primary" style="margin-top:16px;" onclick="Anansi.UI.switchPanel('simulator')">
+                    <button class="btn btn-primary mt-md" onclick="Anansi.UI.switchPanel('simulator')">
                         Go to Simulator →
                     </button>
                 </div>
@@ -54,47 +51,6 @@
         }).join('');
 
         container.innerHTML = `
-            <style>
-                .flow-entry { 
-                    padding: 8px 12px; 
-                    border-bottom: 1px solid var(--border-subtle);
-                    transition: background 0.15s;
-                    font-size: 12px;
-                }
-                .flow-entry:hover { background: var(--bg-elevated); }
-                .flow-pass { border-left: 3px solid var(--status-success); }
-                .flow-fail { border-left: 3px solid var(--status-error); }
-                .flow-icon { font-size: 14px; margin-right: 8px; }
-                .flow-name { font-weight: bold; font-size: 12px; }
-                .flow-type { 
-                    font-size: 9px; 
-                    text-transform: uppercase; 
-                    padding: 2px 6px; 
-                    border-radius: 4px; 
-                    background: var(--bg-base); 
-                    color: var(--text-muted);
-                    margin-left: 8px;
-                }
-                .flow-reason { 
-                    font-size: 11px; 
-                    color: var(--text-muted); 
-                    margin-top: 2px;
-                    padding-left: 22px;
-                }
-                .flow-group-summary {
-                    padding: 8px 12px;
-                    background: var(--bg-base);
-                    border-bottom: 1px solid var(--border-subtle);
-                    font-weight: bold;
-                    font-size: 11px;
-                    cursor: pointer;
-                    user-select: none;
-                    display: flex;
-                    align-items: center;
-                    color: var(--text-secondary);
-                }
-                .flow-group-summary:hover { background: var(--bg-elevated); }
-            </style>
 
             <div class="card-header" style="flex-shrink:0;">
                 <div style="display:flex; flex-direction:column; gap:8px; width:100%;">

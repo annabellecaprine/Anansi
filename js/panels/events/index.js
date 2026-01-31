@@ -40,30 +40,26 @@
          <div class="tab-btn active" id="tab-logic">Logos (Logic)</div>
          <div class="tab-btn" id="tab-prob">Chaos</div>
       </div>
-      <div class="card-body" id="event-list" style="padding:0; flex:1; overflow-y:auto;"></div>
-      <div class="card-footer" id="events-footer" style="display:flex; flex-direction:column; gap:8px; padding:8px; border-top:1px solid var(--border-subtle);">
+      <div class="card-body p-0 flex-1 scroll-y" id="event-list"></div>
+      <div class="card-footer flex-col gap-sm p-sm border-t border-subtle" id="events-footer">
         <!-- Standard Actions -->
-        <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn btn-primary btn-sm" id="btn-add" style="width:100%;">+ New</button>
-            <button class="btn btn-ghost btn-sm" id="btn-vault-import" style="width:100%;">📥 Import from Vault</button>
+        <div id="footer-standard" class="flex-col gap-sm">
+            <button class="btn btn-primary btn-sm w-full" id="btn-add">+ New</button>
+            <button class="btn btn-ghost btn-sm w-full" id="btn-vault-import">📥 Import from Vault</button>
             <button class="btn btn-ghost btn-sm" id="btn-select-mode">Select...</button>
         </div>
         <!-- Selection Actions -->
-        <div id="footer-selection" style="display:none; flex-direction:column; gap:8px;">
-            <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+        <div id="footer-selection" class="hidden flex-col gap-sm">
+            <button class="btn btn-sm w-full bg-error text-white" id="btn-del-multi">Delete Selected (0)</button>
+            <button class="btn btn-ghost btn-sm w-full" id="btn-cancel-select">Cancel Selection</button>
         </div>
       </div>
     `;
 
     // 2. Editor Col
     const editorCol = document.createElement('div');
-    editorCol.className = 'card';
+    editorCol.className = 'card mb-0 p-0 flex-col';
     editorCol.id = 'event-editor';
-    editorCol.style.marginBottom = '0';
-    editorCol.style.padding = '0';
-    editorCol.style.display = 'flex';
-    editorCol.style.flexDirection = 'column';
 
     container.appendChild(listCol);
     container.appendChild(editorCol);

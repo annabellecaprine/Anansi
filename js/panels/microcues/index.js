@@ -245,10 +245,8 @@
         if (state && !state.aura.microcues) state.aura.microcues = { items: {} };
 
         // Layout
-        container.style.height = '100%';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = 'var(--space-4)';
+        // Layout
+        container.className = 'panel-container flex-col gap-md h-full';
 
         // Header
         const header = document.createElement('div');
@@ -257,32 +255,27 @@
         header.innerHTML = `
       <div class="card-header">
         <strong>MicroCue Generator</strong>
-        <span id="cue-count" style="font-size:11px; color:var(--text-muted);"></span>
+        <span id="cue-count" class="text-xs text-muted"></span>
       </div>
-      <div class="card-body" style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:12px; color:var(--text-muted);">
+      <div class="card-body flex-row justify-between items-center">
+        <div class="text-xs text-muted">
           Auto-generated from Actor PULSE/EROS/INTENT cues. Updates when actors change.
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+        <div class="flex-row gap-sm">
+          <button class="btn btn-ghost btn-sm text-tiny" id="btn-view-script">View Script →</button>
         </div>
       </div>
     `;
 
         // List
         const listCard = document.createElement('div');
-        listCard.className = 'card';
-        listCard.style.flex = '1';
-        listCard.style.marginBottom = '0';
-        listCard.style.display = 'flex';
-        listCard.style.flexDirection = 'column';
-        listCard.style.overflow = 'hidden';
+        listCard.className = 'card flex-col flex-1 mb-0 overflow-hidden';
 
         listCard.innerHTML = `
       <div class="card-header">
         <strong>Active Cues</strong>
       </div>
-      <div class="card-body" id="cue-list" style="padding:0; flex:1; overflow-y:auto; background:var(--bg-elevated);"></div>
+      <div class="card-body p-0 flex-1 scroll-y bg-elevated" id="cue-list"></div>
     `;
 
         container.appendChild(header);

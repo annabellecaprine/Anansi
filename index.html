@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anansi - v1.21.0</title>
+  <title>Anansi - v2.0</title>
 
   <!-- Open Graph / Social Media Previews -->
   <meta property="og:title" content="Anansi: AI Narrative Engine" />
@@ -103,7 +103,7 @@
         </button>
         <div class="app-logo">
           <img class="app-logo-img" src="assets/logo_dark.png" alt="Anansi Logo">
-          <span>Anansi <span style="font-size:0.6em; opacity:0.5; vertical-align:middle;">v1.19.0</span></span>
+          <span>Anansi <span style="font-size:0.6em; opacity:0.5; vertical-align:middle;">v2.0</span></span>
         </div>
       </div>
 
@@ -224,12 +224,7 @@
   <script src="js/core/vault-ui.js"></script>
   <script src="js/core/project-picker.js"></script>
   <script src="js/core/io.js"></script>
-  <script src="js/core/validator.js"></script>
-  <script src="js/panels/validator/index.js"></script>
-  <script src="js/panels/simulator_lens/index.js"></script>
-  <script src="js/panels/simulator_live/index.js"></script>
-  <script src="js/panels/lorebook/lorebook-shared.js"></script>
-  <script src="js/panels/lorebook/index.js"></script>
+
   <script src="js/core/system_data.js"></script>
   <script src="js/core/scripts.js"></script>
 
@@ -237,7 +232,7 @@
   <script>
     /* Force global register */
     window._define = window.define;
-    window.define = undefined; 
+    window.define = undefined;
   </script>
   <script src="js/lib/esprima.min.js"></script>
   <script src="js/lib/escodegen.min.js"></script>
@@ -251,9 +246,7 @@
   <script src="js/core/aura_builder.js"></script>
   <script src="js/core/aura_simbuilder.js"></script>
   <script src="js/core/export.js"></script>
-  <script src="js/core/tester.js"></script>
-  <script src="js/panels/tester/index.js"></script>
-  <script src="js/core/gate_types.js"></script>
+
   <script src="js/core/quill_manager.js"></script>
   <script src="js/core/logic_engine.js"></script>
 
@@ -283,117 +276,17 @@
   <script src="js/core/tour.js"></script>
   <script src="js/core/tour_content.js?v=20260106"></script>
 
-
-
   <!-- Adapters -->
   <script src="js/env/jai.js"></script>
   <script src="js/env/jai.renderer.js"></script>
 
-  <!-- Panels -->
-  <!-- Panels (Restored for Stability) -->
-  <script src="js/panels/project/index.js"></script>
-  <script src="js/panels/sources/index.js"></script>
-  <script src="js/panels/character/character-synth.js"></script>
-  <script src="js/panels/character/character-solo.js"></script>
-  <script src="js/panels/character/character-ensemble.js"></script>
-  <script src="js/panels/character/index.js"></script>
-  <script src="js/panels/actors/actors-gallery.js"></script>
-  <script src="js/panels/actors/actors-tabs.js"></script>
-  <script src="js/panels/actors/index.js"></script>
-
-  <script src="js/panels/lorebook/lorebook-shared.js"></script>
-  <script src="js/panels/lorebook/index.js"></script>
-  <script src="js/panels/vault/index.js"></script>
-  <script src="js/panels/voices/index.js"></script>
-  <script src="js/panels/pairs/index.js"></script>
-  <script src="js/panels/microcues/index.js"></script>
-  <script src="js/panels/events/index.js"></script>
-  <script src="js/panels/tokens/index.js"></script>
-  <script src="js/panels/scoring/index.js"></script>
-  <script src="js/panels/scripts/index.js"></script>
-  <script src="js/panels/locations/index.js"></script>
-  <script src="js/panels/stats/index.js"></script>
-  <script src="js/panels/writers_block/index.js"></script>
-
-  <script src="js/panels/hinas_guide/hinas-templates.js"></script>
-  <script src="js/panels/hinas_guide/index.js"></script>
   <script src="js/core/chat-formatter.js"></script>
   <script src="js/core/simulator-llm.js"></script>
-  <script src="js/panels/simulator_lens/index.js"></script>
-  <script src="js/panels/simulator_live/index.js"></script>
-  <script src="js/panels/simulator/index.js"></script>
-  <script src="js/panels/flow_explorer/index.js"></script>
-  <script src="js/panels/advanced/index.js"></script>
-  <script src="js/panels/parlor/parlor-prompts.js"></script>
-  <script src="js/panels/parlor/parlor-preview.js"></script>
-  <script src="js/panels/parlor/index.js"></script>
-  <script src="js/panels/nabu/index.js"></script>
-  <script src="js/panels/constellation/index.js"></script>
-  <script src="js/panels/guide/index.js"></script>
-  <script src="js/panels/gamemaster/index.js"></script>
-  <script src="js/panels/rpg_play/index.js"></script>
-  <script src="js/panels/rpg_party/index.js"></script>
-  <script src="js/panels/rpg_map/index.js"></script>
-  <script src="js/panels/rpg_dm_map/index.js"></script>
-  <script src="js/panels/rpg_quest_board/index.js"></script>
-  <script src="js/panels/rpg_dialogue/index.js"></script>
-  <script src="js/panels/rpg_leveling/index.js"></script>
 
-  <script src="js/panels/world_weaver/templates.js?v=test4"></script>
-  <script src="js/panels/world_weaver/llm.js?v=test4"></script>
-  <script src="js/panels/world_weaver/generation.js?v=test4"></script>
-  <script src="js/panels/world_weaver/ui.js?v=test4"></script>
-  <script src="js/panels/world_weaver/steps/step1_archetype.js?v=test4"></script>
-  <script src="js/panels/world_weaver/steps/step2_mode.js?v=test4"></script>
-  <script src="js/panels/world_weaver/steps/step3_details.js?v=test4"></script>
-  <script src="js/panels/world_weaver/index.js?v=test4"></script>
   <!-- <script src="js/panels/world_weaver/tests.js?v=test3"></script> -->
 
   <!-- RPG Core (Strict Order) -->
-  <!-- RPG Core (Strict Order - Restored for Stability) -->
-  <script src="js/core/rpg/index.js"></script>
-  <script src="js/core/rpg/systems/context.js"></script>
-  <script src="js/core/rpg/systems/cache.js"></script>
-  <script src="js/core/rpg/systems/items.js"></script>
-  <script src="js/core/rpg/systems/monsters.js"></script>
-  <script src="js/core/rpg/systems/classes.js"></script>
-  <script src="js/core/rpg/systems/feats.js"></script>
-  <script src="js/core/rpg/systems/leveling.js"></script>
-  <script src="js/core/rpg/systems/quests.js"></script>
-  <script src="js/core/rpg/systems/death.js"></script>
-  <script src="js/core/rpg/systems/idle.js"></script>
-  <script src="js/core/rpg/systems/autopilot.js"></script>
-
-  <script src="js/core/rpg/narrative/dialogue.js"></script>
-  <script src="js/core/rpg/narrative/memory.js"></script>
-  <script src="js/core/rpg/narrative/prompts.js"></script>
-
-  <script src="js/core/rpg/engine.js"></script>
-
-  <!-- Chronos Plugin (Enhanced RP - Isolated loading) -->
-  <script>
-    (function () {
-      var chronosScripts = [
-        'js/plugins/chronos/chronos_core.js',
-        'js/plugins/chronos/chronos_scheduler.js',
-        'js/plugins/chronos/chronos_settings.js',
-        'js/panels/chronos_chat/index.js'
-      ];
-
-      chronosScripts.forEach(function (src) {
-        try {
-          var script = document.createElement('script');
-          script.src = src;
-          script.onerror = function () { console.error('[Chronos Plugin] Failed to load:', src); };
-          document.head.appendChild(script);
-        } catch (e) {
-          console.error('[Chronos Plugin] Script load error:', src, e);
-        }
-      });
-    })();
-  </script>
-
-
+  <!-- RPG Core (Loaded dynamically via Manifest) -->
 
   <!-- Loading Overlay -->
   <div id="loading-overlay" style="

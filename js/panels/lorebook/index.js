@@ -43,46 +43,43 @@
     if (!state.weaves.lorebook) state.weaves.lorebook = { entries: {} };
 
     // Layout Containers
-    // Layout Containers
     container.className = 'panel-sidebar-layout';
-    container.style.gridTemplateColumns = '320px 1fr';
+    container.style.setProperty('--sidebar-width', '320px');
 
     // Left: List
     const listCol = document.createElement('div');
     listCol.className = 'card flex-col min-h-0 mb-0';
 
     listCol.innerHTML = `
-      <div class="card-header">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-            <strong>Lorebook</strong>
-            <div id="lore-count-display" style="font-size:10px;">${Object.keys(state.weaves.lorebook.entries).length} entries</div>
-        </div>
+      <div class="card-header flex-row justify-between items-center">
+        <strong>Lorebook</strong>
+        <div id="lore-count-display" class="text-xs text-muted">${Object.keys(state.weaves.lorebook.entries).length} entries</div>
       </div>
-      <div style="padding:8px; border-bottom:1px solid var(--border-subtle); display:flex; gap:8px;">
-        <input type="text" class="input" id="search-lore" placeholder="Search..." style="font-size:12px; flex:1;" value="${filter}">
-        <div style="display:flex; align-items:center; gap:4px; title='Scan Depth (Messages to check)'">
-            <label style="font-size:10px; color:var(--text-muted); white-space:nowrap;">Depth:</label>
-            <input type="number" class="input" id="scan-depth" style="width:40px; font-size:11px; padding:2px;" min="1" max="10" value="${state.weaves.lorebook.scanDepth || 3}">
+      <div class="p-sm border-b flex-row gap-sm bg-surface items-center">
+        <input type="text" class="input text-xs flex-1" id="search-lore" placeholder="Search..." value="${filter}">
+        <div class="flex-row items-center gap-xs" title="Scan Depth (Messages to check)">
+            <label class="text-xs text-muted whitespace-nowrap">Depth:</label>
+            <input type="number" class="input text-xs p-xs" id="scan-depth" style="width:40px;" min="1" max="10" value="${state.weaves.lorebook.scanDepth || 3}">
         </div>
       </div>
       <div class="card-body p-0 flex-1 scroll-y pr-xs" id="lore-list"></div>
-      <div class="card-footer" id="lore-footer" style="display:flex; flex-direction:column; gap:8px;">
+      <div class="card-footer flex-col gap-sm" id="lore-footer">
         <!-- Standard Actions -->
-        <div id="footer-standard" style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn btn-primary btn-sm" id="btn-add-lore" style="width:100%;">+ Add Entry</button>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-ghost btn-sm" id="btn-select-mode" style="flex:1; font-size:10px;">Select...</button>
-                <button class="btn btn-ghost btn-sm" id="btn-import-lore" style="flex:1; font-size:10px;">Import</button>
-                <button class="btn btn-ghost btn-sm" id="btn-export-lore" style="flex:1; font-size:10px;">Export</button>
+        <div id="footer-standard" class="flex-col gap-sm">
+            <button class="btn btn-primary btn-sm w-full" id="btn-add-lore">+ Add Entry</button>
+            <div class="flex-row gap-sm">
+                <button class="btn btn-ghost btn-sm flex-1 text-xs" id="btn-select-mode">Select...</button>
+                <button class="btn btn-ghost btn-sm flex-1 text-xs" id="btn-import-lore">Import</button>
+                <button class="btn btn-ghost btn-sm flex-1 text-xs" id="btn-export-lore">Export</button>
             </div>
-            <button class="btn btn-ghost btn-sm" id="btn-view-script" style="font-size:10px;">View Script →</button>
+            <button class="btn btn-ghost btn-sm text-xs" id="btn-view-script">View Script →</button>
 
         </div>
 
         <!-- Selection Actions -->
-        <div id="footer-selection" style="display:none; flex-direction:column; gap:8px;">
-            <button class="btn btn-sm" id="btn-del-multi" style="width:100%; background:var(--status-error); color:white;">Delete Selected (0)</button>
-            <button class="btn btn-ghost btn-sm" id="btn-cancel-select" style="width:100%;">Cancel Selection</button>
+        <div id="footer-selection" class="flex-col gap-sm hidden">
+            <button class="btn btn-sm w-full bg-error text-white" id="btn-del-multi">Delete Selected (0)</button>
+            <button class="btn btn-ghost btn-sm w-full" id="btn-cancel-select">Cancel Selection</button>
         </div>
       </div>
     `;
@@ -494,7 +491,7 @@
           const isFirst = i === 0;
           const isLast = i === filtered.length - 1;
           arrows = `
-             <div style="display:flex; flex-direction:column; margin-right:8px;">
+             <div style="display:flex; flex-direction:column; margin-right:8px; width:16px; min-width:16px; flex-shrink:0; align-items:center; justify-content:center; overflow:hidden;">
                  <div class="move-up" style="font-size:10px; line-height:1; cursor:pointer; opacity:${isFirst ? 0.2 : 0.7};" title="Move Up">▲</div>
                  <div class="move-down" style="font-size:10px; line-height:1; cursor:pointer; opacity:${isLast ? 0.2 : 0.7}; margin-top:2px;" title="Move Down">▼</div>
              </div>`;
@@ -519,17 +516,21 @@
         }
 
         row.innerHTML = `
-          <div style="display:flex; align-items:center;">
+          <div style="display:flex; align-items:center; width:100%;">
              ${arrows}
-             <div style="flex:1;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:bold; font-size:12px; display:flex; align-items:center; ${!enabled ? 'color:var(--text-muted); text-decoration:line-through;' : ''}">
+             <div style="flex:1; min-width:0;">
+                <div class="flex-row items-center justify-between w-full gap-sm">
+                    <div class="flex-row items-center flex-auto gap-xs">
                         ${selectionMode ?
             `<input type="checkbox" style="margin-right:8px; pointer-events:none;" ${selectedIds.has(e.id) ? 'checked' : ''}>`
             : ''}
-                        ${hasLogic ? '<span style="color:var(--accent-primary); margin-right:4px;">⚡</span>' : ''}${e.title || 'Untitled'}${syncBadge}
-                    </span>
-                    <span style="font-size:10px; padding:2px 4px; border-radius:4px; background:var(--bg-base); color:var(--text-muted);">${e.category || 'uncategorized'}</span>
+                        ${hasLogic ? '<span class="text-accent text-xs">⚡</span>' : ''}
+                        <span class="text-truncate font-bold text-sm flex-auto ${!enabled ? 'text-muted' : ''}" style="${!enabled ? 'text-decoration:line-through;' : ''}">
+                           ${(e.title || 'Untitled').trim()}
+                        </span>
+                        ${syncBadge}
+                    </div>
+                    <span class="text-xs text-muted bg-base rounded-sm flex-none" style="padding:2px 4px;">${e.category || 'uncategorized'}</span>
                 </div>
                 <div style="font-size:10px; color:var(--text-muted); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-left:${selectionMode ? '24px' : '0'};">
                     ${(e.keywords || []).join(', ')}
@@ -607,14 +608,8 @@
       }
 
       // Styles
-      editorCol.innerHTML = `
-        <style>
-          .l-row { display: flex; gap: 8px; margin-bottom: 8px; align-items:center; }
-          .l-col { flex: 1; display:flex; flex-direction:column; }
-          .l-lab { font-size: 10px; font-weight:bold; color:var(--text-muted); margin-bottom:2px; text-transform:uppercase; }
-          .l-sec { border-top: 1px solid var(--border-subtle); padding-top: 12px; margin-top: 12px; }
-        </style>
-      `;
+      // Styles
+      editorCol.innerHTML = '';
 
       // Header
       const header = document.createElement('div');
@@ -630,6 +625,9 @@
           <button class="btn btn-ghost btn-sm" id="btn-del" style="color:var(--status-error);">Delete</button>
         </div>
       `;
+
+
+
 
       // Logic Hook
       /** @type {HTMLElement} */ (header.querySelector('#btn-logic')).onclick = () => {
@@ -837,56 +835,56 @@
       const tgtOpts = targets.map(t => `<option value="${t}" ${t === (entry.injectionTarget || 'lore') ? 'selected' : ''}>${t}</option>`).join('');
 
       body.innerHTML = `
-        <div class="l-row">
-           <div class="l-col" style="flex:0 0 140px;">
-             <label class="l-lab">Category</label>
+        <div class="form-row">
+           <div class="form-col" style="flex:0 0 140px;">
+             <label class="form-label">Category</label>
              <select class="input" id="sel-cat">${catOpts}</select>
            </div>
-           <div class="l-col" style="flex:0 0 140px;">
-             <label class="l-lab">Target</label>
+           <div class="form-col" style="flex:0 0 140px;">
+             <label class="form-label">Target</label>
              <select class="input" id="sel-tgt">${tgtOpts}</select>
            </div>
-           <div class="l-col">
-             <label class="l-lab" title="Triggers this entry when these words appear in chat">Keywords <span style="opacity:0.5; cursor:help;">(?)</span></label>
+           <div class="form-col">
+             <label class="form-label" title="Triggers this entry when these words appear in chat">Keywords <span style="opacity:0.5; cursor:help;">(?)</span></label>
              <input class="input" id="inp-keys" value="${(entry.keywords || []).join(', ')}" placeholder="e.g., magic, spell, crimson order">
            </div>
         </div>
-        <div class="l-col" style="margin-bottom:12px;">
-           <label class="l-lab">Content</label>
+        <div class="form-col" style="margin-bottom:12px;">
+           <label class="form-label">Content</label>
            <div id="quill-content" style="height:180px;"></div>
         </div>
 
         <!-- Actor Association (Flow Explorer Metadata) -->
-        <div class="l-sec">
-          <div class="l-lab" style="margin-bottom:8px;">Associate with Actors (Flow Explorer Only)</div>
+        <div class="form-section">
+          <div class="form-label" style="margin-bottom:8px;">Associate with Actors (Flow Explorer Only)</div>
           <div id="actor-associations" style="display:flex; flex-wrap:wrap; gap:8px; padding:4px; max-height:100px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:4px;">
             <!-- Populated by JS -->
           </div>
         </div>
         
         <!-- Logic & Prob -->
-        <div class="l-sec">
-          <div class="l-lab" style="margin-bottom:8px;">Logic & Probability</div>
-          <div class="l-row">
-            <div class="l-col"><label class="l-lab">Priority</label><input type="number" class="input" id="inp-prio" value="${entry.priority !== undefined ? entry.priority : 50}"></div>
-            <div class="l-col"><label class="l-lab">Probability %</label><input type="number" class="input" id="inp-prob" value="${entry.probability !== undefined ? entry.probability : 100}" min="0" max="100"></div>
-            <div class="l-col"><label class="l-lab">Ins. Order</label><input type="number" class="input" id="inp-ins" value="${entry.insertion_order || 100}"></div>
+        <div class="form-section">
+          <div class="form-label" style="margin-bottom:8px;">Logic & Probability</div>
+          <div class="form-row">
+            <div class="form-col"><label class="form-label">Priority</label><input type="number" class="input" id="inp-prio" value="${entry.priority !== undefined ? entry.priority : 50}"></div>
+            <div class="form-col"><label class="form-label">Probability %</label><input type="number" class="input" id="inp-prob" value="${entry.probability !== undefined ? entry.probability : 100}" min="0" max="100"></div>
+            <div class="form-col"><label class="form-label">Ins. Order</label><input type="number" class="input" id="inp-ins" value="${entry.insertion_order || 100}"></div>
           </div>
-          <div class="l-row">
-            <div class="l-col"><label class="l-lab">Min Messages</label><input type="number" class="input" id="inp-minm" value="${entry.minMessages || 0}"></div>
-            <div class="l-col"><label class="l-lab">Group ID</label><input class="input" id="inp-grp" value="${entry.inclusionGroup || ''}"></div>
-            <div class="l-col"><label class="l-lab">Group Weight</label><input type="number" class="input" id="inp-grpw" value="${entry.groupWeight || 100}"></div>
+          <div class="form-row">
+            <div class="form-col"><label class="form-label">Min Messages</label><input type="number" class="input" id="inp-minm" value="${entry.minMessages || 0}"></div>
+            <div class="form-col"><label class="form-label">Group ID</label><input class="input" id="inp-grp" value="${entry.inclusionGroup || ''}"></div>
+            <div class="form-col"><label class="form-label">Group Weight</label><input type="number" class="input" id="inp-grpw" value="${entry.groupWeight || 100}"></div>
           </div>
         </div>
 
         <!-- Matching -->
-        <div class="l-sec">
-          <div class="l-lab" style="margin-bottom:8px;">Keys & Matching</div>
-          <div class="l-row">
-             <div class="l-col" style="flex:2;"><label class="l-lab">Secondary Keys</label><input class="input" id="inp-keys2" value="${entry.secondaryKeys || ''}"></div>
-             <div class="l-col" style="flex:1;"><label class="l-lab" title="Override Global Depth">Scan Depth</label><input type="number" class="input" id="inp-depth" value="${entry.scanDepth || ''}" placeholder="Default"></div>
+        <div class="form-section">
+          <div class="form-label" style="margin-bottom:8px;">Keys & Matching</div>
+          <div class="form-row">
+             <div class="form-col" style="flex:2;"><label class="form-label">Secondary Keys</label><input class="input" id="inp-keys2" value="${entry.secondaryKeys || ''}"></div>
+             <div class="form-col" style="flex:1;"><label class="form-label" title="Override Global Depth">Scan Depth</label><input type="number" class="input" id="inp-depth" value="${entry.scanDepth || ''}" placeholder="Default"></div>
           </div>
-          <div class="l-row" style="gap:16px;">
+          <div class="form-row" style="gap:16px;">
              <label style="font-size:11px;"><input type="checkbox" id="chk-whole" ${entry.matchWholeWords ? 'checked' : ''}> Whole Words</label>
              <label style="font-size:11px;"><input type="checkbox" id="chk-case" ${entry.caseSensitive ? 'checked' : ''}> Case Sensitive</label>
              <label style="font-size:11px;"><input type="checkbox" id="chk-kpri" ${entry.keyMatchPriority ? 'checked' : ''}> Key Priority</label>
@@ -894,15 +892,15 @@
         </div>
 
         <!-- Activation -->
-        <div class="l-sec">
-          <div class="l-lab">Activation Logic</div>
-          <div class="l-row">
-             <div class="l-col" style="flex:0 0 120px;">
-                <label class="l-lab">Mode</label>
+        <div class="form-section">
+          <div class="form-label">Activation Logic</div>
+          <div class="form-row">
+             <div class="form-col" style="flex:0 0 120px;">
+                <label class="form-label">Mode</label>
                 <select class="input" id="sel-act">${actOpts}</select>
              </div>
-             <div class="l-col">
-                <label class="l-lab">Script (JS)</label>
+             <div class="form-col">
+                <label class="form-label">Script (JS)</label>
                 <input class="input" id="inp-script" value="${entry.activationScript || ''}" placeholder="Condition...">
              </div>
           </div>
@@ -1386,7 +1384,8 @@
       state.weaves.lorebook.entries[id] = {
         id: id, title: 'New Entry', keywords: [], content: '', enabled: true,
         priority: 50, category: 'uncategorized',
-        requireTags: [], blocksTags: [], tags: [], shifts: [], uuid: uuidv4()
+        requireTags: [], blocksTags: [], tags: [], shifts: [], uuid: uuidv4(),
+        sortOrder: Object.keys(state.weaves.lorebook.entries).length * 10
       };
       currentId = id;
       A.State.notify();

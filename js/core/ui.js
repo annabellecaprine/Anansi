@@ -323,11 +323,8 @@
             // --- RPG EXPERIMENT PLACEHOLDERS ---
             // Register placeholder panels for the new RPG category
             const rpgPanels = [
-                { id: 'rpg_party', label: 'Party', desc: 'Hero management' }, // Player facing
-                { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks', gmOnly: true },
-                { id: 'rpg_map', label: 'Map', desc: 'Locations' }, // Player facing? Or GM? Usually shared. "Hina's Guide" handles map building.
-                { id: 'rpg_dm_map', label: 'DM Map', desc: 'World building', gmOnly: true },
-                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells', gmOnly: true }
+                { id: 'rpg_monsters', label: 'Monsters', desc: 'Bestiary and Stat blocks', gmOnly: true, subcategory: 'Game Master', order: 90 },
+                { id: 'rpg_armory', label: 'Armory', desc: 'Items & Spells', gmOnly: true, subcategory: 'Game Master', order: 95 }
             ];
 
             rpgPanels.forEach(p => {
@@ -338,6 +335,9 @@
                     A.registerPanel(p.id, {
                         label: p.label,
                         category: 'RPG Experiment',
+                        subcategory: p.subcategory,
+                        order: p.order,
+                        gmOnly: p.gmOnly,
                         icon: '🎲',
                         render: (container) => {
                             container.innerHTML = `
@@ -559,56 +559,61 @@
                         }
                     });
                 } else {
-                    // Normal rendering with subcategories
-                    const mainItems = groupItems.filter(s => !s.subcategory);
-                    const subcats = {};
-                    groupItems.filter(s => s.subcategory).forEach(s => {
-                        if (!subcats[s.subcategory]) subcats[s.subcategory] = [];
-                        subcats[s.subcategory].push(s);
-                    });
+                    // Optimized Ordering: Interleave Main items and Subcategories based on sorting
+                    const renderedSubcats = new Set();
 
-                    // Render main (top-level) items first
-                    mainItems.forEach(s => renderBtn(s, list));
+                    groupItems.forEach(item => {
+                        // Case 1: Subcategory
+                        if (item.subcategory) {
+                            if (renderedSubcats.has(item.subcategory)) return; // Already processed
+                            renderedSubcats.add(item.subcategory);
 
-                    // Render Subcategories
-                    Object.keys(subcats).forEach(subName => {
-                        const subGroup = subcats[subName];
+                            // Find all items for this subcategory
+                            const subGroup = groupItems.filter(s => s.subcategory === item.subcategory);
+                            // (They are already sorted because groupItems is sorted)
 
-                        // Subcategory Header (Collapsible)
-                        const subHeader = document.createElement('div');
-                        const isSubCollapsed = (JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}')[subName]) === true;
+                            // Subcategory Header (Collapsible)
+                            const subHeader = document.createElement('div');
+                            const isSubCollapsed = (JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}')[item.subcategory]) === true;
 
-                        subHeader.style.cssText = 'padding:6px 12px 6px 12px; font-size:10px; font-weight:bold; color:var(--text-muted); cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-top:4px;';
-                        subHeader.innerHTML = `<span>${subName}</span><span class="sub-chev" style="font-size:8px; transform:${isSubCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'}">▼</span>`;
+                            subHeader.style.cssText = 'padding:6px 12px 6px 12px; font-size:10px; font-weight:bold; color:var(--text-muted); cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-top:4px;';
+                            subHeader.innerHTML = `<span>${item.subcategory}</span><span class="sub-chev" style="font-size:8px; transform:${isSubCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'}">▼</span>`;
 
-                        const subList = document.createElement('div');
-                        subList.style.display = isSubCollapsed ? 'none' : 'flex';
-                        subList.style.flexDirection = 'column';
-                        subList.style.gap = '2px';
-                        subList.style.marginLeft = '8px'; // Indent sub-items
-                        subList.style.borderLeft = '1px solid var(--border-subtle)';
+                            const subList = document.createElement('div');
+                            subList.style.display = isSubCollapsed ? 'none' : 'flex';
+                            subList.style.flexDirection = 'column';
+                            subList.style.gap = '2px';
+                            subList.style.marginLeft = '8px'; // Indent sub-items
+                            subList.style.borderLeft = '1px solid var(--border-subtle)';
 
-                        // Populate
-                        subGroup.forEach(s => renderBtn(s, subList));
+                            // Populate
+                            subGroup.forEach(s => renderBtn(s, subList));
 
-                        // Toggle
-                        subHeader.onclick = () => {
-                            const was = subList.style.display === 'none';
-                            const newVal = was ? 'flex' : 'none';
-                            subList.style.display = newVal;
-                            const sc = /** @type {HTMLElement | null} */ (subHeader.querySelector('.sub-chev'));
-                            if (sc) sc.style.transform = newVal === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
+                            // Toggle
+                            subHeader.onclick = () => {
+                                const was = subList.style.display === 'none';
+                                const newVal = was ? 'flex' : 'none';
+                                subList.style.display = newVal;
+                                const sc = /** @type {HTMLElement | null} */ (subHeader.querySelector('.sub-chev'));
+                                if (sc) sc.style.transform = newVal === 'none' ? 'rotate(-90deg)' : 'rotate(0deg)';
 
-                            // Persist
-                            const store = JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}');
-                            store[subName] = (newVal === 'none');
-                            localStorage.setItem('anansi_sub_collapsed', JSON.stringify(store));
-                        };
+                                // Persist
+                                const store = JSON.parse(localStorage.getItem('anansi_sub_collapsed') || '{}');
+                                store[item.subcategory] = (newVal === 'none');
+                                localStorage.setItem('anansi_sub_collapsed', JSON.stringify(store));
+                            };
 
-                        list.appendChild(subHeader);
-                        list.appendChild(subList);
+                            list.appendChild(subHeader);
+                            list.appendChild(subList);
+
+                        }
+                        // Case 2: Main Item
+                        else {
+                            renderBtn(item, list);
+                        }
                     });
                 }
+
 
                 container.appendChild(list);
             });

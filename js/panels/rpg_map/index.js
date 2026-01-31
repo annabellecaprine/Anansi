@@ -165,36 +165,36 @@
                     // Show different info for neighboring (unexplored) locations
                     if (isNeighboring) {
                         infoPanel.innerHTML = `
-                            <div style="text-align:center; padding:20px; color:var(--text-muted);">
-                                <div style="font-size:32px; margin-bottom:8px;">?</div>
-                                <div style="font-size:14px; font-weight:bold;">Unexplored</div>
-                                <div style="font-size:12px; margin-top:4px;">Travel here to reveal.</div>
+                            <div class="text-center p-lg text-muted">
+                                <div class="text-3xl mb-sm">?</div>
+                                <div class="text-sm font-bold">Unexplored</div>
+                                <div class="text-xs mt-xs">Travel here to reveal.</div>
                             </div>
                         `;
                     } else {
                         const linkedMap = hasMapLink ? (A.Locations?.getMapById?.(state, n.mapLink) || null) : null;
                         infoPanel.innerHTML = `
-                            <div style="font-size:16px; font-weight:bold; margin-bottom:8px;">${n.name}</div>
-                            <div style="font-size:12px; line-height:1.5; color:var(--text-secondary); margin-bottom:12px;">
+                            <div class="text-base font-bold mb-xs">${n.name}</div>
+                            <div class="text-xs leading-normal text-secondary mb-sm">
                                 ${n.description || "No description available."}
                             </div>
-                            ${n.image ? `<img src="${n.image}" style="width:100%; border-radius:4px; margin-bottom:12px;">` : ''}
+                            ${n.image ? `<img src="${n.image}" class="w-full rounded-sm mb-sm">` : ''}
                             
                             ${linkedMap ? `
-                                <div style="background:var(--accent-primary); color:white; padding:8px; border-radius:4px; margin-bottom:12px; font-size:12px;">
+                                <div class="bg-accent text-white p-xs rounded-sm mb-sm text-xs">
                                     🚪 <strong>Entrance to:</strong> ${linkedMap.name}
-                                    <div style="font-size:10px; opacity:0.8; margin-top:4px;">Double-click to view this area</div>
+                                    <div class="text-xxs opacity-80 mt-xxs">Double-click to view this area</div>
                                 </div>
                             ` : ''}
                             
-                            <div style="font-size:10px; font-weight:bold; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Connections</div>
-                            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                            <div class="text-xxs font-bold uppercase text-muted mb-xxs">Connections</div>
+                            <div class="flex-row flex-wrap gap-xxs">
                                 ${(n.exits || []).map(exit => {
                             const exitId = typeof exit === 'string' ? exit : exit.id;
                             const l = locs.find(x => x.id === exitId);
                             const exitVis = getVisibility(exitId);
                             const exitName = (exitVis === 'neighboring' || exitVis === 'unknown') ? '?' : (l ? l.name : exitId);
-                            return `<span style="background:var(--bg-base); border:1px solid var(--border-subtle); padding:2px 6px; border-radius:4px; font-size:10px;">${exitName}</span>`;
+                            return `<span class="bg-base border border-subtle px-xs py-xxs rounded-sm text-xxs">${exitName}</span>`;
                         }).join('')}
                             </div>
                         `;
@@ -211,7 +211,7 @@
                     renderAll(state, infoPanel);
                     if (infoPanel) {
                         const map = A.Locations?.getMapById?.(state, n.mapLink);
-                        infoPanel.innerHTML = `<div style="color:var(--accent-primary); font-weight:bold;">Entered: ${map?.name || n.mapLink}</div>`;
+                        infoPanel.innerHTML = `<div class="text-accent font-bold">Entered: ${map?.name || n.mapLink}</div>`;
                     }
                 }
             };
@@ -248,15 +248,15 @@
 
         // Header with map selector
         const header = document.createElement('div');
-        header.style.cssText = 'padding:12px 16px; background:var(--bg-elevated); border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;';
+        header.className = 'p-sm bg-elevated border-b border-subtle flex-row justify-between items-center';
 
         header.innerHTML = `
-            <div style="display:flex; align-items:center; gap:12px;">
-                <span style="font-size:16px;">🗺️</span>
-                <select id="map-selector" class="input" style="font-weight:bold; min-width:150px;"></select>
+            <div class="flex-row items-center gap-sm">
+                <span class="text-lg">🗺️</span>
+                <select id="map-selector" class="input font-bold" style="min-width:150px;"></select>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn btn-sm btn-ghost" id="btn-up-level" title="Go to parent map" style="display:none;">⬆️ Up</button>
+            <div class="flex-row gap-xs">
+                <button class="btn btn-sm btn-ghost hidden" id="btn-up-level" title="Go to parent map">⬆️ Up</button>
                 <button class="btn btn-sm btn-ghost" id="map-recenter">⌖ Center</button>
             </div>
         `;
@@ -306,8 +306,9 @@
 
         // Info Panel
         const infoPanel = document.createElement('div');
-        infoPanel.style.cssText = 'position:absolute; bottom:16px; left:16px; width:300px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-        infoPanel.innerHTML = `<div style="color:var(--text-muted); font-style:italic;">Select a location...</div>`;
+        infoPanel.className = 'absolute bg-elevated border border-subtle rounded-md p-md shadow-lg';
+        infoPanel.style.cssText = 'width: 300px; bottom: 16px; left: 16px;';
+        infoPanel.innerHTML = `<div class="text-muted italic">Select a location...</div>`;
 
         // SVG
         const svgC = document.createElement('div');

@@ -69,10 +69,17 @@ window.Anansi = window.Anansi || {};
             navSections[idx] = {
                 ...existing,                // Keep existing (Manifest)
                 ...config,                  // Overwrite with new
-                category: existing.category || config.category, // Prefer Existing Category (Manifest)
-                label: existing.label || config.label,          // Prefer Existing Label
-                icon: existing.icon || config.icon,             // Prefer Existing Icon
-                order: (existing.order !== undefined) ? existing.order : config.order // Prefer Existing Order
+
+                // Enforce Manifest Authority for structural metadata
+                category: existing.category || config.category,
+                subcategory: existing.subcategory || config.subcategory, // Preserve Subcategory
+                label: existing.label || config.label,
+                icon: existing.icon || config.icon,
+                order: (existing.order !== undefined) ? existing.order : config.order,
+
+                // Merge Flags
+                gmOnly: existing.gmOnly || config.gmOnly,
+                dependencies: existing.dependencies || config.dependencies
             };
             // Note: 'render' will be taken from config, which is what we want.
 

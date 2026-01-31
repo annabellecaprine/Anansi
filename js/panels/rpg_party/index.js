@@ -87,13 +87,13 @@
     function createResourceBar(current, max, color, label) {
         const pct = max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0;
         return `
-            <div style="margin-bottom:4px;">
-                <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:2px;">
-                    <span style="opacity:0.7;">${label}</span>
-                    <span style="font-weight:600;">${current}/${max}</span>
+            <div class="mb-xs">
+                <div class="flex-row justify-between text-xs mb-xs">
+                    <span class="opacity-70">${label}</span>
+                    <span class="font-bold">${current}/${max}</span>
                 </div>
-                <div style="height:6px; background:var(--bg-inset); border-radius:3px; overflow:hidden;">
-                    <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; transition:width 0.3s;"></div>
+                <div class="h-1.5 bg-inset rounded-sm overflow-hidden">
+                    <div class="h-full rounded-sm transition-all" style="width:${pct}%; background:${color};"></div>
                 </div>
             </div>
         `;
@@ -106,30 +106,26 @@
     }
 
     function render(container) {
-        container.style.height = '100%';
-        container.style.display = 'grid';
+        container.className = 'panel-sidebar-layout bg-base';
         container.style.gridTemplateColumns = '280px 1fr';
-        container.style.gap = '0';
-        container.style.overflow = 'hidden';
-        container.style.background = 'var(--bg-base)';
 
         let currentActorId = null;
 
         // --- Sidebar ---
         const sidebar = document.createElement('div');
-        sidebar.style.cssText = 'display:flex; flex-direction:column; background:var(--bg-surface); border-right:1px solid var(--border-subtle); overflow:hidden;';
+        sidebar.className = 'flex-col bg-surface border-r border-subtle overflow-hidden';
 
         // Sidebar Header
         const sidebarHeader = document.createElement('div');
-        sidebarHeader.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--border-subtle);';
+        sidebarHeader.className = 'flex-row justify-between items-center p-md border-b border-subtle';
         sidebarHeader.innerHTML = `
-            <span style="font-size:14px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted);">Party</span>
+            <span class="text-sm font-bold text-uppercase tracking-wider text-muted">Party</span>
             <button id="btn-add-member" class="btn btn-xs btn-primary">+ Add</button>
         `;
         sidebar.appendChild(sidebarHeader);
 
         const actorsList = document.createElement('div');
-        actorsList.style.cssText = 'flex:1; overflow-y:auto; padding:8px;';
+        actorsList.className = 'flex-1 scroll-y p-sm';
         sidebar.appendChild(actorsList);
 
         container.appendChild(sidebar);
@@ -175,38 +171,34 @@
                 const mpPct = entity.maxMp > 0 ? Math.round((entity.mp / entity.maxMp) * 100) : 0;
 
                 const item = document.createElement('div');
-                item.style.cssText = `
-                    padding:12px; border-radius:8px; cursor:pointer; margin-bottom:6px; transition:all 0.15s;
-                    background:${isSelected ? 'var(--bg-elevated)' : 'transparent'};
-                    border:2px solid ${isSelected ? 'var(--accent-primary)' : (isLeader ? 'gold' : 'transparent')};
-                `;
+                item.className = `p-sm rounded-md cursor-pointer mb-xs transition-all border-2 ${isSelected ? 'bg-elevated border-accent' : (isLeader ? 'border-warning' : 'border-transparent')}`;
 
                 item.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                        <div style="width:40px; height:40px; border-radius:50%; background:var(--bg-inset); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; position:relative;">
+                    <div class="flex-row items-center gap-sm mb-sm">
+                        <div class="w-10 h-10 rounded-full bg-inset flex items-center justify-center text-lg flex-shrink-0 relative">
                             ${entity.type === 'npc' ? '👤' : '⚔️'}
-                            ${isLeader ? '<span style="position:absolute; top:-6px; right:-6px; font-size:14px;">👑</span>' : ''}
+                            ${isLeader ? '<span class="absolute -top-1 -right-1 text-sm">👑</span>' : ''}
                         </div>
-                        <div style="flex:1; min-width:0;">
-                            <div style="font-weight:bold; font-size:13px; color:${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                ${entity.name}${isLeader ? ' <span style="font-size:10px; color:gold;">(Leader)</span>' : ''}
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-xs truncate ${isSelected ? 'text-accent' : 'text-primary'}">
+                                ${entity.name}${isLeader ? ' <span class="text-xxs text-warning">(Leader)</span>' : ''}
                             </div>
-                            <div style="font-size:10px; color:var(--text-muted);">
+                            <div class="text-xs text-muted">
                                 Lvl ${entity.stats?.level || 1} ${entity.stats?.class || entity.class || 'Adventurer'}
-                                <span style="margin-left:6px; color:var(--accent-warning);">💰 ${entity.currency || 0}</span>
+                                <span class="ml-xs text-warning">💰 ${entity.currency || 0}</span>
                             </div>
                         </div>
-                        ${!isLeader && isSelected ? `<button class="btn btn-sm btn-ghost" style="font-size:10px; padding:4px 8px;" data-set-leader="${entity.id}" title="Set as Party Leader">👑</button>` : ''}
+                        ${!isLeader && isSelected ? `<button class="btn btn-sm btn-ghost p-xs text-xs" data-set-leader="${entity.id}" title="Set as Party Leader">👑</button>` : ''}
                     </div>
-                    <div style="display:flex; gap:8px;">
-                        <div style="flex:1;">
-                            <div style="height:4px; background:var(--bg-inset); border-radius:2px; overflow:hidden;">
-                                <div style="height:100%; width:${hpPct}%; background:var(--status-error); border-radius:2px;"></div>
+                    <div class="flex-row gap-sm">
+                        <div class="flex-1">
+                            <div class="h-1 bg-inset rounded-full overflow-hidden">
+                                <div class="h-full bg-status-error rounded-full" style="width:${hpPct}%;"></div>
                             </div>
                         </div>
-                        <div style="flex:1;">
-                            <div style="height:4px; background:var(--bg-inset); border-radius:2px; overflow:hidden;">
-                                <div style="height:100%; width:${mpPct}%; background:var(--accent-primary); border-radius:2px;"></div>
+                        <div class="flex-1">
+                            <div class="h-1 bg-inset rounded-full overflow-hidden">
+                                <div class="h-full bg-accent rounded-full" style="width:${mpPct}%;"></div>
                             </div>
                         </div>
                     </div>
@@ -245,9 +237,9 @@
 
             if (!entity) {
                 main.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); opacity:0.7;">
-                        <span style="font-size:48px; margin-bottom:16px;">🛡️</span>
-                        <div style="font-size:14px;">Select a character to view their sheet</div>
+                    <div class="flex-col items-center justify-center h-full text-muted opacity-70">
+                        <span class="text-3xl mb-md">🛡️</span>
+                        <div class="text-sm">Select a character to view their sheet</div>
                     </div>
                 `;
                 return;
@@ -265,26 +257,26 @@
 
             // --- Character Header ---
             const header = document.createElement('div');
-            header.style.cssText = 'padding:20px 24px; border-bottom:1px solid var(--border-subtle); background:var(--bg-elevated);';
+            header.className = 'p-lg border-b border-subtle bg-elevated';
             header.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="display:flex; gap:16px; align-items:center;">
-                        <div style="width:64px; height:64px; border-radius:12px; background:var(--bg-surface); display:flex; align-items:center; justify-content:center; font-size:32px; border:2px solid var(--border-subtle);">
+                <div class="flex-row justify-between items-start">
+                    <div class="flex-row gap-md items-center">
+                        <div class="w-16 h-16 rounded-xl bg-surface flex items-center justify-center text-3xl border-2 border-subtle">
                             ${rpg.type === 'npc' ? '👤' : '⚔️'}
                         </div>
                         <div>
-                            <h2 style="margin:0; font-size:20px; font-weight:bold;">${entity.name}</h2>
-                            <div style="display:flex; gap:12px; margin-top:4px; font-size:12px; color:var(--text-muted);">
-                                <span>Level <strong style="color:var(--text-primary);">${rpg.stats.level || 1}</strong></span>
+                            <h2 class="m-0 text-xl font-bold">${entity.name}</h2>
+                            <div class="flex-row gap-md mt-xs text-xs text-muted">
+                                <span>Level <strong class="text-primary">${rpg.stats.level || 1}</strong></span>
                                 <span>${rpg.stats.class || rpg.class || 'Adventurer'}</span>
                                 <span>XP: ${rpg.stats.xp || 0}/${rpg.stats.xp_next || 1000}</span>
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex; gap:8px;">
+                    <div class="flex-row gap-sm">
                         ${state.rpg.partyLeader === entity.id ? `<button id="btn-pool-gold" class="btn btn-sm btn-primary" title="Collect all gold from other party members">💰 Pool Gold</button>` : ''}
                         <button id="btn-add-stats" class="btn btn-sm btn-secondary">+ D20 Stats</button>
-                        <button id="btn-remove" class="btn btn-sm btn-ghost" style="color:var(--status-error);">Remove</button>
+                        <button id="btn-remove" class="btn btn-sm btn-ghost text-error">Remove</button>
                     </div>
                 </div>
             `;
@@ -322,28 +314,28 @@
 
             // === ROW 1: Resources & Core Stats ===
             const row1 = document.createElement('div');
-            row1.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:16px;';
+            row1.className = 'grid-cols-2 gap-md';
+            row1.style.display = 'grid'; // Helper class doesn't enforce display grid if simple div
 
             // Left: Resource Bars
             const resourcesCard = document.createElement('div');
-            resourcesCard.className = 'card';
-            resourcesCard.style.padding = '16px';
+            resourcesCard.className = 'card p-md';
             resourcesCard.innerHTML = `
-                <h4 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Resources</h4>
+                <h4 class="m-0 mb-sm text-xs font-bold text-uppercase text-muted tracking-widest">Resources</h4>
                 ${createResourceBar(rpg.hp || 0, rpg.maxHp || 20, 'var(--status-error)', '❤️ Health')}
                 ${createResourceBar(rpg.mp || 0, rpg.maxMp || 10, 'var(--accent-primary)', '💎 Mana')}
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:12px;">
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
-                        <div style="font-size:18px; font-weight:bold; color:var(--status-error);">${rpg.hp || 0}/${rpg.maxHp || 20}</div>
-                        <div style="font-size:10px; color:var(--text-muted);">HP</div>
+                <div class="grid-cols-3 gap-sm mt-sm" style="display:grid;">
+                    <div class="text-center p-sm bg-surface rounded-md">
+                        <div class="text-lg font-bold text-error">${rpg.hp || 0}/${rpg.maxHp || 20}</div>
+                        <div class="text-xxs text-muted">HP</div>
                     </div>
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
-                        <div style="font-size:18px; font-weight:bold; color:var(--accent-primary);">${rpg.mp || 0}/${rpg.maxMp || 10}</div>
-                        <div style="font-size:10px; color:var(--text-muted);">MP</div>
+                    <div class="text-center p-sm bg-surface rounded-md">
+                        <div class="text-lg font-bold text-accent">${rpg.mp || 0}/${rpg.maxMp || 10}</div>
+                        <div class="text-xxs text-muted">MP</div>
                     </div>
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px;">
-                        <div style="font-size:18px; font-weight:bold; color:var(--text-primary);">${rpg.ac || 10}</div>
-                        <div style="font-size:10px; color:var(--text-muted);">AC</div>
+                    <div class="text-center p-sm bg-surface rounded-md">
+                        <div class="text-lg font-bold text-primary">${rpg.ac || 10}</div>
+                        <div class="text-xxs text-muted">AC</div>
                     </div>
                 </div>
             `;
@@ -351,50 +343,50 @@
 
             // Right: Quick Edit
             const editCard = document.createElement('div');
-            editCard.className = 'card';
-            editCard.style.padding = '16px';
+            editCard.className = 'card p-md';
             editCard.innerHTML = `
-                <h4 style="margin:0 0 12px; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">Quick Edit</h4>
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                <h4 class="m-0 mb-sm text-xs font-bold text-uppercase text-muted tracking-widest">Quick Edit</h4>
+                <div class="grid-cols-3 gap-sm" style="display:grid;">
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">HP</label>
-                        <input type="number" id="edit-hp" class="input" style="width:100%;" value="${rpg.hp || 0}">
+                        <label class="text-xs text-muted">HP</label>
+                        <input type="number" id="edit-hp" class="input w-full" value="${rpg.hp || 0}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Max HP</label>
-                        <input type="number" id="edit-maxhp" class="input" style="width:100%;" value="${rpg.maxHp || 20}">
+                        <label class="text-xs text-muted">Max HP</label>
+                        <input type="number" id="edit-maxhp" class="input w-full" value="${rpg.maxHp || 20}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">AC</label>
-                        <input type="number" id="edit-ac" class="input" style="width:100%;" value="${rpg.ac || 10}">
+                        <label class="text-xs text-muted">AC</label>
+                        <input type="number" id="edit-ac" class="input w-full" value="${rpg.ac || 10}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">MP</label>
-                        <input type="number" id="edit-mp" class="input" style="width:100%;" value="${rpg.mp || 0}">
+                        <label class="text-xs text-muted">MP</label>
+                        <input type="number" id="edit-mp" class="input w-full" value="${rpg.mp || 0}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Max MP</label>
-                        <input type="number" id="edit-maxmp" class="input" style="width:100%;" value="${rpg.maxMp || 10}">
+                        <label class="text-xs text-muted">Max MP</label>
+                        <input type="number" id="edit-maxmp" class="input w-full" value="${rpg.maxMp || 10}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Level</label>
-                        <input type="number" id="edit-level" class="input" style="width:100%;" value="${rpg.stats.level || 1}">
+                        <label class="text-xs text-muted">Level</label>
+                        <input type="number" id="edit-level" class="input w-full" value="${rpg.stats.level || 1}">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Main Actions</label>
-                        <input type="number" id="edit-maxactions" class="input" style="width:100%;" value="${rpg.maxActions || 1}" min="0" max="10">
+                        <label class="text-xs text-muted">Act.</label>
+                        <input type="number" id="edit-maxactions" class="input w-full" value="${rpg.maxActions || 1}" min="0" max="10">
                     </div>
                     <div>
-                        <input type="number" id="edit-maxbonusactions" class="input" style="width:100%;" value="${rpg.maxBonusActions || 1}" min="0" max="10">
+                        <label class="text-xs text-muted">Bonus</label>
+                        <input type="number" id="edit-maxbonusactions" class="input w-full" value="${rpg.maxBonusActions || 1}" min="0" max="10">
                     </div>
                     <div>
-                        <label style="font-size:10px; color:var(--text-muted);">Currency (gp)</label>
-                        <input type="number" id="edit-currency" class="input" style="width:100%;" value="${rpg.currency || 0}" min="0">
+                        <label class="text-xs text-muted">GP</label>
+                        <input type="number" id="edit-currency" class="input w-full" value="${rpg.currency || 0}" min="0">
                     </div>
                 </div>
-                <div style="margin-top:12px;">
-                    <label style="font-size:10px; color:var(--text-muted);">Class</label>
-                    <input type="text" id="edit-class" class="input" style="width:100%;" value="${rpg.stats.class || rpg.class || ''}" placeholder="e.g. Fighter, Wizard">
+                <div class="mt-sm">
+                    <label class="text-xs text-muted">Class</label>
+                    <input type="text" id="edit-class" class="input w-full" value="${rpg.stats.class || rpg.class || ''}" placeholder="e.g. Fighter, Wizard">
                 </div>
             `;
             row1.appendChild(editCard);
@@ -432,12 +424,12 @@
             // === ROW 2: Ability Scores & Radar ===
             if (matrix.blocks.length > 0) {
                 const row2 = document.createElement('div');
-                row2.style.cssText = 'display:grid; grid-template-columns:1fr 300px; gap:16px;';
+                row2.className = 'grid-cols-[1fr_300px] gap-md';
+                row2.style.display = 'grid';
 
                 // Stats Grid
                 const statsCard = document.createElement('div');
-                statsCard.className = 'card';
-                statsCard.style.padding = '16px';
+                statsCard.className = 'card p-md';
 
                 matrix.blocks.forEach((block, bIdx) => {
                     if (!matrix.values[block.id]) matrix.values[block.id] = {};
@@ -445,25 +437,25 @@
 
                     const blockDiv = document.createElement('div');
                     blockDiv.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">${block.label}</h4>
-                            <button class="btn btn-xs btn-ghost btn-remove-block" data-idx="${bIdx}" style="color:var(--status-error); font-size:10px;">Remove</button>
+                        <div class="flex-row justify-between items-center mb-sm">
+                            <h4 class="m-0 text-xs text-uppercase text-muted tracking-widest">${block.label}</h4>
+                            <button class="btn btn-xs btn-ghost btn-remove-block text-error text-xxs" data-idx="${bIdx}">Remove</button>
                         </div>
                     `;
 
                     const grid = document.createElement('div');
-                    grid.style.cssText = 'display:grid; grid-template-columns:repeat(6, 1fr); gap:8px;';
+                    grid.className = 'grid-cols-6 gap-sm';
+                    grid.style.display = 'grid';
 
                     block.defs.forEach(def => {
                         const val = vals[def.key] !== undefined ? vals[def.key] : 10;
                         const statBox = document.createElement('div');
-                        statBox.style.cssText = 'text-align:center; padding:12px 8px; background:var(--bg-surface); border-radius:8px;';
+                        statBox.className = 'text-center p-sm bg-surface rounded-md';
                         statBox.innerHTML = `
-                            <div style="font-size:10px; font-weight:bold; color:var(--text-muted); margin-bottom:4px;">${def.key}</div>
-                            <input type="number" class="stat-input" data-block="${block.id}" data-key="${def.key}" 
-                                style="width:100%; text-align:center; font-size:18px; font-weight:bold; background:transparent; border:none; color:var(--text-primary);" 
+                            <div class="text-xxs font-bold text-muted mb-xs">${def.key}</div>
+                            <input type="number" class="stat-input input-ghost w-full text-center text-lg font-bold p-0" data-block="${block.id}" data-key="${def.key}" 
                                 value="${val}" min="${def.min}" max="${def.max}">
-                            <div class="stat-mod" style="font-size:11px; color:var(--accent-primary); margin-top:2px;">${calcMod(val)}</div>
+                            <div class="stat-mod text-xs text-accent mt-xs">${calcMod(val)}</div>
                         `;
                         grid.appendChild(statBox);
                     });
@@ -476,8 +468,7 @@
 
                 // Radar Chart
                 const radarCard = document.createElement('div');
-                radarCard.className = 'card';
-                radarCard.style.cssText = 'padding:16px; display:flex; align-items:center; justify-content:center;';
+                radarCard.className = 'card p-md flex items-center justify-center';
                 radarCard.id = 'radar-container';
                 row2.appendChild(radarCard);
 
@@ -512,48 +503,47 @@
 
             // === ROW 3: Equipment & Feats ===
             const row3 = document.createElement('div');
-            row3.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:16px;';
+            row3.className = 'grid-cols-2 gap-md';
+            row3.style.display = 'grid';
 
             // Equipment
             const equipCard = document.createElement('div');
-            equipCard.className = 'card';
-            equipCard.style.padding = '16px';
+            equipCard.className = 'card p-md';
             equipCard.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">🎒 Equipment</h4>
+                <div class="flex-row justify-between items-center mb-sm">
+                    <h4 class="m-0 text-xs text-uppercase text-muted tracking-widest">🎒 Equipment</h4>
                     <button id="btn-add-item" class="btn btn-xs btn-ghost">+ Add</button>
                 </div>
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:12px;">
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
-                        <div style="font-size:16px;">⚔️</div>
-                        <div id="slot-main" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
-                        <div style="font-size:9px; color:var(--text-muted);">Main Hand</div>
+                <div class="grid-cols-3 gap-sm mb-sm" style="display:grid;">
+                    <div class="text-center p-sm bg-surface rounded-md border border-dashed border-subtle">
+                        <div class="text-lg">⚔️</div>
+                        <div id="slot-main" class="text-xs font-bold truncate">-</div>
+                        <div class="text-xxs text-muted">Main Hand</div>
                     </div>
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
-                        <div style="font-size:16px;">🛡️</div>
-                        <div id="slot-off" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
-                        <div style="font-size:9px; color:var(--text-muted);">Off Hand</div>
+                    <div class="text-center p-sm bg-surface rounded-md border border-dashed border-subtle">
+                        <div class="text-lg">🛡️</div>
+                        <div id="slot-off" class="text-xs font-bold truncate">-</div>
+                        <div class="text-xxs text-muted">Off Hand</div>
                     </div>
-                    <div style="text-align:center; padding:8px; background:var(--bg-surface); border-radius:6px; border:1px dashed var(--border-subtle);">
-                        <div style="font-size:16px;">🥋</div>
-                        <div id="slot-armor" style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
-                        <div style="font-size:9px; color:var(--text-muted);">Armor</div>
+                    <div class="text-center p-sm bg-surface rounded-md border border-dashed border-subtle">
+                        <div class="text-lg">🥋</div>
+                        <div id="slot-armor" class="text-xs font-bold truncate">-</div>
+                        <div class="text-xxs text-muted">Armor</div>
                     </div>
                 </div>
-                <div id="inv-list" style="display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto;"></div>
+                <div id="inv-list" class="flex-col gap-xs max-h-[150px] scroll-y"></div>
             `;
             row3.appendChild(equipCard);
 
             // Feats
             const featsCard = document.createElement('div');
-            featsCard.className = 'card';
-            featsCard.style.padding = '16px';
+            featsCard.className = 'card p-md';
             featsCard.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h4 style="margin:0; font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:1px;">✨ Feats & Abilities</h4>
+                <div class="flex-row justify-between items-center mb-sm">
+                    <h4 class="m-0 text-xs text-uppercase text-muted tracking-widest">✨ Feats & Abilities</h4>
                     <button id="btn-add-feat" class="btn btn-xs btn-ghost">+ Add</button>
                 </div>
-                <div id="feats-list" style="display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto;"></div>
+                <div id="feats-list" class="flex-col gap-xs max-h-[200px] scroll-y"></div>
             `;
             row3.appendChild(featsCard);
             content.appendChild(row3);
@@ -578,7 +568,7 @@
 
                 invList.innerHTML = '';
                 if (rpg.inventory.length === 0) {
-                    invList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic; text-align:center; padding:12px;">Inventory empty</div>';
+                    invList.innerHTML = '<div class="text-muted text-xs italic text-center p-md">Inventory empty</div>';
                     return;
                 }
 
@@ -592,7 +582,7 @@
                     const isEquipped = isMain || isOff || isArmor;
 
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--bg-surface); border-radius:4px; font-size:11px;';
+                    row.className = 'flex-row justify-between items-center p-xs bg-surface rounded-sm text-xs';
 
                     const icon = itemData.type === 'weapon' ? '⚔️' : itemData.type === 'armor' ? '🛡️' : '📦';
                     const equipped = isMain ? '(Main)' : isOff ? '(Off)' : isArmor ? '(Worn)' : '';
@@ -650,8 +640,8 @@
 
                 const modalContent = document.createElement('div');
                 modalContent.innerHTML = `
-                    <input class="input" placeholder="Search..." id="item-search" style="width:100%; margin-bottom:12px;">
-                    <div id="item-list" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
+                    <input class="input w-full mb-sm" placeholder="Search..." id="item-search">
+                    <div id="item-list" class="flex-col gap-xs scroll-y" style="max-height:300px;"></div>
                 `;
 
                 const renderItems = (filter = '') => {
@@ -659,9 +649,8 @@
                     list.innerHTML = '';
                     armory.filter(i => i.name.toLowerCase().includes(filter.toLowerCase())).forEach(item => {
                         const btn = document.createElement('button');
-                        btn.className = 'btn btn-ghost';
-                        btn.style.cssText = 'text-align:left; padding:8px;';
-                        btn.innerHTML = `<strong>${item.name}</strong> <span style="opacity:0.6;">(${item.type})</span>`;
+                        btn.className = 'btn btn-ghost text-left p-sm';
+                        btn.innerHTML = `<strong class="text-sm">${item.name}</strong> <span class="text-xs opacity-60">(${item.type})</span>`;
                         btn.onclick = () => {
                             rpg.inventory.push(item.id);
                             A.State.notify();
@@ -690,7 +679,7 @@
                 featsList.innerHTML = '';
 
                 if (rpg.feats.length === 0) {
-                    featsList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; font-style:italic; text-align:center; padding:12px;">No feats assigned</div>';
+                    featsList.innerHTML = '<div class="text-center text-xs text-muted italic p-md">No feats assigned</div>';
                     return;
                 }
 
@@ -699,13 +688,13 @@
                     const icon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : feat.type === 'reaction' ? '🛡️' : '📜';
 
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-surface); border-radius:4px;';
+                    row.className = 'flex-row justify-between items-center p-sm bg-surface rounded-sm';
                     row.innerHTML = `
                         <div>
-                            <div style="font-size:12px; font-weight:bold;">${icon} ${feat.name}</div>
-                            ${feat.shortDesc ? `<div style="font-size:10px; color:var(--text-muted);">${feat.shortDesc}</div>` : ''}
+                            <div class="text-xs font-bold">${icon} ${feat.name}</div>
+                            ${feat.shortDesc ? `<div class="text-xxs text-muted">${feat.shortDesc}</div>` : ''}
                         </div>
-                        <button class="btn btn-xs btn-ghost" style="color:var(--status-error);">✕</button>
+                        <button class="btn btn-xs btn-ghost text-error">✕</button>
                     `;
                     row.querySelector('button').onclick = () => {
                         rpg.feats.splice(idx, 1);
@@ -728,18 +717,19 @@
                 }
 
                 const modalContent = document.createElement('div');
-                modalContent.style.cssText = 'display:flex; flex-direction:column; gap:8px; max-height:400px; overflow-y:auto;';
+                modalContent.className = 'flex-col gap-sm scroll-y';
+                modalContent.style.maxHeight = '400px';
 
                 featDb.forEach(feat => {
                     const has = rpg.feats.includes(feat.id);
                     const icon = feat.type === 'spell' ? '✨' : feat.type === 'ability' ? '⚡' : feat.type === 'reaction' ? '🛡️' : '📜';
                     const btn = document.createElement('button');
-                    btn.className = 'btn btn-ghost';
+                    btn.className = `btn btn-ghost text-left p-sm ${has ? 'opacity-50' : ''}`;
                     btn.disabled = has;
-                    btn.style.cssText = `text-align:left; padding:10px; ${has ? 'opacity:0.5;' : ''}`;
+
                     btn.innerHTML = `
-                        <div style="font-weight:bold;">${icon} ${feat.name}</div>
-                        <div style="font-size:11px; opacity:0.7;">${feat.shortDesc || feat.description?.substring(0, 50) || ''}</div>
+                        <div class="font-bold text-sm">${icon} ${feat.name}</div>
+                        <div class="text-xs opacity-70">${feat.shortDesc || feat.description?.substring(0, 50) || ''}</div>
                     `;
                     btn.onclick = () => {
                         rpg.feats.push(feat.id);
@@ -784,7 +774,7 @@
             const members = getPartyMembers();
             const entity = members.find(a => a.id === currentActorId);
             if (!entity || !entity.stats_matrix || entity.stats_matrix.blocks.length === 0) {
-                container.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">Add stats to view chart</div>';
+                container.innerHTML = '<div class="text-xs text-muted">Add stats to view chart</div>';
                 return;
             }
 
