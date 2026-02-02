@@ -83,6 +83,7 @@ Anansi is a comprehensive Narrative, RPG, and Logic engine designed for complex 
 *   **Rule Chains**: Visual programming interface for complex logic:
     *   `IF target.hp < 10 AND weather == 'storm' THEN trigger_event('desperate_escape')`
     *   Supports `ElseIf`, `Else`, Random Pickers, and Shifts.
+*   **Script Development Editor**: (Idea) Possible use of **Samildánach**'s Architect Panel (Node Map) for visual scripting.
 
 ### **Events (Logos & Chaos)**
 *   **Logos (Logic Events)**: deterministic triggers based on state (e.g., "If Reputation > 50, Unlock Palace").

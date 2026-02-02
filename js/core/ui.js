@@ -178,7 +178,7 @@
                 };
             }
             this.els.btnSave.onclick = () => {
-                A.IO.save(A.State.get());
+                A.IO.saveNow();
                 if (A.UI.Toast) A.UI.Toast.show('Project saved!', 'success');
                 if (A.UI.flashSuccess) A.UI.flashSuccess(this.els.btnSave);
             };

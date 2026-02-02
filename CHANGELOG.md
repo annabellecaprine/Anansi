@@ -2,6 +2,12 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v2.0.1 - 2026-02-02
+### Fixes
+- **Vault Panel UI**: Resolved critical layout regressions where HTML tags appeared as raw text (`< div`) and list items were compressed. Standardized list item layout with `flex-col` wrapper.
+- **Save System**: Fixed the global "Save" button triggering a JSON file download instead of persisting to the local IndexedDB.
+- **Deployment**: Added `.nojekyll` configuration to prevent GitHub Pages from ignoring asset directories starting with underscores.
+
 ## v2.0 - 2026-01-30
 ### Structural Standardization (Phase 5)
 - **CSS Overhaul**: Eliminated legacy inline styles across all panels, enforcing a unified, maintainable utility class system (`css/panels.css`).

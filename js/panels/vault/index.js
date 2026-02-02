@@ -539,24 +539,26 @@
         const project = item.universe || item.sourceProjectName || 'Unknown Project';
 
         row.innerHTML = `
-          <!-- Line 1: Centered Header -->
-          <div class="flex-row items-center justify-center gap-xs w-full mb-xxs">
-            ${selectionMode ? `<input type="checkbox" class="pointer-events-none mr-sm" ${isSelected ? 'checked' : ''}>` : ''}
-            <span class="text-sm border border-subtle bg-base rounded-sm px-xs">${TYPE_ICONS[item.type] || '📦'}</span>
-            <strong class="text-sm text-primary truncate max-w-[200px] text-center">${name}</strong>
-            ${firstTag ? `<span class="px-xs py-xxs bg-accent-subtle rounded-xl text-accent border border-accent-subtle text-xxs font-medium whitespace-nowrap">${firstTag}</span>` : ''}
-            <span class="text-xxs text-muted opacity-60">v${item.version}</span>
-          </div>
+          <div class="flex-col w-full gap-xxs" style="align-items:stretch;">
+            <!-- Line 1: Header -->
+            <div class="flex-row items-center gap-sm w-full mb-xxs">
+              ${selectionMode ? `<input type="checkbox" class="pointer-events-none mr-sm" ${isSelected ? 'checked' : ''}>` : ''}
+              <span class="text-sm border border-subtle bg-base rounded-sm px-xs">${TYPE_ICONS[item.type] || '📦'}</span>
+              <strong class="text-sm text-primary truncate flex-1">${name}</strong>
+              ${firstTag ? `<span class="px-xs py-xxs bg-accent-subtle rounded-xl text-accent border border-accent-subtle text-xxs font-medium whitespace-nowrap">${firstTag}</span>` : ''}
+              <span class="text-xxs text-muted opacity-60">v${item.version}</span>
+            </div>
 
-          <!-- Line 2: Centered Project -->
-          <div class="text-xs font-bold text-accent text-center mb-xxs truncate w-full">
-            ${project}
-          </div>
+            <!-- Line 2: Project -->
+            <div class="text-xs font-bold text-accent mb-xxs truncate w-full">
+              ${project}
+            </div>
 
-          <!-- Line 3: Content Snippet -->
-          ${preview ? `<div class="text-xs text-muted text-center opacity-70 truncate w-full px-lg italic">
-            "${preview}..."
-          </div>` : ''}
+            <!-- Line 3: Content Snippet -->
+            ${preview ? `<div class="text-xs text-muted opacity-70 truncate w-full italic">
+              "${preview}..."
+            </div>` : ''}
+          </div>
         `;
 
         row.onclick = () => {
@@ -612,8 +614,8 @@
             <button class="btn btn-ghost btn-sm" id="btn-delete-vault" style="color:var(--status-error);">🗑️ Remove</button>
           </div>
         </div>
-        
-        ${item.blockId ? `
+
+          ${item.blockId ? `
           <div style="padding:8px 12px; background:rgba(100, 149, 237, 0.1); border-bottom:1px solid rgba(100, 149, 237, 0.3); display:flex; align-items:center; gap:8px;">
             <span style="font-size:12px;">📦</span>
             <div style="flex:1;">
@@ -621,7 +623,8 @@
               <div style="font-size:10px; color:var(--text-muted);" id="block-items-count">Loading block items...</div>
             </div>
           </div>
-        ` : ''}
+        ` : ''
+        }
 
         <div class="card-body" style="flex:1; overflow-y:auto;">
           <!-- Metadata -->
@@ -682,7 +685,7 @@
             </div>
           ` : ''}
         </div>
-      `;
+        `;
 
       // Pull button
       detailCol.querySelector('#btn-pull').onclick = () => pullToProject(item);
@@ -699,7 +702,7 @@
             }
 
             const confirmed = confirm(
-              `Import entire block "${item.blockName}"?\n\n` +
+              `Import entire block "${item.blockName}" ?\n\n` +
               `This will add ${blockItems.length} items to your project.`
             );
             if (!confirmed) return;
@@ -730,8 +733,8 @@
               const t = bi.type || 'unknown';
               typeCounts[t] = (typeCounts[t] || 0) + 1;
             });
-            const summary = Object.entries(typeCounts).map(([t, c]) => `${c} ${TYPE_LABELS[t] || t}`).join(', ');
-            countEl.textContent = `${blockItems.length} items: ${summary}`;
+            const summary = Object.entries(typeCounts).map(([t, c]) => `${c} ${TYPE_LABELS[t] || t} `).join(', ');
+            countEl.textContent = `${blockItems.length} items: ${summary} `;
           }
         }).catch(() => { });
       }
@@ -739,7 +742,7 @@
       // Delete button - removes from Vault archive only
       detailCol.querySelector('#btn-delete-vault').onclick = async () => {
         const confirmed = confirm(
-          `Remove "${name}" from your Vault archive?\n\n` +
+          `Remove "${name}" from your Vault archive ?\n\n` +
           `⚠️ This only removes it from the archive.\n` +
           `Any copies in projects are NOT affected.`
         );
@@ -890,10 +893,10 @@
 
         // Generate unique IDs and import locations
         (template.locations || []).forEach(loc => {
-          let newId = `${template.id}_${loc.key}`;
+          let newId = `${template.id}_${loc.key} `;
           let counter = 1;
           while (existingIds.has(newId)) {
-            newId = `${template.id}_${loc.key}_${counter++}`;
+            newId = `${template.id}_${loc.key}_${counter++} `;
           }
           idMap[loc.key] = newId;
 
