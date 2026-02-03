@@ -27,6 +27,11 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function escapeAttr(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
     // ==========================================
     // MAIN RENDER ENTRY
     // ==========================================
@@ -122,7 +127,7 @@
                 </select>
                 <input class="input" id="inp-gender-custom" placeholder="Custom gender..." 
                        style="width:120px; display:${isCustomGender ? 'block' : 'none'};" 
-                       value="${isCustomGender ? actor.gender : ''}">
+                       value="${isCustomGender ? escapeAttr(actor.gender) : ''}">
                 <select class="input" id="sel-pronouns" style="width:120px;">
                     <option value="he/him" ${actor.pronouns === 'he/him' ? 'selected' : ''}>he/him</option>
                     <option value="she/her" ${actor.pronouns === 'she/her' ? 'selected' : ''}>she/her</option>
@@ -131,7 +136,7 @@
                 </select>
                 <input class="input" id="inp-pronouns-custom" placeholder="Pronouns..."
                        style="flex: 1; display:${isCustomPronouns ? 'block' : 'none'};"
-                       value="${isCustomPronouns ? actor.pronouns : ''}">
+                       value="${isCustomPronouns ? escapeAttr(actor.pronouns) : ''}">
             </div>
         `;
         smartContainer.appendChild(identityWrap);
@@ -296,7 +301,7 @@
 
                     row.innerHTML = `
                         <div style="display:flex; align-items:center; padding:6px 8px; gap:8px; border-bottom:1px solid var(--border-subtle);">
-                            <input class="input quirk-text" data-idx="${idx}" value="${(q.text || '').replace(/"/g, '&quot;')}" 
+                            <input class="input quirk-text" data-idx="${idx}" value="${escapeAttr(q.text)}" 
                                     style="flex:1; font-size:11px; font-family:var(--font-mono); border:none; background:transparent;" placeholder="{{name}} does something...">
                             <button class="btn btn-ghost btn-sm quirk-remove" data-idx="${idx}" style="color:var(--status-error); padding:2px 6px; font-size:12px;">×</button>
                         </div>
@@ -470,11 +475,11 @@
 
         const basicFields = `
         <div class="form-row">
-            <div class="form-col"><label class="field-label">Hair</label><input class="input" id="app-hair" value="${app.hair || ''}"></div>
-            <div class="form-col"><label class="field-label">Eyes</label><input class="input" id="app-eyes" value="${app.eyes || ''}"></div>
+            <div class="form-col"><label class="field-label">Hair</label><input class="input" id="app-hair" value="${escapeAttr(app.hair)}"></div>
+            <div class="form-col"><label class="field-label">Eyes</label><input class="input" id="app-eyes" value="${escapeAttr(app.eyes)}"></div>
         </div>
         <div class="form-row">
-            <div class="form-col"><label class="field-label">Build</label><input class="input" id="app-build" value="${app.build || ''}"></div>
+            <div class="form-col"><label class="field-label">Build</label><input class="input" id="app-build" value="${escapeAttr(app.build)}"></div>
         </div>
         `;
 
@@ -495,7 +500,7 @@
                 <label style="font-size:12px; display:flex; align-items:center; gap:4px; margin-right:12px;">
                     <input type="checkbox" id="app-${p}-present" ${dat.present ? 'checked' : ''}> Present
                 </label>
-                <input class="input" style="flex:1;" id="app-${p}-style" placeholder="Style/Description" value="${dat.style || ''}" ${!dat.present ? 'disabled' : ''}>
+                <input class="input" style="flex:1;" id="app-${p}-style" placeholder="Style/Description" value="${escapeAttr(dat.style)}" ${!dat.present ? 'disabled' : ''}>
             </div>
             `;
         }).join('');
@@ -592,11 +597,11 @@
                 html += `
                     <div class="cue-grid" style="display:grid; grid-template-columns:90px repeat(5, 1fr); gap:6px; align-items:center; margin-bottom:4px;">
                         <div style="font-size:11px; font-weight:600; text-transform:uppercase; color:${colorAccent};">${tag}</div>
-                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="basic" value="${cue.basic || ''}" ${getDisabledAttr('basic')}>
-                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="ears" value="${cue.ears || ''}" ${getDisabledAttr('ears')}>
-                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="tail" value="${cue.tail || ''}" ${getDisabledAttr('tail')}>
-                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="wings" value="${cue.wings || ''}" ${getDisabledAttr('wings')}>
-                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="horns" value="${cue.horns || ''}" ${getDisabledAttr('horns')}>
+                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="basic" value="${escapeAttr(cue.basic)}" ${getDisabledAttr('basic')}>
+                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="ears" value="${escapeAttr(cue.ears)}" ${getDisabledAttr('ears')}>
+                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="tail" value="${escapeAttr(cue.tail)}" ${getDisabledAttr('tail')}>
+                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="wings" value="${escapeAttr(cue.wings)}" ${getDisabledAttr('wings')}>
+                        <input class="input cue-input" data-section="${sectionId}" data-tag="${tag}" data-part="horns" value="${escapeAttr(cue.horns)}" ${getDisabledAttr('horns')}>
                     </div>`;
             });
 
