@@ -551,7 +551,7 @@ Return ONLY this JSON keys for ${cat.id}:
      */
     function showProgressModal(retryCallback = null) {
         const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;';
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:20000; display:flex; align-items:center; justify-content:center;';
 
         modal.innerHTML = `
             <div style="background:var(--bg-surface); padding:32px; border-radius:12px; width:450px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.4);">
@@ -717,7 +717,7 @@ Return ONLY this JSON:
     function showResumePrompt(partialData) {
         return new Promise((resolve) => {
             const modal = document.createElement('div');
-            modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;';
+            modal.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:20000; display:flex; align-items:center; justify-content:center;';
 
             // Determine which step we're on based on what data exists
             let resumeStep = 0;

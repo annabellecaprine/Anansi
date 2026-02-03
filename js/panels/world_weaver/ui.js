@@ -610,45 +610,54 @@
 
         const modal = document.createElement('div');
         modal.className = 'modal';
+        // Ensure z-index is high enough for the backdrop; content will be inside.
+        // We use inline style to force it on top of everything.
+        modal.style.position = 'fixed';
+        modal.style.zIndex = '10000';
+        modal.style.inset = '0';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
 
         modal.innerHTML = `
-            <div class="modal-backdrop"></div>
-            <div class="modal-content w-full p-lg max-w-[500px]">
-                <h3 class="mt-0 mb-sm">🕸️ Generate World Output</h3>
-                <p class="text-muted mb-lg">Your world is ${session.overallProgress || 0}% complete. Choose an output format:</p>
+            <div class="modal-backdrop" style="position:absolute; inset:0; z-index:-1; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);"></div>
+            <div class="modal-content w-full p-lg max-w-[500px] flex-col" style="max-height: 90vh; overflow-y: auto; position:relative; z-index:10; background: var(--bg-surface);">
+                    <h3 class="mt-0 mb-sm">🕸️ Generate World Output</h3>
+                    <p class="text-muted mb-lg">Your world is ${session.overallProgress || 0}% complete. Click an option to generate immediately:</p>
 
-                <!--SETTINGS UI-- >
-                <div style="margin-bottom:24px; padding:16px; background:var(--bg-elevated); border-radius:8px; border:1px solid var(--border-subtle);">
-                     <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Generation Settings</div>
-                     
-                     <!-- Dossier Detail Slider -->
-                     <label style="display:block; margin-bottom:12px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <span style="font-size:13px; font-weight:600;">Information Density</span>
-                            <span id="label-dossier" style="font-size:11px; color:var(--accent-primary);">High (Comprehensive)</span>
-                        </div>
-                        <input type="range" id="set-dossier" min="0" max="1" step="1" value="1" style="width:100%; cursor:pointer;">
-                     </label>
+                    <!--SETTINGS UI-- >
+                    <div style="margin-bottom:24px; padding:16px; background:var(--bg-elevated); border-radius:8px; border:1px solid var(--border-subtle);">
+                        <div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px;">Generation Settings</div>
 
-                     <!-- Card Verbosity Slider -->
-                     <label style="display:block;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <span style="font-size:13px; font-weight:600;">Writing Verbosity</span>
-                            <span id="label-verbosity" style="font-size:11px; color:var(--accent-primary);">Standard (Chat Optimized)</span>
-                        </div>
-                        <input type="range" id="set-verbosity" min="0" max="1" step="1" value="0" style="width:100%; cursor:pointer;">
-                     </label>
-                </div>
+                        <!-- Dossier Detail Slider -->
+                        <label style="display:block; margin-bottom:12px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                <span style="font-size:13px; font-weight:600;">Information Density</span>
+                                <span id="label-dossier" style="font-size:11px; color:var(--accent-primary);">High (Comprehensive)</span>
+                            </div>
+                            <input type="range" id="set-dossier" min="0" max="1" step="1" value="1" style="width:100%; cursor:pointer;">
+                        </label>
 
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <button class="ww-gen-option" data-type="character" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
-                        <span style="font-size: 24px;">👤</span>
-                        <div>
-                            <strong>${isProtagonistMode ? 'Generate Character Card' : 'Generate Main Character'}</strong>
-                            <div style="font-size: 12px; color: var(--text-muted);">Multi-step AI-powered character generation</div>
-                        </div>
-                    </button>
-                    ${!isProtagonistMode ? `
+                        <!-- Card Verbosity Slider -->
+                        <label style="display:block;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                <span style="font-size:13px; font-weight:600;">Writing Verbosity</span>
+                                <span id="label-verbosity" style="font-size:11px; color:var(--accent-primary);">Standard (Chat Optimized)</span>
+                            </div>
+                            <input type="range" id="set-verbosity" min="0" max="1" step="1" value="0" style="width:100%; cursor:pointer;">
+                        </label>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button class="ww-gen-option" data-type="character" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                            <span style="font-size: 24px;">👤</span>
+                            <div>
+                                <strong>${isProtagonistMode ? 'Generate Character Card' : 'Generate Main Character'}</strong>
+                                <div style="font-size: 12px; color: var(--text-muted);">Multi-step AI-powered character generation</div>
+                            </div>
+                        </button>
+                        ${!isProtagonistMode ? `
                     <button class="ww-gen-option" data-type="multicast" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
                         <span style="font-size: 24px;">👥</span>
                         <div>
@@ -657,25 +666,25 @@
                         </div>
                     </button>
                     ` : ''}
-                    <button class="ww-gen-option" data-type="world" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
-                        <span style="font-size: 24px;">🌍</span>
-                        <div>
-                            <strong>Generate World Lorebook</strong>
-                            <div style="font-size: 12px; color: var(--text-muted);">Create comprehensive lore entries</div>
-                        </div>
-                    </button>
-                    <button class="ww-gen-option" data-type="export" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
-                        <span style="font-size: 24px;">📄</span>
-                        <div>
-                            <strong>Export World Bible</strong>
-                            <div style="font-size: 12px; color: var(--text-muted);">Download as markdown document</div>
-                        </div>
-                    </button>
-                </div>
+                        <button class="ww-gen-option" data-type="world" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                            <span style="font-size: 24px;">🌍</span>
+                            <div>
+                                <strong>Generate World Lorebook</strong>
+                                <div style="font-size: 12px; color: var(--text-muted);">Create comprehensive lore entries</div>
+                            </div>
+                        </button>
+                        <button class="ww-gen-option" data-type="export" style="display:flex; align-items:center; gap:16px; padding:16px; background:var(--bg-elevated); border:1px solid var(--border-subtle); border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);">
+                            <span style="font-size: 24px;">📄</span>
+                            <div>
+                                <strong>Export World Bible</strong>
+                                <div style="font-size: 12px; color: var(--text-muted);">Download as markdown document</div>
+                            </div>
+                        </button>
+                    </div>
 
-                <button id="gen-modal-cancel" style="margin-top: 24px; width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
-            </div>
-            `;
+                    <button id="gen-modal-cancel" style="margin-top: 24px; width: 100%; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
+                </div>
+        `;
         document.body.appendChild(modal);
 
         // Slider Logic
@@ -702,7 +711,7 @@
             btn.onclick = () => {
                 const type = btn.dataset.type;
                 const settings = getSettings();
-                modal.remove();
+                close();
 
                 if (type === 'multicast') {
                     showMultiCastSelection(session, sessions, settings);
@@ -721,8 +730,15 @@
             };
         });
 
-        modal.querySelector('#gen-modal-cancel').onclick = () => modal.remove();
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        const close = () => {
+            modal.remove();
+            window.removeEventListener('keydown', onEsc);
+        };
+        const onEsc = (e) => { if (e.key === 'Escape') close(); };
+        window.addEventListener('keydown', onEsc);
+
+        modal.querySelector('#gen-modal-cancel').onclick = close;
+        modal.onclick = (e) => { if (e.target === modal || e.target.classList.contains('modal-backdrop')) close(); };
     }
 
     function showMultiCastSelection(session, sessions, settings) {
@@ -733,15 +749,21 @@
         }
 
         const modal = document.createElement('div');
-        modal.className = 'modal flex items-center justify-center p-md z-[9999] backdrop-blur-sm bg-black/75 fixed inset-0';
+        // Ensure this sits on top of any other modals
+        modal.style.position = 'fixed';
+        modal.style.zIndex = '20000';
+        modal.style.inset = '0';
+        // Remove bg-black/75 class as we handle it manually in backdrop
+        modal.className = 'modal flex items-center justify-center p-md';
 
         modal.innerHTML = `
-            <div class="max-w-[500px] bg-surface p-lg rounded-xl border border-subtle shadow-2xl">
-                <h3 style="margin-top: 0;">👥 Select Characters to Generate</h3>
-                <p style="color: var(--text-muted); margin-bottom: 16px;">Choose which cast members to generate cards for:</p>
+            <div class="modal-backdrop" style="position:absolute; inset:0; z-index:-1; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);"></div>
+            <div class="modal-content max-w-[500px] bg-surface p-lg rounded-xl border border-subtle shadow-2xl flex-col" style="max-height: 90vh; overflow-y: auto; position:relative; z-index:10;">
+                    <h3 style="margin-top: 0;">👥 Select Characters to Generate</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 16px;">Choose which cast members to generate cards for:</p>
 
-                <div id="cast-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
-                    ${cast.map((c, i) => `
+                    <div id="cast-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
+                        ${cast.map((c, i) => `
                         <label style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-elevated); border-radius: 8px; cursor: pointer;">
                             <input type="checkbox" class="cast-check" data-idx="${i}" ${c.significance === 'major' ? 'checked' : ''}>
                             <div style="flex:1;">
@@ -750,14 +772,14 @@
                             </div>
                         </label>
                     `).join('')}
-                </div>
+                    </div>
 
-                <div style="display: flex; gap: 8px;">
-                    <button id="cast-cancel" style="flex:1; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
-                    <button id="cast-generate" style="flex:1; padding: 12px; background: var(--accent-primary); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Generate Selected</button>
-                </div>
-            </div >
-            `;
+                    <div style="display: flex; gap: 8px;">
+                        <button id="cast-cancel" style="flex:1; padding: 12px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button id="cast-generate" style="flex:1; padding: 12px; background: var(--accent-primary); border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Generate Selected</button>
+                    </div>
+                </div >
+        `;
         document.body.appendChild(modal);
 
         modal.querySelector('#cast-cancel').onclick = () => modal.remove();
@@ -773,12 +795,20 @@
                 return;
             }
 
-            modal.remove();
+            close();
             if (A.WorldWeaver.Generation?.generateCharacterMultiStep) {
                 A.WorldWeaver.Generation.generateCharacterMultiStep(session, sessions, selected, settings);
             }
         };
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+        const close = () => {
+            modal.remove();
+            window.removeEventListener('keydown', onEsc);
+        };
+        const onEsc = (e) => { if (e.key === 'Escape') close(); };
+        window.addEventListener('keydown', onEsc);
+
+        modal.onclick = (e) => { if (e.target === modal) close(); };
     }
 
     function showContextModal(session) {

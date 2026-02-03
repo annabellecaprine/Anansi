@@ -2,6 +2,12 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v2.0.2 - 2026-02-03
+### Fixes
+- **World Weaver Modal**: Resolved critical layering issues in the "Generate Output" modal where the blurred backdrop obscured interactive buttons. Enforced strict z-index stacking context (Backdrop: -1, Content: 10).
+- **Usability**: Added `Esc` key support and backdrop click-to-close for smoother modal navigation in World Weaver.
+- **Visuals**: Fixed potential z-index conflicts between multiple stacked modals (Progress/Selection screens).
+
 ## v2.0.1 - 2026-02-02
 ### Fixes
 - **Vault Panel UI**: Resolved critical layout regressions where HTML tags appeared as raw text (`< div`) and list items were compressed. Standardized list item layout with `flex-col` wrapper.
