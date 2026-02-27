@@ -2,6 +2,10 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v2.0.4 - 2026-02-26
+### New Features
+- **LM Studio Provider**: Added LM Studio as a first-class local provider option. Select "LM Studio (Local)" in API Configuration — no API key required. Defaults to `localhost:1234` (LM Studio's standard port). Uses the OpenAI-compatible chat completions endpoint.
+
 ## v2.0.3 - 2026-02-03
 ### Fixes
 - **Actor Cues**: Fixed a truncation bug where presets containing double quotes (e.g., `"beams"`) were cut off in input fields. Implemented `escapeAttr` utility to properly sanitize HTML attributes across Actor Profile, Appearance, and Cues tabs.

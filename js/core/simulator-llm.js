@@ -332,6 +332,34 @@
             return data.choices?.[0]?.message?.content || "(No response)";
         }
 
+        if (provider === 'lmstudio') {
+            // LM Studio - Local OpenAI-compatible server
+            const url = 'http://localhost:1234/v1/chat/completions';
+            const messages = [
+                { role: 'system', content: system },
+                ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content }))
+            ];
+
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    temperature: 0.9,
+                    max_tokens: maxTokens
+                })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.error?.message || resp.statusText);
+            }
+
+            const data = await resp.json();
+            return data.choices?.[0]?.message?.content || "(No response)";
+        }
+
         if (provider === 'custom') {
             // Custom OpenAI-compatible endpoint
             const config = JSON.parse(localStorage.getItem('anansi_sim_config') || '{}');

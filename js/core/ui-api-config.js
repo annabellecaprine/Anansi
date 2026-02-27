@@ -19,6 +19,7 @@
         gemini: { name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', defaultModel: 'gemini-2.0-flash', needsKey: true },
         kobold: { name: 'Kobold (Local)', baseUrl: 'http://localhost:5001/api/v1', defaultModel: 'local', needsKey: false },
         chutes: { name: 'Chutes AI', baseUrl: 'https://llm.chutes.ai/v1', defaultModel: 'deepseek-ai/DeepSeek-V3', needsKey: true },
+        lmstudio: { name: 'LM Studio (Local)', baseUrl: 'http://localhost:1234/v1', defaultModel: 'local-model', needsKey: false },
         custom: { name: 'Custom', baseUrl: '', defaultModel: '', needsKey: true }
     };
 

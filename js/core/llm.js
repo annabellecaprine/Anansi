@@ -42,7 +42,7 @@
         const model = config.model || 'gemini-1.5-flash';
 
         // Check for key (except local providers)
-        if (!key && provider !== 'kobold') {
+        if (!key && provider !== 'kobold' && provider !== 'lmstudio') {
             throw new Error(`Missing API Key for ${provider}. Please configure in API Configuration.`);
         }
 
@@ -92,11 +92,12 @@
             return data.candidates?.[0]?.content?.parts?.[0]?.text || "(No response)";
         }
 
-        if (provider === 'openai' || provider === 'openrouter' || provider === 'chutes' || provider === 'custom') {
+        if (provider === 'openai' || provider === 'openrouter' || provider === 'chutes' || provider === 'lmstudio' || provider === 'custom') {
             // OpenAI-Compatible Endpoints
             let url = 'https://api.openai.com/v1/chat/completions';
             if (provider === 'openrouter') url = 'https://openrouter.ai/api/v1/chat/completions';
             if (provider === 'chutes') url = 'https://llm.chutes.ai/v1/chat/completions';
+            if (provider === 'lmstudio') url = 'http://localhost:1234/v1/chat/completions';
             if (provider === 'custom') {
                 const baseUrl = (config.baseUrl || 'https://api.example.com/v1').replace(/\/$/, '');
                 url = `${baseUrl}/chat/completions`;
