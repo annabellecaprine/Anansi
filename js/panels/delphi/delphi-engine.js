@@ -334,6 +334,66 @@ Use markdown formatting with headers, bullet points, and bold for emphasis.`
         },
 
         /**
+         * Run an interactive consultation about a diagnostic report.
+         * @param {Object} options
+         * @param {string} options.report - The diagnostic report text
+         * @param {Object} options.personaData - Compiled persona data (from evaluate result)
+         * @param {Array} options.chatHistory - Previous consultation messages [{role, content}]
+         * @param {string} options.userMessage - The user's new question
+         * @param {Object} [options.llmConfig] - Override LLM config
+         * @returns {Promise<string>} LLM response text
+         */
+        consult: async function (options = {}) {
+            const { report, personaData, chatHistory = [], userMessage, llmConfig } = options;
+
+            if (!report || !userMessage) {
+                throw new Error('A diagnostic report and a question are required.');
+            }
+
+            // Build consultant system prompt with full context
+            const systemPrompt = `You are a character design consultant. You have just completed a diagnostic report on a character definition. The user will now ask questions about the report and request specific changes.
+
+RULES:
+- When suggesting rewording, always show BEFORE and AFTER text.
+- Stay analytical — do NOT roleplay as the character.
+- Be specific about which section of the definition to change and why.
+- Reference specific traits, phrases, and sections from the report.
+- If the user asks to shift a character in a direction, explain which traits to strengthen, weaken, add, or remove.
+
+--- CHARACTER DEFINITION ---
+Character Name: ${personaData?.characterName || 'Unknown'}
+
+${personaData?.personalityPreview ? `[PERSONALITY PREVIEW]\n${personaData.personalityPreview}` : ''}
+
+${personaData?.scenarioPreview ? `[SCENARIO PREVIEW]\n${personaData.scenarioPreview}` : ''}
+--- END CHARACTER DEFINITION ---
+
+--- DIAGNOSTIC REPORT ---
+${report}
+--- END DIAGNOSTIC REPORT ---`;
+
+            // Build conversation history for multi-turn
+            const llmHistory = [...chatHistory, { role: 'user', content: userMessage }];
+
+            // Get LLM config
+            const config = llmConfig || (A.UI?.getActiveLLMConfig ? A.UI.getActiveLLMConfig() : null);
+            if (!config || !config.apiKey) {
+                throw new Error('No API key configured. Open API Configuration to set one up.');
+            }
+
+            const response = await A.Simulator.callLLM(
+                config.provider,
+                config.model,
+                config.apiKey,
+                systemPrompt,
+                llmHistory,
+                config.baseUrl
+            );
+
+            return response;
+        },
+
+        /**
          * Get evaluation history.
          * @returns {Array}
          */

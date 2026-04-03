@@ -1968,10 +1968,21 @@
 }
 
 @keyframes delphiDots {
-    0%   { content: ''; }
-    25%  { content: '.'; }
-    50%  { content: '..'; }
-    75%  { content: '...'; }
+    0% {
+        content: '';
+    }
+
+    25% {
+        content: '.';
+    }
+
+    50% {
+        content: '..';
+    }
+
+    75% {
+        content: '...';
+    }
 }
 
 .delphi-oracle-pulse {
@@ -1979,10 +1990,87 @@
 }
 
 @keyframes delphiPulse {
-    0%, 100% { transform: scale(1); opacity: 0.7; }
-    50% { transform: scale(1.1); opacity: 1; }
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
 }
 
 .delphi-report-content strong {
     color: var(--text-primary);
+}
+
+/* === Delphi: Oracle Consultation Drawer === */
+.delphi-consult-drawer {
+    display: flex;
+    flex-direction: column;
+    border-top: 2px solid var(--accent-primary);
+    background: var(--bg-deep);
+    min-height: 200px;
+    max-height: 45%;
+    flex-shrink: 0;
+}
+
+.delphi-consult-messages {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.delphi-consult-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.delphi-consult-role {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.delphi-consult-oracle .delphi-consult-role {
+    color: var(--accent-primary);
+}
+
+.delphi-consult-user .delphi-consult-role {
+    color: var(--text-muted);
+}
+
+.delphi-consult-bubble {
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.delphi-consult-oracle .delphi-consult-bubble {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.delphi-consult-user .delphi-consult-bubble {
+    background: var(--accent-muted);
+    border: 1px solid var(--accent-primary);
+    color: var(--text-primary);
+}
+
+.delphi-consult-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
 }

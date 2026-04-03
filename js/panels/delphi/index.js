@@ -80,17 +80,37 @@
         reportArea.className = 'card flex-1 flex-col min-h-0 overflow-hidden';
         reportArea.innerHTML = `
             <div class="card-header flex-row items-center justify-between">
-                <strong>Diagnostic Report</strong>
-                <span class="text-muted text-xs" id="delphi-report-meta"></span>
+                <div class="flex-row items-center gap-sm">
+                    <strong>Diagnostic Report</strong>
+                    <button class="btn btn-ghost btn-sm" id="delphi-consult-btn" style="display:none;" title="Discuss this report with the Oracle">🔮 Consult the Oracle</button>
+                </div>
+                <div class="flex-row items-center gap-sm">
+                    <button class="btn btn-ghost btn-sm text-xs" id="delphi-consult-close" style="display:none;">✕ Close Chat</button>
+                    <span class="text-muted text-xs" id="delphi-report-meta"></span>
+                </div>
             </div>
-            <div class="card-body flex-1 scroll-y p-lg" id="delphi-report">
-                <div class="delphi-empty-state">
-                    <div style="font-size:48px; margin-bottom:12px;">🏛️</div>
-                    <div class="text-muted" style="font-size:14px; max-width:400px; margin:0 auto; line-height:1.6;">
-                        <strong>Welcome to the Temple of Delphi</strong><br><br>
-                        The Oracle will analyze your character definition and reveal how the LLM interprets your persona — 
-                        exposing trait dominance, trigger phrases, and hidden contradictions.<br><br>
-                        <span class="text-xs">Select a depth tier and click <strong>Evaluate</strong> to begin.</span>
+            <div class="flex-1 flex-col min-h-0 overflow-hidden">
+                <div class="card-body flex-1 scroll-y p-lg" id="delphi-report">
+                    <div class="delphi-empty-state">
+                        <div style="font-size:48px; margin-bottom:12px;">🏛️</div>
+                        <div class="text-muted" style="font-size:14px; max-width:400px; margin:0 auto; line-height:1.6;">
+                            <strong>Welcome to the Temple of Delphi</strong><br><br>
+                            The Oracle will analyze your character definition and reveal how the LLM interprets your persona — 
+                            exposing trait dominance, trigger phrases, and hidden contradictions.<br><br>
+                            <span class="text-xs">Select a depth tier and click <strong>Evaluate</strong> to begin.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="delphi-consult-drawer" id="delphi-consult-drawer" style="display:none;">
+                    <div class="delphi-consult-messages scroll-y" id="delphi-consult-messages">
+                        <div class="delphi-consult-msg delphi-consult-oracle">
+                            <div class="delphi-consult-role">🔮 Oracle</div>
+                            <div class="delphi-consult-bubble">I've completed my analysis. Ask me anything about this report — trait tuning, rewording suggestions, or how to shift the character in a specific direction.</div>
+                        </div>
+                    </div>
+                    <div class="delphi-consult-input">
+                        <input type="text" class="input flex-1" id="delphi-consult-text" placeholder='e.g. "What changes would make this character feel more tsundere?"'>
+                        <button class="btn btn-primary" id="delphi-consult-send">Send</button>
                     </div>
                 </div>
             </div>
@@ -117,6 +137,7 @@
         let currentMode = 'standalone';
         let currentResult = null;
         let multiResults = null;
+        let consultHistory = []; // Multi-turn consultation messages
 
         // Check if arriving from Spindle mid-chat
         if (state.sim?.delphiContext?.mode === 'midchat') {
@@ -188,7 +209,9 @@
                     if (entry) {
                         currentResult = entry;
                         multiResults = null;
+                        resetConsultation();
                         renderReport(entry);
+                        consultBtn.style.display = '';
                     }
                 };
             });
@@ -324,6 +347,103 @@
             return '<div class="delphi-formatted">' + html + '</div>';
         }
 
+        // === CONSULTATION CHAT ===
+        const consultBtn = reportArea.querySelector('#delphi-consult-btn');
+        const consultCloseBtn = reportArea.querySelector('#delphi-consult-close');
+        const consultDrawer = reportArea.querySelector('#delphi-consult-drawer');
+        const consultMessages = reportArea.querySelector('#delphi-consult-messages');
+        const consultInput = reportArea.querySelector('#delphi-consult-text');
+        const consultSendBtn = reportArea.querySelector('#delphi-consult-send');
+
+        function showConsultDrawer() {
+            consultDrawer.style.display = 'flex';
+            consultBtn.style.display = 'none';
+            consultCloseBtn.style.display = '';
+            consultInput.focus();
+        }
+
+        function hideConsultDrawer() {
+            consultDrawer.style.display = 'none';
+            consultBtn.style.display = '';
+            consultCloseBtn.style.display = 'none';
+        }
+
+        function resetConsultation() {
+            consultHistory = [];
+            consultMessages.innerHTML = `
+                <div class="delphi-consult-msg delphi-consult-oracle">
+                    <div class="delphi-consult-role">🔮 Oracle</div>
+                    <div class="delphi-consult-bubble">I've completed my analysis. Ask me anything about this report — trait tuning, rewording suggestions, or how to shift the character in a specific direction.</div>
+                </div>
+            `;
+            hideConsultDrawer();
+        }
+
+        function appendConsultMessage(role, content) {
+            const isOracle = role === 'assistant';
+            const msg = document.createElement('div');
+            msg.className = `delphi-consult-msg ${isOracle ? 'delphi-consult-oracle' : 'delphi-consult-user'}`;
+            msg.innerHTML = `
+                <div class="delphi-consult-role">${isOracle ? '🔮 Oracle' : '👤 You'}</div>
+                <div class="delphi-consult-bubble">${isOracle ? formatReport(content) : content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            `;
+            consultMessages.appendChild(msg);
+            consultMessages.scrollTop = consultMessages.scrollHeight;
+        }
+
+        async function sendConsultMessage() {
+            const text = consultInput.value.trim();
+            if (!text || !currentResult) return;
+
+            consultInput.value = '';
+            consultSendBtn.disabled = true;
+            consultInput.disabled = true;
+            appendConsultMessage('user', text);
+
+            // Show typing indicator
+            const typingEl = document.createElement('div');
+            typingEl.className = 'delphi-consult-msg delphi-consult-oracle';
+            typingEl.innerHTML = '<div class="delphi-consult-role">🔮 Oracle</div><div class="delphi-consult-bubble"><span class="delphi-loading-dots">Thinking</span></div>';
+            consultMessages.appendChild(typingEl);
+            consultMessages.scrollTop = consultMessages.scrollHeight;
+
+            try {
+                const response = await A.Delphi.consult({
+                    report: currentResult.report,
+                    personaData: currentResult.personaData,
+                    chatHistory: consultHistory,
+                    userMessage: text
+                });
+
+                // Remove typing indicator
+                typingEl.remove();
+
+                // Track history for multi-turn
+                consultHistory.push({ role: 'user', content: text });
+                consultHistory.push({ role: 'assistant', content: response });
+
+                appendConsultMessage('assistant', response);
+            } catch (e) {
+                typingEl.remove();
+                console.error('[Delphi Consult]', e);
+                if (A.UI?.Toast) A.UI.Toast.show(e.message, 'error');
+            } finally {
+                consultSendBtn.disabled = false;
+                consultInput.disabled = false;
+                consultInput.focus();
+            }
+        }
+
+        consultBtn.onclick = showConsultDrawer;
+        consultCloseBtn.onclick = hideConsultDrawer;
+        consultSendBtn.onclick = sendConsultMessage;
+        consultInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendConsultMessage();
+            }
+        };
+
         // === EVALUATE BUTTON ===
         const evalBtn = container.querySelector('#delphi-evaluate');
         evalBtn.onclick = async () => {
@@ -338,8 +458,12 @@
 
                 currentResult = result;
                 multiResults = null;
+                resetConsultation();
                 renderReport(result);
                 refreshHistory();
+
+                // Show consult button
+                consultBtn.style.display = '';
 
                 if (A.UI?.Toast) A.UI.Toast.show('Oracle has spoken', 'success');
 

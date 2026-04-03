@@ -16,6 +16,7 @@ All notable changes to Anansi will be documented in this file.
   - **Evaluation History**: Persistent tracking of past evaluations for before/after comparison.
   - **Spindle Bridge**: 🏛️ Evaluate button added to the Spindle Live toolbar for one-click mid-chat diagnostics.
   - **Token Limit Override**: Dedicated Delphi slider in API Configuration (defaults to 8K).
+  - **Oracle Consultation**: After any evaluation, click "🔮 Consult the Oracle" to open an interactive chat about the report. Ask the LLM to explain findings, suggest rewording, or guide the character in a specific direction — with full multi-turn conversation support.
 
 ## v2.0.4 - 2026-02-26
 ### New Features
