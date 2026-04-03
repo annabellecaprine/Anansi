@@ -1792,3 +1792,197 @@
     padding-top: var(--space-4);
     margin-top: var(--space-4);
 }
+
+/* === Temple of Delphi === */
+.delphi-depth-selector {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-deep);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    border: 1px solid var(--border-subtle);
+}
+
+.delphi-depth-btn {
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.delphi-depth-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+}
+
+.delphi-depth-btn.active {
+    background: var(--accent-primary);
+    color: white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.delphi-empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    opacity: 0.8;
+}
+
+.delphi-section {
+    margin-bottom: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-surface);
+}
+
+.delphi-section-header {
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s;
+}
+
+.delphi-section-header:hover {
+    background: var(--bg-deep);
+}
+
+.delphi-section-body {
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+}
+
+.delphi-section-h3 {
+    font-size: 16px;
+    margin: 16px 0 8px;
+    color: var(--accent-primary);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 6px;
+}
+
+.delphi-section-h4 {
+    font-size: 13px;
+    margin: 12px 0 6px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.delphi-list {
+    padding-left: 18px;
+    margin: 6px 0;
+    line-height: 1.7;
+}
+
+.delphi-list li {
+    margin-bottom: 3px;
+}
+
+.delphi-code {
+    background: var(--bg-deep);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--accent-secondary);
+}
+
+.delphi-score-high {
+    color: var(--status-success);
+    font-weight: 700;
+}
+
+.delphi-score-mid {
+    color: var(--status-warning);
+    font-weight: 700;
+}
+
+.delphi-score-low {
+    color: var(--status-error);
+    font-weight: 700;
+}
+
+.delphi-trigger-warning {
+    background: rgba(255, 100, 50, 0.08);
+    border: 1px solid rgba(255, 100, 50, 0.25);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+}
+
+.delphi-history-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+}
+
+.delphi-history-item:hover {
+    background: var(--bg-elevated);
+}
+
+.delphi-compare-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.delphi-compare-col {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-surface);
+}
+
+.delphi-compare-header {
+    padding: 10px 14px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.delphi-compare-body {
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.delphi-formatted p {
+    margin: 6px 0;
+}
+
+.delphi-loading-dots::after {
+    content: '';
+    animation: delphiDots 1.4s infinite;
+}
+
+@keyframes delphiDots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+}
+
+.delphi-oracle-pulse {
+    animation: delphiPulse 2s ease-in-out infinite;
+}
+
+@keyframes delphiPulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.delphi-report-content strong {
+    color: var(--text-primary);
+}

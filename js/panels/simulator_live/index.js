@@ -49,6 +49,7 @@
           <div class="w-px h-4 bg-border-subtle"></div>
           <button class="btn btn-ghost btn-sm" id="btn-run-all" title="Run Full Simulation Trace">Run Trace</button>
           <button class="btn btn-ghost btn-sm" id="btn-export-story" title="Export as Story">Export</button>
+          <button class="btn btn-ghost btn-sm" id="btn-delphi-eval" title="Evaluate persona in Temple of Delphi">🏛️ Evaluate</button>
           <button class="btn btn-ghost btn-sm text-error" id="btn-clear-chat">Clear</button>
           <div class="w-px h-4 bg-border-subtle"></div>
           <label class="flex-row items-center gap-xs text-xs cursor-pointer select-none">
@@ -700,6 +701,17 @@
                 A.State.notify();
             }
         };
+
+        // --- Delphi Evaluate Bridge ---
+        const delphiBtn = chatCol.querySelector('#btn-delphi-eval');
+        if (delphiBtn) {
+            delphiBtn.onclick = () => {
+                const state = A.State.get();
+                if (!state.sim) state.sim = {};
+                state.sim.delphiContext = { mode: 'midchat' };
+                if (A.UI?.switchPanel) A.UI.switchPanel('delphi');
+            };
+        }
 
         // --- Story Export ---
         chatCol.querySelector('#btn-export-story').onclick = async () => {

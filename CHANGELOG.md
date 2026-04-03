@@ -2,6 +2,21 @@
 
 All notable changes to Anansi will be documented in this file.
 
+## v2.1.0 - 2026-04-02
+### New Features
+- **Temple of Delphi**: New Sacred Tools module — a persona diagnostic engine that reveals how LLMs interpret character definitions.
+  - **Trait Interpretation Map**: Shows exactly how each personality descriptor is read and what behavioral patterns it produces.
+  - **Dominance Hierarchy**: Ranks all traits by signal strength, exposing which get overshadowed or ignored.
+  - **Trigger Phrases & Skew Warnings**: Identifies phrases that cause hostility magnets, passivity triggers, tone locks, angst traps, and positivity overrides.
+  - **Contradiction Detection**: Flags competing traits and explains which wins in ambiguous situations.
+  - **Recommendations** (Deep mode): Provides specific before/after rewording suggestions with section-by-section scoring.
+  - **Three Depth Tiers**: Surface (quick scan), Casual (full analysis), Deep (exhaustive with scoring and rewrite suggestions).
+  - **Standalone & Mid-Chat Modes**: Evaluate raw persona definitions or compiled post-injection context from an active Spindle session.
+  - **Cross-Model Comparison**: Run the same evaluation against all configured LLM providers for side-by-side diffing — ideal for proxy troubleshooting.
+  - **Evaluation History**: Persistent tracking of past evaluations for before/after comparison.
+  - **Spindle Bridge**: 🏛️ Evaluate button added to the Spindle Live toolbar for one-click mid-chat diagnostics.
+  - **Token Limit Override**: Dedicated Delphi slider in API Configuration (defaults to 8K).
+
 ## v2.0.4 - 2026-02-26
 ### New Features
 - **LM Studio Provider**: Added LM Studio as a first-class local provider option. Select "LM Studio (Local)" in API Configuration — no API key required. Defaults to `localhost:1234` (LM Studio's standard port). Uses the OpenAI-compatible chat completions endpoint.

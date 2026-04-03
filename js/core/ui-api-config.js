@@ -286,6 +286,16 @@
                                         </div>
                                         <input type="range" id="gen-weaver-tok" min="512" max="32768" step="512" value="${genSettings.worldWeaverMaxTokens || 4096}" style="width:100%;" ${genSettings.overrideWorldWeaver ? '' : 'disabled'}>
                                     </div>
+                                    
+                                    <!-- Temple of Delphi -->
+                                    <div class="form-group token-override-row">
+                                        <div style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" id="override-delphi" ${genSettings.overrideDelphi ? 'checked' : ''} style="margin:0;">
+                                            <label class="label" style="font-size:10px;margin:0;flex:1;">Temple of Delphi</label>
+                                            <span id="delphi-tok-val" style="font-size:11px;color:var(--accent-primary);">${genSettings.delphiMaxTokens || 8192}</span>
+                                        </div>
+                                        <input type="range" id="gen-delphi-tok" min="1024" max="131072" step="1024" value="${genSettings.delphiMaxTokens || 8192}" style="width:100%;" ${genSettings.overrideDelphi ? '' : 'disabled'}>
+                                    </div>
                                 </div>
                             </details>
                             
@@ -325,6 +335,7 @@
                     const chronosTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-chronos-tok'));
                     const parlorTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-parlor-tok'));
                     const weaverTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-weaver-tok'));
+                    const delphiTokInput = /** @type {HTMLInputElement} */ (body.querySelector('#gen-delphi-tok'));
 
                     // Override checkboxes
                     const overrideSim = /** @type {HTMLInputElement} */ (body.querySelector('#override-sim'));
@@ -336,6 +347,7 @@
                     const overrideChronos = /** @type {HTMLInputElement} */ (body.querySelector('#override-chronos'));
                     const overrideParlor = /** @type {HTMLInputElement} */ (body.querySelector('#override-parlor'));
                     const overrideWeaver = /** @type {HTMLInputElement} */ (body.querySelector('#override-weaver'));
+                    const overrideDelphi = /** @type {HTMLInputElement} */ (body.querySelector('#override-delphi'));
 
                     const settings = {
                         temperature: parseFloat(tempInput.value),
@@ -358,6 +370,7 @@
                         overrideChronos: overrideChronos?.checked || false,
                         overrideParlor: overrideParlor?.checked || false,
                         overrideWorldWeaver: overrideWeaver?.checked || false,
+                        overrideDelphi: overrideDelphi?.checked || false,
                         // Per-tool values
                         simulatorMaxTokens: parseInt(simTokInput?.value) || 4096,
                         nabuMaxTokens: parseInt(nabuTokInput?.value) || 2048,
@@ -367,7 +380,8 @@
                         hinaMaxTokens: parseInt(hinaTokInput?.value) || 4096,
                         chronosMaxTokens: parseInt(chronosTokInput?.value) || 4096,
                         parlorMaxTokens: parseInt(parlorTokInput?.value) || 4096,
-                        worldWeaverMaxTokens: parseInt(weaverTokInput?.value) || 4096
+                        worldWeaverMaxTokens: parseInt(weaverTokInput?.value) || 4096,
+                        delphiMaxTokens: parseInt(delphiTokInput?.value) || 8192
                     };
                     localStorage.setItem('anansi_gen_settings', JSON.stringify(settings));
                 };
@@ -418,6 +432,7 @@
                 bindSlider('#gen-chronos-tok', '#chronos-tok-val', formatK);
                 bindSlider('#gen-parlor-tok', '#parlor-tok-val', formatK);
                 bindSlider('#gen-weaver-tok', '#weaver-tok-val', formatK);
+                bindSlider('#gen-delphi-tok', '#delphi-tok-val', formatK);
 
                 // Override checkbox bindings
                 bindOverrideCheckbox('#override-sim', '#gen-sim-tok');
@@ -429,6 +444,7 @@
                 bindOverrideCheckbox('#override-chronos', '#gen-chronos-tok');
                 bindOverrideCheckbox('#override-parlor', '#gen-parlor-tok');
                 bindOverrideCheckbox('#override-weaver', '#gen-weaver-tok');
+                bindOverrideCheckbox('#override-delphi', '#gen-delphi-tok');
 
 
                 const list = body.querySelector('#configs-list');
@@ -700,11 +716,12 @@
             // Override flags
             overrideSimulator: false, overrideNabu: false, overrideNabuAdvanced: false,
             overrideMagicWand: false, overrideWritersBlock: false, overrideHina: false,
-            overrideChronos: false, overrideParlor: false, overrideWorldWeaver: true,
+            overrideChronos: false, overrideParlor: false, overrideWorldWeaver: true, overrideDelphi: false,
             // Per-tool defaults (used when override is enabled)
             simulatorMaxTokens: 4096, nabuMaxTokens: 2048, nabuAdvancedMaxTokens: 8192,
             magicWandMaxTokens: 4096, writersBlockMaxTokens: 4096, hinaMaxTokens: 4096,
-            chronosMaxTokens: 4096, parlorMaxTokens: 4096, worldWeaverMaxTokens: 4096
+            chronosMaxTokens: 4096, parlorMaxTokens: 4096, worldWeaverMaxTokens: 4096,
+            delphiMaxTokens: 8192
         };
         return { ...defaults, ...JSON.parse(localStorage.getItem('anansi_gen_settings') || '{}') };
     };
@@ -726,7 +743,8 @@
             hina: { override: 'overrideHina', value: 'hinaMaxTokens' },
             chronos: { override: 'overrideChronos', value: 'chronosMaxTokens' },
             parlor: { override: 'overrideParlor', value: 'parlorMaxTokens' },
-            worldWeaver: { override: 'overrideWorldWeaver', value: 'worldWeaverMaxTokens' }
+            worldWeaver: { override: 'overrideWorldWeaver', value: 'worldWeaverMaxTokens' },
+            delphi: { override: 'overrideDelphi', value: 'delphiMaxTokens' }
         };
         const config = toolMap[tool];
         if (config && s[config.override]) {

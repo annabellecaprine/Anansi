@@ -72,6 +72,10 @@
             dependencies: ['js/panels/parlor/parlor-prompts.js', 'js/panels/parlor/parlor-preview.js']
         },
         'nabu': { label: 'Nabu', icon: '✒️', category: 'Sacred Tools', order: 20 },
+        'delphi': {
+            label: 'Temple of Delphi', icon: '🏛️', category: 'Sacred Tools', order: 25,
+            dependencies: ['js/panels/delphi/delphi-engine.js']
+        },
         'world_weaver': {
             label: 'World Weaver', icon: '🕸️', category: 'Sacred Tools', order: 30,
             dependencies: [
