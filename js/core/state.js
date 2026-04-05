@@ -326,6 +326,14 @@
                 _state.environment.id = envId;
                 State.notify();
             }
+        },
+
+        /**
+         * Create a fresh default project state.
+         * @returns {AnansiState} A new default state object
+         */
+        createDefault: function () {
+            return createDefault();
         }
     };
 

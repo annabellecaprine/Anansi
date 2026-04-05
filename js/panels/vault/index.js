@@ -212,7 +212,8 @@
 
     // Use translator for rule-blocks
     if (item.type === 'rule-block') {
-      return translateRuleBlock(data);
+      const translated = translateRuleBlock(data);
+      return typeof translated === 'string' ? translated : String(translated);
     }
 
     const val = data.personality || data.description || data.content || '';
@@ -533,7 +534,7 @@
         if (isSelected) row.style.background = 'rgba(218, 165, 32, 0.15)'; // Special color for selection mode
 
         const name = getItemName(item);
-        const preview = getItemPreview(item).substring(0, 60);
+        const preview = String(getItemPreview(item) || '').substring(0, 60);
 
         const firstTag = (item.tags && item.tags.length > 0) ? item.tags[0] : '';
         const project = item.universe || item.sourceProjectName || 'Unknown Project';
